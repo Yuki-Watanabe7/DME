@@ -1,7 +1,3 @@
-using LinearAlgebra
-using NLsolve
-using Plots
-
 struct RBCModel
     α::Float64
     β::Float64

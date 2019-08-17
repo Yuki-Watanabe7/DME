@@ -1,11 +1,3 @@
-include("../util/util.jl")
-
-using LinearAlgebra
-using NLsolve
-using Plots
-using JuMP
-using Ipopt
-
 struct RamseyModel
     α::Float64
     β::Float64
@@ -61,43 +53,82 @@ function optimize_c(m::RamseyModel, k::Float64, f, lb::Float64, ub::Float64, sta
     value(ct)
 end
 
+function update_policy(m::RamseyModel, node::AbstractNode, old_hc, f, ϵ::Float64, itp_type::Interpo_Type)
+    ub = 0.99 * node.b
+    old_cc = [old_hc(x) for x in node.node]
+    new_cc = [optimize_c(m, st, f, 0.001, ub, 0.001) for st in node.node]
+    @debug new_cc
+    itp_param = create_itp_param(node, new_cc, itp_type)
+    new_hc = s -> interpo(s, itp_param)
+    (hc=new_hc, updated=is_updated(old_cc, new_cc, ϵ))
+end
+
+function V(m::RamseyModel, st::Float64, hc)
+    y = 0
+    for k in 0:1000
+        ct = max(min(hc(st), st), 0.001)
+        y += m.β^k * U(ct)
+        st = g(m, st, ct)
+    end
+    y
+end
+
+function update_value(m::RamseyModel, node::AbstractNode, hc, itp_type::Interpo_Type)
+    v = [V(m, st, hc) for st in node.node]
+    @debug v
+    itp_param = create_itp_param(node, v, itp_type)
+    s -> interpo(s, itp_param)
+end
+
 function solve_by_nlvar(m::RamseyModel)
     n, a, b = 20, 0.5, 3.0
     node = ChebNode(n, a, b)
-    niter, ϵ = 1000, 0.0001
+    niter, ϵ = 10, 0.0001
+    itp_param = ITPLine
 
     f = x -> -45 + sqrt(x)
     hc = x -> 0.001
-    cc = [hc(x) for x in node.node]
-    v = [f(x) for x in node.node]
 
-    for iter in 1:niter
-        c1 = copy(cc)
+    dt = Dates.format(now(), "yyyymmdd_HHMMSS")
+    io = open("solve_by_nlvar(RamseyModel)_$dt.log", "w+")
+    logger = SimpleLogger(io, Logging.Debug)
 
-        for (i, st) in enumerate(node.node)
-            cc[i] = optimize_c(m, st, f, 0.001, 0.99b, 0.001)
-        end
-        hc_cheb = Cheb(node, cc)
-        hc = s -> cheb(s, hc_cheb)
+    with_logger(logger) do
+        converged = -1
 
-        for (i, st) in enumerate(node.node)
-            ct = max(min(hc(st), st), 0.001)
-            y = U(ct)
-            for k in 1:1000
-                st = g(m, st, ct)
-                ct = max(min(hc(st), st), 0.001)
-                y += m.β^k * U(ct)
+        for iter in 1:niter
+            hc, updated = update_policy(m, node, hc, f, ϵ, itp_param)
+            f = update_value(m, node, hc, itp_param)
+            if !updated
+                converged = iter
+                break
             end
-            v[i] = y
         end
-        if (abs.(cc - c1) .< ϵ) == trues(n)
-            @show iter
-            break
-        end
-        f_cheb = Cheb(node, v)
-        f = s -> cheb(s, f_cheb)
 
+        if converged > 0
+            @info "Result is converged($converged)."
+        else
+            @warn "Result is not converged($niter)."
+        end
     end
 
+    close(io)
     return hc
+end
+
+function simulate_by_nlvar(m::RamseyModel, K0::Float64)
+    maxT = 30
+
+    hc = solve_by_nlvar(m)
+
+    K = zeros(maxT)
+    C = zeros(maxT)
+    K[1] = K0
+    C[1] = hc(K[1])
+
+    for i in 2:maxT
+        K[i] = g(m, K[i-1], C[i-1])
+        C[i] = hc(K[i])
+    end
+    (C=C, K=K)
 end
