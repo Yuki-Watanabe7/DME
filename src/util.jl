@@ -5,7 +5,7 @@ struct Node <: AbstractNode
     a::Float64
     b::Float64
     node::Vector{Float64}
-    function Node(node)
+    function Node(node::Vector{Float64})
         new(length(node), node[1], node[end], node)
     end
 end
@@ -15,13 +15,27 @@ struct ChebNode <: AbstractNode
     a::Float64
     b::Float64
     node::Vector{Float64}
-    function ChebNode(n, a, b)
+    function ChebNode(n::Integer, a::Real, b::Real)
         z = -cos.(([i for i in 1:n] .- 0.5) .* (pi / n))
         new(n, a, b, (z.+1) .* ((b-a)/2) .+ a)
     end
 end
 
-@enum Interpo_Type ITPCheb ITPLine
+struct RangeNode <: AbstractNode
+    n::Integer
+    a::Float64
+    b::Float64
+    node::StepRangeLen
+    function RangeNode(n::Integer, a::Real, b::Real)
+        step = (b-a) / (n-1)
+        node = a:step:b
+        new(length(node), a, b, node)
+    end
+end
+
+convert(::Type{RangeNode}, node::AbstractNode) = RangeNode(node.n, node.a, node.b, node.node)
+
+@enum Interpo_Type ITPCheb ITPLine ITPCubic
 
 function 𝛷̂(node::ChebNode, s)
     n, a, b = node.n, node.a, node.b
@@ -69,18 +83,34 @@ struct LinInterpo
     V::Vector{Float64}
 end
 
+struct CubicInterpo
+    node::RangeNode
+    V::Vector{Float64}
+end
+
 function create_itp_param(node::AbstractNode, value::Vector{Float64}, itp_type::Interpo_Type)
     if itp_type == ITPCheb
         itp_param = Cheb(node, value)
     elseif itp_type == ITPLine
         itp_param = LinInterpo(node, value)
+    elseif itp_type == ITPCubic
+        if isa(node, RangeNode)
+            itp_param = CubicInterpo(node, value)
+        else
+            error("$node is not supported for CubicSpline.")
+        end
     else
-        error("$itp is not Supported.")
+        error("$itp is not supported.")
     end
     return itp_param
 end
 
 function interpo(s, param::LinInterpo)
     itp = LinearInterpolation((param.node.node,), param.V, extrapolation_bc=Flat())
+    itp(s)
+end
+
+function interpo(s, param::CubicInterpo)
+    itp = CubicSplineInterpolation((param.node.node,), param.V, extrapolation_bc=Flat())
     itp(s)
 end

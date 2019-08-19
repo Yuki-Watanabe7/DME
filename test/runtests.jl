@@ -6,6 +6,11 @@ using Test
         @test DME.ChebNode(2, -1, 1).node ≈ [-1/sqrt(2), 1/sqrt(2)]
         @test DME.ChebNode(2, -1.5, 2.5).node ≈ [-1/sqrt(2), 1/sqrt(2)] .* 2 .+ 0.5
     end
+    @testset "RangeNode" begin
+        for (i, knot) in enumerate(DME.RangeNode(4, 1.0, 3.0).node)
+            @test knot ≈ 2 / 3 * (i-1) + 1
+        end
+    end
     @testset "is_updated" begin
         @test DME.is_updated([1.0, 2.0, 3.0], [1.09, 2.09, 3.09], 0.1) == false
         @test DME.is_updated([1.0, 2.0, 3.0], [1.09, 2.1, 3.09], 0.1) == true
@@ -56,8 +61,8 @@ end
     @testset "simulate_by_nlvar" begin
         ep = calc_ep(rams)
         rtn = simulate_by_nlvar(rams, ep[1]/2)
-        @test rtn.K[end] ≈ ep[1] atol=1e-1
-        @test rtn.C[end] ≈ ep[2] atol=1e-1
+        @test rtn.K[end] ≈ ep[1] atol=1e-2
+        @test rtn.C[end] ≈ ep[2] atol=1e-2
     end
 end
 

@@ -82,9 +82,9 @@ end
 
 function solve_by_nlvar(m::RamseyModel)
     n, a, b = 20, 0.5, 3.0
-    node = ChebNode(n, a, b)
-    niter, ϵ = 10, 0.0001
-    itp_param = ITPLine
+    node = RangeNode(n, a, b)
+    niter, ϵ = 100, 0.0001
+    itp_param = ITPCubic
 
     f = x -> -45 + sqrt(x)
     hc = x -> 0.001
