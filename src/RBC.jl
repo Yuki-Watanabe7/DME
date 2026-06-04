@@ -1,10 +1,30 @@
-struct RBCModel
+struct RBCModel <: AbstractMacroModel
     α::Float64
     β::Float64
     γ::Float64
     δ::Float64
     μ::Float64
     ρ::Float64
+end
+
+model_name(::RBCModel) = "RBC Model"
+state_variables(::RBCModel) = [:K, :A]
+control_variables(::RBCModel) = [:C, :L, :Y, :r, :w]
+parameters(m::RBCModel) = (α = m.α, β = m.β, γ = m.γ, δ = m.δ, μ = m.μ, ρ = m.ρ)
+
+function steady_state(m::RBCModel)
+    A, r, w, L, K, Y, C = calc_ep(m)
+    (A = A, r = r, w = w, L = L, K = K, Y = Y, C = C)
+end
+
+function transition_path(m::RBCModel, A0::Float64, K0::Float64)
+    d = find_path(m, A0, K0)
+    (A = d["A"], r = d["r"], w = d["w"], L = d["L"], K = d["K"], Y = d["Y"], C = d["C"])
+end
+
+function impulse_response(m::RBCModel, shock_size::Float64)
+    d = shock(m, shock_size)
+    (â = d["â"], r̂ = d["r̂"], ŵ = d["ŵ"], l̂ = d["l̂"], k̂ = d["k̂"], ŷ = d["ŷ"], ĉ = d["ĉ"])
 end
 
 function U(m::RBCModel, C, L)

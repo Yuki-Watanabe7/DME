@@ -1,6 +1,15 @@
 module DME
 
 export
+    AbstractMacroModel,
+    model_name,
+    state_variables,
+    control_variables,
+    parameters,
+    steady_state,
+    transition_path,
+    simulate,
+    impulse_response,
     RamseyModel,
     calc_ep,
     find_path,
@@ -20,6 +29,7 @@ using Logging
 using Dates
 
 include("./util.jl")
+include("./interface.jl")
 include("./ramsey.jl")
 include("./RBC.jl")
 
