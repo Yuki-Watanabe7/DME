@@ -1,7 +1,25 @@
-struct RamseyModel
+struct RamseyModel <: AbstractMacroModel
     α::Float64
     β::Float64
     δ::Float64
+end
+
+model_name(::RamseyModel) = "Ramsey Model"
+state_variables(::RamseyModel) = [:K]
+control_variables(::RamseyModel) = [:C]
+parameters(m::RamseyModel) = (α = m.α, β = m.β, δ = m.δ)
+
+function steady_state(m::RamseyModel)
+    K, C = calc_ep(m)
+    (K = K, C = C)
+end
+
+function transition_path(m::RamseyModel, K0::Float64)
+    find_path(m, K0)
+end
+
+function simulate(m::RamseyModel, K0::Float64)
+    simulate_by_nlvar(m, K0)
 end
 
 function U(m::RamseyModel, C)
