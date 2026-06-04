@@ -17,7 +17,11 @@ export
     simulate_by_nlvar,
     RBCModel,
     solve_rbc,
-    shock
+    shock,
+    SimulationResult,
+    variable_names,
+    nperiods,
+    to_simulation_result
 
 using LinearAlgebra
 using NLsolve
@@ -32,5 +36,6 @@ include("./util.jl")
 include("./interface.jl")
 include("./ramsey.jl")
 include("./RBC.jl")
+include("./simulation_result.jl")
 
 end
