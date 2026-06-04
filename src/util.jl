@@ -185,22 +185,30 @@ function create_itp_param(node::AbstractNode2D, value::Vector{Float64}, itp_type
 end
 
 function interpo(s, param::LinInterpo)
-    itp = LinearInterpolation(([x for x in node(param.nd)],), param.V, extrapolation_bc=Flat())
+    knots = collect(node(param.nd))
+    itp = extrapolate(interpolate((knots,), param.V, Gridded(Linear())), Flat())
     itp(s)
 end
 
 function interpo(s, param::CubicInterpo)
-    itp = CubicSplineInterpolation((node(param.nd),), param.V, extrapolation_bc=Flat())
+    itp = cubic_spline_interpolation((node(param.nd),), param.V, extrapolation_bc=Flat())
     itp(s)
 end
 
 function interpo(s, param::LinInterpo2D)
-    itp = extrapolate(interpolate(node(param.nd), param.V, Gridded(Linear())), Flat())
-#    itp = LinearInterpolation(node(param.nd), param.V, extrapolation_bc=Flat())
-    itp(s)
+    nd1_nodes, nd2_nodes = node(param.nd)
+    n1, n2 = len(param.nd)
+    # Reshape flat V into matrix[i,j] where i indexes nd1, j indexes nd2
+    # V is stored row-major: V[(i-1)*n2+j] → permutedims(reshape(V, n2, n1))
+    V_matrix = permutedims(reshape(param.V, n2, n1))
+    itp = extrapolate(interpolate((collect(nd1_nodes), collect(nd2_nodes)), V_matrix, Gridded(Linear())), Flat())
+    itp(s[1], s[2])
 end
 
 function interpo(s, param::CubicInterpo2D)
-    itp = CubicSplineInterpolation(node(param.nd), param.V, extrapolation_bc=Flat())
-    itp(s)
+    nd1_nodes, nd2_nodes = node(param.nd)
+    n1, n2 = len(param.nd)
+    V_matrix = permutedims(reshape(param.V, n2, n1))
+    itp = cubic_spline_interpolation((nd1_nodes, nd2_nodes), V_matrix, extrapolation_bc=Flat())
+    itp(s[1], s[2])
 end

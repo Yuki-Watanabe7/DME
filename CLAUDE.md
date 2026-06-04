@@ -1,0 +1,67 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Common Commands
+
+```bash
+# パッケージのインストール・依存解決
+julia --project=. -e "using Pkg; Pkg.instantiate()"
+
+# テスト全体を実行
+julia --project=. -e "using Pkg; Pkg.test()"
+
+# 特定のテストセットのみ実行（例: util のみ）
+julia --project=. -e '
+  using DME, Test
+  @testset "util" begin
+    # test/runtests.jl の対象ブロックをペースト
+  end
+'
+
+# REPL で動作確認
+julia --project=.
+# julia> using DME
+# julia> m = RamseyModel(0.3, 0.99, 0.25)
+# julia> calc_ep(m)
+```
+
+## パッケージ構成
+
+Julia パッケージ。`src/DME.jl` がモジュールのエントリポイントで、以下の 3 ファイルを `include` する。
+
+| ファイル | 役割 |
+|---|---|
+| `src/util.jl` | 補間ユーティリティ（Node 型階層、Chebychev/線形/三次スプライン補間） |
+| `src/ramsey.jl` | Ramsey モデル（無限期間消費・資本経路の計算、価値反復法） |
+| `src/RBC.jl` | RBC モデル（線形化による定常状態計算、インパルス応答） |
+
+## アーキテクチャ概要
+
+### Node 型階層（`util.jl`）
+
+状態空間グリッドを抽象化する型ツリー。補間関数は `interpo(s, param)` で統一されており、`param` の型（`Cheb`, `LinInterpo`, `CubicInterpo` など）でディスパッチする。
+
+- `AbstractNode1D` → `Node`（任意ベクトル）, `AbstractNode1DWithParam` → `ChebNode`, `RangeNode`
+- `AbstractNode2D` → `Node2D`, `RangeNode2D`
+- 2D 補間では V（値ベクトル）を `permutedims(reshape(V, n2, n1))` で行列化する。レイアウトは `V[(i-1)*n2 + j]`（i: node1 インデックス、j: node2 インデックス）。
+
+### Ramsey モデル（`ramsey.jl`）
+
+- `calc_ep` → 定常状態 (K*, C*) を解析的に計算
+- `find_path` → `NLsolve` で有限期間 (T=30) の完全予見経路を求解
+- `solve_by_nlvar` → 価値反復法（`optimize_c` で JuMP+Ipopt を使った 1D 最適化 → `update_policy` → `update_value` を繰り返し）
+- `simulate_by_nlvar` → `solve_by_nlvar` で得たポリシー関数を使って動学シミュレーション
+
+### RBC モデル（`RBC.jl`）
+
+- `calc_ep` → 定常状態 (A*, r*, w*, L*, K*, Y*, C*) を解析的に計算
+- `find_path` → `NLsolve` で有限期間 (T=150) の完全予見経路を求解
+- `solve_rbc` → 線形化（ブランチャード=カーン法）で遷移行列 A_A と状態-操作変数行列 P を返す
+- `shock` → `solve_rbc` の結果を使いインパルス応答を計算
+
+## 依存パッケージの注意点
+
+- **JuMP 1.x**: `optimize_c` では `@operator` + `@objective` を使用。`with_optimizer` / `@NLobjective` は使わない（削除済み）。
+- **Interpolations 0.13+**: `cubic_spline_interpolation`（小文字）を使用。`CubicSplineInterpolation` は非推奨。
+- **NLsolve**: `nlsolve(f, x0).zero` で解ベクトルを取得するパターン。

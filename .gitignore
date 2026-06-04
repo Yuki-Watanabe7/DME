@@ -1,2 +1,4 @@
 *.log
 *.xlsx
+*\ (1).*
+Manifest.toml

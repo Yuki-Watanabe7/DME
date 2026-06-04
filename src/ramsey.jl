@@ -48,12 +48,12 @@ function find_path(m::RamseyModel, K0::Float64)
 end
 
 function optimize_c(m::RamseyModel, k::Float64, f, lb::Float64, ub::Float64, start::Float64)
-    obj = ct -> -U(m, ct) - m.β*f(g(m, k, ct))
-    model = Model(with_optimizer(Ipopt.Optimizer, print_level=0))
-    @variable(model, lb <= ct <= ub, start=start)
-    register(model, :obj, 1, obj, autodiff=true)
-    @NLobjective(model, Min, obj(ct))
-    @NLconstraint(model, ct<=(1-m.δ)k+k^m.α)
+    budget_ub = min(ub, (1 - m.δ) * k + k^m.α)
+    obj = ct -> -U(m, ct) - m.β * f(g(m, k, ct))
+    model = Model(optimizer_with_attributes(Ipopt.Optimizer, "print_level" => 0))
+    @variable(model, lb <= ct <= budget_ub, start = start)
+    @operator(model, op_obj, 1, obj)
+    @objective(model, Min, op_obj(ct))
     optimize!(model)
     value(ct)
 end

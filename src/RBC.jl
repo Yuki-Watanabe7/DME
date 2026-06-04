@@ -12,7 +12,7 @@ function U(m::RBCModel, C, L)
 end
 
 function g(m::RBCModel, K, A, C, L, ϵ)
-    w = (1-m.α) * K^m.α / L^α * A
+    w = (1-m.α) * K^m.α / L^m.α * A
     r = m.α * L^(1-m.α) / K^(1-m.α) * A
     new_K = L*w + K*r + (1-m.δ)*K - C
     new_A = exp(m.ρ * log(A) + ϵ)
@@ -161,78 +161,3 @@ function shock(m::RBCModel, ϵ0::Float64)
                 "k̂" => k̂, "ŷ" => ŷ, "ĉ" => ĉ)
 end
 
-function optimize_c(m::RBCModel, k::Float64, f, lb::Float64, ub::Float64, start::Float64)
-    obj = ct -> -U(m, ct, lt) - m.β*f(g(m, k, a, ct, lt, 0)...)
-    model = Model(with_optimizer(Ipopt.Optimizer, print_level=0))
-    @variable(model, lb <= ct <= ub, start=start)
-    register(model, :obj, 1, obj, autodiff=true)
-    @NLobjective(model, Min, obj(ct))
-    @NLconstraint(model, ct<=(1-m.δ)k)
-    optimize!(model)
-    value(ct)
-end
-
-function update_policy(m::RBCModel, node::AbstractNode, old_hc, f, ϵ::Float64, itp_type::Interpo_Type)
-    ub = 0.99 * node.b
-    old_cc = [old_hc(x) for x in node.node]
-    new_cc = [optimize_c(m, k, f, 0.001, ub, 0.001) for k in node.node]
-    @debug new_cc
-    itp_param = create_itp_param(node, new_cc, itp_type)
-    new_hc = s -> interpo(s, itp_param)
-    (hc=new_hc, updated=is_updated(old_cc, new_cc, ϵ))
-end
-
-function V(m::RBCModel, kt::Float64, at::Float64, hc, hl)
-    y = 0
-    for t in 0:500
-        ct = max(min(hc(kt), kt), 0.001)
-        lt = hl(ct, kt, at)
-        y += m.β^t * U(m, ct, lt)
-        kt, at = g(m, kt, at, ct, lt, 0)
-    end
-    y
-end
-
-function update_value(m::RBCModel, node::AbstractNode, hc, hl, itp_type::Interpo_Type)
-    v = [V(m, kt, at, hc, hl) for (kt, at) in node.node]
-    @debug v
-    itp_param = create_itp_param(node, v, itp_type)
-    s -> interpo(s, itp_param)
-end
-
-function solve_by_nlvar(m::RBCModel)
-    n, a, b = 15, [1.0, 0.9], [30.0, 1.1]
-    node = RangeNode(n, a, b)
-    niter, ϵ = 100, 0.0001
-    itp_param = ITPCubic
-
-    f = (k, a) -> -45 + sqrt(k) + sqrt(a)
-    hc = x -> 0.001
-    hl = (ct, k, a) -> ((1-m.α)a*k^m.α/((m.γ+1)m.μ*ct))^(1/(m.α+m.γ))
-
-    dt = Dates.format(now(), "yyyymmdd_HHMMSS")
-    io = open("solve_by_nlvar(RBCModel)_$dt.log", "w+")
-    logger = SimpleLogger(io, Logging.Debug)
-
-    with_logger(logger) do
-        converged = -1
-
-        for iter in 1:niter
-            hc, updated = update_policy(m, node, hc, f, ϵ, itp_param)
-            f = update_value(m, node, hc, hl, itp_param)
-            if !updated
-                converged = iter
-                break
-            end
-        end
-
-        if converged > 0
-            @info "Result is converged($converged)."
-        else
-            @warn "Result is not converged($niter)."
-        end
-    end
-
-    close(io)
-    return hc
-end
