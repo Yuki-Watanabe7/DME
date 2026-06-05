@@ -47,4 +47,20 @@ end
         hc = DME.solve_by_nlvar(rams; opts = opts)
         @test hc(ep[1]) > 0
     end
+
+    @testset "solve_by_nlvar デフォルトでログファイル未生成" begin
+        log_files_before = filter(f -> endswith(f, ".log"), readdir("."))
+        opts = ValueIterationOptions(n = 10, a = 0.5, b = 3.0, max_iter = 50)
+        DME.solve_by_nlvar(rams; opts = opts)
+        log_files_after = filter(f -> endswith(f, ".log"), readdir("."))
+        @test log_files_before == log_files_after
+    end
+
+    @testset "solve_by_nlvar log_path 指定でファイル生成" begin
+        opts = ValueIterationOptions(n = 10, a = 0.5, b = 3.0, max_iter = 50)
+        log_file = tempname() * ".log"
+        DME.solve_by_nlvar(rams; opts = opts, log_path = log_file)
+        @test isfile(log_file)
+        rm(log_file)
+    end
 end

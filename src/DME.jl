@@ -35,7 +35,6 @@ using Ipopt
 using Plots
 using Interpolations
 using Logging
-using Dates
 
 # Numerical utilities: grid types and interpolation
 include("./numerics/grids.jl")
