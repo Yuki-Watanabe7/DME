@@ -17,13 +17,13 @@ function steady_state(m::RBCModel)
     (A = A, r = r, w = w, L = L, K = K, Y = Y, C = C)
 end
 
-function transition_path(m::RBCModel, A0::Float64, K0::Float64)
-    d = find_path(m, A0, K0)
+function transition_path(m::RBCModel, A0::Float64, K0::Float64; maxT::Int = 150)
+    d = find_path(m, A0, K0; maxT = maxT)
     (A = d["A"], r = d["r"], w = d["w"], L = d["L"], K = d["K"], Y = d["Y"], C = d["C"])
 end
 
-function impulse_response(m::RBCModel, shock_size::Float64)
-    d = shock(m, shock_size)
+function impulse_response(m::RBCModel, shock_size::Float64; maxT::Int = 150)
+    d = shock(m, shock_size; maxT = maxT)
     (â = d["â"], r̂ = d["r̂"], ŵ = d["ŵ"], l̂ = d["l̂"], k̂ = d["k̂"], ŷ = d["ŷ"], ĉ = d["ĉ"])
 end
 
@@ -54,9 +54,8 @@ function calc_ep(m::RBCModel)::Tuple{Float64, Float64, Float64, Float64, Float64
     return A⃰, r⃰, w⃰, L⃰, K⃰, Y⃰, C⃰
 end
 
-function find_path(m::RBCModel, A0::Float64, K0::Float64)::Dict{String, Vector{Float64}}
+function find_path(m::RBCModel, A0::Float64, K0::Float64; maxT::Int = 150)::Dict{String, Vector{Float64}}
     α, β, γ, δ, μ, ρ = m.α, m.β, m.γ, m.δ, m.μ, m.ρ
-    maxT = 150
     A⃰, r⃰, w⃰, L⃰, K⃰, Y⃰, C⃰ = calc_ep(m)
 
     function f(F, X)
@@ -156,10 +155,9 @@ function solve_rbc(m::RBCModel)::Tuple{Matrix{Float64}, Matrix{Float64}}
     return A_A, P
 end
 
-function shock(m::RBCModel, ϵ0::Float64)
+function shock(m::RBCModel, ϵ0::Float64; maxT::Int = 150)
     α, β, γ, δ, μ, ρ = m.α, m.β, m.γ, m.δ, m.μ, m.ρ
     A⃰, r⃰, w⃰, L⃰, K⃰, Y⃰, C⃰ = calc_ep(m)
-    maxT = 150
     A_A, P = solve_rbc(m)
 
     S = zeros(maxT+1, 2)
@@ -169,15 +167,14 @@ function shock(m::RBCModel, ϵ0::Float64)
     end
     X = (P * S')'
 
-    â = S[1:end, 2]
+    â = S[1:end, 2]
     r̂ = X[1:end, 5]
-    ŵ = X[1:end, 4]
+    ŵ = X[1:end, 4]
     l̂ = X[1:end, 2]
     k̂ = S[1:end, 1]
-    ŷ = X[1:end, 3]
-    ĉ = X[1:end, 1]
+    ŷ = X[1:end, 3]
+    ĉ = X[1:end, 1]
 
-    return Dict("â" => â, "r̂" => r̂, "ŵ" => ŵ, "l̂" => l̂,
-                "k̂" => k̂, "ŷ" => ŷ, "ĉ" => ĉ)
+    return Dict("â" => â, "r̂" => r̂, "ŵ" => ŵ, "l̂" => l̂,
+                "k̂" => k̂, "ŷ" => ŷ, "ĉ" => ĉ)
 end
-

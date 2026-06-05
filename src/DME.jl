@@ -21,7 +21,9 @@ export
     SimulationResult,
     variable_names,
     nperiods,
-    to_simulation_result
+    to_simulation_result,
+    SolverOptions,
+    ValueIterationOptions
 
 using LinearAlgebra
 using NLsolve
@@ -34,6 +36,7 @@ using Dates
 
 include("./util.jl")
 include("./interface.jl")
+include("./solver_options.jl")
 include("./ramsey.jl")
 include("./RBC.jl")
 include("./simulation_result.jl")

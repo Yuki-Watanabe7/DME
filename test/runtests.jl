@@ -184,3 +184,66 @@ end
         @test !haskey(r, "__test_extra__")
     end
 end
+
+@testset "SolverOptions" begin
+    @testset "SolverOptions デフォルト値" begin
+        opts = SolverOptions()
+        @test opts.horizon == 30
+        @test opts.max_iter == 1000
+        @test opts.tolerance == 1e-8
+    end
+    @testset "SolverOptions カスタム値" begin
+        opts = SolverOptions(horizon = 15, max_iter = 500, tolerance = 1e-6)
+        @test opts.horizon == 15
+        @test opts.max_iter == 500
+        @test opts.tolerance == 1e-6
+    end
+    @testset "ValueIterationOptions デフォルト値" begin
+        opts = ValueIterationOptions()
+        @test opts.n == 20
+        @test opts.a == 0.5
+        @test opts.b == 3.0
+        @test opts.max_iter == 100
+        @test opts.tolerance == 0.0001
+        @test opts.itp_type == DME.ITPCubic
+    end
+    @testset "ValueIterationOptions カスタム値" begin
+        opts = ValueIterationOptions(n = 10, a = 0.8, b = 2.5, max_iter = 50)
+        @test opts.n == 10
+        @test opts.a == 0.8
+        @test opts.b == 2.5
+        @test opts.max_iter == 50
+    end
+end
+
+@testset "カスタム設定でのシミュレーション" begin
+    rams = RamseyModel(0.3, 0.99, 0.25)
+    rbc = RBCModel(0.3, 0.99, 1, 0.025, 1, 0.9)
+
+    @testset "find_path（Ramsey）カスタム maxT" begin
+        ep = calc_ep(rams)
+        rtn = find_path(rams, ep[1] / 2; maxT = 15)
+        @test length(rtn.K) == 16   # maxT + 1
+        @test length(rtn.C) == 16
+    end
+
+    @testset "solve_by_nlvar カスタム opts" begin
+        ep = calc_ep(rams)
+        opts = ValueIterationOptions(n = 10, a = 0.5, b = 3.0, max_iter = 50)
+        hc = solve_by_nlvar(rams; opts = opts)
+        @test hc(ep[1]) > 0
+    end
+
+    @testset "find_path（RBC）カスタム maxT" begin
+        A⃰, _, _, _, K⃰, _, _ = calc_ep(rbc)
+        rtn = find_path(rbc, A⃰ * 0.9, K⃰ * 0.9; maxT = 30)
+        @test length(rtn["K"]) == 31  # maxT + 1
+        @test length(rtn["A"]) == 31
+    end
+
+    @testset "shock カスタム maxT" begin
+        rtn = shock(rbc, 0.01; maxT = 30)
+        @test length(rtn["â"]) == 31  # maxT + 1
+        @test length(rtn["ĉ"]) == 31
+    end
+end

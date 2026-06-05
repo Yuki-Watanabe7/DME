@@ -14,12 +14,12 @@ function steady_state(m::RamseyModel)
     (K = K, C = C)
 end
 
-function transition_path(m::RamseyModel, K0::Float64)
-    find_path(m, K0)
+function transition_path(m::RamseyModel, K0::Float64; maxT::Int = 30)
+    find_path(m, K0; maxT = maxT)
 end
 
-function simulate(m::RamseyModel, K0::Float64)
-    simulate_by_nlvar(m, K0)
+function simulate(m::RamseyModel, K0::Float64; maxT::Int = 30, vi_opts::ValueIterationOptions = ValueIterationOptions())
+    simulate_by_nlvar(m, K0; maxT = maxT, vi_opts = vi_opts)
 end
 
 function U(m::RamseyModel, C)
@@ -37,9 +37,8 @@ function calc_ep(m::RamseyModel)
     return K⃰, C⃰
 end
 
-function find_path(m::RamseyModel, K0::Float64)
+function find_path(m::RamseyModel, K0::Float64; maxT::Int = 30)
     α, β, δ = m.α, m.β, m.δ
-    maxT = 30
     K⃰, C⃰ = calc_ep(m)
 
     function f(F, X)
@@ -103,11 +102,11 @@ function update_value(m::RamseyModel, nd::AbstractNode, hc, itp_type::Interpo_Ty
     s -> interpo(s, itp_param)
 end
 
-function solve_by_nlvar(m::RamseyModel)
-    n, a, b = 20, 0.5, 3.0
-    node = RangeNode(n, a, b)
-    niter, ϵ = 100, 0.0001
-    itp_param = ITPCubic
+function solve_by_nlvar(m::RamseyModel; opts::ValueIterationOptions = ValueIterationOptions())
+    n, a, b = opts.n, opts.a, opts.b
+    nd = RangeNode(n, a, b)
+    niter, ϵ = opts.max_iter, opts.tolerance
+    itp_param = opts.itp_type
 
     f = x -> -45 + sqrt(x)
     hc = x -> 0.001
@@ -120,8 +119,8 @@ function solve_by_nlvar(m::RamseyModel)
         converged = -1
 
         for iter in 1:niter
-            hc, updated = update_policy(m, node, hc, f, ϵ, itp_param)
-            f = update_value(m, node, hc, itp_param)
+            hc, updated = update_policy(m, nd, hc, f, ϵ, itp_param)
+            f = update_value(m, nd, hc, itp_param)
             if !updated
                 converged = iter
                 break
@@ -139,10 +138,8 @@ function solve_by_nlvar(m::RamseyModel)
     return hc
 end
 
-function simulate_by_nlvar(m::RamseyModel, K0::Float64)
-    maxT = 30
-
-    hc = solve_by_nlvar(m)
+function simulate_by_nlvar(m::RamseyModel, K0::Float64; maxT::Int = 30, vi_opts::ValueIterationOptions = ValueIterationOptions())
+    hc = solve_by_nlvar(m; opts = vi_opts)
 
     K = zeros(maxT)
     C = zeros(maxT)
