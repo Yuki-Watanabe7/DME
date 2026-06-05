@@ -28,32 +28,58 @@ julia --project=.
 
 ## パッケージ構成
 
-Julia パッケージ。`src/DME.jl` がモジュールのエントリポイントで、以下の 3 ファイルを `include` する。
+Julia パッケージ。`src/DME.jl` がモジュールのエントリポイント。`src/` 配下は責務別に以下のサブディレクトリへ分離されている。
 
-| ファイル | 役割 |
-|---|---|
-| `src/util.jl` | 補間ユーティリティ（Node 型階層、Chebychev/線形/三次スプライン補間） |
-| `src/ramsey.jl` | Ramsey モデル（無限期間消費・資本経路の計算、価値反復法） |
-| `src/RBC.jl` | RBC モデル（線形化による定常状態計算、インパルス応答） |
+```text
+src/
+  DME.jl
+  numerics/
+    grids.jl          # Node/Grid 型階層とグリッドユーティリティ
+    interpolation.jl  # 補間型（Cheb/線形/三次スプライン）と interpo 関数群
+  core/
+    model_interface.jl   # AbstractMacroModel インターフェース定義
+    solver_options.jl    # SolverOptions / ValueIterationOptions
+    simulation_result.jl # SimulationResult（モデル横断的な結果型）
+  models/
+    ramsey.jl  # Ramsey モデル実装
+    rbc.jl     # RBC モデル実装
+```
+
+### include 順序
+
+`DME.jl` は以下の順でインクルードする。後続ファイルが前のファイルの定義に依存するため順序は固定。
+
+1. `numerics/grids.jl`
+2. `numerics/interpolation.jl`（`Interpo_Type` 列挙型を定義）
+3. `core/model_interface.jl`
+4. `core/solver_options.jl`（`Interpo_Type` を使用）
+5. `models/ramsey.jl`
+6. `models/rbc.jl`
+7. `core/simulation_result.jl`（`RamseyModel`・`RBCModel` を使用）
 
 ## アーキテクチャ概要
 
-### Node 型階層（`util.jl`）
+### Node 型階層（`numerics/grids.jl`）
 
-状態空間グリッドを抽象化する型ツリー。補間関数は `interpo(s, param)` で統一されており、`param` の型（`Cheb`, `LinInterpo`, `CubicInterpo` など）でディスパッチする。
+状態空間グリッドを抽象化する型ツリー。
 
 - `AbstractNode1D` → `Node`（任意ベクトル）, `AbstractNode1DWithParam` → `ChebNode`, `RangeNode`
 - `AbstractNode2D` → `Node2D`, `RangeNode2D`
+
+### 補間（`numerics/interpolation.jl`）
+
+補間関数は `interpo(s, param)` で統一されており、`param` の型（`Cheb`, `LinInterpo`, `CubicInterpo` など）でディスパッチする。
+
 - 2D 補間では V（値ベクトル）を `permutedims(reshape(V, n2, n1))` で行列化する。レイアウトは `V[(i-1)*n2 + j]`（i: node1 インデックス、j: node2 インデックス）。
 
-### Ramsey モデル（`ramsey.jl`）
+### Ramsey モデル（`models/ramsey.jl`）
 
 - `calc_ep` → 定常状態 (K*, C*) を解析的に計算
 - `find_path` → `NLsolve` で有限期間 (T=30) の完全予見経路を求解
 - `solve_by_nlvar` → 価値反復法（`optimize_c` で JuMP+Ipopt を使った 1D 最適化 → `update_policy` → `update_value` を繰り返し）
 - `simulate_by_nlvar` → `solve_by_nlvar` で得たポリシー関数を使って動学シミュレーション
 
-### RBC モデル（`RBC.jl`）
+### RBC モデル（`models/rbc.jl`）
 
 - `calc_ep` → 定常状態 (A*, r*, w*, L*, K*, Y*, C*) を解析的に計算
 - `find_path` → `NLsolve` で有限期間 (T=150) の完全予見経路を求解
