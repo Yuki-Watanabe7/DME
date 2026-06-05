@@ -21,6 +21,8 @@ export
     variable_names,
     nperiods,
     to_simulation_result,
+    # Visualization
+    plot_result,
     # Solver options
     SolverOptions,
     ValueIterationOptions
@@ -50,5 +52,8 @@ include("./models/rbc.jl")
 
 # Cross-model result type (depends on RamseyModel and RBCModel)
 include("./core/simulation_result.jl")
+
+# Visualization (depends on SimulationResult)
+include("./core/visualization.jl")
 
 end

@@ -73,6 +73,34 @@ irf.ĉ  # 消費の対数偏差
 irf.k̂  # 資本の対数偏差
 ```
 
+### プロット
+
+`SimulationResult` を直接プロットできます。
+
+```julia
+using DME
+
+m = RamseyModel(0.3, 0.99, 0.25)
+ep = steady_state(m)
+sr = to_simulation_result(m, simulate(m, ep.K / 2), "simulate")
+
+# すべての変数をプロット
+p = plot_result(sr)
+
+# 特定の変数を指定してプロット
+p = plot_result(sr; vars = ["K", "C"], title = "Ramsey 移行経路")
+
+# Symbol でも指定可能
+p = plot_result(sr; vars = :K, xlabel = "Period", ylabel = "Capital")
+```
+
+存在しない変数を指定すると、利用可能な変数名を含むエラーが返ります。
+
+```julia
+plot_result(sr; vars = "Z")
+# ArgumentError: 次の変数が見つかりません: Z. 利用可能な変数: C, K
+```
+
 ### モデルメタ情報
 
 すべてのモデルは共通のメタ情報 API を持ちます。
