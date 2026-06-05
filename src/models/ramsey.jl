@@ -18,7 +18,13 @@ function transition_path(m::RamseyModel, K0::Float64; maxT::Int = 30)
     find_path(m, K0; maxT = maxT)
 end
 
-function simulate(m::RamseyModel, K0::Float64; maxT::Int = 30, vi_opts::ValueIterationOptions = ValueIterationOptions(), log_path::Union{String,Nothing} = nothing)
+function simulate(
+    m::RamseyModel,
+    K0::Float64;
+    maxT::Int = 30,
+    vi_opts::ValueIterationOptions = ValueIterationOptions(),
+    log_path::Union{String, Nothing} = nothing,
+)
     simulate_by_nlvar(m, K0; maxT = maxT, vi_opts = vi_opts, log_path = log_path)
 end
 
@@ -44,11 +50,11 @@ function find_path(m::RamseyModel, K0::Float64; maxT::Int = 30)
     function f(F, X)
         c = X[1:maxT]
         push!(c, C⃰)
-        k = X[maxT+1:2maxT]
+        k = X[(maxT + 1):2maxT]
         pushfirst!(k, K0)
         for i in 1:maxT
-            F[2i-1] = c[i+1]/c[i] - β*(α*k[i+1]^(α-1)-δ+1)
-            F[2i] = k[i+1] - g(m, k[i], c[i])
+            F[2i - 1] = c[i + 1]/c[i] - β*(α*k[i + 1]^(α-1)-δ+1)
+            F[2i] = k[i + 1] - g(m, k[i], c[i])
         end
     end
 
@@ -59,9 +65,9 @@ function find_path(m::RamseyModel, K0::Float64; maxT::Int = 30)
     ans = nlsolve(f, ini_v).zero
     C = ans[1:maxT]
     push!(C, C⃰)
-    K = ans[maxT+1:2maxT]
+    K = ans[(maxT + 1):2maxT]
     pushfirst!(K, K0)
-    (C=C, K=K)
+    (C = C, K = K)
 end
 
 function optimize_c(m::RamseyModel, k::Float64, f, lb::Float64, ub::Float64, start::Float64)
@@ -75,14 +81,21 @@ function optimize_c(m::RamseyModel, k::Float64, f, lb::Float64, ub::Float64, sta
     value(ct)
 end
 
-function update_policy(m::RamseyModel, nd::AbstractNode, old_hc, f, ϵ::Float64, itp_type::Interpo_Type)
+function update_policy(
+    m::RamseyModel,
+    nd::AbstractNode,
+    old_hc,
+    f,
+    ϵ::Float64,
+    itp_type::Interpo_Type,
+)
     ub = 0.99 * upper_bound(nd)
     old_cc = [old_hc(x) for x in node(nd)]
     new_cc = [optimize_c(m, st, f, 0.001, ub, 0.001) for st in node(nd)]
     @debug new_cc
     itp_param = create_itp_param(nd, new_cc, itp_type)
     new_hc = s -> interpo(s, itp_param)
-    (hc=new_hc, updated=is_updated(old_cc, new_cc, ϵ))
+    (hc = new_hc, updated = is_updated(old_cc, new_cc, ϵ))
 end
 
 function V(m::RamseyModel, st::Float64, hc)
@@ -102,7 +115,11 @@ function update_value(m::RamseyModel, nd::AbstractNode, hc, itp_type::Interpo_Ty
     s -> interpo(s, itp_param)
 end
 
-function solve_by_nlvar(m::RamseyModel; opts::ValueIterationOptions = ValueIterationOptions(), log_path::Union{String,Nothing} = nothing)
+function solve_by_nlvar(
+    m::RamseyModel;
+    opts::ValueIterationOptions = ValueIterationOptions(),
+    log_path::Union{String, Nothing} = nothing,
+)
     n, a, b = opts.n, opts.a, opts.b
     nd = RangeNode(n, a, b)
     niter, ϵ = opts.max_iter, opts.tolerance
@@ -141,7 +158,13 @@ function solve_by_nlvar(m::RamseyModel; opts::ValueIterationOptions = ValueItera
     return hc
 end
 
-function simulate_by_nlvar(m::RamseyModel, K0::Float64; maxT::Int = 30, vi_opts::ValueIterationOptions = ValueIterationOptions(), log_path::Union{String,Nothing} = nothing)
+function simulate_by_nlvar(
+    m::RamseyModel,
+    K0::Float64;
+    maxT::Int = 30,
+    vi_opts::ValueIterationOptions = ValueIterationOptions(),
+    log_path::Union{String, Nothing} = nothing,
+)
     hc = solve_by_nlvar(m; opts = vi_opts, log_path = log_path)
 
     K = zeros(maxT)
@@ -150,8 +173,8 @@ function simulate_by_nlvar(m::RamseyModel, K0::Float64; maxT::Int = 30, vi_opts:
     C[1] = hc(K[1])
 
     for i in 2:maxT
-        K[i] = g(m, K[i-1], C[i-1])
+        K[i] = g(m, K[i - 1], C[i - 1])
         C[i] = hc(K[i])
     end
-    (C=C, K=K)
+    (C = C, K = K)
 end

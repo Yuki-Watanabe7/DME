@@ -66,7 +66,7 @@ end
 function node(nd::ChebNode)
     n, a, b = len(nd), lower_bound(nd), upper_bound(nd)
     z = -cos.(([i for i in 1:n] .- 0.5) .* (pi / n))
-    (z.+1) .* ((b-a)/2) .+ a
+    (z .+ 1) .* ((b-a)/2) .+ a
 end
 
 struct RangeNode <: AbstractNode1DWithParam

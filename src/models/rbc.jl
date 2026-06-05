@@ -24,7 +24,15 @@ end
 
 function impulse_response(m::RBCModel, shock_size::Float64; maxT::Int = 150)
     d = shock(m, shock_size; maxT = maxT)
-    (â = d["â"], r̂ = d["r̂"], ŵ = d["ŵ"], l̂ = d["l̂"], k̂ = d["k̂"], ŷ = d["ŷ"], ĉ = d["ĉ"])
+    (
+        â = d["â"],
+        r̂ = d["r̂"],
+        ŵ = d["ŵ"],
+        l̂ = d["l̂"],
+        k̂ = d["k̂"],
+        ŷ = d["ŷ"],
+        ĉ = d["ĉ"],
+    )
 end
 
 function U(m::RBCModel, C, L)
@@ -36,10 +44,12 @@ function g(m::RBCModel, K, A, C, L, ϵ)
     r = m.α * L^(1-m.α) / K^(1-m.α) * A
     new_K = L*w + K*r + (1-m.δ)*K - C
     new_A = exp(m.ρ * log(A) + ϵ)
-    (K=new_K, A=new_A)
+    (K = new_K, A = new_A)
 end
 
-function calc_ep(m::RBCModel)::Tuple{Float64, Float64, Float64, Float64, Float64, Float64, Float64}
+function calc_ep(
+    m::RBCModel,
+)::Tuple{Float64, Float64, Float64, Float64, Float64, Float64, Float64}
     α, β, γ, δ, μ, ρ = m.α, m.β, m.γ, m.δ, m.μ, m.ρ
     A⃰ = 1
     r⃰ = 1/β + δ - 1
@@ -54,33 +64,38 @@ function calc_ep(m::RBCModel)::Tuple{Float64, Float64, Float64, Float64, Float64
     return A⃰, r⃰, w⃰, L⃰, K⃰, Y⃰, C⃰
 end
 
-function find_path(m::RBCModel, A0::Float64, K0::Float64; maxT::Int = 150)::Dict{String, Vector{Float64}}
+function find_path(
+    m::RBCModel,
+    A0::Float64,
+    K0::Float64;
+    maxT::Int = 150,
+)::Dict{String, Vector{Float64}}
     α, β, γ, δ, μ, ρ = m.α, m.β, m.γ, m.δ, m.μ, m.ρ
     A⃰, r⃰, w⃰, L⃰, K⃰, Y⃰, C⃰ = calc_ep(m)
 
     function f(F, X)
         a = X[1:maxT]
         pushfirst!(a, A0)
-        r = X[maxT+1:2maxT]
+        r = X[(maxT + 1):2maxT]
         push!(r, r⃰)
-        w = X[2maxT+1:3maxT]
+        w = X[(2maxT + 1):3maxT]
         push!(w, w⃰)
-        l = X[3maxT+1:4maxT]
+        l = X[(3maxT + 1):4maxT]
         push!(l, L⃰)
-        k = X[4maxT+1:5maxT]
+        k = X[(4maxT + 1):5maxT]
         pushfirst!(k, K0)
-        y = X[5maxT+1:6maxT]
+        y = X[(5maxT + 1):6maxT]
         push!(y, Y⃰)
-        c = X[6maxT+1:7maxT]
+        c = X[(6maxT + 1):7maxT]
         push!(c, C⃰)
         for i in 1:maxT
-            F[7i-6] = -w[i]/c[i] + (γ+1)*μ*l[i]^γ
-            F[7i-5] = c[i+1]/c[i] - β*(r[i+1]-δ+1)
-            F[7i-4] = y[i] - a[i]*k[i]^α*l[i]^(1-α)
-            F[7i-3] = w[i] - (1-α)a[i]*k[i]^α*l[i]^(-α)
-            F[7i-2] = k[i+1] - y[i] - (1-δ)k[i] + c[i]
-            F[7i-1] = r[i] - α*a[i]*k[i]^(α-1)*l[i]^(1-α)
-            F[7i] = log(a[i+1]) - ρ*log(a[i])
+            F[7i - 6] = -w[i]/c[i] + (γ+1)*μ*l[i]^γ
+            F[7i - 5] = c[i + 1]/c[i] - β*(r[i + 1]-δ+1)
+            F[7i - 4] = y[i] - a[i]*k[i]^α*l[i]^(1-α)
+            F[7i - 3] = w[i] - (1-α)a[i]*k[i]^α*l[i]^(-α)
+            F[7i - 2] = k[i + 1] - y[i] - (1-δ)k[i] + c[i]
+            F[7i - 1] = r[i] - α*a[i]*k[i]^(α-1)*l[i]^(1-α)
+            F[7i] = log(a[i + 1]) - ρ*log(a[i])
         end
     end
 
@@ -98,40 +113,43 @@ function find_path(m::RBCModel, A0::Float64, K0::Float64; maxT::Int = 150)::Dict
     ans = nlsolve(f, ini_v).zero
     A = ans[1:maxT]
     pushfirst!(A, A0)
-    r = ans[maxT+1:2maxT]
+    r = ans[(maxT + 1):2maxT]
     push!(r, r⃰)
-    w = ans[2maxT+1:3maxT]
+    w = ans[(2maxT + 1):3maxT]
     push!(w, w⃰)
-    L = ans[3maxT+1:4maxT]
+    L = ans[(3maxT + 1):4maxT]
     push!(L, L⃰)
-    K = ans[4maxT+1:5maxT]
+    K = ans[(4maxT + 1):5maxT]
     pushfirst!(K, K0)
-    Y = ans[5maxT+1:6maxT]
+    Y = ans[(5maxT + 1):6maxT]
     push!(Y, Y⃰)
-    C = ans[6maxT+1:7maxT]
+    C = ans[(6maxT + 1):7maxT]
     push!(C, C⃰)
 
-    return Dict("A" => A, "r" => r, "w" => w, "L" => L,
-                "K" => K, "Y" => Y, "C" => C)
+    return Dict("A" => A, "r" => r, "w" => w, "L" => L, "K" => K, "Y" => Y, "C" => C)
 end
 
 function solve_rbc(m::RBCModel)::Tuple{Matrix{Float64}, Matrix{Float64}}
     α, β, γ, δ, μ, ρ = m.α, m.β, m.γ, m.δ, m.μ, m.ρ
     A⃰, r⃰, w⃰, L⃰, K⃰, Y⃰, C⃰ = calc_ep(m)
-    B = [0 0 0 0 0 0 0
-         1 0 0 0 -(r⃰+1)β 0 0
-         0 0 0 0 0 0 0
-         0 0 0 0 0 0 0
-         0 0 0 0 0 0 0
-         0 0 0 0 0 K⃰ 0
-         0 0 0 0 0 0 1]
-    C = [1 γ 0 -1 0 0 0
-         1 0 0 0 0 0 0
-         0 1-α -1 0 0 α 1
-         0 -α 0 -1 0 α 1
-         0 1-α 0 0 -(r⃰+1)/r⃰ α-1 1
-         -C⃰ 0 Y⃰ 0 0 -(δ-1)K⃰ 0
-         0 0 0 0 0 0 ρ]
+    B = [
+        0 0 0 0 0 0 0
+        1 0 0 0 -(r⃰+1)β 0 0
+        0 0 0 0 0 0 0
+        0 0 0 0 0 0 0
+        0 0 0 0 0 0 0
+        0 0 0 0 0 K⃰ 0
+        0 0 0 0 0 0 1
+    ]
+    C = [
+        1 γ 0 -1 0 0 0
+        1 0 0 0 0 0 0
+        0 1-α -1 0 0 α 1
+        0 -α 0 -1 0 α 1
+        0 1-α 0 0 -(r⃰+1)/r⃰ α-1 1
+        -C⃰ 0 Y⃰ 0 0 -(δ-1)K⃰ 0
+        0 0 0 0 0 0 ρ
+    ]
     A = C \ B
     eig_A = eigen(A)
     λ = [(eig_A.values[i], eig_A.vectors[:, i]) for i in 1:7]
@@ -163,7 +181,7 @@ function shock(m::RBCModel, ϵ0::Float64; maxT::Int = 150)
     S = zeros(maxT+1, 2)
     S[1, 1:2] = [0 ϵ0]
     for i in 1:maxT
-        S[i+1, 1:2] = A_A * S[i, 1:2]
+        S[i + 1, 1:2] = A_A * S[i, 1:2]
     end
     X = (P * S')'
 
@@ -175,6 +193,5 @@ function shock(m::RBCModel, ϵ0::Float64; maxT::Int = 150)
     ŷ = X[1:end, 3]
     ĉ = X[1:end, 1]
 
-    return Dict("â" => â, "r̂" => r̂, "ŵ" => ŵ, "l̂" => l̂,
-                "k̂" => k̂, "ŷ" => ŷ, "ĉ" => ĉ)
+    return Dict("â" => â, "r̂" => r̂, "ŵ" => ŵ, "l̂" => l̂, "k̂" => k̂, "ŷ" => ŷ, "ĉ" => ĉ)
 end
