@@ -18,8 +18,8 @@ function transition_path(m::RamseyModel, K0::Float64; maxT::Int = 30)
     find_path(m, K0; maxT = maxT)
 end
 
-function simulate(m::RamseyModel, K0::Float64; maxT::Int = 30, vi_opts::ValueIterationOptions = ValueIterationOptions())
-    simulate_by_nlvar(m, K0; maxT = maxT, vi_opts = vi_opts)
+function simulate(m::RamseyModel, K0::Float64; maxT::Int = 30, vi_opts::ValueIterationOptions = ValueIterationOptions(), log_path::Union{String,Nothing} = nothing)
+    simulate_by_nlvar(m, K0; maxT = maxT, vi_opts = vi_opts, log_path = log_path)
 end
 
 function U(m::RamseyModel, C)
@@ -102,7 +102,7 @@ function update_value(m::RamseyModel, nd::AbstractNode, hc, itp_type::Interpo_Ty
     s -> interpo(s, itp_param)
 end
 
-function solve_by_nlvar(m::RamseyModel; opts::ValueIterationOptions = ValueIterationOptions())
+function solve_by_nlvar(m::RamseyModel; opts::ValueIterationOptions = ValueIterationOptions(), log_path::Union{String,Nothing} = nothing)
     n, a, b = opts.n, opts.a, opts.b
     nd = RangeNode(n, a, b)
     niter, ϵ = opts.max_iter, opts.tolerance
@@ -111,35 +111,38 @@ function solve_by_nlvar(m::RamseyModel; opts::ValueIterationOptions = ValueItera
     f = x -> -45 + sqrt(x)
     hc = x -> 0.001
 
-    dt = Dates.format(now(), "yyyymmdd_HHMMSS")
-    io = open("solve_by_nlvar(RamseyModel)_$dt.log", "w+")
-    logger = SimpleLogger(io, Logging.Debug)
+    # log_path が指定された場合のみファイルに書き出す。デフォルトは NullLogger で副作用なし。
+    io = isnothing(log_path) ? nothing : open(log_path, "w+")
+    logger = isnothing(io) ? NullLogger() : SimpleLogger(io, Logging.Debug)
 
-    with_logger(logger) do
-        converged = -1
+    try
+        with_logger(logger) do
+            converged = -1
 
-        for iter in 1:niter
-            hc, updated = update_policy(m, nd, hc, f, ϵ, itp_param)
-            f = update_value(m, nd, hc, itp_param)
-            if !updated
-                converged = iter
-                break
+            for iter in 1:niter
+                hc, updated = update_policy(m, nd, hc, f, ϵ, itp_param)
+                f = update_value(m, nd, hc, itp_param)
+                if !updated
+                    converged = iter
+                    break
+                end
+            end
+
+            if converged > 0
+                @info "Result is converged($converged)."
+            else
+                @warn "Result is not converged($niter)."
             end
         end
-
-        if converged > 0
-            @info "Result is converged($converged)."
-        else
-            @warn "Result is not converged($niter)."
-        end
+    finally
+        !isnothing(io) && close(io)
     end
 
-    close(io)
     return hc
 end
 
-function simulate_by_nlvar(m::RamseyModel, K0::Float64; maxT::Int = 30, vi_opts::ValueIterationOptions = ValueIterationOptions())
-    hc = solve_by_nlvar(m; opts = vi_opts)
+function simulate_by_nlvar(m::RamseyModel, K0::Float64; maxT::Int = 30, vi_opts::ValueIterationOptions = ValueIterationOptions(), log_path::Union{String,Nothing} = nothing)
+    hc = solve_by_nlvar(m; opts = vi_opts, log_path = log_path)
 
     K = zeros(maxT)
     C = zeros(maxT)
