@@ -118,3 +118,7 @@ julia --project=. -e "using JuliaFormatter; format(\"src/\")"
 - **JuMP 1.x**: `optimize_c` では `@operator` + `@objective` を使用。`with_optimizer` / `@NLobjective` は使わない（削除済み）。
 - **Interpolations 0.13+**: `cubic_spline_interpolation`（小文字）を使用。`CubicSplineInterpolation` は非推奨。
 - **NLsolve**: `nlsolve(f, x0).zero` で解ベクトルを取得するパターン。
+
+
+## Juliaプロジェクトの開発ルール
+Project.toml を変更した場合は、必ず `julia --project=. -e 'using Pkg; Pkg.resolve()'` を実行し、必要に応じManifest.toml もコミットしてください。
