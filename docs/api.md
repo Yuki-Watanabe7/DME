@@ -75,6 +75,36 @@ variable_names(result)   # 変数名リスト -> Vector{String}
 nperiods(result)         # 期間数 -> Int
 ```
 
+### 可視化API
+
+```julia
+# SimulationResult の変数系列を時系列プロットとして描画
+plot_result(result::SimulationResult;
+    vars    = nothing,   # String / Symbol 単体か配列。省略時は全変数
+    title   = "モデル名 — シナリオ名",
+    xlabel  = "Period",
+    ylabel  = "",
+    kwargs...            # Plots.jl に直接渡す追加オプション
+) -> Plots.Plot
+```
+
+**エラー**: 存在しない変数名を指定した場合は `ArgumentError` が発生し、
+利用可能な変数名を含むメッセージが表示される。
+
+**例**:
+
+```julia
+sr = to_simulation_result(m, simulate(m, K0), "simulate")
+
+plot_result(sr)                              # 全変数
+plot_result(sr; vars = "K")                  # 単一変数（String）
+plot_result(sr; vars = :K)                   # 単一変数（Symbol）
+plot_result(sr; vars = ["K", "C"])           # 複数変数
+plot_result(sr; vars = ["K", "C"],
+            title = "Ramsey 移行経路",
+            xlabel = "Period", ylabel = "Level")
+```
+
 ### オプション型
 
 ```julia
