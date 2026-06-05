@@ -88,6 +88,12 @@ control_variables(m)   # [:C]
 parameters(m)          # (α = 0.3, β = 0.99, δ = 0.25)
 ```
 
+## テスト
+
+```bash
+julia --project=. -e "using Pkg; Pkg.test()"
+```
+
 ## ドキュメント
 
 | ドキュメント | 内容 |
@@ -99,90 +105,12 @@ parameters(m)          # (α = 0.3, β = 0.99, δ = 0.25)
 | [出力結果の読み方](docs/simulation_outputs.md) | 定常状態・移行経路・IRF・水準/対数偏差の概念と Ramsey/RBC の出力例 |
 | [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメントを作成する際のテンプレート |
 
-## テスト
+## 開発ロードマップ
 
-```bash
-julia --project=. -e "using Pkg; Pkg.test()"
-```
-
-## Public API
-
-以下の関数・型がパッケージの公開インターフェースです。
-
-### モデル型
-
-| 型 | 説明 |
-|---|---|
-| `AbstractMacroModel` | すべてのモデルの抽象基底型 |
-| `RamseyModel` | Ramsey 最適成長モデル |
-| `RBCModel` | リアル・ビジネス・サイクルモデル |
-
-### モデルメタ情報
-
-| 関数 | 戻り値 | 説明 |
+| Phase | 状態 | 内容 |
 |---|---|---|
-| `model_name(m)` | `String` | モデル名 |
-| `state_variables(m)` | `Vector{Symbol}` | 状態変数名 |
-| `control_variables(m)` | `Vector{Symbol}` | 操作変数名 |
-| `parameters(m)` | `NamedTuple` | パラメータ一覧 |
+| Phase 1 | 完了 | Public/Internal API の分離 |
+| Phase 2 | 進行中 | ドキュメント整備・`@deprecated` マーク追加 |
+| Phase 3 | 予定 | 旧 Internal API（`calc_ep` 等）の削除 |
 
-### 計算 API
-
-| 関数 | 戻り値 | 説明 |
-|---|---|---|
-| `steady_state(m)` | `NamedTuple` | 定常状態の計算 |
-| `transition_path(m, ...)` | `NamedTuple` | 完全予見均衡経路 |
-| `simulate(m, ...)` | `NamedTuple` | 動学シミュレーション |
-| `impulse_response(m, shock_size)` | `NamedTuple` | インパルス応答 |
-
-### 結果型
-
-| 型 / 関数 | 説明 |
-|---|---|
-| `SimulationResult` | モデル横断的な結果コンテナ |
-| `to_simulation_result(m, result, scenario)` | NamedTuple / Dict → SimulationResult への変換 |
-| `variable_names(r)` | 変数名リスト |
-| `nperiods(r)` | 期間数 |
-
-### オプション型
-
-| 型 | 説明 |
-|---|---|
-| `SolverOptions` | 数値計算の共通オプション |
-| `ValueIterationOptions` | 価値反復法のオプション（Ramsey モデル） |
-
-## Internal API（非エクスポート関数）
-
-以下の関数は内部実装であり、エクスポートされていません。
-将来のバージョンで変更・削除される可能性があります。
-必要な場合は `DME.calc_ep(m)` のようにモジュール修飾でアクセスできます。
-
-| 関数 | 推奨代替 |
-|---|---|
-| `DME.calc_ep(m)` | `steady_state(m)` |
-| `DME.find_path(m, ...)` | `transition_path(m, ...)` |
-| `DME.simulate_by_nlvar(m, ...)` | `simulate(m, ...)` |
-| `DME.solve_by_nlvar(m; opts)` | （高度な用途：ポリシー関数の取得） |
-| `DME.solve_rbc(m)` | （高度な用途：線形化行列の取得） |
-| `DME.shock(m, ε)` | `impulse_response(m, ε)` |
-
-## パラメータ説明
-
-### RamseyModel(α, β, δ)
-
-| パラメータ | 意味 |
-|---|---|
-| α | 資本分配率 |
-| β | 割引因子 |
-| δ | 資本減耗率 |
-
-### RBCModel(α, β, γ, δ, μ, ρ)
-
-| パラメータ | 意味 |
-|---|---|
-| α | 資本分配率 |
-| β | 割引因子 |
-| γ | 労働の逆弾力性（フリッシュ弾力性の逆数） |
-| δ | 資本減耗率 |
-| μ | 労働不効用パラメータ |
-| ρ | 技術ショックの持続性 |
+詳細は [API リファレンス](docs/api.md) を参照。
