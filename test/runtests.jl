@@ -75,13 +75,13 @@ end
 @testset "ramsey" begin
     rams = RamseyModel(0.3, 0.99, 0.25)
     @testset "calc_ep" begin
-        rtn = calc_ep(rams)
+        rtn = DME.calc_ep(rams)
         @test rtn[1] ≈ 1.226144733 atol=1e-8
         @test rtn[2] ≈ 0.756535429 atol=1e-8
     end
     @testset "find_path" begin
-        ep = calc_ep(rams)
-        rtn = find_path(rams, ep[1]/2)
+        ep = DME.calc_ep(rams)
+        rtn = DME.find_path(rams, ep[1]/2)
         @test rtn.K[end] ≈ ep[1] atol=1e-3
         @test rtn.C[end] ≈ ep[2] atol=1e-3
     end
@@ -98,8 +98,8 @@ end
         @test DME.update_value(rams, node, x -> x / 2, DME.ITPCheb)(1.0) ≈ -28.97431347 atol=7
     end
     @testset "simulate_by_nlvar" begin
-        ep = calc_ep(rams)
-        rtn = simulate_by_nlvar(rams, ep[1]/2)
+        ep = DME.calc_ep(rams)
+        rtn = DME.simulate_by_nlvar(rams, ep[1]/2)
         @test rtn.K[end] ≈ ep[1] atol=1e-2
         @test rtn.C[end] ≈ ep[2] atol=1e-2
     end
@@ -108,7 +108,7 @@ end
 @testset "RBC" begin
     rbc = RBCModel(0.3, 0.99, 1, 0.025, 1, 0.9)
     @testset "calc_ep" begin
-        rtn = calc_ep(rbc)
+        rtn = DME.calc_ep(rbc)
         @test rtn[1] ≈ 1.0 atol=1e-3
         @test rtn[2] ≈ 0.0351 atol=1e-3
         @test rtn[3] ≈ 1.7557 atol=1e-3
@@ -153,8 +153,8 @@ end
 
     @testset "to_simulation_result（Ramseyモデル）" begin
         rams = RamseyModel(0.3, 0.99, 0.25)
-        ep = calc_ep(rams)
-        raw = find_path(rams, ep[1] / 2)
+        ep = DME.calc_ep(rams)
+        raw = DME.find_path(rams, ep[1] / 2)
         r = to_simulation_result(rams, raw, "find_path")
         @test r.model_name == "Ramsey Model"
         @test r.scenario_name == "find_path"
@@ -168,7 +168,7 @@ end
 
     @testset "to_simulation_result（RBCモデル）" begin
         rbc = RBCModel(0.3, 0.99, 1, 0.025, 1, 0.9)
-        raw = shock(rbc, 0.01)
+        raw = DME.shock(rbc, 0.01)
         r = to_simulation_result(rbc, raw, "shock")
         @test r.model_name == "RBC Model"
         @test r.scenario_name == "shock"
@@ -221,28 +221,28 @@ end
     rbc = RBCModel(0.3, 0.99, 1, 0.025, 1, 0.9)
 
     @testset "find_path（Ramsey）カスタム maxT" begin
-        ep = calc_ep(rams)
-        rtn = find_path(rams, ep[1] / 2; maxT = 15)
+        ep = DME.calc_ep(rams)
+        rtn = DME.find_path(rams, ep[1] / 2; maxT = 15)
         @test length(rtn.K) == 16   # maxT + 1
         @test length(rtn.C) == 16
     end
 
     @testset "solve_by_nlvar カスタム opts" begin
-        ep = calc_ep(rams)
+        ep = DME.calc_ep(rams)
         opts = ValueIterationOptions(n = 10, a = 0.5, b = 3.0, max_iter = 50)
-        hc = solve_by_nlvar(rams; opts = opts)
+        hc = DME.solve_by_nlvar(rams; opts = opts)
         @test hc(ep[1]) > 0
     end
 
     @testset "find_path（RBC）カスタム maxT" begin
-        A⃰, _, _, _, K⃰, _, _ = calc_ep(rbc)
-        rtn = find_path(rbc, A⃰ * 0.9, K⃰ * 0.9; maxT = 30)
+        A⃰, _, _, _, K⃰, _, _ = DME.calc_ep(rbc)
+        rtn = DME.find_path(rbc, A⃰ * 0.9, K⃰ * 0.9; maxT = 30)
         @test length(rtn["K"]) == 31  # maxT + 1
         @test length(rtn["A"]) == 31
     end
 
     @testset "shock カスタム maxT" begin
-        rtn = shock(rbc, 0.01; maxT = 30)
+        rtn = DME.shock(rbc, 0.01; maxT = 30)
         @test length(rtn["â"]) == 31  # maxT + 1
         @test length(rtn["ĉ"]) == 31
     end

@@ -65,16 +65,13 @@ nperiods(r::SimulationResult) =
     isempty(r.variables) ? 0 : length(first(values(r.variables)))
 
 """
-    to_simulation_result(m::RamseyModel, result::NamedTuple, scenario::String) -> SimulationResult
+    to_simulation_result(m::AbstractMacroModel, result::NamedTuple, scenario::String) -> SimulationResult
 
-Ramseyモデルの出力（`find_path` / `simulate_by_nlvar` の NamedTuple）を
-`SimulationResult` に変換する。
+任意モデルの NamedTuple 出力（`transition_path` / `simulate` / `impulse_response` など）を
+`SimulationResult` に変換する。NamedTuple のキー（Symbol）は String に変換される。
 """
-function to_simulation_result(m::RamseyModel, result::NamedTuple, scenario::String)
-    vars = Dict{String, Vector{Float64}}(
-        "C" => result.C,
-        "K" => result.K,
-    )
+function to_simulation_result(m::AbstractMacroModel, result::NamedTuple, scenario::String)
+    vars = Dict{String, Vector{Float64}}(String(k) => v for (k, v) in pairs(result))
     meta = Dict{String, Any}("parameters" => parameters(m))
     SimulationResult(model_name(m), scenario, vars, meta)
 end
@@ -82,7 +79,8 @@ end
 """
     to_simulation_result(m::RBCModel, result::Dict{String, Vector{Float64}}, scenario::String) -> SimulationResult
 
-RBCモデルの出力（`find_path` / `shock` の Dict）を `SimulationResult` に変換する。
+RBCモデルの内部関数 `find_path` / `shock` の Dict 出力を `SimulationResult` に変換する。
+後方互換のために維持。新しいコードでは `transition_path` / `impulse_response` を使用すること。
 """
 function to_simulation_result(m::RBCModel, result::Dict{String, Vector{Float64}}, scenario::String)
     meta = Dict{String, Any}("parameters" => parameters(m))

@@ -1,29 +1,32 @@
 module DME
 
+# === Public API ===
 export
+    # Model type hierarchy
     AbstractMacroModel,
+    RamseyModel,
+    RBCModel,
+    # Model metadata
     model_name,
     state_variables,
     control_variables,
     parameters,
+    # Unified computation API
     steady_state,
     transition_path,
     simulate,
     impulse_response,
-    RamseyModel,
-    calc_ep,
-    find_path,
-    solve_by_nlvar,
-    simulate_by_nlvar,
-    RBCModel,
-    solve_rbc,
-    shock,
+    # Result type
     SimulationResult,
     variable_names,
     nperiods,
     to_simulation_result,
+    # Solver options
     SolverOptions,
     ValueIterationOptions
+# Internal API (not exported): calc_ep, find_path, solve_by_nlvar,
+#   simulate_by_nlvar, solve_rbc, shock
+# Access via DME.calc_ep etc. if needed for advanced use.
 
 using LinearAlgebra
 using NLsolve
