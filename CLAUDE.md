@@ -86,6 +86,33 @@ src/
 - `solve_rbc` → 線形化（ブランチャード=カーン法）で遷移行列 A_A と状態-操作変数行列 P を返す
 - `shock` → `solve_rbc` の結果を使いインパルス応答を計算
 
+## 品質チェック
+
+テストスイート（`Pkg.test()`）に以下の品質チェックが組み込まれており、CIで自動実行される。
+
+### 導入済みチェック
+
+| ツール | 目的 | 実行方法 |
+|--------|------|----------|
+| **Aqua.jl** | パッケージ品質（exports・依存互換性・stale deps・型海賊行為等）| `Pkg.test()` に含まれる |
+| **JuliaFormatter** | コードフォーマット統一（`.JuliaFormatter.toml` の設定を使用）| 下記参照 |
+
+### 見送ったチェック
+
+| ツール | 理由 |
+|--------|------|
+| **JET.jl** | 数値計算コードでの誤検知が多く CI が不安定化するリスクあり。Phase 2 以降で再検討 |
+
+### JuliaFormatter の手動実行
+
+```bash
+# フォーマット確認（変更なし）
+julia --project=. -e "using JuliaFormatter; format(\"src/\"; overwrite=false) ? println(\"OK\") : println(\"要フォーマット\")"
+
+# フォーマット適用
+julia --project=. -e "using JuliaFormatter; format(\"src/\")"
+```
+
 ## 依存パッケージの注意点
 
 - **JuMP 1.x**: `optimize_c` では `@operator` + `@objective` を使用。`with_optimizer` / `@NLobjective` は使わない（削除済み）。

@@ -31,9 +31,11 @@ end
 
 `metadata` を省略できる便利コンストラクタ。
 """
-SimulationResult(model_name::String, scenario_name::String,
-                 variables::Dict{String, Vector{Float64}}) =
-    SimulationResult(model_name, scenario_name, variables, Dict{String, Any}())
+SimulationResult(
+    model_name::String,
+    scenario_name::String,
+    variables::Dict{String, Vector{Float64}},
+) = SimulationResult(model_name, scenario_name, variables, Dict{String, Any}())
 
 """
     result[key]
@@ -82,7 +84,11 @@ end
 RBCモデルの内部関数 `find_path` / `shock` の Dict 出力を `SimulationResult` に変換する。
 後方互換のために維持。新しいコードでは `transition_path` / `impulse_response` を使用すること。
 """
-function to_simulation_result(m::RBCModel, result::Dict{String, Vector{Float64}}, scenario::String)
+function to_simulation_result(
+    m::RBCModel,
+    result::Dict{String, Vector{Float64}},
+    scenario::String,
+)
     meta = Dict{String, Any}("parameters" => parameters(m))
     SimulationResult(model_name(m), scenario, copy(result), meta)
 end

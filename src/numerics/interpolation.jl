@@ -7,7 +7,7 @@ function 𝛷̂(node::ChebNode, s)
         rtn = Vector()
         push!(rtn, 1, z)
         for j in 3:n
-            push!(rtn, 2z*rtn[j-1] - rtn[j-2])
+            push!(rtn, 2z*rtn[j - 1] - rtn[j - 2])
         end
         rtn
     end
@@ -57,7 +57,11 @@ struct CubicInterpo2D
     V::Vector{Float64}
 end
 
-function create_itp_param(node::AbstractNode1D, value::Vector{Float64}, itp_type::Interpo_Type)
+function create_itp_param(
+    node::AbstractNode1D,
+    value::Vector{Float64},
+    itp_type::Interpo_Type,
+)
     if itp_type == ITPCheb
         itp_param = Cheb(node, value)
     elseif itp_type == ITPLine
@@ -74,7 +78,11 @@ function create_itp_param(node::AbstractNode1D, value::Vector{Float64}, itp_type
     return itp_param
 end
 
-function create_itp_param(node::AbstractNode2D, value::Vector{Float64}, itp_type::Interpo_Type)
+function create_itp_param(
+    node::AbstractNode2D,
+    value::Vector{Float64},
+    itp_type::Interpo_Type,
+)
     if itp_type == ITPLine
         itp_param = LinInterpo2D(node, value)
     elseif itp_type == ITPCubic
@@ -96,7 +104,7 @@ function interpo(s, param::LinInterpo)
 end
 
 function interpo(s, param::CubicInterpo)
-    itp = cubic_spline_interpolation((node(param.nd),), param.V, extrapolation_bc=Flat())
+    itp = cubic_spline_interpolation((node(param.nd),), param.V, extrapolation_bc = Flat())
     itp(s)
 end
 
@@ -106,7 +114,10 @@ function interpo(s, param::LinInterpo2D)
     # Reshape flat V into matrix[i,j] where i indexes nd1, j indexes nd2
     # V is stored row-major: V[(i-1)*n2+j] → permutedims(reshape(V, n2, n1))
     V_matrix = permutedims(reshape(param.V, n2, n1))
-    itp = extrapolate(interpolate((collect(nd1_nodes), collect(nd2_nodes)), V_matrix, Gridded(Linear())), Flat())
+    itp = extrapolate(
+        interpolate((collect(nd1_nodes), collect(nd2_nodes)), V_matrix, Gridded(Linear())),
+        Flat(),
+    )
     itp(s[1], s[2])
 end
 
@@ -114,6 +125,10 @@ function interpo(s, param::CubicInterpo2D)
     nd1_nodes, nd2_nodes = node(param.nd)
     n1, n2 = len(param.nd)
     V_matrix = permutedims(reshape(param.V, n2, n1))
-    itp = cubic_spline_interpolation((nd1_nodes, nd2_nodes), V_matrix, extrapolation_bc=Flat())
+    itp = cubic_spline_interpolation(
+        (nd1_nodes, nd2_nodes),
+        V_matrix,
+        extrapolation_bc = Flat(),
+    )
     itp(s[1], s[2])
 end
