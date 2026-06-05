@@ -34,11 +34,19 @@ using Interpolations
 using Logging
 using Dates
 
-include("./util.jl")
-include("./interface.jl")
-include("./solver_options.jl")
-include("./ramsey.jl")
-include("./RBC.jl")
-include("./simulation_result.jl")
+# Numerical utilities: grid types and interpolation
+include("./numerics/grids.jl")
+include("./numerics/interpolation.jl")
+
+# Core abstractions: model interface, solver options
+include("./core/model_interface.jl")
+include("./core/solver_options.jl")
+
+# Model implementations
+include("./models/ramsey.jl")
+include("./models/rbc.jl")
+
+# Cross-model result type (depends on RamseyModel and RBCModel)
+include("./core/simulation_result.jl")
 
 end
