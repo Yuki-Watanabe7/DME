@@ -6,6 +6,7 @@ export
     AbstractMacroModel,
     RamseyModel,
     RBCModel,
+    SolowModel,
     # Model metadata
     model_name,
     state_variables,
@@ -49,6 +50,7 @@ include("./core/solver_options.jl")
 # Model implementations
 include("./models/ramsey.jl")
 include("./models/rbc.jl")
+include("./models/solow.jl")
 
 # Cross-model result type (depends on RamseyModel and RBCModel)
 include("./core/simulation_result.jl")
