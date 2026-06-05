@@ -3,8 +3,20 @@ name: CI
 on:
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'LICENSE'
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - 'LICENSE'
+      
+permissions:
+  actions: write
+  contents: read
 
 jobs:
   ci:
@@ -20,6 +32,8 @@ jobs:
       - uses: julia-actions/setup-julia@v2
         with:
           version: '1.12.6'
+
+      - uses: julia-actions/cache@v3
 
       - name: Install dependencies
         run: julia --project=. -e "using Pkg; Pkg.instantiate()"

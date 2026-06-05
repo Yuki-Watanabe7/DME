@@ -27,10 +27,12 @@ jobs:
           fetch-depth: 1
 
       - uses: julia-actions/setup-julia@v2
+        if: ${{ !contains(toJson(github.event.issue.labels), 'docs-only') }}
         with:
           version: '1.12.6'
 
       - name: Install dependencies
+        if: ${{ !contains(toJson(github.event.issue.labels), 'docs-only') }}
         run: julia --project=. -e "using Pkg; Pkg.instantiate()"
 
       - name: Run Claude Code
@@ -48,8 +50,12 @@ jobs:
             --append-system-prompt "このリポジトリでは、Issue対応時に以下を標準ルールとして必ず守ってください。
 
             1. 作業前に既存コードと関連テストを確認すること。
-            2. 変更後は必ず次のテストを実行すること:
-               julia --project=. -e "using Pkg; Pkg.test()"
+            2. 変更後の検証は変更種別に応じて行うこと:
+               - Juliaコード、Project.toml、Manifest.toml、テスト、CI設定を変更した場合:
+                 julia --project=. -e "using Pkg; Pkg.test()"
+               - docs配下またはMarkdownのみの変更の場合:
+                 Julia環境セットアップおよびPkg.test()は不要。
+                 最終コメントまたはPR本文に「docs-onlyのためJulia testは未実行」と明記すること。
             3. Pkg.test() が失敗した場合は、失敗内容を確認し、可能な範囲で修正してから再実行すること。
             4. テスト実行後、最終コメントまたは PR 本文に以下を必ず明記すること:
                - 実行したテストコマンド
