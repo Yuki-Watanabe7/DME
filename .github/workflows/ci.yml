@@ -13,6 +13,10 @@ on:
       - 'docs/**'
       - '**/*.md'
       - 'LICENSE'
+      
+permissions:
+  actions: write
+  contents: read
 
 jobs:
   ci:
