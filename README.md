@@ -94,6 +94,7 @@ parameters(m)          # (α = 0.3, β = 0.99, δ = 0.25)
 |---|---|
 | [API リファレンス](docs/api.md) | Public/Internal API の一覧・シグネチャ・移行ガイド |
 | [モデル共通インターフェース](docs/architecture/model_interface.md) | 抽象型階層・命名方針・新規モデル追加ルール |
+| [Ramsey モデル解説](docs/models/ramsey.md) | Ramsey 最適成長モデルの目的・変数・パラメータ・出力・限界 |
 | [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメントを作成する際のテンプレート |
 
 ## テスト
