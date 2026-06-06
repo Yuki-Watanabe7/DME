@@ -2,3 +2,17 @@
 *.xlsx
 *\ (1).*
 Manifest.toml
+
+# 秘密情報・環境変数ファイル（絶対にコミットしないこと）
+.env
+.env.local
+.env.*.local
+
+# ローカル設定ファイル（個人設定はサンプルのみgit管理）
+config/dme.toml
+config/*.local.toml
+
+# その他秘密ファイル
+*.key
+*.pem
+secrets/
