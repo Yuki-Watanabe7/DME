@@ -2,6 +2,17 @@ module DME
 
 # === Public API ===
 export
+    # Data types
+    DataFrequency,
+    Annual,
+    Quarterly,
+    Monthly,
+    DataSeries,
+    MacroDataset,
+    series_ids,
+    get_series,
+    nonmissing_values,
+    missing_count,
     # Model type hierarchy
     AbstractMacroModel,
     RamseyModel,
@@ -50,6 +61,9 @@ using Ipopt
 using Plots
 using Interpolations
 using Logging
+
+# Data types: external data standard types
+include("./data/data_series.jl")
 
 # Numerical utilities: grid types and interpolation
 include("./numerics/grids.jl")
