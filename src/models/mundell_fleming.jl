@@ -169,16 +169,16 @@ function mf_policy_shock(
     eq_base = steady_state(m_base)
     eq_policy = steady_state(m_policy)
     vars = Dict{String, Vector{Float64}}(
-        "Y"  => [eq_base.Y,  eq_policy.Y],
-        "r"  => [eq_base.r,  eq_policy.r],
-        "e"  => [eq_base.e,  eq_policy.e],
+        "Y" => [eq_base.Y, eq_policy.Y],
+        "r" => [eq_base.r, eq_policy.r],
+        "e" => [eq_base.e, eq_policy.e],
         "NX" => [eq_base.NX, eq_policy.NX],
-        "C"  => [eq_base.C,  eq_policy.C],
-        "I"  => [eq_base.I,  eq_policy.I],
+        "C" => [eq_base.C, eq_policy.C],
+        "I" => [eq_base.I, eq_policy.I],
     )
     meta = Dict{String, Any}(
-        "scenario_names"    => collect(scenario_names),
-        "parameters_base"   => parameters(m_base),
+        "scenario_names" => collect(scenario_names),
+        "parameters_base" => parameters(m_base),
         "parameters_policy" => parameters(m_policy),
     )
     SimulationResult("Mundell-Fleming Model", "policy_comparison", vars, meta)
