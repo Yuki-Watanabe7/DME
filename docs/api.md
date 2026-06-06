@@ -78,7 +78,7 @@ nperiods(result)         # 期間数 -> Int
 ### 可視化API
 
 ```julia
-# SimulationResult の変数系列を時系列プロットとして描画
+# SimulationResult の変数系列を時系列プロットとして描画（水準系列向け）
 plot_result(result::SimulationResult;
     vars    = nothing,   # String / Symbol 単体か配列。省略時は全変数
     title   = "モデル名 — シナリオ名",
@@ -86,7 +86,20 @@ plot_result(result::SimulationResult;
     ylabel  = "",
     kwargs...            # Plots.jl に直接渡す追加オプション
 ) -> Plots.Plot
+
+# IRF（インパルス応答）をゼロラインつきで描画（対数偏差系列向け）
+plot_irf(result::SimulationResult;
+    vars       = nothing,   # String / Symbol 単体か配列。省略時は全変数
+    shock_size = nothing,   # 数値。タイトルに表示。metadata["shock_size"] も参照
+    title      = nothing,   # 省略時: "モデル名 — シナリオ名 (IRF)"
+    xlabel     = "Period",
+    ylabel     = "Log deviation from steady state",
+    kwargs...               # Plots.jl に直接渡す追加オプション
+) -> Plots.Plot
 ```
+
+`plot_result` は水準系列（`transition_path` / `simulate`）、`plot_irf` は対数偏差系列（`impulse_response`）に使用する。
+`plot_irf` はゼロライン（定常状態基準）を自動描画し、x 軸はショック発生時点 t=0 始まりで表示する。
 
 **エラー**: 存在しない変数名を指定した場合は `ArgumentError` が発生し、
 利用可能な変数名を含むメッセージが表示される。
@@ -103,6 +116,15 @@ plot_result(sr; vars = ["K", "C"])           # 複数変数
 plot_result(sr; vars = ["K", "C"],
             title = "Ramsey 移行経路",
             xlabel = "Period", ylabel = "Level")
+
+# IRF プロット
+m_rbc = RBCModel(0.3, 0.99, 1.0, 0.025, 1.0, 0.9)
+irf = impulse_response(m_rbc, 0.01)
+sr_irf = to_simulation_result(m_rbc, irf, "technology_shock")
+
+plot_irf(sr_irf)                             # 全変数、ゼロラインつき
+plot_irf(sr_irf; vars = ["ŷ", "ĉ", "k̂"])   # 特定変数のみ
+plot_irf(sr_irf; vars = "ŷ", shock_size = 0.01)  # ショックサイズをタイトルに表示
 ```
 
 ### オプション型

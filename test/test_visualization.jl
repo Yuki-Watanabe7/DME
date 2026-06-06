@@ -73,6 +73,94 @@ using Plots
     end
 end
 
+@testset "plot_irf" begin
+    irf_dict = Dict{String,Vector{Float64}}(
+        "â" => [0.01, 0.009, 0.008, 0.007],
+        "ŷ" => [0.015, 0.013, 0.011, 0.009],
+    )
+    sr = SimulationResult("RBC Model", "technology_shock", irf_dict)
+
+    @testset "vars省略で全変数プロット" begin
+        p = plot_irf(sr)
+        @test p isa Plots.Plot
+    end
+
+    @testset "単一変数（String）" begin
+        p = plot_irf(sr; vars = "â")
+        @test p isa Plots.Plot
+    end
+
+    @testset "単一変数（Symbol）" begin
+        p = plot_irf(sr; vars = :ŷ)
+        @test p isa Plots.Plot
+    end
+
+    @testset "複数変数（String 配列）" begin
+        p = plot_irf(sr; vars = ["â", "ŷ"])
+        @test p isa Plots.Plot
+    end
+
+    @testset "ゼロラインが存在する（1変数 + hline = 2 series）" begin
+        p = plot_irf(sr; vars = "â")
+        @test p.n == 2
+    end
+
+    @testset "shock_size kwarg でプロット生成" begin
+        p = plot_irf(sr; vars = "â", shock_size = 0.01)
+        @test p isa Plots.Plot
+    end
+
+    @testset "metadata の shock_size を利用" begin
+        meta = Dict{String, Any}("shock_size" => 0.01)
+        sr_meta = SimulationResult("RBC Model", "shock", irf_dict, meta)
+        p = plot_irf(sr_meta; vars = "â")
+        @test p isa Plots.Plot
+    end
+
+    @testset "shock_size kwarg が metadata より優先される" begin
+        meta = Dict{String, Any}("shock_size" => 0.005)
+        sr_meta = SimulationResult("RBC Model", "shock", irf_dict, meta)
+        p = plot_irf(sr_meta; vars = "â", shock_size = 0.01)
+        @test p isa Plots.Plot
+    end
+
+    @testset "title / xlabel / ylabel オプション" begin
+        p = plot_irf(sr; vars = "â", title = "IRFテスト", xlabel = "t", ylabel = "偏差")
+        @test p isa Plots.Plot
+    end
+
+    @testset "存在しない変数でエラー" begin
+        @test_throws ArgumentError plot_irf(sr; vars = "Z")
+    end
+
+    @testset "エラーメッセージに利用可能変数名が含まれる" begin
+        ex = try
+            plot_irf(sr; vars = "Z")
+            nothing
+        catch e
+            e
+        end
+        @test ex isa ArgumentError
+        @test occursin("Z", ex.msg)
+    end
+
+    @testset "RBCモデル技術ショックIRFで動作確認" begin
+        m = RBCModel(0.3, 0.99, 1.0, 0.025, 1.0, 0.9)
+        irf = impulse_response(m, 0.01)
+        result = to_simulation_result(m, irf, "technology_shock")
+        p = plot_irf(result; vars = ["ŷ", "ĉ", "k̂"], shock_size = 0.01)
+        @test p isa Plots.Plot
+    end
+
+    @testset "New Keynesianモデルの金融政策ショックに適用可能" begin
+        m = NewKeynesianModel(1.0, 0.02, 0.99, 0.1, 1.5, 0.5, 0.02, 0.8, 0.5, 0.5)
+        irf = impulse_response(m; shock = :monetary, T = 10)
+        result = to_simulation_result(m, irf, "monetary_shock")
+        p = plot_irf(result)
+        @test p isa Plots.Plot
+    end
+end
+
 @testset "plot_comparison" begin
     vars_a = Dict{String,Vector{Float64}}("K" => [1.0, 1.1, 1.2], "C" => [0.5, 0.55, 0.6])
     vars_b = Dict{String,Vector{Float64}}("K" => [0.8, 0.9, 1.0], "C" => [0.4, 0.45, 0.5])

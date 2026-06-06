@@ -12,6 +12,7 @@ DME が返す出力の種類・単位・解釈を横断的にまとめたリフ�
 4. [RBC モデルの出力例](#4-rbc-モデルの出力例)
 5. [SimulationResult 標準型との関係](#5-simulationresult-標準型との関係)
 6. [LLM が参照する際の注意点](#6-llm-が参照する際の注意点)
+7. [プロット関数の使い分け](#7-プロット関数の使い分け)
 
 ---
 
@@ -491,3 +492,61 @@ irf.k̂[1]   # 0.0（資本は先決変数のため t=0 に変化しない）
 - 複数のショックが累積している状況
 
 大きなショックの分析には `transition_path` による非線形解法を使用すること。
+
+---
+
+## 7. プロット関数の使い分け
+
+DME には `SimulationResult` を可視化する 2 つの関数がある。
+
+| 関数 | 対象データ | ゼロライン | x 軸の起点 | Y 軸デフォルト |
+|---|---|---|---|---|
+| `plot_result` | 水準系列（`transition_path` / `simulate`） | なし | 1（Period 1） | `""` |
+| `plot_irf` | 対数偏差系列（`impulse_response`） | あり（点線） | 0（ショック発生時点） | `"Log deviation from steady state"` |
+
+**`plot_result` を使う場面**:
+- `transition_path` や `simulate` の水準系列を確認するとき
+- 変数が実際の経済量（資本水準、消費水準など）として解釈できるとき
+
+**`plot_irf` を使う場面**:
+- `impulse_response` の出力（対数偏差）を可視化するとき
+- 定常状態から各変数がどれだけ乖離しているかを見るとき
+- ゼロライン（= 定常状態への収束）が比較基準として重要なとき
+
+### 例
+
+```julia
+using DME
+
+m = RBCModel(0.3, 0.99, 1.0, 0.025, 1.0, 0.9)
+ep = steady_state(m)
+
+# 水準系列 → plot_result
+path = transition_path(m, 1.0, ep.K * 0.8)
+sr_path = to_simulation_result(m, path, "transition")
+p1 = plot_result(sr_path; vars = ["K", "Y"])   # 水準が表示される
+
+# IRF（対数偏差）→ plot_irf
+irf = impulse_response(m, 0.01)
+sr_irf = to_simulation_result(m, irf, "technology_shock")
+p2 = plot_irf(sr_irf; vars = ["ŷ", "ĉ", "k̂"], shock_size = 0.01)
+# ゼロラインが表示され、x 軸は t=0 始まり
+```
+
+### `plot_irf` の追加キーワード引数
+
+```julia
+plot_irf(result; vars = ["ŷ", "ĉ"], shock_size = 0.01)
+# → タイトル: "RBC Model — technology_shock (IRF, shock = 0.01)"
+
+# metadata にショックサイズを格納する場合
+meta = Dict{String, Any}("shock_size" => 0.01)
+sr = SimulationResult(model_name, scenario_name, variables, meta)
+plot_irf(sr)  # metadata["shock_size"] を自動参照
+
+# New Keynesian モデルにも適用可能
+m_nk = NewKeynesianModel(...)
+irf_nk = impulse_response(m_nk; shock = :monetary, T = 20)
+sr_nk = to_simulation_result(m_nk, irf_nk, "monetary_shock")
+p = plot_irf(sr_nk)
+```

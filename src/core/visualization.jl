@@ -153,6 +153,96 @@ function plot_comparison(
     return p
 end
 
+"""
+    plot_irf(result::SimulationResult; vars=nothing, shock_size=nothing, title=nothing,
+             xlabel="Period", ylabel="Log deviation from steady state", kwargs...)
+
+`SimulationResult` に格納された IRF（インパルス応答）を、ゼロラインを含めて描画し、
+`Plots.Plot` を返す。
+
+通常の `plot_result` と異なり：
+- y=0 のゼロライン（基準線）を点線で表示する
+- x 軸は t=0（ショック発生時点）始まりで表示する
+- Y 軸ラベルのデフォルトが「定常状態からの対数偏差」になる
+
+IRF の出力は対数偏差（log deviation）であり、水準系列と異なる解釈が必要。
+`plot_result` は水準系列の可視化に、`plot_irf` は IRF の可視化に使用すること。
+
+## キーワード引数
+
+- `vars`: プロットする変数名（`String` または `Symbol` の単体か配列）。
+  省略または `nothing` を指定するとすべての変数をプロット。
+- `shock_size`: ショックサイズ（数値）。指定するとタイトルに表示される。
+  `result.metadata["shock_size"]` に設定しても同様に反映される。
+  キーワード引数の指定が `metadata` より優先される。
+- `title`: プロットタイトル。省略時は `"モデル名 — シナリオ名 (IRF)"` を使用。
+  `shock_size` が判明している場合は `"... (IRF, shock = 値)"` を使用。
+- `xlabel`: X 軸ラベル（デフォルト: `"Period"`）
+- `ylabel`: Y 軸ラベル（デフォルト: `"Log deviation from steady state"`）
+- `kwargs...`: `Plots.jl` に直接渡す追加オプション
+
+## エラー
+
+存在しない変数名を指定した場合は `ArgumentError` が発生する。
+エラーメッセージには利用可能な変数名が含まれる。
+
+## 例
+
+```julia
+m = RBCModel(0.3, 0.99, 1.0, 0.025, 1.0, 0.9)
+irf = impulse_response(m, 0.01)
+sr = to_simulation_result(m, irf, "technology_shock")
+
+# 全変数をプロット
+p = plot_irf(sr)
+
+# 特定の変数をプロット、ショックサイズをタイトルに表示
+p = plot_irf(sr; vars = ["ŷ", "ĉ", "k̂"], shock_size = 0.01)
+
+# metadata にショックサイズを格納する場合
+sr_meta = SimulationResult(sr.model_name, sr.scenario_name, sr.variables,
+                           Dict{String,Any}("shock_size" => 0.01))
+p = plot_irf(sr_meta)
+```
+"""
+function plot_irf(
+    result::SimulationResult;
+    vars = nothing,
+    shock_size = nothing,
+    title::Union{Nothing, String} = nothing,
+    xlabel::String = "Period",
+    ylabel::String = "Log deviation from steady state",
+    kwargs...,
+)
+    requested = _resolve_plot_vars(result, vars)
+
+    sz = if !isnothing(shock_size)
+        shock_size
+    elseif haskey(result.metadata, "shock_size")
+        result.metadata["shock_size"]
+    else
+        nothing
+    end
+
+    title_str = if !isnothing(title)
+        title
+    elseif !isnothing(sz)
+        "$(result.model_name) — $(result.scenario_name) (IRF, shock = $(sz))"
+    else
+        "$(result.model_name) — $(result.scenario_name) (IRF)"
+    end
+
+    T = nperiods(result)
+    t = collect(0:(T - 1))
+
+    p = plot(; title = title_str, xlabel = xlabel, ylabel = ylabel, kwargs...)
+    for v in requested
+        plot!(p, t, result[v]; label = v)
+    end
+    hline!(p, [0.0]; color = :black, linestyle = :dash, label = "")
+    return p
+end
+
 function _resolve_plot_vars(result::SimulationResult, vars)
     if isnothing(vars)
         return sort(variable_names(result))
