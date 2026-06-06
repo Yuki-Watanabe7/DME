@@ -98,8 +98,15 @@ function _var_summary(v::Vector{Float64})
     n = length(v)
     if n == 0
         return (
-            initial=0.0, final=0.0, max=0.0, min=0.0, range=0.0,
-            argmax=0, argmin=0, peak_response=0.0, sign_reversal=false,
+            initial = 0.0,
+            final = 0.0,
+            max = 0.0,
+            min = 0.0,
+            range = 0.0,
+            argmax = 0,
+            argmin = 0,
+            peak_response = 0.0,
+            sign_reversal = false,
         )
     end
     mx = maximum(v)
@@ -109,15 +116,15 @@ function _var_summary(v::Vector{Float64})
     peak = abs(mx) >= abs(mn) ? mx : mn
     sr = mx > 0.0 && mn < 0.0
     (
-        initial=v[1],
-        final=v[n],
-        max=mx,
-        min=mn,
-        range=mx - mn,
-        argmax=am,
-        argmin=an,
-        peak_response=peak,
-        sign_reversal=sr,
+        initial = v[1],
+        final = v[n],
+        max = mx,
+        min = mn,
+        range = mx - mn,
+        argmax = am,
+        argmin = an,
+        peak_response = peak,
+        sign_reversal = sr,
     )
 end
 
@@ -164,9 +171,8 @@ summary["variables"]["k̂"].sign_reversal  # 資本が符号反転するか
 ```
 """
 function summarize_result(result::SimulationResult)
-    vars_summary = Dict{String, NamedTuple}(
-        k => _var_summary(v) for (k, v) in result.variables
-    )
+    vars_summary =
+        Dict{String, NamedTuple}(k => _var_summary(v) for (k, v) in result.variables)
     Dict{String, Any}(
         "model_name" => result.model_name,
         "scenario_name" => result.scenario_name,
