@@ -147,10 +147,12 @@ parameters(m)          # (α = 0.3, β = 0.99, δ = 0.25)
 
 | スクリプト | 内容 |
 |---|---|
+| [examples/phase3_phase4_demo.jl](examples/phase3_phase4_demo.jl) | **Phase 3-4 統合デモ**。Ramsey / Solow / RBC / Mundell-Fleming / New Keynesian を横断し、共通 API・可視化・横断比較・Phase 5-6 への橋渡しを示す。 |
 | [examples/growth_models.jl](examples/growth_models.jl) | Ramsey / RBC / Solow の比較デモ。定常状態・移行経路・IRF・プロット API の使い方を示す。 |
 | [examples/policy_analysis.jl](examples/policy_analysis.jl) | IS-LM / AD-AS / New Keynesian の短期政策分析デモ。財政・金融・需要・供給ショックの比較と各モデルの使い分けを示す。 |
 
 ```bash
+julia --project=. examples/phase3_phase4_demo.jl
 julia --project=. examples/growth_models.jl
 julia --project=. examples/policy_analysis.jl
 ```
