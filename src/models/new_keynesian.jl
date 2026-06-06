@@ -39,16 +39,16 @@ model_name(::NewKeynesianModel) = "New Keynesian Model"
 state_variables(::NewKeynesianModel) = Symbol[]
 control_variables(::NewKeynesianModel) = [:x, :π, :i]
 parameters(m::NewKeynesianModel) = (
-    σ      = m.σ,
-    r_n    = m.r_n,
-    β      = m.β,
-    κ      = m.κ,
-    φ_π    = m.φ_π,
-    φ_x    = m.φ_x,
+    σ = m.σ,
+    r_n = m.r_n,
+    β = m.β,
+    κ = m.κ,
+    φ_π = m.φ_π,
+    φ_x = m.φ_x,
     π_star = m.π_star,
-    ρ_x    = m.ρ_x,
-    ρ_c    = m.ρ_c,
-    ρ_m    = m.ρ_m,
+    ρ_x = m.ρ_x,
+    ρ_c = m.ρ_c,
+    ρ_m = m.ρ_m,
 )
 
 """
@@ -95,10 +95,14 @@ AR(1) ショック ε_t = ρ * ε_{t-1} に対して MSV 解は:
   [x̃, π̃]' = (A - ρ*B)^{-1} * d * ε_t
 """
 function nk_msv_response(m::NewKeynesianModel, ρ::Float64, d::Vector{Float64})
-    A = [(1.0 + m.φ_x / m.σ)  (m.φ_π / m.σ);
-         (-m.κ)                 1.0           ]
-    B = [1.0  (1.0 / m.σ);
-         0.0   m.β          ]
+    A = [
+        (1.0 + m.φ_x / m.σ) (m.φ_π / m.σ);
+        (-m.κ) 1.0
+    ]
+    B = [
+        1.0 (1.0 / m.σ);
+        0.0 m.β
+    ]
     M = A - ρ .* B
     return M \ d
 end
@@ -148,9 +152,11 @@ function impulse_response(
         d = [-1.0 / m.σ, 0.0]
         is_monetary = true
     else
-        throw(ArgumentError(
-            "不明なショック種別: $(shock)。:demand, :cost_push, :monetary のいずれかを指定してください。"
-        ))
+        throw(
+            ArgumentError(
+                "不明なショック種別: $(shock)。:demand, :cost_push, :monetary のいずれかを指定してください。",
+            ),
+        )
     end
 
     Ψ = nk_msv_response(m, ρ, d)
@@ -200,22 +206,22 @@ function nk_irf_compare(
     scenario_names::Tuple{String, String} = ("baseline", "alternative"),
 )
     irf_base = impulse_response(m_base, shock_size; shock = shock, T = T)
-    irf_alt  = impulse_response(m_alt,  shock_size; shock = shock, T = T)
+    irf_alt = impulse_response(m_alt, shock_size; shock = shock, T = T)
 
     vars = Dict{String, Vector{Float64}}(
         "x_base" => irf_base.x,
         "π_base" => irf_base.π,
         "i_base" => irf_base.i,
-        "x_alt"  => irf_alt.x,
-        "π_alt"  => irf_alt.π,
-        "i_alt"  => irf_alt.i,
+        "x_alt" => irf_alt.x,
+        "π_alt" => irf_alt.π,
+        "i_alt" => irf_alt.i,
     )
     meta = Dict{String, Any}(
-        "scenario_names"  => collect(scenario_names),
-        "shock"           => String(shock),
-        "shock_size"      => shock_size,
+        "scenario_names" => collect(scenario_names),
+        "shock" => String(shock),
+        "shock_size" => shock_size,
         "parameters_base" => parameters(m_base),
-        "parameters_alt"  => parameters(m_alt),
+        "parameters_alt" => parameters(m_alt),
     )
     SimulationResult("New Keynesian Model", "irf_comparison", vars, meta)
 end

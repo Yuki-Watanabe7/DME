@@ -27,6 +27,7 @@ export
     to_simulation_result,
     # Visualization
     plot_result,
+    plot_comparison,
     # Solver options
     SolverOptions,
     ValueIterationOptions

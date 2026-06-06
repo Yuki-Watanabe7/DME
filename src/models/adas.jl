@@ -47,17 +47,17 @@ model_name(::ADASModel) = "AD-AS Model"
 state_variables(::ADASModel) = Symbol[]
 control_variables(::ADASModel) = [:Y, :P]
 parameters(m::ADASModel) = (
-    c0  = m.c0,
-    c1  = m.c1,
-    I0  = m.I0,
-    b   = m.b,
-    G   = m.G,
-    T   = m.T,
-    l1  = m.l1,
-    l2  = m.l2,
-    M   = m.M,
+    c0 = m.c0,
+    c1 = m.c1,
+    I0 = m.I0,
+    b = m.b,
+    G = m.G,
+    T = m.T,
+    l1 = m.l1,
+    l2 = m.l2,
+    M = m.M,
     Y_n = m.Y_n,
-    v   = m.v,
+    v = m.v,
     P_e = m.P_e,
 )
 
@@ -139,7 +139,7 @@ function adas_shock_compare(
     m_shock::ADASModel;
     scenario_names::Tuple{String, String} = ("baseline", "shock"),
 )
-    eq_base  = steady_state(m_base)
+    eq_base = steady_state(m_base)
     eq_shock = steady_state(m_shock)
     vars = Dict{String, Vector{Float64}}(
         "Y" => [eq_base.Y, eq_shock.Y],
@@ -149,8 +149,8 @@ function adas_shock_compare(
         "I" => [eq_base.I, eq_shock.I],
     )
     meta = Dict{String, Any}(
-        "scenario_names"   => collect(scenario_names),
-        "parameters_base"  => parameters(m_base),
+        "scenario_names" => collect(scenario_names),
+        "parameters_base" => parameters(m_base),
         "parameters_shock" => parameters(m_shock),
     )
     SimulationResult("AD-AS Model", "shock_comparison", vars, meta)

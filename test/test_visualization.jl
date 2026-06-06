@@ -72,3 +72,82 @@ using Plots
         @test p isa Plots.Plot
     end
 end
+
+@testset "plot_comparison" begin
+    vars_a = Dict{String,Vector{Float64}}("K" => [1.0, 1.1, 1.2], "C" => [0.5, 0.55, 0.6])
+    vars_b = Dict{String,Vector{Float64}}("K" => [0.8, 0.9, 1.0], "C" => [0.4, 0.45, 0.5])
+    sr_a = SimulationResult("TestModel", "scenario_a", vars_a)
+    sr_b = SimulationResult("TestModel", "scenario_b", vars_b)
+
+    @testset "基本比較プロット（String 変数名）" begin
+        p = plot_comparison([sr_a, sr_b]; var = "K")
+        @test p isa Plots.Plot
+    end
+
+    @testset "基本比較プロット（Symbol 変数名）" begin
+        p = plot_comparison([sr_a, sr_b]; var = :K)
+        @test p isa Plots.Plot
+    end
+
+    @testset "labels 指定で凡例上書き" begin
+        p = plot_comparison([sr_a, sr_b]; var = "K", labels = ["シナリオA", "シナリオB"])
+        @test p isa Plots.Plot
+    end
+
+    @testset "title / xlabel / ylabel オプション" begin
+        p = plot_comparison([sr_a, sr_b]; var = "K",
+                            title = "K の比較", xlabel = "t", ylabel = "資本")
+        @test p isa Plots.Plot
+    end
+
+    @testset "期間長が異なる場合に :truncate で正常動作" begin
+        vars_short = Dict{String,Vector{Float64}}("K" => [1.0, 1.1])
+        sr_short = SimulationResult("TestModel", "short", vars_short)
+        p = plot_comparison([sr_a, sr_short]; var = "K", on_length_mismatch = :truncate)
+        @test p isa Plots.Plot
+    end
+
+    @testset "期間長が異なる場合に :error でエラー" begin
+        vars_short = Dict{String,Vector{Float64}}("K" => [1.0, 1.1])
+        sr_short = SimulationResult("TestModel", "short", vars_short)
+        @test_throws ArgumentError plot_comparison([sr_a, sr_short]; var = "K",
+                                                   on_length_mismatch = :error)
+    end
+
+    @testset "存在しない変数でエラー" begin
+        @test_throws ArgumentError plot_comparison([sr_a, sr_b]; var = "Z")
+    end
+
+    @testset "エラーメッセージに変数名と利用可能変数が含まれる" begin
+        ex = try
+            plot_comparison([sr_a, sr_b]; var = "Z")
+            nothing
+        catch e
+            e
+        end
+        @test ex isa ArgumentError
+        @test occursin("Z", ex.msg)
+        @test occursin("K", ex.msg) || occursin("C", ex.msg)
+    end
+
+    @testset "results が空でエラー" begin
+        @test_throws ArgumentError plot_comparison(SimulationResult[]; var = "K")
+    end
+
+    @testset "labels の長さ不一致でエラー" begin
+        @test_throws ArgumentError plot_comparison([sr_a, sr_b]; var = "K",
+                                                   labels = ["one"])
+    end
+
+    @testset "New Keynesian モデル: 需要ショック vs 金融政策ショック比較" begin
+        m = NewKeynesianModel(1.0, 0.02, 0.99, 0.1, 1.5, 0.5, 0.02, 0.8, 0.5, 0.5)
+        irf_demand   = impulse_response(m; shock = :demand,   T = 10)
+        irf_monetary = impulse_response(m; shock = :monetary, T = 10)
+        sr_demand   = to_simulation_result(m, irf_demand,   "demand_shock")
+        sr_monetary = to_simulation_result(m, irf_monetary, "monetary_shock")
+        p = plot_comparison([sr_demand, sr_monetary]; var = "π",
+                            labels = ["需要ショック", "金融政策ショック"],
+                            title  = "インフレ率の比較")
+        @test p isa Plots.Plot
+    end
+end
