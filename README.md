@@ -1,7 +1,6 @@
 # DME — Dynamic Macroeconomic Models in Julia
 
 動学的マクロ経済モデルを Julia で実装したパッケージです。
-[rhasumi/dynamicmodels](https://github.com/rhasumi/dynamicmodels) の R 実装を参考に Julia へ移植しています。
 
 ## モデル一覧
 
