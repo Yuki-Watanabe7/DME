@@ -24,6 +24,26 @@ julia --project=. -e "using Pkg; Pkg.test()"
    - `docs/` 配下のみの変更（docs-only）の場合は Julia 環境セットアップや `Pkg.test()` は不要。docs-only 変更をした場合は PR 本文または最終コメントに「docs-only のため Julia test は未実行」と明記すること。
 3. **Project.toml を変更した場合**: `julia --project=. -e 'using Pkg; Pkg.resolve()'` を実行し、`Manifest.toml` もコミットすること。
 
+## GitHub Issue対応の標準手順
+
+ローカルClaude CodeでIssue対応する場合は、GitHub CLI `gh` を使ってIssue本文・コメント・PR状態を確認する。
+
+基本コマンド:
+
+```bash
+gh issue view <issue-number> --comments
+gh issue list --state open
+```
+
+Issue対応時の標準フロー:
+
+gh issue view <issue-number> --comments でIssue本文とコメントを確認する
+関連コード・関連テスト・関連docsを読む
+作業方針を短く説明する
+実装・docs更新を行う
+軽量検証を実行する
+
+
 ## 詳細ドキュメント
 
 | ドキュメント | 内容 |

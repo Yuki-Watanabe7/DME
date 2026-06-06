@@ -7,6 +7,7 @@ export
     RamseyModel,
     RBCModel,
     SolowModel,
+    ISLMModel,
     # Model metadata
     model_name,
     state_variables,
@@ -28,7 +29,8 @@ export
     SolverOptions,
     ValueIterationOptions
 # Internal API (not exported): calc_ep, find_path, solve_by_nlvar,
-#   simulate_by_nlvar, solve_rbc, shock
+#   simulate_by_nlvar, solve_rbc, shock,
+#   islm_equilibrium, islm_policy_shock
 # Access via DME.calc_ep etc. if needed for advanced use.
 
 using LinearAlgebra
@@ -51,6 +53,7 @@ include("./core/solver_options.jl")
 include("./models/ramsey.jl")
 include("./models/rbc.jl")
 include("./models/solow.jl")
+include("./models/islm.jl")
 
 # Cross-model result type (depends on RamseyModel and RBCModel)
 include("./core/simulation_result.jl")
