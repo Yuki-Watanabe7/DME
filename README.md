@@ -8,6 +8,7 @@
 |---|---|
 | **Ramsey モデル** | 無限期間最適成長モデル。価値反復法と完全予見経路の計算をサポート |
 | **RBC モデル** | リアル・ビジネス・サイクルモデル。線形化（Blanchard-Kahn 法）によるインパルス応答計算をサポート |
+| **Solow モデル** | 外生的貯蓄率による長期成長モデル。解析的定常状態と収束経路の計算をサポート |
 
 ## セットアップ
 
@@ -72,6 +73,31 @@ irf.ĉ  # 消費の対数偏差
 irf.k̂  # 資本の対数偏差
 ```
 
+### Solow モデル
+
+```julia
+using DME
+
+m = SolowModel(0.3, 0.2, 0.1, 0.01, 0.02)  # α, s, δ, n, g
+
+# 定常状態（解析解: 効率労働単位あたり）
+ep = steady_state(m)
+ep.k  # 定常資本
+ep.y  # 定常産出
+ep.c  # 定常消費
+
+# 収束経路（k0 から定常状態へ T=100 期の前向き反復）
+path = transition_path(m, ep.k / 2; T=100)
+path.k    # 資本系列
+path.y    # 産出系列
+path.c    # 消費系列
+path.inv  # 投資系列
+
+# SimulationResult に変換してプロット
+sr = to_simulation_result(m, path, "convergence")
+p = plot_result(sr; vars=["k", "y", "c"], title="Solow 収束経路")
+```
+
 ### プロット
 
 `SimulationResult` を直接プロットできます。
@@ -115,6 +141,22 @@ control_variables(m)   # [:C]
 parameters(m)          # (α = 0.3, β = 0.99, δ = 0.25)
 ```
 
+## サンプルスクリプト
+
+`examples/` ディレクトリにモデルの使い方を示すサンプルスクリプトがあります。
+
+| スクリプト | 内容 |
+|---|---|
+| [examples/phase3_phase4_demo.jl](examples/phase3_phase4_demo.jl) | **Phase 3-4 統合デモ**。Ramsey / Solow / RBC / Mundell-Fleming / New Keynesian を横断し、共通 API・可視化・横断比較・Phase 5-6 への橋渡しを示す。 |
+| [examples/growth_models.jl](examples/growth_models.jl) | Ramsey / RBC / Solow の比較デモ。定常状態・移行経路・IRF・プロット API の使い方を示す。 |
+| [examples/policy_analysis.jl](examples/policy_analysis.jl) | IS-LM / AD-AS / New Keynesian の短期政策分析デモ。財政・金融・需要・供給ショックの比較と各モデルの使い分けを示す。 |
+
+```bash
+julia --project=. examples/phase3_phase4_demo.jl
+julia --project=. examples/growth_models.jl
+julia --project=. examples/policy_analysis.jl
+```
+
 ## テスト
 
 ```bash
@@ -125,6 +167,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 
 | ドキュメント | 内容 |
 |---|---|
+| [モデル選択ガイド](docs/model_selection_guide.md) | 問い・現象からモデルを選ぶためのリファレンス。比較表・決定木・各モデルの限界 |
 | [API リファレンス](docs/api.md) | Public/Internal API の一覧・シグネチャ・移行ガイド |
 | [モデル共通インターフェース](docs/architecture/model_interface.md) | 抽象型階層・命名方針・新規モデル追加ルール |
 | [パッケージ構成とアーキテクチャ概要](docs/architecture/package_structure.md) | ソースツリー・include 順序・Node 型階層・補間・モデル内部関数 |
