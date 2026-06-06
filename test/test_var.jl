@@ -1,3 +1,5 @@
+using Plots
+
 @testset "VARModel" begin
     # 2変数 VAR(1): y (GDP) と π (インフレ)
     # y_t = 0.5 + 0.8*y_{t-1} + 0.1*π_{t-1}
