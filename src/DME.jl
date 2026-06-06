@@ -10,6 +10,7 @@ export
     ISLMModel,
     ADASModel,
     NewKeynesianModel,
+    VARModel,
     # Model metadata
     model_name,
     state_variables,
@@ -63,6 +64,7 @@ include("./models/solow.jl")
 include("./models/islm.jl")
 include("./models/adas.jl")
 include("./models/new_keynesian.jl")
+include("./models/var.jl")
 
 # Cross-model result type (depends on RamseyModel and RBCModel)
 include("./core/simulation_result.jl")
