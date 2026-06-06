@@ -7,6 +7,9 @@ export
     RamseyModel,
     RBCModel,
     SolowModel,
+    ISLMModel,
+    ADASModel,
+    NewKeynesianModel,
     # Model metadata
     model_name,
     state_variables,
@@ -22,14 +25,20 @@ export
     variable_names,
     nperiods,
     to_simulation_result,
+    summarize_result,
     # Visualization
     plot_result,
+    plot_irf,
+    plot_comparison,
     # Solver options
     SolverOptions,
     ValueIterationOptions
 # Internal API (not exported): calc_ep, find_path, solve_by_nlvar,
-#   simulate_by_nlvar, solve_rbc, shock
-# Access via DME.calc_ep etc. if needed for advanced use.
+#   simulate_by_nlvar, solve_rbc, shock,
+#   islm_equilibrium, islm_policy_shock,
+#   adas_equilibrium, adas_shock_compare,
+#   nk_msv_response, nk_irf_compare
+# Access via DME.nk_msv_response etc. if needed for advanced use.
 
 using LinearAlgebra
 using NLsolve
@@ -51,6 +60,9 @@ include("./core/solver_options.jl")
 include("./models/ramsey.jl")
 include("./models/rbc.jl")
 include("./models/solow.jl")
+include("./models/islm.jl")
+include("./models/adas.jl")
+include("./models/new_keynesian.jl")
 
 # Cross-model result type (depends on RamseyModel and RBCModel)
 include("./core/simulation_result.jl")
