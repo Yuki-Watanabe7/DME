@@ -54,15 +54,34 @@ struct DataSeries
     frequency::DataFrequency
     unit::String
     dates::Vector{String}
-    values::Vector{Union{Float64,Missing}}
-    metadata::Dict{String,Any}
+    values::Vector{Union{Float64, Missing}}
+    metadata::Dict{String, Any}
 
     function DataSeries(
-        id, name, source, frequency, unit, dates, values, metadata=Dict{String,Any}()
+        id,
+        name,
+        source,
+        frequency,
+        unit,
+        dates,
+        values,
+        metadata = Dict{String, Any}(),
     )
-        length(dates) == length(values) ||
-            throw(ArgumentError("dates と values の長さが一致しません: $(length(dates)) != $(length(values))"))
-        new(id, name, source, frequency, unit, dates, collect(Union{Float64,Missing}, values), metadata)
+        length(dates) == length(values) || throw(
+            ArgumentError(
+                "dates と values の長さが一致しません: $(length(dates)) != $(length(values))",
+            ),
+        )
+        new(
+            id,
+            name,
+            source,
+            frequency,
+            unit,
+            dates,
+            collect(Union{Float64, Missing}, values),
+            metadata,
+        )
     end
 end
 
@@ -79,7 +98,7 @@ function DataSeries(;
     unit::String,
     dates::Vector{String},
     values::AbstractVector,
-    metadata::Dict{String,Any}=Dict{String,Any}(),
+    metadata::Dict{String, Any} = Dict{String, Any}(),
 )
     DataSeries(id, name, source, frequency, unit, dates, values, metadata)
 end
@@ -149,7 +168,7 @@ get_series(ds, "FRED_GDPC1")  # DataSeries
 """
 struct MacroDataset
     name::String
-    series::Dict{String,DataSeries}
+    series::Dict{String, DataSeries}
 end
 
 """
@@ -157,7 +176,7 @@ end
 
 空の `MacroDataset` を作成する。
 """
-MacroDataset(name::String) = MacroDataset(name, Dict{String,DataSeries}())
+MacroDataset(name::String) = MacroDataset(name, Dict{String, DataSeries}())
 
 """
     MacroDataset(name, series_list)
@@ -165,7 +184,7 @@ MacroDataset(name::String) = MacroDataset(name, Dict{String,DataSeries}())
 `DataSeries` のベクタから `MacroDataset` を作成する。
 """
 function MacroDataset(name::String, series_list::Vector{DataSeries})
-    d = Dict{String,DataSeries}(s.id => s for s in series_list)
+    d = Dict{String, DataSeries}(s.id => s for s in series_list)
     MacroDataset(name, d)
 end
 

@@ -35,7 +35,7 @@ client = FredClient(api_key="your_key", mode=:live)
 ```
 """
 struct FredClient
-    api_key::Union{String,Nothing}
+    api_key::Union{String, Nothing}
     mode::Symbol
     fixture_dir::String
     base_url::String
@@ -53,10 +53,10 @@ FRED クライアントを作成する。
 - `base_url`: FRED API 基底 URL（デフォルト: `https://api.stlouisfed.org/fred`）。
 """
 function FredClient(;
-    api_key::Union{String,Nothing}=nothing,
-    mode::Union{Symbol,Nothing}=nothing,
-    fixture_dir::String=_DEFAULT_FIXTURE_DIR,
-    base_url::String=_FRED_BASE_URL,
+    api_key::Union{String, Nothing} = nothing,
+    mode::Union{Symbol, Nothing} = nothing,
+    fixture_dir::String = _DEFAULT_FIXTURE_DIR,
+    base_url::String = _FRED_BASE_URL,
 )
     resolved_key = api_key !== nothing ? api_key : get(ENV, "FRED_API_KEY", nothing)
 
@@ -111,9 +111,9 @@ gdp = fetch_fred_series("GDPC1"; client=client, start_date="2020-01-01")
 """
 function fetch_fred_series(
     series_id::String;
-    client::FredClient=FredClient(),
-    start_date::Union{String,Nothing}=nothing,
-    end_date::Union{String,Nothing}=nothing,
+    client::FredClient = FredClient(),
+    start_date::Union{String, Nothing} = nothing,
+    end_date::Union{String, Nothing} = nothing,
 )::DataSeries
     if client.mode == :fixture
         return _load_fred_fixture(series_id, client.fixture_dir)
@@ -126,7 +126,7 @@ function fetch_fred_series(
             "    https://fred.stlouisfed.org/docs/api/api_key.html で API キーを取得し、\n" *
             "    環境変数 FRED_API_KEY に設定してください。\n" *
             "  API キーなしで使用する場合（テスト・デモ）:\n" *
-            "    DME_DATA_MODE=fixture を設定するか、FredClient(mode=:fixture) を使用してください。"
+            "    DME_DATA_MODE=fixture を設定するか、FredClient(mode=:fixture) を使用してください。",
         )
     end
 
@@ -155,14 +155,19 @@ get_series(ds, "FRED_GDPC1")["2020-Q1"]  # 19254.0
 """
 function fetch_fred_dataset(
     series_ids::Vector{String};
-    client::FredClient=FredClient(),
-    start_date::Union{String,Nothing}=nothing,
-    end_date::Union{String,Nothing}=nothing,
-    name::String="FRED Dataset",
+    client::FredClient = FredClient(),
+    start_date::Union{String, Nothing} = nothing,
+    end_date::Union{String, Nothing} = nothing,
+    name::String = "FRED Dataset",
 )::MacroDataset
     ds = MacroDataset(name)
     for id in series_ids
-        s = fetch_fred_series(id; client=client, start_date=start_date, end_date=end_date)
+        s = fetch_fred_series(
+            id;
+            client = client,
+            start_date = start_date,
+            end_date = end_date,
+        )
         push!(ds, s)
     end
     ds
@@ -176,7 +181,7 @@ function _load_fred_fixture(series_id::String, fixture_dir::String)::DataSeries
     path = joinpath(fixture_dir, "fred", "$(series_id).json")
     isfile(path) || error(
         "FRED fixture が見つかりません: $path\n" *
-        "  fixture を追加するか、DME_DATA_MODE=live と FRED_API_KEY を設定して実 API を使用してください。"
+        "  fixture を追加するか、DME_DATA_MODE=live と FRED_API_KEY を設定して実 API を使用してください。",
     )
     _parse_fred_json(read(path, String))
 end
@@ -188,8 +193,8 @@ end
 function _fetch_fred_live(
     series_id::String,
     client::FredClient,
-    start_date::Union{String,Nothing},
-    end_date::Union{String,Nothing},
+    start_date::Union{String, Nothing},
+    end_date::Union{String, Nothing},
 )::DataSeries
     meta_url = _build_fred_url(client.base_url, "/series", client.api_key, series_id)
     meta_data = JSON3.read(_http_get(meta_url))
@@ -200,22 +205,28 @@ function _fetch_fred_live(
     units = String(series_info["units"])
     sa = string(get(series_info, "seasonal_adjustment", ""))
 
-    obs_params = Dict{String,String}()
+    obs_params = Dict{String, String}()
     start_date !== nothing && (obs_params["observation_start"] = start_date)
     end_date !== nothing && (obs_params["observation_end"] = end_date)
-    obs_url = _build_fred_url(client.base_url, "/series/observations", client.api_key, series_id; params=obs_params)
+    obs_url = _build_fred_url(
+        client.base_url,
+        "/series/observations",
+        client.api_key,
+        series_id;
+        params = obs_params,
+    )
     obs_data = JSON3.read(_http_get(obs_url))
     dates, values = _parse_fred_observations(obs_data["observations"], freq)
 
     DataSeries(
-        id=       "FRED_$(series_id)",
-        name=     title,
-        source=   "FRED",
-        frequency=freq,
-        unit=     units,
-        dates=    dates,
-        values=   values,
-        metadata= Dict{String,Any}("seasonal_adjustment" => sa),
+        id = "FRED_$(series_id)",
+        name = title,
+        source = "FRED",
+        frequency = freq,
+        unit = units,
+        dates = dates,
+        values = values,
+        metadata = Dict{String, Any}("seasonal_adjustment" => sa),
     )
 end
 
@@ -230,23 +241,23 @@ function _parse_fred_json(json_str::String)::DataSeries
     sa = string(get(s, "seasonal_adjustment", ""))
     dates, values = _parse_fred_observations(data["observations"], freq)
     DataSeries(
-        id=       "FRED_$(String(s["id"]))",
-        name=     String(s["title"]),
-        source=   "FRED",
-        frequency=freq,
-        unit=     String(s["units"]),
-        dates=    dates,
-        values=   values,
-        metadata= Dict{String,Any}("seasonal_adjustment" => sa),
+        id = "FRED_$(String(s["id"]))",
+        name = String(s["title"]),
+        source = "FRED",
+        frequency = freq,
+        unit = String(s["units"]),
+        dates = dates,
+        values = values,
+        metadata = Dict{String, Any}("seasonal_adjustment" => sa),
     )
 end
 
 function _parse_fred_observations(observations, freq::DataFrequency)
-    dates  = String[]
-    values = Union{Float64,Missing}[]
+    dates = String[]
+    values = Union{Float64, Missing}[]
     for obs in observations
         date_str = String(obs["date"])
-        val_str  = String(obs["value"])
+        val_str = String(obs["value"])
         push!(dates, _fred_date_to_label(date_str, freq))
         push!(values, val_str == "." ? missing : parse(Float64, val_str))
     end
@@ -254,7 +265,7 @@ function _parse_fred_observations(observations, freq::DataFrequency)
 end
 
 function _fred_date_to_label(date_str::String, freq::DataFrequency)::String
-    year  = date_str[1:4]
+    year = date_str[1:4]
     month = parse(Int, date_str[6:7])
     if freq == Annual
         return year
@@ -285,7 +296,7 @@ function _build_fred_url(
     endpoint::String,
     api_key::String,
     series_id::String;
-    params::Dict{String,String}=Dict{String,String}(),
+    params::Dict{String, String} = Dict{String, String}(),
 )::String
     url = "$(base_url)$(endpoint)?series_id=$(series_id)&api_key=$(api_key)&file_type=json"
     for (k, v) in params
@@ -295,8 +306,8 @@ function _build_fred_url(
 end
 
 function _http_get(url::String)::String
-    buf  = IOBuffer()
-    resp = Downloads.request(url; output=buf)
+    buf = IOBuffer()
+    resp = Downloads.request(url; output = buf)
     resp.status == 200 || error("FRED API リクエスト失敗: HTTP $(resp.status)")
     String(take!(buf))
 end
