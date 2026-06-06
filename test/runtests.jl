@@ -3,6 +3,7 @@ using Test
 
 include("test_util.jl")
 include("test_data_series.jl")
+include("test_fred.jl")
 include("test_preprocess.jl")
 include("test_ramsey.jl")
 include("test_rbc.jl")

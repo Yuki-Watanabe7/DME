@@ -1,0 +1,23 @@
+{
+  "series": {
+    "id": "FEDFUNDS",
+    "title": "Federal Funds Effective Rate",
+    "frequency": "Monthly",
+    "units": "Percent",
+    "seasonal_adjustment": "Not Seasonally Adjusted"
+  },
+  "observations": [
+    {"date": "2020-01-01", "value": "1.55"},
+    {"date": "2020-02-01", "value": "1.58"},
+    {"date": "2020-03-01", "value": "0.65"},
+    {"date": "2020-04-01", "value": "0.05"},
+    {"date": "2020-05-01", "value": "0.05"},
+    {"date": "2020-06-01", "value": "0.08"},
+    {"date": "2020-07-01", "value": "0.09"},
+    {"date": "2020-08-01", "value": "0.10"},
+    {"date": "2020-09-01", "value": "0.09"},
+    {"date": "2020-10-01", "value": "0.09"},
+    {"date": "2020-11-01", "value": "0.09"},
+    {"date": "2020-12-01", "value": "0.09"}
+  ]
+}

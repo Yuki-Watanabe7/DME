@@ -13,6 +13,10 @@ export
     get_series,
     nonmissing_values,
     missing_count,
+    # FRED API client
+    FredClient,
+    fetch_fred_series,
+    fetch_fred_dataset,
     # Data preprocessing
     fill_missing,
     drop_missing,
@@ -63,7 +67,10 @@ export
 #   adas_equilibrium, adas_shock_compare,
 #   nk_msv_response, nk_irf_compare,
 #   mf_equilibrium, mf_policy_shock
-# Access via DME.nk_msv_response etc. if needed for advanced use.
+#   _load_fred_fixture, _fetch_fred_live, _parse_fred_json,
+#   _parse_fred_observations, _fred_date_to_label, _detect_frequency,
+#   _build_fred_url, _http_get
+# Access via DME.xxx if needed for advanced use.
 
 using LinearAlgebra
 using NLsolve
@@ -72,10 +79,13 @@ using Ipopt
 using Plots
 using Interpolations
 using Logging
+using JSON3
+using Downloads
 
 # Data types: external data standard types
 include("./data/data_series.jl")
 include("./data/preprocess.jl")
+include("./data/fred.jl")
 
 # Numerical utilities: grid types and interpolation
 include("./numerics/grids.jl")
