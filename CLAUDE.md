@@ -58,3 +58,4 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 | [品質チェックとローカル検証手順](docs/development/quality_checks.md) | Aqua.jl・JuliaFormatter・JET.jl 見送り理由・テスト実行方法 |
 | [依存パッケージ管理と注意点](docs/development/dependency_management.md) | JuMP・Interpolations・NLsolve の注意点・Manifest.toml 管理 |
 | [小国開放経済モデル設計方針](docs/models/open_economy_design.md) | 候補モデル比較・最小実装選定（Mundell-Fleming）・実データ候補系列 |
+| [モデル変数と実データ系列のマッピング表](docs/data/variable_mapping.md) | 各モデル変数と候補実データ系列の対応・単位・変換注意事項 |
