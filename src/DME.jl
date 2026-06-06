@@ -13,6 +13,17 @@ export
     get_series,
     nonmissing_values,
     missing_count,
+    # Data preprocessing
+    fill_missing,
+    drop_missing,
+    apply_log,
+    difference,
+    pct_change,
+    moving_average,
+    standardize,
+    trim_period,
+    to_quarterly,
+    to_annual,
     # Model type hierarchy
     AbstractMacroModel,
     RamseyModel,
@@ -64,6 +75,7 @@ using Logging
 
 # Data types: external data standard types
 include("./data/data_series.jl")
+include("./data/preprocess.jl")
 
 # Numerical utilities: grid types and interpolation
 include("./numerics/grids.jl")
