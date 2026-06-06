@@ -17,7 +17,10 @@ julia --project=. -e "using Pkg; Pkg.test()"
 
 1. **作業前に確認する**: 変更前に関連コード・関連テスト・関連 docs を確認すること。
 2. **変更種別に応じた検証**:
-   - Julia コード・テスト・CI 設定・`Project.toml` / `Manifest.toml` を変更した場合は `Pkg.test()` を実行する。
+   - Julia コード・テスト・CI 設定・`Project.toml` / `Manifest.toml` を変更した場合はフルセットの検証は行わないが、少なくとも変更対象のコードや関数に対する簡単なsmoke testを行うこと。可能であれば、対象テストセット相当の最小確認も行うこと。(`Pkg.test()`によるフルセットの検証はPR時のCIにて行う。)
+      - julia --project=. -e "using DME"
+      - 変更対象モデル・関数の簡単な smoke test
+      - 可能であれば対象テストセット相当の最小確認
    - `docs/` 配下のみの変更（docs-only）の場合は Julia 環境セットアップや `Pkg.test()` は不要。docs-only 変更をした場合は PR 本文または最終コメントに「docs-only のため Julia test は未実行」と明記すること。
 3. **Project.toml を変更した場合**: `julia --project=. -e 'using Pkg; Pkg.resolve()'` を実行し、`Manifest.toml` もコミットすること。
 
