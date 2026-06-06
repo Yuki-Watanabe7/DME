@@ -73,6 +73,49 @@ result["K"]              # 変数系列の取得
 haskey(result, "K")      # 変数の存在確認
 variable_names(result)   # 変数名リスト -> Vector{String}
 nperiods(result)         # 期間数 -> Int
+
+# サマリー抽出
+summarize_result(result) -> Dict{String, Any}
+```
+
+#### `summarize_result` の戻り値構造
+
+```julia
+Dict{String, Any}(
+    "model_name"    => String,   # モデル名
+    "scenario_name" => String,   # シナリオ名
+    "nperiods"      => Int,      # 期間数
+    "variables"     => Dict{String, NamedTuple}  # 変数名 → 変数サマリー
+)
+```
+
+変数サマリー (`NamedTuple`) のフィールド:
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `initial` | Float64 | 初期値（第1期） |
+| `final` | Float64 | 最終値（最終期） |
+| `max` | Float64 | 最大値 |
+| `min` | Float64 | 最小値 |
+| `range` | Float64 | 変化幅（max - min） |
+| `argmax` | Int | 最大値の時点（1始まり） |
+| `argmin` | Int | 最小値の時点（1始まり） |
+| `peak_response` | Float64 | 絶対値最大の値（符号付き）。IRF結果で有用。 |
+| `sign_reversal` | Bool | 系列が正と負の両方を取るか。IRF結果で有用。 |
+
+**例**:
+
+```julia
+m = RBCModel(0.3, 0.99, 1.0, 0.025, 1.0, 0.9)
+irf = impulse_response(m, 0.01)
+sr = to_simulation_result(m, irf, "technology_shock")
+summary = summarize_result(sr)
+
+summary["model_name"]                     # "RBC Model"
+summary["nperiods"]                       # 150
+summary["variables"]["ŷ"].max             # ŷ の最大値
+summary["variables"]["ŷ"].argmax          # ŷ が最大になる期
+summary["variables"]["k̂"].sign_reversal   # 資本が符号反転するか
 ```
 
 ### 可視化API

@@ -25,6 +25,7 @@ export
     variable_names,
     nperiods,
     to_simulation_result,
+    summarize_result,
     # Visualization
     plot_result,
     plot_irf,

@@ -92,3 +92,85 @@ function to_simulation_result(
     meta = Dict{String, Any}("parameters" => parameters(m))
     SimulationResult(model_name(m), scenario, copy(result), meta)
 end
+
+# 1変数の統計サマリーを計算する内部ヘルパー
+function _var_summary(v::Vector{Float64})
+    n = length(v)
+    if n == 0
+        return (
+            initial=0.0, final=0.0, max=0.0, min=0.0, range=0.0,
+            argmax=0, argmin=0, peak_response=0.0, sign_reversal=false,
+        )
+    end
+    mx = maximum(v)
+    mn = minimum(v)
+    am = argmax(v)
+    an = argmin(v)
+    peak = abs(mx) >= abs(mn) ? mx : mn
+    sr = mx > 0.0 && mn < 0.0
+    (
+        initial=v[1],
+        final=v[n],
+        max=mx,
+        min=mn,
+        range=mx - mn,
+        argmax=am,
+        argmin=an,
+        peak_response=peak,
+        sign_reversal=sr,
+    )
+end
+
+"""
+    summarize_result(result::SimulationResult) -> Dict{String, Any}
+
+`SimulationResult` から変数ごとの統計サマリーを抽出する。
+
+## 戻り値
+
+`Dict{String, Any}` で以下のキーを持つ:
+- `"model_name"`    : モデル名（String）
+- `"scenario_name"` : シナリオ名（String）
+- `"nperiods"`      : 期間数（Int）
+- `"variables"`     : `Dict{String, NamedTuple}` — 変数名 → 変数サマリー
+
+### 変数サマリーの NamedTuple フィールド
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `initial` | Float64 | 初期値（第1期） |
+| `final` | Float64 | 最終値（最終期） |
+| `max` | Float64 | 最大値 |
+| `min` | Float64 | 最小値 |
+| `range` | Float64 | 変化幅（max - min） |
+| `argmax` | Int | 最大値の時点（1始まり） |
+| `argmin` | Int | 最小値の時点（1始まり） |
+| `peak_response` | Float64 | 絶対値最大の値（符号付き）。IRF結果で有用。 |
+| `sign_reversal` | Bool | 系列が正と負の両方を取るか。IRF結果で有用。 |
+
+## 使用例
+
+```julia
+m = RBCModel(0.3, 0.99, 1.0, 0.025, 1.0, 0.9)
+irf = impulse_response(m, 0.01)
+sr = to_simulation_result(m, irf, "technology_shock")
+summary = summarize_result(sr)
+
+summary["model_name"]              # "RBC Model"
+summary["nperiods"]                # 150
+summary["variables"]["ŷ"].max      # ŷ の最大値
+summary["variables"]["ŷ"].argmax   # ŷ が最大になる期
+summary["variables"]["k̂"].sign_reversal  # 資本が符号反転するか
+```
+"""
+function summarize_result(result::SimulationResult)
+    vars_summary = Dict{String, NamedTuple}(
+        k => _var_summary(v) for (k, v) in result.variables
+    )
+    Dict{String, Any}(
+        "model_name" => result.model_name,
+        "scenario_name" => result.scenario_name,
+        "nperiods" => nperiods(result),
+        "variables" => vars_summary,
+    )
+end
