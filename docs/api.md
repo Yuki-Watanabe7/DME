@@ -118,6 +118,77 @@ summary["variables"]["ŷ"].argmax          # ŷ が最大になる期
 summary["variables"]["k̂"].sign_reversal   # 資本が符号反転するか
 ```
 
+### 実データ型
+
+外部マクロデータを DME 内で統一的に扱う標準データ型。
+
+```julia
+@enum DataFrequency Annual Quarterly Monthly
+
+struct DataSeries
+    id::String                            # 系列識別子 (例: "FRED_GDPC1")
+    name::String                          # 人間可読な系列名
+    source::String                        # データ出所 (例: "FRED", "e-Stat", "BOJ")
+    frequency::DataFrequency              # 観測頻度 (Annual / Quarterly / Monthly)
+    unit::String                          # 単位
+    dates::Vector{String}                 # 日付ラベル
+    values::Vector{Union{Float64,Missing}} # 観測値。欠損値は missing
+    metadata::Dict{String,Any}            # 追加メタデータ
+end
+
+# コンストラクタ（キーワード引数）
+DataSeries(; id, name, source, frequency, unit, dates, values, metadata=Dict())
+
+# ユーティリティ
+series["2020-Q1"]         # 日付ラベルで値を取得
+haskey(series, "2020-Q1") # 日付の存在確認
+length(series)            # 観測点数
+nonmissing_values(series) # 欠損を除いた Vector{Float64}
+missing_count(series)     # 欠損値の個数
+
+struct MacroDataset
+    name::String                   # データセット名
+    series::Dict{String,DataSeries} # id → DataSeries のマップ
+end
+
+# コンストラクタ
+MacroDataset(name)                          # 空データセット
+MacroDataset(name, series_list::Vector{DataSeries})  # ベクタから一括作成
+
+# ユーティリティ
+push!(dataset, series)         # DataSeries を追加（同一 id は上書き）
+get_series(dataset, id)        # id で DataSeries を取得（なければ KeyError）
+series_ids(dataset)            # 利用可能な系列 id リスト -> Vector{String}
+haskey(dataset, id)            # id の存在確認
+length(dataset)                # 系列数
+```
+
+**使用例**:
+
+```julia
+s = DataSeries(
+    id        = "FRED_GDPC1",
+    name      = "Real GDP",
+    source    = "FRED",
+    frequency = Quarterly,
+    unit      = "Billions of Chained 2017 Dollars",
+    dates     = ["2020-Q1", "2020-Q2", "2020-Q3"],
+    values    = [19254.0, 17302.0, 18638.0],
+)
+
+s["2020-Q1"]    # 19254.0
+length(s)       # 3
+
+ds = MacroDataset("US Macro")
+push!(ds, s)
+get_series(ds, "FRED_GDPC1").name  # "Real GDP"
+```
+
+**`DataSeries` と `SimulationResult` の変換方針**については
+[`docs/data/data_series_guide.md`](../data/data_series_guide.md) を参照。
+
+---
+
 ### 可視化API
 
 ```julia

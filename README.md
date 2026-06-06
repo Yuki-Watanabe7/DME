@@ -20,6 +20,17 @@ Pkg.activate(".")
 Pkg.instantiate()
 ```
 
+### 外部 API 設定（Phase 5-6 実データ・LLM 機能）
+
+FRED・e-Stat・OpenAI など外部 API を使う場合は、環境変数ファイルを作成してください。
+
+```bash
+cp .env.example .env
+# .env を開き、使用する API キーを設定する
+```
+
+**API キーなしでも動きます**。デフォルトは `fixture` モードのため、テスト・デモは API キー不要で実行できます。詳細は [設定・環境変数管理ガイド](docs/development/configuration.md) を参照してください。
+
 ## 使い方
 
 ### Ramsey モデル
@@ -168,6 +179,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | ドキュメント | 内容 |
 |---|---|
 | [モデル選択ガイド](docs/model_selection_guide.md) | 問い・現象からモデルを選ぶためのリファレンス。比較表・決定木・各モデルの限界 |
+| [モデル変数と実データ系列のマッピング表](docs/data/variable_mapping.md) | 各モデル変数と候補実データ系列の対応・単位・変換注意事項。LLM 解釈の前提 |
 | [API リファレンス](docs/api.md) | Public/Internal API の一覧・シグネチャ・移行ガイド |
 | [モデル共通インターフェース](docs/architecture/model_interface.md) | 抽象型階層・命名方針・新規モデル追加ルール |
 | [パッケージ構成とアーキテクチャ概要](docs/architecture/package_structure.md) | ソースツリー・include 順序・Node 型階層・補間・モデル内部関数 |
@@ -177,6 +189,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [出力結果の読み方](docs/simulation_outputs.md) | 定常状態・移行経路・IRF・水準/対数偏差の概念と Ramsey/RBC の出力例 |
 | [品質チェックとローカル検証手順](docs/development/quality_checks.md) | Aqua.jl・JuliaFormatter・テスト実行方法・フォーマット確認 |
 | [依存パッケージ管理と注意点](docs/development/dependency_management.md) | JuMP・Interpolations・NLsolve の注意点・Manifest.toml 管理 |
+| [設定・環境変数管理ガイド](docs/development/configuration.md) | API キー設定・fixture/mock モード・CI 運用方針 |
 | [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメントを作成する際のテンプレート |
 
 ## 開発ロードマップ

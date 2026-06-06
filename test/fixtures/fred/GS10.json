@@ -1,0 +1,23 @@
+{
+  "series": {
+    "id": "GS10",
+    "title": "Market Yield on U.S. Treasury Securities at 10-Year Constant Maturity",
+    "frequency": "Monthly",
+    "units": "Percent",
+    "seasonal_adjustment": "Not Seasonally Adjusted"
+  },
+  "observations": [
+    {"date": "2020-01-01", "value": "1.76"},
+    {"date": "2020-02-01", "value": "1.47"},
+    {"date": "2020-03-01", "value": "0.87"},
+    {"date": "2020-04-01", "value": "0.61"},
+    {"date": "2020-05-01", "value": "0.64"},
+    {"date": "2020-06-01", "value": "0.66"},
+    {"date": "2020-07-01", "value": "0.59"},
+    {"date": "2020-08-01", "value": "0.64"},
+    {"date": "2020-09-01", "value": "0.68"},
+    {"date": "2020-10-01", "value": "0.79"},
+    {"date": "2020-11-01", "value": "0.88"},
+    {"date": "2020-12-01", "value": "0.93"}
+  ]
+}

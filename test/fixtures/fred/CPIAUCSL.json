@@ -1,0 +1,23 @@
+{
+  "series": {
+    "id": "CPIAUCSL",
+    "title": "Consumer Price Index for All Urban Consumers: All Items in U.S. City Average",
+    "frequency": "Monthly",
+    "units": "Index 1982-1984=100",
+    "seasonal_adjustment": "Seasonally Adjusted"
+  },
+  "observations": [
+    {"date": "2020-01-01", "value": "258.678"},
+    {"date": "2020-02-01", "value": "258.731"},
+    {"date": "2020-03-01", "value": "258.115"},
+    {"date": "2020-04-01", "value": "256.143"},
+    {"date": "2020-05-01", "value": "256.394"},
+    {"date": "2020-06-01", "value": "257.797"},
+    {"date": "2020-07-01", "value": "259.101"},
+    {"date": "2020-08-01", "value": "259.918"},
+    {"date": "2020-09-01", "value": "260.280"},
+    {"date": "2020-10-01", "value": "260.388"},
+    {"date": "2020-11-01", "value": "260.229"},
+    {"date": "2020-12-01", "value": "260.474"}
+  ]
+}
