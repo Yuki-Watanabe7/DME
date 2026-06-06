@@ -11,6 +11,7 @@ export
     ADASModel,
     NewKeynesianModel,
     VARModel,
+    MundellFlemingModel,
     # Model metadata
     model_name,
     state_variables,
@@ -38,7 +39,8 @@ export
 #   simulate_by_nlvar, solve_rbc, shock,
 #   islm_equilibrium, islm_policy_shock,
 #   adas_equilibrium, adas_shock_compare,
-#   nk_msv_response, nk_irf_compare
+#   nk_msv_response, nk_irf_compare,
+#   mf_equilibrium, mf_policy_shock
 # Access via DME.nk_msv_response etc. if needed for advanced use.
 
 using LinearAlgebra
@@ -65,6 +67,7 @@ include("./models/islm.jl")
 include("./models/adas.jl")
 include("./models/new_keynesian.jl")
 include("./models/var.jl")
+include("./models/mundell_fleming.jl")
 
 # Cross-model result type (depends on RamseyModel and RBCModel)
 include("./core/simulation_result.jl")
