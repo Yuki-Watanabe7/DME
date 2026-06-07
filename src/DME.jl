@@ -71,6 +71,8 @@ export
     to_dict,
     to_json,
     to_compact_dict,
+    # LLM doc context (軽量RAG)
+    build_docs_excerpts,
     # LLM prompt generation
     ExplainResultOutput,
     build_explain_prompt,
@@ -130,6 +132,7 @@ include("./core/visualization.jl")
 
 # LLM context layer (depends on SimulationResult and model interface)
 include("./llm/analysis_context.jl")
+include("./llm/doc_context.jl")
 include("./llm/prompts.jl")
 
 end

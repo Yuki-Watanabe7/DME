@@ -1,7 +1,7 @@
 # AnalysisContext 設計ドキュメント
 
-> Phase 6 / P0
-> 関連Issue: #70
+> Phase 6 / P0・P1
+> 関連Issue: #70, #73
 > 関連ドキュメント: [LLM接続層の設計](llm_layer.md)
 
 ---
@@ -95,6 +95,8 @@ LLM の文脈として提供するドキュメント抜粋。RAG 層が検索・
 | `to_dict(ctx)` | `Dict{String, Any}` に変換（各サブ型にも定義） |
 | `to_json(ctx)` | JSON 文字列に変換 |
 | `to_compact_dict(ctx)` | トークン量を抑えたコンパクト版 Dict に変換 |
+| `build_docs_excerpts(model_name; ...)` | モデル名・変数名・キーワードから `DocsExcerpts` を生成（軽量RAG） |
+| `build_docs_excerpts(ctx; ...)` | `AnalysisContext` から `DocsExcerpts` を生成（軽量RAG） |
 
 ---
 
@@ -163,15 +165,31 @@ d = to_dict(ctx)
 println(d["data_comparison_summary"]["data_source"])  # "FRED/GDPC1"
 ```
 
-### ドキュメント抜粋を含む例（RAG 層との連携）
+### ドキュメント抜粋を含む例（`build_docs_excerpts` を使用）
+
+`build_docs_excerpts` を使うと、モデル名・変数名・シナリオ名に基づいて `docs/` 配下の
+Markdown から自動的に関連セクションを抽出できる（詳細は [セクション5](#5-軽量ragdoc-context-の仕組み) 参照）。
 
 ```julia
+# 自動抽出（推奨）
+de = build_docs_excerpts("RBC Model";
+    variable_names = [:K, :A, :C, :L],
+    scenario_name  = "technology_shock",
+    keywords       = ["IRF"],
+)
+ctx = AnalysisContext(rbc, sr; docs_excerpts = de)
+
+# AnalysisContext から直接生成する場合
+ctx_base = AnalysisContext(rbc, sr)
+de  = build_docs_excerpts(ctx_base)
+ctx = AnalysisContext(rbc, sr; docs_excerpts = de)
+
+# 手動指定（カスタム抜粋を使いたい場合）
 de = DocsExcerpts(
     "RBC モデルは資本・労働・技術の3要素からなる標準的なリアルビジネスサイクルモデルです。",
     "ŷ は定常状態からの産出の対数偏差を示します。",
     "このモデルは名目硬直性・摩擦・不確実性を含みません。",
 )
-
 ctx = AnalysisContext(rbc, sr; docs_excerpts = de)
 ```
 
@@ -244,7 +262,54 @@ println(out.disclaimer)               # 免責文言
 
 ---
 
-## 5. `to_compact_dict` の仕様
+## 5. 軽量RAG/Doc Context の仕組み
+
+`build_docs_excerpts`（`src/llm/doc_context.jl`）は、ベクトルDBや外部APIを使わず
+`docs/` 配下のMarkdownをキーワードマッチングで検索し、`DocsExcerpts` を生成する軽量RAG層である。
+
+### 選択ロジック
+
+| `DocsExcerpts` フィールド | 選択元ファイル | 選択基準 |
+|---|---|---|
+| `model_doc` | `docs/models/<model>.md` | モデル名（固定マッピング）+ 「目的」見出し・LLM向け要約 |
+| `output_guide` | `docs/simulation_outputs.md` | `scenario_name`・`keywords` に IRF/ショック語句が含まれるか |
+| `caveats_doc` | `docs/models/<model>.md` | 「限界」「注意事項」「前提」等の見出しキーワード |
+
+### モデル名 → ドキュメントファイルのマッピング
+
+| モデル識別名 | ドキュメントファイル |
+|---|---|
+| `"RBC Model"` | `docs/models/rbc.md` |
+| `"Ramsey Model"` | `docs/models/ramsey.md` |
+| `"Solow Model"` | `docs/models/solow.md` |
+| `"IS-LM Model"` | `docs/models/islm.md` |
+| `"AD-AS Model"` | `docs/models/adas.md` |
+| `"New Keynesian Model"` | `docs/models/new_keynesian.md` |
+| `"VAR Model"` | `docs/models/var.md` |
+| `"Mundell-Fleming Model"` | `docs/models/mundell_fleming.md` |
+
+### Fallback
+
+- ドキュメントファイルが存在しない場合 → 該当フィールドを `""` として安全に返す
+- 見出しキーワードに一致するセクションがない場合 → ファイル先頭を `max_chars_per_doc` 文字まで抽出
+- モデル名がマッピング表にない場合 → `model_doc` と `caveats_doc` を `""` で返す
+
+### 将来のembedding/RAGへの拡張
+
+現在の実装はキーワードマッチングに基づく軽量版である。
+精度向上が必要になった場合、以下の方向で拡張できる:
+
+1. **セクション抽出の高精度化**: 見出し階層を考慮した再帰的なセクション抽出
+2. **ベクトル類似度検索**: `Embeddings.jl` 等によるdocsのベクトル化と類似度ランキング
+3. **外部RAGエンジン連携**: ChromaDB・Weaviate等への `docs/` インデックス登録
+4. **キャッシュ**: 頻繁に使うdocファイルのオンメモリキャッシュ
+
+この拡張は `src/llm/doc_context.jl` 内の内部ヘルパー（`_extract_*` 系）を置き換えることで
+`DocsExcerpts` を返す公開APIを変更せずに実現できる。
+
+---
+
+## 6. `to_compact_dict` の仕様
 
 `to_compact_dict` は、LLM に渡すトークン量を抑えるために変数サマリーを以下の4フィールドに絞る。
 
@@ -256,7 +321,7 @@ println(out.disclaimer)               # 免責文言
 
 ---
 
-## 6. 設計上の注意事項
+## 7. 設計上の注意事項
 
 - **LLM API を呼ばない**: `AnalysisContext` の構築・変換はすべて LLM API なしで完結する。LLM 呼び出しは LLM接続層（[llm_layer.md](llm_layer.md) セクション7参照）に閉じる。
 - **`data_comparison_summary` は実データ比較後に設定**: 実データ比較を行っていない場合は `Nothing` のままとする。`DataComparisonSummary` を手動で構築する場合は `variable_mapping.md` の対応表を参照すること。
@@ -265,7 +330,7 @@ println(out.disclaimer)               # 免責文言
 
 ---
 
-## 7. ドキュメント間の関係
+## 8. ドキュメント間の関係
 
 | ドキュメント | 本ドキュメントとの関係 |
 |---|---|
@@ -273,3 +338,4 @@ println(out.disclaimer)               # 免責文言
 | [LLM出力の安全性・免責・禁止表現ルール](../llm_safety.md) | `caveats` フィールドの内容は本ドキュメントのルールに従って設定する |
 | [出力結果の読み方](../simulation_outputs.md) | `variable_summaries` の各フィールドの解釈方法 |
 | [モデル変数と実データ系列のマッピング表](../data/variable_mapping.md) | `DataComparisonSummary` を設定する際の変数対応参照先 |
+| `src/llm/doc_context.jl` | `build_docs_excerpts` の実装。軽量RAGのキーワードマッチングロジック |
