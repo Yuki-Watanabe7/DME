@@ -60,7 +60,36 @@ export
     plot_comparison,
     # Solver options
     SolverOptions,
-    ValueIterationOptions
+    ValueIterationOptions,
+    # LLM context types
+    ModelMetadata,
+    SimulationResultSummary,
+    DataComparisonSummary,
+    Caveats,
+    DocsExcerpts,
+    AnalysisContext,
+    to_dict,
+    to_json,
+    to_compact_dict,
+    # LLM doc context (軽量RAG)
+    build_docs_excerpts,
+    # LLM prompt generation
+    ExplainResultOutput,
+    build_explain_prompt,
+    explain_result,
+    ExplainDataComparisonOutput,
+    build_data_comparison_prompt,
+    explain_data_comparison,
+    # LLM provider abstraction
+    LLMProviderError,
+    LLMRequest,
+    LLMResponse,
+    AbstractLLMProvider,
+    MockLLMProvider,
+    OpenAIProvider,
+    complete,
+    create_provider,
+    complete_from_prompt
 # Internal API (not exported): calc_ep, find_path, solve_by_nlvar,
 #   simulate_by_nlvar, solve_rbc, shock,
 #   islm_equilibrium, islm_policy_shock,
@@ -110,5 +139,11 @@ include("./core/simulation_result.jl")
 
 # Visualization (depends on SimulationResult)
 include("./core/visualization.jl")
+
+# LLM context layer (depends on SimulationResult and model interface)
+include("./llm/analysis_context.jl")
+include("./llm/doc_context.jl")
+include("./llm/prompts.jl")
+include("./llm/provider.jl")
 
 end

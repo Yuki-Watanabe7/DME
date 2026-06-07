@@ -184,6 +184,8 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [モデル共通インターフェース](docs/architecture/model_interface.md) | 抽象型階層・命名方針・新規モデル追加ルール |
 | [パッケージ構成とアーキテクチャ概要](docs/architecture/package_structure.md) | ソースツリー・include 順序・Node 型階層・補間・モデル内部関数 |
 | [AIエコノミスト化アーキテクチャ](docs/architecture/ai_economist.md) | Phase 3 以降の層構成・データフロー・設計方針 |
+| [LLM接続層の設計](docs/architecture/llm_layer.md) | LLM層の責務・入出力仕様・禁止事項・安全性方針 |
+| [LLM出力の安全性・免責・禁止表現ルール](docs/llm_safety.md) | 禁止表現・必須記載・プロンプトテンプレート・出力チェックリスト |
 | [Ramsey モデル解説](docs/models/ramsey.md) | Ramsey 最適成長モデルの目的・変数・パラメータ・出力・限界 |
 | [RBC モデル解説](docs/models/rbc.md) | リアル・ビジネス・サイクルモデルの目的・変数・パラメータ・IRF・限界 |
 | [出力結果の読み方](docs/simulation_outputs.md) | 定常状態・移行経路・IRF・水準/対数偏差の概念と Ramsey/RBC の出力例 |
