@@ -36,10 +36,7 @@ struct ComparisonResult
 end
 
 # NaNを含むペアを除いた有効インデックスを返す内部ヘルパー
-function _valid_pairs(
-    m_vals::Vector{Float64},
-    d_vals::Vector{Float64},
-)
+function _valid_pairs(m_vals::Vector{Float64}, d_vals::Vector{Float64})
     n = length(m_vals)
     idx = [i for i in 1:n if !isnan(m_vals[i]) && !isnan(d_vals[i])]
     m_vals[idx], d_vals[idx]
