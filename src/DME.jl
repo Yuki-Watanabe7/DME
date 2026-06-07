@@ -74,7 +74,10 @@ export
     # LLM prompt generation
     ExplainResultOutput,
     build_explain_prompt,
-    explain_result
+    explain_result,
+    ExplainDataComparisonOutput,
+    build_data_comparison_prompt,
+    explain_data_comparison
 # Internal API (not exported): calc_ep, find_path, solve_by_nlvar,
 #   simulate_by_nlvar, solve_rbc, shock,
 #   islm_equilibrium, islm_policy_shock,

@@ -193,6 +193,55 @@ ctx = AnalysisContext(
 )
 ```
 
+### `explain_data_comparison` の利用例
+
+```julia
+using DME
+
+rbc = RBCModel(0.3, 0.99, 1.0, 0.025, 1.0, 0.9)
+irf = impulse_response(rbc, 0.01)
+sr  = to_simulation_result(rbc, irf, "technology_shock")
+
+dcs = DataComparisonSummary(
+    "FRED/GDPC1",
+    (1, 40),
+    Dict{String, Any}(
+        "correlation_by_variable" => Dict{String, Any}("Y" => 0.82, "C" => 0.45, "K" => 0.91),
+        "rmse_by_variable"        => Dict{String, Any}("Y" => 0.031, "C" => 0.058, "K" => 0.012),
+        "overall_rmse"            => 0.034,
+        "direction"               => "model_above_data",
+    ),
+    ["季節調整済みデータを使用", "キャリブレーションなしの参考比較"],
+)
+
+ctx = AnalysisContext(
+    rbc, sr;
+    shock_description = "1% technology shock",
+    data_comparison_summary = dcs,
+    caveats = Caveats(
+        ["Closed economy", "Representative agent"],
+        ["FRED data subject to revision"],
+        ["Variables are log deviations from steady state"],
+    ),
+)
+
+# プロンプト文字列のみを取得（LLMへ渡す用途）
+prompt = build_data_comparison_prompt(ctx)
+
+# 構造化 mock 応答を取得（LLM API なし）
+out = explain_data_comparison(ctx)
+
+println(out.what_was_compared)        # 何を比較したか
+println(out.large_deviation_variables) # 乖離の大きい変数
+println(out.model_explains_well)      # モデルが説明しやすい点
+println(out.model_explains_poorly)    # モデルが説明しにくい点
+println.(out.additional_series)       # 追加で見るべき系列（候補）
+println.(out.caveats)                 # 免責・注意事項
+println(out.disclaimer)               # 免責文言
+```
+
+> **注意**: `data_comparison_summary` が `nothing` のまま `explain_data_comparison` / `build_data_comparison_prompt` を呼ぶと `ArgumentError` が送出される。実データ比較を行った後に `DataComparisonSummary` を設定すること。
+
 ---
 
 ## 5. `to_compact_dict` の仕様
