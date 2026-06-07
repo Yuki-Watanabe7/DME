@@ -158,12 +158,22 @@ parameters(m)          # (α = 0.3, β = 0.99, δ = 0.25)
 
 | スクリプト | 内容 |
 |---|---|
+| [examples/ai_economist_demo.jl](examples/ai_economist_demo.jl) | **Phase 5-6 AIエコノミスト統合デモ**。モデル選択→シミュレーション→実データ取得→前処理→モデル比較→AnalysisContext→docs コンテキスト→LLM 説明生成の一連のフロー。API キー不要で完走。 |
 | [examples/real_data_demo.jl](examples/real_data_demo.jl) | **Phase 5 実データ接続デモ**。FRED からのデータ取得（fixture / live モード）・前処理・SimulationResult 変換・モデル比較・可視化・AnalysisContext 接続の一連のフローを示す。API キー不要で動作。 |
 | [examples/phase3_phase4_demo.jl](examples/phase3_phase4_demo.jl) | **Phase 3-4 統合デモ**。Ramsey / Solow / RBC / Mundell-Fleming / New Keynesian を横断し、共通 API・可視化・横断比較・Phase 5-6 への橋渡しを示す。 |
 | [examples/growth_models.jl](examples/growth_models.jl) | Ramsey / RBC / Solow の比較デモ。定常状態・移行経路・IRF・プロット API の使い方を示す。 |
 | [examples/policy_analysis.jl](examples/policy_analysis.jl) | IS-LM / AD-AS / New Keynesian の短期政策分析デモ。財政・金融・需要・供給ショックの比較と各モデルの使い分けを示す。 |
 
 ```bash
+# AIエコノミスト統合デモ（API キー不要、fixture + Mock LLM で完走）
+julia --project=. examples/ai_economist_demo.jl
+
+# 実データ + 実 LLM で実行する場合
+# export FRED_API_KEY=your_api_key_here
+# export DME_DATA_MODE=live
+# export OPENAI_API_KEY=sk-...
+# julia --project=. examples/ai_economist_demo.jl
+
 # API キー不要（fixture モードで動作）
 julia --project=. examples/real_data_demo.jl
 
