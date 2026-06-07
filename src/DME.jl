@@ -17,6 +17,10 @@ export
     FredClient,
     fetch_fred_series,
     fetch_fred_dataset,
+    # e-Stat API client
+    EStatClient,
+    fetch_estat_series,
+    fetch_estat_dataset,
     # Data preprocessing
     fill_missing,
     drop_missing,
@@ -99,6 +103,9 @@ export
 #   _load_fred_fixture, _fetch_fred_live, _parse_fred_json,
 #   _parse_fred_observations, _fred_date_to_label, _detect_frequency,
 #   _build_fred_url, _http_get
+#   _load_estat_fixture, _fetch_estat_live, _parse_estat_json,
+#   _build_estat_time_map, _parse_estat_values, _estat_code_to_label,
+#   _estat_detect_frequency, _estat_parse_value, _build_estat_url, _estat_http_get
 # Access via DME.xxx if needed for advanced use.
 
 using LinearAlgebra
@@ -115,6 +122,7 @@ using Downloads
 include("./data/data_series.jl")
 include("./data/preprocess.jl")
 include("./data/fred.jl")
+include("./data/estat.jl")
 
 # Numerical utilities: grid types and interpolation
 include("./numerics/grids.jl")
