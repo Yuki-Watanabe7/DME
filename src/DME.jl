@@ -70,7 +70,11 @@ export
     AnalysisContext,
     to_dict,
     to_json,
-    to_compact_dict
+    to_compact_dict,
+    # LLM prompt generation
+    ExplainResultOutput,
+    build_explain_prompt,
+    explain_result
 # Internal API (not exported): calc_ep, find_path, solve_by_nlvar,
 #   simulate_by_nlvar, solve_rbc, shock,
 #   islm_equilibrium, islm_policy_shock,
@@ -123,5 +127,6 @@ include("./core/visualization.jl")
 
 # LLM context layer (depends on SimulationResult and model interface)
 include("./llm/analysis_context.jl")
+include("./llm/prompts.jl")
 
 end
