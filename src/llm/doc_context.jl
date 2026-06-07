@@ -8,13 +8,13 @@ const _DOC_CONTEXT_DOCS_ROOT = joinpath(dirname(dirname(@__DIR__)), "docs")
 
 # モデル識別名 → docs/ 配下の相対パス
 const _MODEL_DOC_MAP = Dict{String, String}(
-    "RBC Model"             => "models/rbc.md",
-    "Ramsey Model"          => "models/ramsey.md",
-    "Solow Model"           => "models/solow.md",
-    "IS-LM Model"           => "models/islm.md",
-    "AD-AS Model"           => "models/adas.md",
-    "New Keynesian Model"   => "models/new_keynesian.md",
-    "VAR Model"             => "models/var.md",
+    "RBC Model" => "models/rbc.md",
+    "Ramsey Model" => "models/ramsey.md",
+    "Solow Model" => "models/solow.md",
+    "IS-LM Model" => "models/islm.md",
+    "AD-AS Model" => "models/adas.md",
+    "New Keynesian Model" => "models/new_keynesian.md",
+    "VAR Model" => "models/var.md",
     "Mundell-Fleming Model" => "models/mundell_fleming.md",
 )
 
@@ -65,9 +65,10 @@ function build_docs_excerpts(
 )::DocsExcerpts
     # 変数名を文字列キーワードとして追加し、変数固有セクションの選択精度を高める
     all_keywords = vcat(keywords, String.(variable_names))
-    model_doc    = _extract_model_doc(model_name, docs_root, max_chars_per_doc)
-    output_guide = _extract_output_guide(docs_root, scenario_name, all_keywords, max_chars_per_doc)
-    caveats_doc  = _extract_caveats_doc(model_name, docs_root, max_chars_per_doc)
+    model_doc = _extract_model_doc(model_name, docs_root, max_chars_per_doc)
+    output_guide =
+        _extract_output_guide(docs_root, scenario_name, all_keywords, max_chars_per_doc)
+    caveats_doc = _extract_caveats_doc(model_name, docs_root, max_chars_per_doc)
     DocsExcerpts(model_doc, output_guide, caveats_doc)
 end
 
@@ -89,13 +90,13 @@ function build_docs_excerpts(
     max_chars_per_doc::Int = 1000,
 )::DocsExcerpts
     meta = ctx.model_metadata
-    srs  = ctx.simulation_result_summary
+    srs = ctx.simulation_result_summary
     all_vars = vcat(meta.state_variables, meta.control_variables)
     build_docs_excerpts(
         meta.model_name;
-        variable_names    = all_vars,
-        scenario_name     = srs.scenario_name,
-        docs_root         = docs_root,
+        variable_names = all_vars,
+        scenario_name = srs.scenario_name,
+        docs_root = docs_root,
         max_chars_per_doc = max_chars_per_doc,
     )
 end
@@ -140,7 +141,7 @@ function _extract_section_by_keywords(
 
         is_h3 = startswith(line, "### ")
         is_h2 = startswith(line, "## ") && !is_h3
-        is_h1 = startswith(line, "# ")  && !startswith(line, "## ")
+        is_h1 = startswith(line, "# ") && !startswith(line, "## ")
 
         if is_h1 || is_h2 || is_h3
             # h1/h2 は常にセクション区切り。h3 は in_section 中のみ区切り。
@@ -177,17 +178,16 @@ function _extract_model_doc(model_name::String, docs_root::String, max_chars::In
     content = _read_doc_file(joinpath(docs_root, rel_path))
     isempty(content) && return ""
 
-    llm_summary     = _extract_llm_summary(content)
-    purpose_section = _extract_section_by_keywords(
-        content, ["目的", "モデルの目的", "purpose"], max_chars,
-    )
+    llm_summary = _extract_llm_summary(content)
+    purpose_section =
+        _extract_section_by_keywords(content, ["目的", "モデルの目的", "purpose"], max_chars)
 
     parts = String[]
-    isempty(llm_summary)     || push!(parts, "【モデル概要】$(llm_summary)")
+    isempty(llm_summary) || push!(parts, "【モデル概要】$(llm_summary)")
     isempty(purpose_section) || push!(parts, purpose_section)
 
     isempty(parts) ? _truncate_text(content, max_chars) :
-                     _truncate_text(join(parts, "\n\n"), max_chars)
+    _truncate_text(join(parts, "\n\n"), max_chars)
 end
 
 # 出力ガイド抜粋を生成する。
@@ -202,8 +202,9 @@ function _extract_output_guide(
     isempty(content) && return ""
 
     irf_terms = ["shock", "irf", "impulse", "ショック"]
-    is_irf = any(t -> occursin(t, lowercase(scenario_name)), irf_terms) ||
-             any(t -> any(occursin(t, lowercase(kw)) for kw in keywords), irf_terms)
+    is_irf =
+        any(t -> occursin(t, lowercase(scenario_name)), irf_terms) ||
+        any(t -> any(occursin(t, lowercase(kw)) for kw in keywords), irf_terms)
 
     heading_keywords = if is_irf
         String["インパルス", "irf", "impulse", "ショック"]

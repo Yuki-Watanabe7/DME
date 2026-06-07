@@ -133,7 +133,8 @@ MockLLMProvider() = MockLLMProvider(
 )
 
 function complete(provider::MockLLMProvider, request::LLMRequest)::LLMResponse
-    content = provider.response_template *
+    content =
+        provider.response_template *
         "\n\n[受信プロンプト長: system=$(length(request.system_prompt))文字, " *
         "user=$(length(request.user_prompt))文字]"
     LLMResponse(content, "mock", "mock", nothing, nothing)
@@ -226,15 +227,17 @@ end
 const _OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
 
 function complete(provider::OpenAIProvider, request::LLMRequest)::LLMResponse
-    body = JSON3.write(Dict(
-        "model"       => provider.model,
-        "messages"    => Any[
-            Dict("role" => "system", "content" => request.system_prompt),
-            Dict("role" => "user",   "content" => request.user_prompt),
-        ],
-        "max_tokens"  => request.max_tokens,
-        "temperature" => request.temperature,
-    ))
+    body = JSON3.write(
+        Dict(
+            "model" => provider.model,
+            "messages" => Any[
+                Dict("role" => "system", "content" => request.system_prompt),
+                Dict("role" => "user", "content" => request.user_prompt),
+            ],
+            "max_tokens" => request.max_tokens,
+            "temperature" => request.temperature,
+        ),
+    )
     raw = _openai_request_with_retry(
         provider.api_key,
         body,
@@ -261,7 +264,9 @@ function _openai_request_with_retry(
             attempt < max_retries && sleep(retry_delay * attempt)
         end
     end
-    throw(LLMProviderError("OpenAI API リクエストが $(max_retries) 回のリトライ後に失敗しました: $(last_error)"))
+    throw(
+        LLMProviderError("OpenAI API リクエストが $(max_retries) 回のリトライ後に失敗しました: $(last_error)"),
+    )
 end
 
 function _openai_http_post(api_key::String, body::String, timeout_seconds::Int)::String
@@ -269,21 +274,20 @@ function _openai_http_post(api_key::String, body::String, timeout_seconds::Int):
     resp = try
         Downloads.request(
             _OPENAI_CHAT_URL;
-            method  = "POST",
+            method = "POST",
             headers = [
                 "Authorization" => "Bearer $(api_key)",
-                "Content-Type"  => "application/json",
+                "Content-Type" => "application/json",
             ],
-            input   = IOBuffer(body),
-            output  = output,
+            input = IOBuffer(body),
+            output = output,
             timeout = Float64(timeout_seconds),
         )
     catch e
         throw(LLMProviderError("OpenAI への HTTP リクエストが失敗しました: $(e)"))
     end
-    resp.status == 200 || throw(
-        LLMProviderError("OpenAI API HTTP エラー: ステータス $(resp.status)"),
-    )
+    resp.status == 200 ||
+        throw(LLMProviderError("OpenAI API HTTP エラー: ステータス $(resp.status)"))
     String(take!(output))
 end
 
@@ -300,22 +304,23 @@ function _parse_openai_response(raw::String, model::String)::LLMResponse
         throw(LLMProviderError("OpenAI API エラー: $(msg)"))
     end
 
-    (haskey(parsed, :choices) && !isempty(parsed[:choices])) || throw(
-        LLMProviderError("OpenAI レスポンスに choices がありません: $(first(raw, 200))"),
-    )
+    (haskey(parsed, :choices) && !isempty(parsed[:choices])) ||
+        throw(LLMProviderError("OpenAI レスポンスに choices がありません: $(first(raw, 200))"))
 
     first_choice = parsed[:choices][1]
-    message      = first_choice[:message]
-    content      = string(message[:content])
-    finish_reason = haskey(first_choice, :finish_reason) ?
-        string(first_choice[:finish_reason]) : "unknown"
+    message = first_choice[:message]
+    content = string(message[:content])
+    finish_reason =
+        haskey(first_choice, :finish_reason) ? string(first_choice[:finish_reason]) :
+        "unknown"
 
-    input_tokens  = nothing
+    input_tokens = nothing
     output_tokens = nothing
     if haskey(parsed, :usage)
         usage = parsed[:usage]
-        input_tokens  = haskey(usage, :prompt_tokens)     ? Int(usage[:prompt_tokens])     : nothing
-        output_tokens = haskey(usage, :completion_tokens) ? Int(usage[:completion_tokens]) : nothing
+        input_tokens = haskey(usage, :prompt_tokens) ? Int(usage[:prompt_tokens]) : nothing
+        output_tokens =
+            haskey(usage, :completion_tokens) ? Int(usage[:completion_tokens]) : nothing
     end
 
     resp_model = haskey(parsed, :model) ? string(parsed[:model]) : model
