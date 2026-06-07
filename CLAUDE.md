@@ -53,6 +53,7 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 | [パッケージ構成とアーキテクチャ概要](docs/architecture/package_structure.md) | ソースツリー・include 順序・Node 型階層・補間・モデル内部関数 |
 | [AIエコノミスト化アーキテクチャ](docs/architecture/ai_economist.md) | Phase 3 以降の層構成・データフロー |
 | [LLM接続層の設計](docs/architecture/llm_layer.md) | LLM層の責務・入出力仕様・禁止事項・安全性方針 |
+| [LLM Provider設定ガイド](docs/architecture/llm_provider.md) | provider抽象化・OpenAI設定・MockProvider・差し替え方法 |
 | [AnalysisContext 設計](docs/architecture/analysis_context.md) | LLMへ渡す構造化コンテキスト型の設計・構造・利用例 |
 | [LLM出力の安全性・免責・禁止表現ルール](docs/llm_safety.md) | 禁止表現・必須記載・プロンプトテンプレート・出力チェックリスト |
 | [Ramsey モデル解説](docs/models/ramsey.md) | 目的・変数・パラメータ・出力・限界 |

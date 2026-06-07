@@ -79,7 +79,17 @@ export
     explain_result,
     ExplainDataComparisonOutput,
     build_data_comparison_prompt,
-    explain_data_comparison
+    explain_data_comparison,
+    # LLM provider abstraction
+    LLMProviderError,
+    LLMRequest,
+    LLMResponse,
+    AbstractLLMProvider,
+    MockLLMProvider,
+    OpenAIProvider,
+    complete,
+    create_provider,
+    complete_from_prompt
 # Internal API (not exported): calc_ep, find_path, solve_by_nlvar,
 #   simulate_by_nlvar, solve_rbc, shock,
 #   islm_equilibrium, islm_policy_shock,
@@ -134,5 +144,6 @@ include("./core/visualization.jl")
 include("./llm/analysis_context.jl")
 include("./llm/doc_context.jl")
 include("./llm/prompts.jl")
+include("./llm/provider.jl")
 
 end
