@@ -64,9 +64,7 @@
     end
 
     @testset "summarize_result: 基本統計量" begin
-        vars = Dict{String, Vector{Float64}}(
-            "X" => [1.0, 3.0, 2.0, -1.0, 0.0],
-        )
+        vars = Dict{String, Vector{Float64}}("X" => [1.0, 3.0, 2.0, -1.0, 0.0])
         r = SimulationResult("TestModel", "test", vars)
         s = summarize_result(r)
 
@@ -150,5 +148,131 @@
         # ŷ はショック後に正の応答を示し、第1期にピーク
         @test s["variables"]["ŷ"].max > 0.0
         @test s["variables"]["ŷ"].argmax == 1
+    end
+end
+
+@testset "to_simulation_result（DataSeries）" begin
+    dates = ["2020-Q1", "2020-Q2", "2020-Q3", "2020-Q4"]
+    vals = [19254.0, 17302.0, 18638.0, 18878.0]
+    s = DataSeries(
+        id = "FRED_GDPC1",
+        name = "Real GDP",
+        source = "FRED",
+        frequency = Quarterly,
+        unit = "Billions of Chained 2017 Dollars",
+        dates = dates,
+        values = vals,
+    )
+
+    @testset "基本変換" begin
+        r = to_simulation_result(s)
+        @test r.model_name == "FRED"
+        @test r.scenario_name == "actual_data"
+        @test haskey(r, "FRED_GDPC1")
+        @test r["FRED_GDPC1"] == vals
+        @test nperiods(r) == 4
+    end
+
+    @testset "scenario_name 指定" begin
+        r = to_simulation_result(s, "gdp_comparison")
+        @test r.scenario_name == "gdp_comparison"
+    end
+
+    @testset "metadata の内容" begin
+        r = to_simulation_result(s)
+        @test r.metadata["source"] == "FRED"
+        @test r.metadata["frequency"] == "Quarterly"
+        @test r.metadata["unit"] == "Billions of Chained 2017 Dollars"
+        @test r.metadata["series_id"] == "FRED_GDPC1"
+        @test r.metadata["dates"] == dates
+        @test r.metadata["transformations"] == String[]
+    end
+
+    @testset "変換履歴付き DataSeries" begin
+        s2 = apply_log(s)
+        r2 = to_simulation_result(s2)
+        @test r2.metadata["transformations"] == ["apply_log"]
+    end
+
+    @testset "欠損値 → NaN 変換" begin
+        s_miss = DataSeries(
+            id = "MISS",
+            name = "Missing test",
+            source = "test",
+            frequency = Annual,
+            unit = "index",
+            dates = ["2020", "2021", "2022"],
+            values = Union{Float64, Missing}[1.0, missing, 3.0],
+        )
+        r = to_simulation_result(s_miss)
+        v = r["MISS"]
+        @test v[1] == 1.0
+        @test isnan(v[2])
+        @test v[3] == 3.0
+    end
+end
+
+@testset "to_simulation_result（MacroDataset）" begin
+    gdp = DataSeries(
+        id = "FRED_GDPC1",
+        name = "Real GDP",
+        source = "FRED",
+        frequency = Quarterly,
+        unit = "Billions of Chained 2017 Dollars",
+        dates = ["2020-Q1", "2020-Q2"],
+        values = [19254.0, 17302.0],
+    )
+    cpi = DataSeries(
+        id = "FRED_CPIAUCSL",
+        name = "CPI",
+        source = "FRED",
+        frequency = Monthly,
+        unit = "Index 1982-84=100",
+        dates = ["2020-01", "2020-02", "2020-03"],
+        values = [257.9, 258.7, 258.1],
+    )
+    ds = MacroDataset("FRED Macro Dataset", [gdp, cpi])
+
+    @testset "基本変換" begin
+        r = to_simulation_result(ds)
+        @test r.model_name == "FRED Macro Dataset"
+        @test r.scenario_name == "actual_data"
+        @test haskey(r, "FRED_GDPC1")
+        @test haskey(r, "FRED_CPIAUCSL")
+        @test r["FRED_GDPC1"] == [19254.0, 17302.0]
+        @test r["FRED_CPIAUCSL"] == [257.9, 258.7, 258.1]
+    end
+
+    @testset "scenario_name 指定" begin
+        r = to_simulation_result(ds, "japan_macro")
+        @test r.scenario_name == "japan_macro"
+    end
+
+    @testset "metadata の内容" begin
+        r = to_simulation_result(ds)
+        @test r.metadata["dataset_name"] == "FRED Macro Dataset"
+        sm = r.metadata["series_metadata"]
+        @test haskey(sm, "FRED_GDPC1")
+        @test haskey(sm, "FRED_CPIAUCSL")
+        @test sm["FRED_GDPC1"]["source"] == "FRED"
+        @test sm["FRED_GDPC1"]["frequency"] == "Quarterly"
+        @test sm["FRED_GDPC1"]["unit"] == "Billions of Chained 2017 Dollars"
+        @test sm["FRED_GDPC1"]["series_id"] == "FRED_GDPC1"
+        @test sm["FRED_GDPC1"]["dates"] == ["2020-Q1", "2020-Q2"]
+        @test sm["FRED_CPIAUCSL"]["frequency"] == "Monthly"
+    end
+
+    @testset "空 MacroDataset" begin
+        empty_ds = MacroDataset("Empty")
+        r = to_simulation_result(empty_ds)
+        @test r.model_name == "Empty"
+        @test isempty(r.variables)
+        @test nperiods(r) == 0
+    end
+
+    @testset "variable_names で系列 id が取得できる" begin
+        r = to_simulation_result(ds)
+        ids = sort(variable_names(r))
+        @test ids == sort(["FRED_GDPC1", "FRED_CPIAUCSL"])
     end
 end
