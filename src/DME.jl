@@ -58,6 +58,10 @@ export
     nperiods,
     to_simulation_result,
     summarize_result,
+    # Data comparison
+    ComparisonResult,
+    compare_with_data,
+    to_data_comparison_summary,
     # Visualization
     plot_result,
     plot_irf,
@@ -144,6 +148,7 @@ include("./models/mundell_fleming.jl")
 
 # Cross-model result type (depends on RamseyModel and RBCModel)
 include("./core/simulation_result.jl")
+include("./core/compare.jl")
 
 # Visualization (depends on SimulationResult)
 include("./core/visualization.jl")
