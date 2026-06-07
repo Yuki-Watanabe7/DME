@@ -32,9 +32,24 @@
 
 ## 3. OpenAI API の設定方法
 
-### 3.1 環境変数の設定
+API キーの探索順序: **環境変数 → カレントディレクトリの `.env` ファイル**
 
-API キーはコードに直書きせず、環境変数 `OPENAI_API_KEY` で渡す。
+### 3.1 .env ファイルを使う（推奨）
+
+プロジェクトルート（`julia --project=.` を実行するディレクトリ）に `.env` ファイルを置く。
+
+```
+# .env
+OPENAI_API_KEY=sk-...
+```
+
+`.env` はリポジトリにコミットしない（`.gitignore` に追加する）。
+
+```bash
+echo ".env" >> .gitignore
+```
+
+### 3.2 環境変数で設定する
 
 ```bash
 # ~/.zshrc または ~/.bashrc に追加（永続化する場合）
@@ -45,13 +60,13 @@ export OPENAI_API_KEY="sk-..."
 julia --project=.
 ```
 
-### 3.2 Julia セッション内で設定する場合
+### 3.3 Julia セッション内で設定する場合
 
 ```julia
 ENV["OPENAI_API_KEY"] = "sk-..."  # セッション内のみ有効
 ```
 
-### 3.3 動作確認
+### 3.4 動作確認
 
 ```julia
 using DME
@@ -121,8 +136,8 @@ println(res.content)
 
 | 状況 | 挙動 |
 |---|---|
-| `OpenAIProvider()` を呼ぶが `OPENAI_API_KEY` 未設定 | `LLMProviderError` を送出 |
-| `create_provider()` を呼ぶが `OPENAI_API_KEY` 未設定 | 警告ログを出して `MockLLMProvider` にフォールバック |
+| `OpenAIProvider()` を呼ぶが ENV も `.env` も未設定 | `LLMProviderError` を送出 |
+| `create_provider()` を呼ぶが ENV も `.env` も未設定 | 警告ログを出して `MockLLMProvider` にフォールバック |
 | `create_provider(use_mock=true)` | 常に `MockLLMProvider`（エラーなし） |
 
 ---

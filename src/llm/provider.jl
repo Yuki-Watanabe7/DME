@@ -192,13 +192,13 @@ function OpenAIProvider(;
     max_retries::Int = 3,
     retry_delay_seconds::Float64 = 1.0,
 )
-    api_key = get(ENV, "OPENAI_API_KEY", "")
+    api_key = _resolve_openai_key()
     if isempty(api_key)
         throw(
             LLMProviderError(
-                "OPENAI_API_KEY 環境変数が設定されていません。" *
-                "OpenAI API を使用するには環境変数を設定してください: " *
-                "export OPENAI_API_KEY=sk-... " *
+                "OPENAI_API_KEY が見つかりません。" *
+                "環境変数（export OPENAI_API_KEY=sk-...）またはカレントディレクトリの .env ファイル" *
+                "（OPENAI_API_KEY=sk-... の形式）に設定してください。" *
                 "テスト・デモ用途では MockLLMProvider() または create_provider(use_mock=true) を使用してください。",
             ),
         )
@@ -222,6 +222,30 @@ function OpenAIProvider(
 )
     isempty(api_key) && throw(LLMProviderError("api_key は空文字列にできません"))
     OpenAIProvider(api_key, model, timeout_seconds, max_retries, retry_delay_seconds)
+end
+
+# OPENAI_API_KEY の解決: ENV → カレントディレクトリの .env の順で探す
+function _resolve_openai_key(dotenv_path::String = joinpath(pwd(), ".env"))::String
+    key = get(ENV, "OPENAI_API_KEY", "")
+    isempty(key) || return key
+    isfile(dotenv_path) || return ""
+    for raw_line in eachline(dotenv_path)
+        line = strip(raw_line)
+        isempty(line) && continue
+        startswith(line, "#") && continue
+        m = match(r"^OPENAI_API_KEY\s*=\s*(.+)$", line)
+        isnothing(m) && continue
+        val = strip(m.captures[1])
+        # "sk-..." または 'sk-...' 形式のクォートを除去
+        if length(val) >= 2 && (
+            (startswith(val, '"') && endswith(val, '"')) ||
+            (startswith(val, '\'') && endswith(val, '\''))
+        )
+            val = val[2:(end - 1)]
+        end
+        isempty(val) || return val
+    end
+    ""
 end
 
 const _OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
@@ -362,10 +386,10 @@ function create_provider(;
     retry_delay_seconds::Float64 = 1.0,
 )::AbstractLLMProvider
     use_mock && return MockLLMProvider()
-    api_key = get(ENV, "OPENAI_API_KEY", "")
+    api_key = _resolve_openai_key()
     if isempty(api_key)
-        @warn "OPENAI_API_KEY が設定されていないため MockLLMProvider にフォールバックします。" *
-              " OpenAI API を使用するには環境変数 OPENAI_API_KEY を設定してください。"
+        @warn "OPENAI_API_KEY が見つからないため MockLLMProvider にフォールバックします。" *
+              " 環境変数または .env ファイルに OPENAI_API_KEY を設定してください。"
         return MockLLMProvider()
     end
     OpenAIProvider(api_key, model, timeout_seconds, max_retries, retry_delay_seconds)
