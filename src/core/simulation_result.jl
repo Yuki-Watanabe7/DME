@@ -93,6 +93,97 @@ function to_simulation_result(
     SimulationResult(model_name(m), scenario, copy(result), meta)
 end
 
+"""
+    _coerce_values(values) -> Vector{Float64}
+
+`Union{Float64,Missing}` の値ベクトルを `Vector{Float64}` に変換する。
+欠損値は `NaN` に置換される。
+"""
+_coerce_values(values::Vector{Union{Float64, Missing}}) =
+    Float64[ismissing(v) ? NaN : v for v in values]
+
+"""
+    _series_meta(s::DataSeries) -> Dict{String, Any}
+
+`DataSeries` から `SimulationResult` 用のメタデータ Dict を構築する内部ヘルパー。
+"""
+function _series_meta(s::DataSeries)
+    Dict{String, Any}(
+        "source" => s.source,
+        "frequency" => string(s.frequency),
+        "unit" => s.unit,
+        "series_id" => s.id,
+        "dates" => s.dates,
+        "transformations" => get(s.metadata, "transformations", String[]),
+    )
+end
+
+"""
+    to_simulation_result(series::DataSeries, scenario_name="actual_data") -> SimulationResult
+
+`DataSeries` を `SimulationResult` 互換形式に変換する。
+
+実データを既存の `plot_result` / `summarize_result` などの可視化・分析 API に接続するために使用する。
+
+## 変換規則
+- `model_name`    : `series.source`（データ出所）
+- `scenario_name` : 引数で指定（デフォルト `"actual_data"`）
+- `variables`     : `{ series.id => values }` の 1 要素 Dict。欠損値は `NaN` に変換。
+- `metadata`      : 以下のキーを含む
+  - `"source"`          : データ出所
+  - `"frequency"`       : 観測頻度（文字列）
+  - `"unit"`            : 単位
+  - `"series_id"`       : 元の系列 id
+  - `"dates"`           : 日付ラベルのベクタ
+  - `"transformations"` : 変換履歴（`preprocess` 関数が追記）
+
+## 使用例
+```julia
+s = DataSeries(id="FRED_GDPC1", name="Real GDP", source="FRED",
+               frequency=Quarterly, unit="Billions of Chained 2017 Dollars",
+               dates=["2020-Q1","2020-Q2"], values=[19254.0, 17302.0])
+r = to_simulation_result(s)
+plot_result(r, "FRED_GDPC1")
+```
+"""
+function to_simulation_result(s::DataSeries, scenario_name::String = "actual_data")
+    vars = Dict{String, Vector{Float64}}(s.id => _coerce_values(s.values))
+    meta = _series_meta(s)
+    SimulationResult(s.source, scenario_name, vars, meta)
+end
+
+"""
+    to_simulation_result(dataset::MacroDataset, scenario_name="actual_data") -> SimulationResult
+
+`MacroDataset`（複数系列）を `SimulationResult` 互換形式に変換する。
+
+各系列が `variables` の 1 エントリとなり、系列ごとのメタデータが
+`metadata["series_metadata"]` に格納される。
+
+## 変換規則
+- `model_name`    : `dataset.name`（データセット名）
+- `scenario_name` : 引数で指定（デフォルト `"actual_data"`）
+- `variables`     : `{ series.id => values }` の多要素 Dict。欠損値は `NaN` に変換。
+- `metadata`      : 以下のキーを含む
+  - `"dataset_name"`     : データセット名
+  - `"series_metadata"`  : 系列 id → 各系列のメタデータ Dict（source / frequency / unit / dates / transformations）
+
+## 使用例
+```julia
+ds = MacroDataset("FRED Macro Dataset", [gdp_series, cpi_series])
+r = to_simulation_result(ds)
+plot_result(r, "FRED_GDPC1")
+```
+"""
+function to_simulation_result(ds::MacroDataset, scenario_name::String = "actual_data")
+    vars = Dict{String, Vector{Float64}}(
+        id => _coerce_values(s.values) for (id, s) in ds.series
+    )
+    series_meta = Dict{String, Any}(id => _series_meta(s) for (id, s) in ds.series)
+    meta = Dict{String, Any}("dataset_name" => ds.name, "series_metadata" => series_meta)
+    SimulationResult(ds.name, scenario_name, vars, meta)
+end
+
 # 1変数の統計サマリーを計算する内部ヘルパー
 function _var_summary(v::Vector{Float64})
     n = length(v)
