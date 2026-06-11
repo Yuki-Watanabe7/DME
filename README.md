@@ -213,6 +213,15 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [設定・環境変数管理ガイド](docs/development/configuration.md) | API キー設定・fixture/mock モード・CI 運用方針 |
 | [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメントを作成する際のテンプレート |
 
+## 外部データソース
+
+本パッケージが利用する外部データソースおよびその利用条件を示します。
+
+| サービス | 利用条件・クレジット |
+|---|---|
+| [政府統計総合窓口（e-Stat）](https://www.e-stat.go.jp/) | このサービスは、政府統計総合窓口(e-Stat)のAPI機能を使用していますが、サービスの内容は国によって保証されたものではありません。 |
+| [FRED（Federal Reserve Economic Data）](https://fred.stlouisfed.org/) | データは St. Louis Fed が提供する FRED API 経由で取得します。利用には [FRED 利用規約](https://fred.stlouisfed.org/docs/api/terms_of_use.html) が適用されます。 |
+
 ## 開発ロードマップ
 
 | Phase | 状態 | 内容 |
