@@ -32,38 +32,47 @@
 
 ## 3. OpenAI API の設定方法
 
-API キーの探索順序: **環境変数 → カレントディレクトリの `.env` ファイル**
+### 3.1 設定可能なパラメータ一覧
 
-### 3.1 .env ファイルを使う（推奨）
+すべてのパラメータは **環境変数** で外部設定できる。
 
-プロジェクトルート（`julia --project=.` を実行するディレクトリ）に `.env` ファイルを置く。
+設定の優先順位: **キーワード引数 > 環境変数 > デフォルト値**
 
-```
-# .env
-OPENAI_API_KEY=sk-...
-```
-
-`.env` はリポジトリにコミットしない（`.gitignore` に追加する）。
-
-```bash
-echo ".env" >> .gitignore
-```
+| 環境変数 | 対応パラメータ | デフォルト値 | 説明 |
+|---|---|---|---|
+| `OPENAI_API_KEY` | `api_key` | （必須） | OpenAI API キー |
+| `OPENAI_MODEL` | `model` | `"gpt-4o-mini"` | 使用するモデル名 |
+| `OPENAI_TIMEOUT_SECONDS` | `timeout_seconds` | `30` | HTTP タイムアウト秒数 |
+| `OPENAI_MAX_RETRIES` | `max_retries` | `3` | 最大リトライ回数 |
+| `OPENAI_RETRY_DELAY_SECONDS` | `retry_delay_seconds` | `1.0` | リトライ間隔の基本秒数（指数バックオフ） |
 
 ### 3.2 環境変数で設定する
 
-```bash
-# ~/.zshrc または ~/.bashrc に追加（永続化する場合）
-export OPENAI_API_KEY="sk-..."
+`.env` ファイルを使う場合は、Julia 起動前に自分で `source` する。アプリケーション側は `.env` ファイルを直接読まない。
 
-# または単一セッションのみ
-export OPENAI_API_KEY="sk-..."
+```bash
+# .env に記載した上で source してから Julia を起動する
+source .env
 julia --project=.
+```
+
+または恒久的に設定する場合:
+
+```bash
+# ~/.zshrc または ~/.bashrc に追記
+export OPENAI_API_KEY="sk-..."
+export OPENAI_MODEL="gpt-4o-mini"
+export OPENAI_TIMEOUT_SECONDS="30"
+export OPENAI_MAX_RETRIES="3"
+export OPENAI_RETRY_DELAY_SECONDS="1.0"
 ```
 
 ### 3.3 Julia セッション内で設定する場合
 
 ```julia
-ENV["OPENAI_API_KEY"] = "sk-..."  # セッション内のみ有効
+ENV["OPENAI_API_KEY"] = "sk-..."        # セッション内のみ有効
+ENV["OPENAI_MODEL"] = "gpt-4o"
+ENV["OPENAI_TIMEOUT_SECONDS"] = "60"
 ```
 
 ### 3.4 動作確認
@@ -71,11 +80,11 @@ ENV["OPENAI_API_KEY"] = "sk-..."  # セッション内のみ有効
 ```julia
 using DME
 
-# 環境変数から自動選択
+# 環境変数から自動選択（推奨）
 provider = create_provider()
 
-# モデルを指定する場合
-provider = create_provider(model = "gpt-4o")
+# キーワード引数で一部だけ上書きする場合
+provider = create_provider(model = "gpt-4o", timeout_seconds = 60)
 
 # リクエスト送信
 req = LLMRequest("あなたはマクロ経済分析AIです。", "このモデルを説明してください。")
@@ -136,8 +145,8 @@ println(res.content)
 
 | 状況 | 挙動 |
 |---|---|
-| `OpenAIProvider()` を呼ぶが ENV も `.env` も未設定 | `LLMProviderError` を送出 |
-| `create_provider()` を呼ぶが ENV も `.env` も未設定 | 警告ログを出して `MockLLMProvider` にフォールバック |
+| `OpenAIProvider()` を呼ぶが `OPENAI_API_KEY` 未設定 | `LLMProviderError` を送出 |
+| `create_provider()` を呼ぶが `OPENAI_API_KEY` 未設定 | 警告ログを出して `MockLLMProvider` にフォールバック |
 | `create_provider(use_mock=true)` | 常に `MockLLMProvider`（エラーなし） |
 
 ---
@@ -163,9 +172,18 @@ end
 
 `OpenAIProvider` はタイムアウトと指数バックオフによるリトライをサポートする。
 
+設定方法は 2 通り（優先順位: コード引数 > 環境変数 > デフォルト）:
+
+```bash
+# 環境変数で設定（コードを変更しなくて済む）
+export OPENAI_TIMEOUT_SECONDS=60
+export OPENAI_MAX_RETRIES=5
+export OPENAI_RETRY_DELAY_SECONDS=2.0
+```
+
 ```julia
+# Julia コード内でキーワード引数を使って上書き
 provider = OpenAIProvider(;
-    model = "gpt-4o-mini",
     timeout_seconds = 60,      # タイムアウト秒数（デフォルト: 30）
     max_retries = 5,           # 最大リトライ回数（デフォルト: 3）
     retry_delay_seconds = 2.0, # リトライ間隔基本秒数（デフォルト: 1.0）

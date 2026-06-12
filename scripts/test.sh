@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 set -euo pipefail
-julia --project=. -e 'using Pkg; Pkg.test()'
+julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.test()'

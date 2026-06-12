@@ -4,25 +4,10 @@
 # CI では実行しない（runtests.jl には含まれない）。
 #
 # 実行方法:
-#   julia --project=. test/test_fred_live.jl
-#
-# または .env を読み込んで実行:
-#   set -a && source .env && set +a && julia --project=. test/test_fred_live.jl
+#   source .env && julia --project=. test/test_fred_live.jl
 
 using DME
 using Test
-
-# .env が存在し、かつ FRED_API_KEY が未設定の場合はロードする
-let dotenv = joinpath(@__DIR__, "..", ".env")
-    if isfile(dotenv) && !haskey(ENV, "FRED_API_KEY")
-        for line in eachline(dotenv)
-            line = strip(line)
-            (isempty(line) || startswith(line, "#")) && continue
-            m = match(r"^([A-Z_][A-Z0-9_]*)=(.*)$", line)
-            m !== nothing && (ENV[m[1]] = m[2])
-        end
-    end
-end
 
 if !haskey(ENV, "FRED_API_KEY") || isempty(ENV["FRED_API_KEY"]) ||
         ENV["FRED_API_KEY"] == "your_fred_api_key_here"

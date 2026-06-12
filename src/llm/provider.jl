@@ -181,29 +181,46 @@ end
 """
     OpenAIProvider(; model, timeout_seconds, max_retries, retry_delay_seconds) -> OpenAIProvider
 
-環境変数 `OPENAI_API_KEY` から API キーを読み込んで `OpenAIProvider` を作成する。
+環境変数から API キーと各設定値を読み込んで `OpenAIProvider` を作成する。
+
+設定の優先順位: **キーワード引数 > 環境変数 > デフォルト値**
 
 API キーが設定されていない場合は `LLMProviderError` を送出する。
 テスト環境では [`MockLLMProvider`](@ref) または [`create_provider`](@ref) を使用すること。
+
+## 設定可能な環境変数
+
+| 環境変数 | 対応フィールド | デフォルト値 |
+|---|---|---|
+| `OPENAI_API_KEY` | `api_key` | （必須） |
+| `OPENAI_MODEL` | `model` | `"gpt-4o-mini"` |
+| `OPENAI_TIMEOUT_SECONDS` | `timeout_seconds` | `30` |
+| `OPENAI_MAX_RETRIES` | `max_retries` | `3` |
+| `OPENAI_RETRY_DELAY_SECONDS` | `retry_delay_seconds` | `1.0` |
 """
 function OpenAIProvider(;
-    model::String = "gpt-4o-mini",
-    timeout_seconds::Int = 30,
-    max_retries::Int = 3,
-    retry_delay_seconds::Float64 = 1.0,
+    model::Union{String, Nothing} = nothing,
+    timeout_seconds::Union{Int, Nothing} = nothing,
+    max_retries::Union{Int, Nothing} = nothing,
+    retry_delay_seconds::Union{Float64, Nothing} = nothing,
 )
-    api_key = _resolve_openai_key()
-    if isempty(api_key)
+    cfg = _load_openai_config()
+    if isempty(cfg.api_key)
         throw(
             LLMProviderError(
                 "OPENAI_API_KEY が見つかりません。" *
-                "環境変数（export OPENAI_API_KEY=sk-...）またはカレントディレクトリの .env ファイル" *
-                "（OPENAI_API_KEY=sk-... の形式）に設定してください。" *
+                "環境変数 OPENAI_API_KEY=sk-... を設定してから Julia を起動してください。" *
                 "テスト・デモ用途では MockLLMProvider() または create_provider(use_mock=true) を使用してください。",
             ),
         )
     end
-    OpenAIProvider(api_key, model, timeout_seconds, max_retries, retry_delay_seconds)
+    OpenAIProvider(
+        cfg.api_key,
+        isnothing(model) ? cfg.model : model,
+        isnothing(timeout_seconds) ? cfg.timeout_seconds : timeout_seconds,
+        isnothing(max_retries) ? cfg.max_retries : max_retries,
+        isnothing(retry_delay_seconds) ? cfg.retry_delay_seconds : retry_delay_seconds,
+    )
 end
 
 """
@@ -224,28 +241,43 @@ function OpenAIProvider(
     OpenAIProvider(api_key, model, timeout_seconds, max_retries, retry_delay_seconds)
 end
 
-# OPENAI_API_KEY の解決: ENV → カレントディレクトリの .env の順で探す
-function _resolve_openai_key(dotenv_path::String = joinpath(pwd(), ".env"))::String
-    key = get(ENV, "OPENAI_API_KEY", "")
-    isempty(key) || return key
-    isfile(dotenv_path) || return ""
-    for raw_line in eachline(dotenv_path)
-        line = strip(raw_line)
-        isempty(line) && continue
-        startswith(line, "#") && continue
-        m = match(r"^OPENAI_API_KEY\s*=\s*(.+)$", line)
-        isnothing(m) && continue
-        val = strip(m.captures[1])
-        # "sk-..." または 'sk-...' 形式のクォートを除去
-        if length(val) >= 2 && (
-            (startswith(val, '"') && endswith(val, '"')) ||
-            (startswith(val, '\'') && endswith(val, '\''))
-        )
-            val = val[2:(end - 1)]
+# OpenAIProvider のデフォルト値
+const _DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
+const _DEFAULT_OPENAI_TIMEOUT = 30
+const _DEFAULT_OPENAI_MAX_RETRIES = 3
+const _DEFAULT_OPENAI_RETRY_DELAY = 1.0
+
+# Internal: 解決済み設定のホルダー
+struct _OpenAIConfig
+    api_key::String
+    model::String
+    timeout_seconds::Int
+    max_retries::Int
+    retry_delay_seconds::Float64
+end
+
+# 環境変数から OpenAI の全設定値を解決する
+# 優先順位: 環境変数 > デフォルト値
+function _load_openai_config()::_OpenAIConfig
+    _env(key) =
+        let v = get(ENV, key, "");
+            isempty(v) ? nothing : v
         end
-        isempty(val) || return val
+    api_key = something(_env("OPENAI_API_KEY"), "")
+    model = something(_env("OPENAI_MODEL"), _DEFAULT_OPENAI_MODEL)
+    timeout = let s = _env("OPENAI_TIMEOUT_SECONDS")
+        isnothing(s) ? _DEFAULT_OPENAI_TIMEOUT :
+        something(tryparse(Int, s), _DEFAULT_OPENAI_TIMEOUT)
     end
-    ""
+    max_retries = let s = _env("OPENAI_MAX_RETRIES")
+        isnothing(s) ? _DEFAULT_OPENAI_MAX_RETRIES :
+        something(tryparse(Int, s), _DEFAULT_OPENAI_MAX_RETRIES)
+    end
+    retry_delay = let s = _env("OPENAI_RETRY_DELAY_SECONDS")
+        isnothing(s) ? _DEFAULT_OPENAI_RETRY_DELAY :
+        something(tryparse(Float64, s), _DEFAULT_OPENAI_RETRY_DELAY)
+    end
+    _OpenAIConfig(api_key, model, timeout, max_retries, retry_delay)
 end
 
 const _OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
@@ -380,19 +412,25 @@ res = complete(provider, LLMRequest(system_prompt, user_prompt))
 """
 function create_provider(;
     use_mock::Bool = false,
-    model::String = "gpt-4o-mini",
-    timeout_seconds::Int = 30,
-    max_retries::Int = 3,
-    retry_delay_seconds::Float64 = 1.0,
+    model::Union{String, Nothing} = nothing,
+    timeout_seconds::Union{Int, Nothing} = nothing,
+    max_retries::Union{Int, Nothing} = nothing,
+    retry_delay_seconds::Union{Float64, Nothing} = nothing,
 )::AbstractLLMProvider
     use_mock && return MockLLMProvider()
-    api_key = _resolve_openai_key()
-    if isempty(api_key)
+    cfg = _load_openai_config()
+    if isempty(cfg.api_key)
         @warn "OPENAI_API_KEY が見つからないため MockLLMProvider にフォールバックします。" *
-              " 環境変数または .env ファイルに OPENAI_API_KEY を設定してください。"
+              " 環境変数 OPENAI_API_KEY を設定してから Julia を起動してください。"
         return MockLLMProvider()
     end
-    OpenAIProvider(api_key, model, timeout_seconds, max_retries, retry_delay_seconds)
+    OpenAIProvider(
+        cfg.api_key,
+        isnothing(model) ? cfg.model : model,
+        isnothing(timeout_seconds) ? cfg.timeout_seconds : timeout_seconds,
+        isnothing(max_retries) ? cfg.max_retries : max_retries,
+        isnothing(retry_delay_seconds) ? cfg.retry_delay_seconds : retry_delay_seconds,
+    )
 end
 
 """
