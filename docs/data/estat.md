@@ -20,11 +20,7 @@ e-Stat（政府統計の総合窓口）API クライアントの使い方・appI
 export ESTAT_APP_ID=your_app_id_here
 ```
 
-`.env` ファイルを使う場合（`.gitignore` に追加すること）:
-
-```
-ESTAT_APP_ID=your_app_id_here
-```
+`.env` ファイルを使う場合は Julia 起動前に `source .env` を実行すること（アプリケーションは `.env` を直接読まない）。
 
 ## データ取得モード
 

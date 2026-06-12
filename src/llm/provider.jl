@@ -181,9 +181,9 @@ end
 """
     OpenAIProvider(; model, timeout_seconds, max_retries, retry_delay_seconds) -> OpenAIProvider
 
-環境変数または `.env` ファイルから API キーと各設定値を読み込んで `OpenAIProvider` を作成する。
+環境変数から API キーと各設定値を読み込んで `OpenAIProvider` を作成する。
 
-設定の優先順位: **キーワード引数 > 環境変数 > `.env` ファイル > デフォルト値**
+設定の優先順位: **キーワード引数 > 環境変数 > デフォルト値**
 
 API キーが設定されていない場合は `LLMProviderError` を送出する。
 テスト環境では [`MockLLMProvider`](@ref) または [`create_provider`](@ref) を使用すること。
@@ -209,8 +209,7 @@ function OpenAIProvider(;
         throw(
             LLMProviderError(
                 "OPENAI_API_KEY が見つかりません。" *
-                "環境変数（export OPENAI_API_KEY=sk-...）またはカレントディレクトリの .env ファイル" *
-                "（OPENAI_API_KEY=sk-... の形式）に設定してください。" *
+                "環境変数 OPENAI_API_KEY=sk-... を設定してから Julia を起動してください。" *
                 "テスト・デモ用途では MockLLMProvider() または create_provider(use_mock=true) を使用してください。",
             ),
         )
@@ -257,49 +256,24 @@ struct _OpenAIConfig
     retry_delay_seconds::Float64
 end
 
-# .env ファイル全体を Dict{String,String} に解析する
-function _parse_dotenv(path::String)::Dict{String, String}
-    result = Dict{String, String}()
-    isfile(path) || return result
-    for raw_line in eachline(path)
-        line = strip(raw_line)
-        (isempty(line) || startswith(line, "#")) && continue
-        m = match(r"^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$", line)
-        isnothing(m) && continue
-        val = strip(m.captures[2])
-        if length(val) >= 2 && (
-            (startswith(val, '"') && endswith(val, '"')) ||
-            (startswith(val, '\'') && endswith(val, '\''))
-        )
-            val = val[2:(end - 1)]
+# 環境変数から OpenAI の全設定値を解決する
+# 優先順位: 環境変数 > デフォルト値
+function _load_openai_config()::_OpenAIConfig
+    _env(key) =
+        let v = get(ENV, key, "");
+            isempty(v) ? nothing : v
         end
-        isempty(val) || (result[string(m.captures[1])] = val)
-    end
-    result
-end
-
-# 環境変数 → .env の順で key を探す。見つからない場合は nothing を返す
-function _env_or_dotenv(key::String, dotenv::Dict{String, String})::Union{String, Nothing}
-    val = get(ENV, key, "")
-    isempty(val) && (val = get(dotenv, key, ""))
-    isempty(val) ? nothing : val
-end
-
-# 環境変数と .env から OpenAI の全設定値を解決する
-# 優先順位: 環境変数 > .env ファイル > デフォルト値
-function _load_openai_config(dotenv_path::String = joinpath(pwd(), ".env"))::_OpenAIConfig
-    dotenv = _parse_dotenv(dotenv_path)
-    api_key = something(_env_or_dotenv("OPENAI_API_KEY", dotenv), "")
-    model = something(_env_or_dotenv("OPENAI_MODEL", dotenv), _DEFAULT_OPENAI_MODEL)
-    timeout = let s = _env_or_dotenv("OPENAI_TIMEOUT_SECONDS", dotenv)
+    api_key = something(_env("OPENAI_API_KEY"), "")
+    model = something(_env("OPENAI_MODEL"), _DEFAULT_OPENAI_MODEL)
+    timeout = let s = _env("OPENAI_TIMEOUT_SECONDS")
         isnothing(s) ? _DEFAULT_OPENAI_TIMEOUT :
         something(tryparse(Int, s), _DEFAULT_OPENAI_TIMEOUT)
     end
-    max_retries = let s = _env_or_dotenv("OPENAI_MAX_RETRIES", dotenv)
+    max_retries = let s = _env("OPENAI_MAX_RETRIES")
         isnothing(s) ? _DEFAULT_OPENAI_MAX_RETRIES :
         something(tryparse(Int, s), _DEFAULT_OPENAI_MAX_RETRIES)
     end
-    retry_delay = let s = _env_or_dotenv("OPENAI_RETRY_DELAY_SECONDS", dotenv)
+    retry_delay = let s = _env("OPENAI_RETRY_DELAY_SECONDS")
         isnothing(s) ? _DEFAULT_OPENAI_RETRY_DELAY :
         something(tryparse(Float64, s), _DEFAULT_OPENAI_RETRY_DELAY)
     end
@@ -447,7 +421,7 @@ function create_provider(;
     cfg = _load_openai_config()
     if isempty(cfg.api_key)
         @warn "OPENAI_API_KEY が見つからないため MockLLMProvider にフォールバックします。" *
-              " 環境変数または .env ファイルに OPENAI_API_KEY を設定してください。"
+              " 環境変数 OPENAI_API_KEY を設定してから Julia を起動してください。"
         return MockLLMProvider()
     end
     OpenAIProvider(

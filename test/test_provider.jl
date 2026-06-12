@@ -191,28 +191,6 @@
         end
     end
 
-    @testset "OpenAIProvider: .env ファイルから全設定値を読み込める" begin
-        orig_key   = get(ENV, "OPENAI_API_KEY", nothing)
-        orig_model = get(ENV, "OPENAI_MODEL", nothing)
-        delete!(ENV, "OPENAI_API_KEY")
-        delete!(ENV, "OPENAI_MODEL")
-        dotenv_path = tempname() * ".env"
-        try
-            write(
-                dotenv_path,
-                "OPENAI_API_KEY=sk-from-dotenv\nOPENAI_MODEL=gpt-4o\nOPENAI_TIMEOUT_SECONDS=45\n",
-            )
-            cfg = DME._load_openai_config(dotenv_path)
-            @test cfg.api_key == "sk-from-dotenv"
-            @test cfg.model == "gpt-4o"
-            @test cfg.timeout_seconds == 45
-        finally
-            isfile(dotenv_path) && rm(dotenv_path)
-            isnothing(orig_key) ? delete!(ENV, "OPENAI_API_KEY") : (ENV["OPENAI_API_KEY"] = orig_key)
-            isnothing(orig_model) || (ENV["OPENAI_MODEL"] = orig_model)
-        end
-    end
-
     # === create_provider ===
 
     @testset "create_provider: use_mock=true で MockLLMProvider" begin

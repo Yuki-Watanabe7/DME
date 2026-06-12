@@ -34,9 +34,9 @@
 
 ### 3.1 設定可能なパラメータ一覧
 
-すべてのパラメータは **環境変数または `.env` ファイル** で外部設定できる。
+すべてのパラメータは **環境変数** で外部設定できる。
 
-設定の優先順位: **キーワード引数 > 環境変数 > `.env` ファイル > デフォルト値**
+設定の優先順位: **キーワード引数 > 環境変数 > デフォルト値**
 
 | 環境変数 | 対応パラメータ | デフォルト値 | 説明 |
 |---|---|---|---|
@@ -46,43 +46,28 @@
 | `OPENAI_MAX_RETRIES` | `max_retries` | `3` | 最大リトライ回数 |
 | `OPENAI_RETRY_DELAY_SECONDS` | `retry_delay_seconds` | `1.0` | リトライ間隔の基本秒数（指数バックオフ） |
 
-### 3.2 .env ファイルを使う（推奨）
+### 3.2 環境変数で設定する
 
-プロジェクトルート（`julia --project=.` を実行するディレクトリ）に `.env` ファイルを置く。
-
-```
-# .env
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
-OPENAI_TIMEOUT_SECONDS=30
-OPENAI_MAX_RETRIES=3
-OPENAI_RETRY_DELAY_SECONDS=1.0
-```
-
-`OPENAI_API_KEY` のみ設定する最小構成でも動作する（その他はデフォルト値が使われる）。
-
-`.env` はリポジトリにコミットしない（`.gitignore` に追加する）。
+`.env` ファイルを使う場合は、Julia 起動前に自分で `source` する。アプリケーション側は `.env` ファイルを直接読まない。
 
 ```bash
-echo ".env" >> .gitignore
-```
-
-### 3.3 環境変数で設定する
-
-```bash
-# ~/.zshrc または ~/.bashrc に追加（永続化する場合）
-export OPENAI_API_KEY="sk-..."
-export OPENAI_MODEL="gpt-4o"
-export OPENAI_TIMEOUT_SECONDS="60"
-export OPENAI_MAX_RETRIES="5"
-export OPENAI_RETRY_DELAY_SECONDS="2.0"
-
-# または単一セッションのみ
-export OPENAI_API_KEY="sk-..."
+# .env に記載した上で source してから Julia を起動する
+source .env
 julia --project=.
 ```
 
-### 3.4 Julia セッション内で設定する場合
+または恒久的に設定する場合:
+
+```bash
+# ~/.zshrc または ~/.bashrc に追記
+export OPENAI_API_KEY="sk-..."
+export OPENAI_MODEL="gpt-4o-mini"
+export OPENAI_TIMEOUT_SECONDS="30"
+export OPENAI_MAX_RETRIES="3"
+export OPENAI_RETRY_DELAY_SECONDS="1.0"
+```
+
+### 3.3 Julia セッション内で設定する場合
 
 ```julia
 ENV["OPENAI_API_KEY"] = "sk-..."        # セッション内のみ有効
@@ -90,16 +75,15 @@ ENV["OPENAI_MODEL"] = "gpt-4o"
 ENV["OPENAI_TIMEOUT_SECONDS"] = "60"
 ```
 
-### 3.5 動作確認
+### 3.4 動作確認
 
 ```julia
 using DME
 
-# 環境変数 / .env から自動選択（推奨）
+# 環境変数から自動選択（推奨）
 provider = create_provider()
 
 # キーワード引数で一部だけ上書きする場合
-# （未指定のパラメータは環境変数 / .env / デフォルト値から取得）
 provider = create_provider(model = "gpt-4o", timeout_seconds = 60)
 
 # リクエスト送信
@@ -161,8 +145,8 @@ println(res.content)
 
 | 状況 | 挙動 |
 |---|---|
-| `OpenAIProvider()` を呼ぶが ENV も `.env` も未設定 | `LLMProviderError` を送出 |
-| `create_provider()` を呼ぶが ENV も `.env` も未設定 | 警告ログを出して `MockLLMProvider` にフォールバック |
+| `OpenAIProvider()` を呼ぶが `OPENAI_API_KEY` 未設定 | `LLMProviderError` を送出 |
+| `create_provider()` を呼ぶが `OPENAI_API_KEY` 未設定 | 警告ログを出して `MockLLMProvider` にフォールバック |
 | `create_provider(use_mock=true)` | 常に `MockLLMProvider`（エラーなし） |
 
 ---
@@ -188,13 +172,13 @@ end
 
 `OpenAIProvider` はタイムアウトと指数バックオフによるリトライをサポートする。
 
-設定方法は 3 通り（優先順位: コード引数 > 環境変数 > `.env` > デフォルト）:
+設定方法は 2 通り（優先順位: コード引数 > 環境変数 > デフォルト）:
 
 ```bash
-# .env または環境変数で設定（コードを変更しなくて済む）
-OPENAI_TIMEOUT_SECONDS=60
-OPENAI_MAX_RETRIES=5
-OPENAI_RETRY_DELAY_SECONDS=2.0
+# 環境変数で設定（コードを変更しなくて済む）
+export OPENAI_TIMEOUT_SECONDS=60
+export OPENAI_MAX_RETRIES=5
+export OPENAI_RETRY_DELAY_SECONDS=2.0
 ```
 
 ```julia

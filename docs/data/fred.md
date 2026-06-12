@@ -66,7 +66,7 @@ gdp = fetch_fred_series("GDPC1"; client=client, start_date="2010-01-01")
 export FRED_API_KEY=your_api_key_here
 ```
 
-または `.env` ファイルに記載（`.env.example` 参照）。
+`.env` ファイルを使う場合は Julia 起動前に `source .env` を実行すること（アプリケーションは `.env` を直接読まない）。
 
 ---
 
