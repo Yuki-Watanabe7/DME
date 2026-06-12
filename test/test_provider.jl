@@ -141,6 +141,78 @@
         end
     end
 
+    @testset "OpenAIProvider: OPENAI_MODEL 環境変数でモデルを外部設定できる" begin
+        orig_key = get(ENV, "OPENAI_API_KEY", nothing)
+        orig_model = get(ENV, "OPENAI_MODEL", nothing)
+        ENV["OPENAI_API_KEY"] = "sk-test-key"
+        ENV["OPENAI_MODEL"] = "gpt-4o"
+        try
+            provider = OpenAIProvider()
+            @test provider.model == "gpt-4o"
+        finally
+            isnothing(orig_key) ? delete!(ENV, "OPENAI_API_KEY") : (ENV["OPENAI_API_KEY"] = orig_key)
+            isnothing(orig_model) ? delete!(ENV, "OPENAI_MODEL") : (ENV["OPENAI_MODEL"] = orig_model)
+        end
+    end
+
+    @testset "OpenAIProvider: OPENAI_TIMEOUT_SECONDS / OPENAI_MAX_RETRIES / OPENAI_RETRY_DELAY_SECONDS を外部設定できる" begin
+        orig_key = get(ENV, "OPENAI_API_KEY", nothing)
+        orig_t   = get(ENV, "OPENAI_TIMEOUT_SECONDS", nothing)
+        orig_r   = get(ENV, "OPENAI_MAX_RETRIES", nothing)
+        orig_d   = get(ENV, "OPENAI_RETRY_DELAY_SECONDS", nothing)
+        ENV["OPENAI_API_KEY"] = "sk-test-key"
+        ENV["OPENAI_TIMEOUT_SECONDS"] = "60"
+        ENV["OPENAI_MAX_RETRIES"] = "5"
+        ENV["OPENAI_RETRY_DELAY_SECONDS"] = "2.0"
+        try
+            provider = OpenAIProvider()
+            @test provider.timeout_seconds == 60
+            @test provider.max_retries == 5
+            @test provider.retry_delay_seconds == 2.0
+        finally
+            isnothing(orig_key) ? delete!(ENV, "OPENAI_API_KEY") : (ENV["OPENAI_API_KEY"] = orig_key)
+            isnothing(orig_t) ? delete!(ENV, "OPENAI_TIMEOUT_SECONDS") : (ENV["OPENAI_TIMEOUT_SECONDS"] = orig_t)
+            isnothing(orig_r) ? delete!(ENV, "OPENAI_MAX_RETRIES") : (ENV["OPENAI_MAX_RETRIES"] = orig_r)
+            isnothing(orig_d) ? delete!(ENV, "OPENAI_RETRY_DELAY_SECONDS") : (ENV["OPENAI_RETRY_DELAY_SECONDS"] = orig_d)
+        end
+    end
+
+    @testset "OpenAIProvider: キーワード引数は環境変数設定を上書きする" begin
+        orig_key   = get(ENV, "OPENAI_API_KEY", nothing)
+        orig_model = get(ENV, "OPENAI_MODEL", nothing)
+        ENV["OPENAI_API_KEY"] = "sk-test-key"
+        ENV["OPENAI_MODEL"] = "gpt-4o"
+        try
+            provider = OpenAIProvider(model = "gpt-4o-mini")
+            @test provider.model == "gpt-4o-mini"
+        finally
+            isnothing(orig_key) ? delete!(ENV, "OPENAI_API_KEY") : (ENV["OPENAI_API_KEY"] = orig_key)
+            isnothing(orig_model) ? delete!(ENV, "OPENAI_MODEL") : (ENV["OPENAI_MODEL"] = orig_model)
+        end
+    end
+
+    @testset "OpenAIProvider: .env ファイルから全設定値を読み込める" begin
+        orig_key   = get(ENV, "OPENAI_API_KEY", nothing)
+        orig_model = get(ENV, "OPENAI_MODEL", nothing)
+        delete!(ENV, "OPENAI_API_KEY")
+        delete!(ENV, "OPENAI_MODEL")
+        dotenv_path = tempname() * ".env"
+        try
+            write(
+                dotenv_path,
+                "OPENAI_API_KEY=sk-from-dotenv\nOPENAI_MODEL=gpt-4o\nOPENAI_TIMEOUT_SECONDS=45\n",
+            )
+            cfg = DME._load_openai_config(dotenv_path)
+            @test cfg.api_key == "sk-from-dotenv"
+            @test cfg.model == "gpt-4o"
+            @test cfg.timeout_seconds == 45
+        finally
+            isfile(dotenv_path) && rm(dotenv_path)
+            isnothing(orig_key) ? delete!(ENV, "OPENAI_API_KEY") : (ENV["OPENAI_API_KEY"] = orig_key)
+            isnothing(orig_model) || (ENV["OPENAI_MODEL"] = orig_model)
+        end
+    end
+
     # === create_provider ===
 
     @testset "create_provider: use_mock=true で MockLLMProvider" begin

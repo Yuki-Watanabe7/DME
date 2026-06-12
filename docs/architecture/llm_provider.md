@@ -32,16 +32,34 @@
 
 ## 3. OpenAI API の設定方法
 
-API キーの探索順序: **環境変数 → カレントディレクトリの `.env` ファイル**
+### 3.1 設定可能なパラメータ一覧
 
-### 3.1 .env ファイルを使う（推奨）
+すべてのパラメータは **環境変数または `.env` ファイル** で外部設定できる。
+
+設定の優先順位: **キーワード引数 > 環境変数 > `.env` ファイル > デフォルト値**
+
+| 環境変数 | 対応パラメータ | デフォルト値 | 説明 |
+|---|---|---|---|
+| `OPENAI_API_KEY` | `api_key` | （必須） | OpenAI API キー |
+| `OPENAI_MODEL` | `model` | `"gpt-4o-mini"` | 使用するモデル名 |
+| `OPENAI_TIMEOUT_SECONDS` | `timeout_seconds` | `30` | HTTP タイムアウト秒数 |
+| `OPENAI_MAX_RETRIES` | `max_retries` | `3` | 最大リトライ回数 |
+| `OPENAI_RETRY_DELAY_SECONDS` | `retry_delay_seconds` | `1.0` | リトライ間隔の基本秒数（指数バックオフ） |
+
+### 3.2 .env ファイルを使う（推奨）
 
 プロジェクトルート（`julia --project=.` を実行するディレクトリ）に `.env` ファイルを置く。
 
 ```
 # .env
 OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_TIMEOUT_SECONDS=30
+OPENAI_MAX_RETRIES=3
+OPENAI_RETRY_DELAY_SECONDS=1.0
 ```
+
+`OPENAI_API_KEY` のみ設定する最小構成でも動作する（その他はデフォルト値が使われる）。
 
 `.env` はリポジトリにコミットしない（`.gitignore` に追加する）。
 
@@ -49,33 +67,40 @@ OPENAI_API_KEY=sk-...
 echo ".env" >> .gitignore
 ```
 
-### 3.2 環境変数で設定する
+### 3.3 環境変数で設定する
 
 ```bash
 # ~/.zshrc または ~/.bashrc に追加（永続化する場合）
 export OPENAI_API_KEY="sk-..."
+export OPENAI_MODEL="gpt-4o"
+export OPENAI_TIMEOUT_SECONDS="60"
+export OPENAI_MAX_RETRIES="5"
+export OPENAI_RETRY_DELAY_SECONDS="2.0"
 
 # または単一セッションのみ
 export OPENAI_API_KEY="sk-..."
 julia --project=.
 ```
 
-### 3.3 Julia セッション内で設定する場合
+### 3.4 Julia セッション内で設定する場合
 
 ```julia
-ENV["OPENAI_API_KEY"] = "sk-..."  # セッション内のみ有効
+ENV["OPENAI_API_KEY"] = "sk-..."        # セッション内のみ有効
+ENV["OPENAI_MODEL"] = "gpt-4o"
+ENV["OPENAI_TIMEOUT_SECONDS"] = "60"
 ```
 
-### 3.4 動作確認
+### 3.5 動作確認
 
 ```julia
 using DME
 
-# 環境変数から自動選択
+# 環境変数 / .env から自動選択（推奨）
 provider = create_provider()
 
-# モデルを指定する場合
-provider = create_provider(model = "gpt-4o")
+# キーワード引数で一部だけ上書きする場合
+# （未指定のパラメータは環境変数 / .env / デフォルト値から取得）
+provider = create_provider(model = "gpt-4o", timeout_seconds = 60)
 
 # リクエスト送信
 req = LLMRequest("あなたはマクロ経済分析AIです。", "このモデルを説明してください。")
@@ -163,9 +188,18 @@ end
 
 `OpenAIProvider` はタイムアウトと指数バックオフによるリトライをサポートする。
 
+設定方法は 3 通り（優先順位: コード引数 > 環境変数 > `.env` > デフォルト）:
+
+```bash
+# .env または環境変数で設定（コードを変更しなくて済む）
+OPENAI_TIMEOUT_SECONDS=60
+OPENAI_MAX_RETRIES=5
+OPENAI_RETRY_DELAY_SECONDS=2.0
+```
+
 ```julia
+# Julia コード内でキーワード引数を使って上書き
 provider = OpenAIProvider(;
-    model = "gpt-4o-mini",
     timeout_seconds = 60,      # タイムアウト秒数（デフォルト: 30）
     max_retries = 5,           # 最大リトライ回数（デフォルト: 3）
     retry_delay_seconds = 2.0, # リトライ間隔基本秒数（デフォルト: 1.0）
