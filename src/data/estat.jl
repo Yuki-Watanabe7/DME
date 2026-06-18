@@ -152,7 +152,12 @@ function fetch_estat_series(
     end
 
     if client.mode == :rest_api
-        return _fetch_estat_rest_api(stats_data_id, client; series_id = series_id, series_name = series_name)
+        return _fetch_estat_rest_api(
+            stats_data_id,
+            client;
+            series_id = series_id,
+            series_name = series_name,
+        )
     end
 
     if client.app_id === nothing
