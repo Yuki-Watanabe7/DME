@@ -37,6 +37,32 @@
             @test c.api_key == "direct_key"
         end
     end
+
+    @testset ":rest_api モード（DME_DATA_MODE=rest_api）" begin
+        withenv("FRED_API_KEY" => nothing, "DME_DATA_MODE" => "rest_api",
+                "DATA_PROVIDER_BASE_URL" => "http://localhost:8000") do
+            c = FredClient(; fixture_dir=fixture_dir)
+            @test c.mode == :rest_api
+            @test c.rest_api_url == "http://localhost:8000"
+        end
+    end
+
+    @testset ":rest_api モード（mode キーワード）" begin
+        withenv("FRED_API_KEY" => nothing, "DME_DATA_MODE" => nothing,
+                "DATA_PROVIDER_BASE_URL" => nothing) do
+            c = FredClient(; mode=:rest_api, rest_api_url="http://test-server:9000",
+                           fixture_dir=fixture_dir)
+            @test c.mode == :rest_api
+            @test c.rest_api_url == "http://test-server:9000"
+        end
+    end
+
+    @testset "DATA_PROVIDER_BASE_URL デフォルト値" begin
+        withenv("DATA_PROVIDER_BASE_URL" => nothing) do
+            c = FredClient(; mode=:rest_api, fixture_dir=fixture_dir)
+            @test c.rest_api_url == "http://localhost:8000"
+        end
+    end
 end
 
 @testset "fetch_fred_series（fixture モード）" begin

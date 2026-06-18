@@ -2,13 +2,15 @@
 # https://fred.stlouisfed.org/docs/api/fred/
 #
 # データ取得モード:
-#   :fixture  ローカルの fixture ファイルを使用（デフォルト・API キー不要）
-#   :live     実際の FRED API を使用（FRED_API_KEY 環境変数が必要）
+#   :fixture   ローカルの fixture ファイルを使用（デフォルト・API キー不要）
+#   :live      実際の FRED API を使用（FRED_API_KEY 環境変数が必要）
+#   :rest_api  economic-data-provider REST API 経由（DATA_PROVIDER_BASE_URL が必要）
 #
 # fixture ディレクトリ: test/fixtures/fred/<SERIES_ID>.json
 
 const _FRED_BASE_URL = "https://api.stlouisfed.org/fred"
 const _DEFAULT_FIXTURE_DIR = joinpath(@__DIR__, "..", "..", "test", "fixtures")
+const _DEFAULT_REST_API_URL = "http://localhost:8000"
 
 """
     FredClient
@@ -16,10 +18,11 @@ const _DEFAULT_FIXTURE_DIR = joinpath(@__DIR__, "..", "..", "test", "fixtures")
 FRED API クライアント。接続モードと API キーを保持する。
 
 ## フィールド
-- `api_key`: FRED API キー。`nothing` のときは fixture/mock モードで動作。
-- `mode`: データ取得モード。`:fixture`（デフォルト）または `:live`。
+- `api_key`: FRED API キー。`nothing` のときは fixture/rest_api モードで動作。
+- `mode`: データ取得モード。`:fixture`（デフォルト）、`:live`、または `:rest_api`。
 - `fixture_dir`: fixture データのディレクトリパス。
 - `base_url`: FRED API の基底 URL（テスト用のみ変更）。
+- `rest_api_url`: economic-data-provider REST API の基底 URL。
 
 ## 使用例
 ```julia
@@ -30,6 +33,10 @@ client = FredClient()
 # export FRED_API_KEY=your_key
 client = FredClient(mode=:live)
 
+# REST API モード（economic-data-provider サーバー経由）
+# export DATA_PROVIDER_BASE_URL=http://localhost:8000
+client = FredClient(mode=:rest_api)
+
 # キーを直接渡す場合
 client = FredClient(api_key="your_key", mode=:live)
 ```
@@ -39,24 +46,28 @@ struct FredClient
     mode::Symbol
     fixture_dir::String
     base_url::String
+    rest_api_url::String
 end
 
 """
-    FredClient(; api_key, mode, fixture_dir, base_url) -> FredClient
+    FredClient(; api_key, mode, fixture_dir, base_url, rest_api_url) -> FredClient
 
 FRED クライアントを作成する。
 
 - `api_key`: FRED API キー。省略時は環境変数 `FRED_API_KEY` を参照。
-- `mode`: `:fixture` または `:live`。省略時は `DME_DATA_MODE` 環境変数を参照し、
+- `mode`: `:fixture`、`:live`、または `:rest_api`。省略時は `DME_DATA_MODE` 環境変数を参照し、
   それも未設定の場合は API キーが存在すれば `:live`、なければ `:fixture`。
 - `fixture_dir`: fixture JSON のディレクトリ（デフォルト: `test/fixtures`）。
 - `base_url`: FRED API 基底 URL（デフォルト: `https://api.stlouisfed.org/fred`）。
+- `rest_api_url`: economic-data-provider REST API 基底 URL。省略時は `DATA_PROVIDER_BASE_URL` 環境変数、
+  それも未設定の場合は `http://localhost:8000`。
 """
 function FredClient(;
     api_key::Union{String, Nothing} = nothing,
     mode::Union{Symbol, Nothing} = nothing,
     fixture_dir::String = _DEFAULT_FIXTURE_DIR,
     base_url::String = _FRED_BASE_URL,
+    rest_api_url::Union{String, Nothing} = nothing,
 )
     resolved_key = api_key !== nothing ? api_key : get(ENV, "FRED_API_KEY", nothing)
 
@@ -70,7 +81,13 @@ function FredClient(;
         :fixture
     end
 
-    FredClient(resolved_key, resolved_mode, fixture_dir, base_url)
+    resolved_rest_url = if rest_api_url !== nothing
+        rest_api_url
+    else
+        get(ENV, "DATA_PROVIDER_BASE_URL", _DEFAULT_REST_API_URL)
+    end
+
+    FredClient(resolved_key, resolved_mode, fixture_dir, base_url, resolved_rest_url)
 end
 
 # ----------------------------------------------------------------
@@ -89,8 +106,9 @@ FRED から指定した系列を取得し、`DataSeries` に変換する。
 - `end_date`: 終了日（`"YYYY-MM-DD"` 形式）。省略時は全期間（live モードのみ有効）。
 
 ## モード別の動作
-- `:fixture` — `client.fixture_dir/fred/<series_id>.json` を読み込む。
-- `:live`    — FRED API を呼び出す（`FRED_API_KEY` が必要）。
+- `:fixture`  — `client.fixture_dir/fred/<series_id>.json` を読み込む。
+- `:live`     — FRED API を呼び出す（`FRED_API_KEY` が必要）。
+- `:rest_api` — economic-data-provider REST API 経由でデータを取得する。
 
 ## 返り値
 系列 id は `"FRED_<series_id>"` 形式（例: `"FRED_GDPC1"`）。
@@ -107,6 +125,11 @@ gdp["2020-Q1"]   # 19254.0
 # export FRED_API_KEY=your_key
 client = FredClient(mode=:live)
 gdp = fetch_fred_series("GDPC1"; client=client, start_date="2020-01-01")
+
+# REST API モード
+# export DATA_PROVIDER_BASE_URL=http://localhost:8000
+client = FredClient(mode=:rest_api)
+gdp = fetch_fred_series("GDPC1"; client=client)
 ```
 """
 function fetch_fred_series(
@@ -119,6 +142,10 @@ function fetch_fred_series(
         return _load_fred_fixture(series_id, client.fixture_dir)
     end
 
+    if client.mode == :rest_api
+        return _fetch_fred_rest_api(series_id, client)
+    end
+
     if client.api_key === nothing
         error(
             "FRED_API_KEY が設定されていません。\n" *
@@ -126,7 +153,9 @@ function fetch_fred_series(
             "    https://fred.stlouisfed.org/docs/api/api_key.html で API キーを取得し、\n" *
             "    環境変数 FRED_API_KEY に設定してください。\n" *
             "  API キーなしで使用する場合（テスト・デモ）:\n" *
-            "    DME_DATA_MODE=fixture を設定するか、FredClient(mode=:fixture) を使用してください。",
+            "    DME_DATA_MODE=fixture を設定するか、FredClient(mode=:fixture) を使用してください。\n" *
+            "  REST API 経由で使用する場合:\n" *
+            "    DME_DATA_MODE=rest_api を設定するか、FredClient(mode=:rest_api) を使用してください。",
         )
     end
 
@@ -231,6 +260,63 @@ function _fetch_fred_live(
 end
 
 # ----------------------------------------------------------------
+# REST API
+# ----------------------------------------------------------------
+
+function _fetch_fred_rest_api(series_id::String, client::FredClient)::DataSeries
+    url = "$(rstrip(client.rest_api_url, '/'))/v1/series/FRED_$(series_id)"
+    json_str = _http_get(url)
+    _parse_rest_api_response(json_str, "FRED")
+end
+
+"""
+    _parse_rest_api_response(json_str, source) -> DataSeries
+
+economic-data-provider REST API の TimeSeries JSON レスポンスを DataSeries に変換する。
+
+レスポンス形式:
+  {
+    "id": "FRED_GDPC1",
+    "source_id": "GDPC1",
+    "name": "Real GDP",
+    "unit": "...",
+    "frequency": "quarterly",
+    "points": [{"label": "2020-Q1", "value": 19254.0}, ...]
+  }
+"""
+function _parse_rest_api_response(json_str::String, source::String)::DataSeries
+    data = JSON3.read(json_str)
+    freq = _rest_api_frequency(String(data["frequency"]))
+    unit = haskey(data, "unit") && data["unit"] !== nothing ? String(data["unit"]) : ""
+    dates = String[]
+    values = Union{Float64, Missing}[]
+    for pt in data["points"]
+        push!(dates, String(pt["label"]))
+        v = pt["value"]
+        push!(values, v === nothing ? missing : Float64(v))
+    end
+    DataSeries(
+        id = String(data["id"]),
+        name = String(data["name"]),
+        source = source,
+        frequency = freq,
+        unit = unit,
+        dates = dates,
+        values = values,
+    )
+end
+
+function _rest_api_frequency(freq_str::String)::DataFrequency
+    if freq_str == "quarterly"
+        return Quarterly
+    elseif freq_str == "annual"
+        return Annual
+    else
+        return Monthly
+    end
+end
+
+# ----------------------------------------------------------------
 # JSON parsing (shared between fixture and live)
 # ----------------------------------------------------------------
 
@@ -308,6 +394,6 @@ end
 function _http_get(url::String)::String
     buf = IOBuffer()
     resp = Downloads.request(url; output = buf)
-    resp.status == 200 || error("FRED API リクエスト失敗: HTTP $(resp.status)")
+    resp.status == 200 || error("HTTP リクエスト失敗: HTTP $(resp.status) — $(url)")
     String(take!(buf))
 end
