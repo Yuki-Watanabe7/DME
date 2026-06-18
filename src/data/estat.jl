@@ -2,8 +2,9 @@
 # https://api.e-stat.go.jp/
 #
 # データ取得モード:
-#   :fixture  ローカルの fixture ファイルを使用（デフォルト・appId不要）
-#   :live     実際の e-Stat API を使用（ESTAT_APP_ID 環境変数が必要）
+#   :fixture   ローカルの fixture ファイルを使用（デフォルト・appId不要）
+#   :live      実際の e-Stat API を使用（ESTAT_APP_ID 環境変数が必要）
+#   :rest_api  economic-data-provider REST API 経由（DATA_PROVIDER_BASE_URL が必要）
 #
 # fixture ディレクトリ: test/fixtures/estat/<STATS_DATA_ID>.json
 
@@ -16,10 +17,11 @@ const _ESTAT_DEFAULT_FIXTURE_DIR = joinpath(@__DIR__, "..", "..", "test", "fixtu
 e-Stat API クライアント。接続モードと appId を保持する。
 
 ## フィールド
-- `app_id`: e-Stat API の appId。`nothing` のときは fixture モードで動作。
-- `mode`: データ取得モード。`:fixture`（デフォルト）または `:live`。
+- `app_id`: e-Stat API の appId。`nothing` のときは fixture/rest_api モードで動作。
+- `mode`: データ取得モード。`:fixture`（デフォルト）、`:live`、または `:rest_api`。
 - `fixture_dir`: fixture データのディレクトリパス。
 - `base_url`: e-Stat API の基底 URL（テスト用のみ変更）。
+- `rest_api_url`: economic-data-provider REST API の基底 URL。
 
 ## 使用例
 ```julia
@@ -30,6 +32,10 @@ client = EStatClient()
 # export ESTAT_APP_ID=your_app_id
 client = EStatClient(mode=:live)
 
+# REST API モード（economic-data-provider サーバー経由）
+# export DATA_PROVIDER_BASE_URL=http://localhost:8000
+client = EStatClient(mode=:rest_api)
+
 # appId を直接渡す場合
 client = EStatClient(app_id="your_app_id", mode=:live)
 ```
@@ -39,24 +45,28 @@ struct EStatClient
     mode::Symbol
     fixture_dir::String
     base_url::String
+    rest_api_url::String
 end
 
 """
-    EStatClient(; app_id, mode, fixture_dir, base_url) -> EStatClient
+    EStatClient(; app_id, mode, fixture_dir, base_url, rest_api_url) -> EStatClient
 
 e-Stat クライアントを作成する。
 
 - `app_id`: e-Stat appId。省略時は環境変数 `ESTAT_APP_ID` を参照。
-- `mode`: `:fixture` または `:live`。省略時は `DME_DATA_MODE` 環境変数を参照し、
+- `mode`: `:fixture`、`:live`、または `:rest_api`。省略時は `DME_DATA_MODE` 環境変数を参照し、
   それも未設定の場合は appId が存在すれば `:live`、なければ `:fixture`。
 - `fixture_dir`: fixture JSON のディレクトリ（デフォルト: `test/fixtures`）。
 - `base_url`: e-Stat API 基底 URL（デフォルト: `https://api.e-stat.go.jp/rest/3.0/app/json`）。
+- `rest_api_url`: economic-data-provider REST API 基底 URL。省略時は `DATA_PROVIDER_BASE_URL` 環境変数、
+  それも未設定の場合は `http://localhost:8000`。
 """
 function EStatClient(;
     app_id::Union{String, Nothing} = nothing,
     mode::Union{Symbol, Nothing} = nothing,
     fixture_dir::String = _ESTAT_DEFAULT_FIXTURE_DIR,
     base_url::String = _ESTAT_BASE_URL,
+    rest_api_url::Union{String, Nothing} = nothing,
 )
     resolved_key = app_id !== nothing ? app_id : get(ENV, "ESTAT_APP_ID", nothing)
 
@@ -70,7 +80,13 @@ function EStatClient(;
         :fixture
     end
 
-    EStatClient(resolved_key, resolved_mode, fixture_dir, base_url)
+    resolved_rest_url = if rest_api_url !== nothing
+        rest_api_url
+    else
+        get(ENV, "DATA_PROVIDER_BASE_URL", _DEFAULT_REST_API_URL)
+    end
+
+    EStatClient(resolved_key, resolved_mode, fixture_dir, base_url, resolved_rest_url)
 end
 
 # ----------------------------------------------------------------
@@ -93,8 +109,9 @@ e-Stat から指定した統計表の時系列を取得し、`DataSeries` に変
 - `series_name`: 返す `DataSeries` の name（省略時は統計表名）。
 
 ## モード別の動作
-- `:fixture` — `client.fixture_dir/estat/<stats_data_id>.json` を読み込む。
-- `:live`    — e-Stat API を呼び出す（`ESTAT_APP_ID` が必要）。
+- `:fixture`  — `client.fixture_dir/estat/<stats_data_id>.json` を読み込む。
+- `:live`     — e-Stat API を呼び出す（`ESTAT_APP_ID` が必要）。
+- `:rest_api` — economic-data-provider REST API 経由でデータを取得する。
 
 ## 使用例
 ```julia
@@ -108,6 +125,11 @@ cpi["2020-01"]  # 101.2
 # export ESTAT_APP_ID=your_app_id
 client = EStatClient(mode=:live)
 cpi = fetch_estat_series("0003427113"; client=client, cd_cat01="0010001")
+
+# REST API モード
+# export DATA_PROVIDER_BASE_URL=http://localhost:8000
+client = EStatClient(mode=:rest_api)
+cpi = fetch_estat_series("0003427113"; client=client)
 ```
 """
 function fetch_estat_series(
@@ -129,6 +151,15 @@ function fetch_estat_series(
         )
     end
 
+    if client.mode == :rest_api
+        return _fetch_estat_rest_api(
+            stats_data_id,
+            client;
+            series_id = series_id,
+            series_name = series_name,
+        )
+    end
+
     if client.app_id === nothing
         error(
             "ESTAT_APP_ID が設定されていません。\n" *
@@ -136,7 +167,9 @@ function fetch_estat_series(
             "    https://api.e-stat.go.jp/api/register で appId を取得し、\n" *
             "    環境変数 ESTAT_APP_ID に設定してください。\n" *
             "  appId なしで使用する場合（テスト・デモ）:\n" *
-            "    DME_DATA_MODE=fixture を設定するか、EStatClient(mode=:fixture) を使用してください。",
+            "    DME_DATA_MODE=fixture を設定するか、EStatClient(mode=:fixture) を使用してください。\n" *
+            "  REST API 経由で使用する場合:\n" *
+            "    DME_DATA_MODE=rest_api を設定するか、EStatClient(mode=:rest_api) を使用してください。",
         )
     end
 
@@ -209,6 +242,34 @@ function _load_estat_fixture(
 end
 
 # ----------------------------------------------------------------
+# REST API
+# ----------------------------------------------------------------
+
+function _fetch_estat_rest_api(
+    stats_data_id::String,
+    client::EStatClient;
+    series_id::Union{String, Nothing} = nothing,
+    series_name::Union{String, Nothing} = nothing,
+)::DataSeries
+    url = "$(rstrip(client.rest_api_url, '/'))/v1/series/ESTAT_$(stats_data_id)"
+    json_str = _estat_http_get(url)
+    s = _parse_rest_api_response(json_str, "e-Stat")
+    if series_id !== nothing || series_name !== nothing
+        return DataSeries(
+            id = series_id !== nothing ? series_id : s.id,
+            name = series_name !== nothing ? series_name : s.name,
+            source = s.source,
+            frequency = s.frequency,
+            unit = s.unit,
+            dates = s.dates,
+            values = s.values,
+            metadata = s.metadata,
+        )
+    end
+    s
+end
+
+# ----------------------------------------------------------------
 # Live API
 # ----------------------------------------------------------------
 
@@ -260,7 +321,7 @@ end
 function _estat_http_get(url::String)::String
     buf = IOBuffer()
     resp = Downloads.request(url; output = buf)
-    resp.status == 200 || error("e-Stat API リクエスト失敗: HTTP $(resp.status)")
+    resp.status == 200 || error("HTTP リクエスト失敗: HTTP $(resp.status) — $(url)")
     String(take!(buf))
 end
 
