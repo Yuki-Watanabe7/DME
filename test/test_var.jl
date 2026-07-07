@@ -20,7 +20,11 @@ using Plots
 
     @testset "コンストラクタ: 異常系" begin
         # A のサイズ不一致
-        @test_throws ArgumentError VARModel([:y, :π], [1.0 0.0 0.0; 0.0 1.0 0.0], [0.0, 0.0])
+        @test_throws ArgumentError VARModel(
+            [:y, :π],
+            [1.0 0.0 0.0; 0.0 1.0 0.0],
+            [0.0, 0.0],
+        )
         # c の長さ不一致
         @test_throws ArgumentError VARModel([:y, :π], [0.8 0.1; 0.2 0.7], [0.5])
     end
@@ -36,8 +40,8 @@ using Plots
 
     @testset "steady_state" begin
         ss = steady_state(m)
-        @test ss.y  ≈ 4.5 atol = 1e-10
-        @test ss.π  ≈ 4.0 atol = 1e-10
+        @test ss.y ≈ 4.5 atol = 1e-10
+        @test ss.π ≈ 4.0 atol = 1e-10
         # 固定点の確認: c + A * y* ≈ y*
         y_ss = [ss.y, ss.π]
         @test c + A * y_ss ≈ y_ss atol = 1e-10
@@ -57,10 +61,10 @@ using Plots
         y0 = [2.0, 1.0]
         result = simulate(m, y0; T = 5)
         for t in 1:5
-            y_t   = result.y[t]
-            π_t   = result.π[t]
-            y_t1  = c[1] + A[1, 1] * y_t + A[1, 2] * π_t
-            π_t1  = c[2] + A[2, 1] * y_t + A[2, 2] * π_t
+            y_t = result.y[t]
+            π_t = result.π[t]
+            y_t1 = c[1] + A[1, 1] * y_t + A[1, 2] * π_t
+            π_t1 = c[2] + A[2, 1] * y_t + A[2, 2] * π_t
             @test result.y[t + 1] ≈ y_t1 atol = 1e-12
             @test result.π[t + 1] ≈ π_t1 atol = 1e-12
         end
@@ -136,6 +140,67 @@ using Plots
     @testset "impulse_response: 引数バリデーション" begin
         @test_throws ArgumentError impulse_response(m, [1.0]; T = 10)
         @test_throws ArgumentError impulse_response(m, [1.0, 0.0, 0.5]; T = 10)
+    end
+
+    @testset "impulse_response がスペクトル分解の閉形式と一致" begin
+        # A = [0.8 0.1; 0.2 0.7] の固有値・固有ベクトルは手計算できる:
+        #   λ₁ = 0.9, v₁ = (1, 1) / λ₂ = 0.6, v₂ = (1, -2)
+        # ショック (1, 0) = (2/3)v₁ + (1/3)v₂ なので
+        #   irf.y[t] = (2/3)·0.9^(t-1) + (1/3)·0.6^(t-1)
+        #   irf.π[t] = (2/3)·0.9^(t-1) - (2/3)·0.6^(t-1)
+        irf = impulse_response(m, [1.0, 0.0]; T = 20)
+        for t in 1:20
+            @test irf.y[t] ≈ (2 / 3) * 0.9^(t - 1) + (1 / 3) * 0.6^(t - 1) atol = 1e-12
+            @test irf.π[t] ≈ (2 / 3) * 0.9^(t - 1) - (2 / 3) * 0.6^(t - 1) atol = 1e-12
+        end
+    end
+
+    @testset "simulate が偏差形式の閉形式と一致" begin
+        # VAR(1) の解: y_t - y* = A^t (y0 - y*)
+        ss = steady_state(m)
+        y_ss = [ss.y, ss.π]
+        y0 = [1.0, 0.5]
+        result = simulate(m, y0; T = 20)
+        At = [1.0 0.0; 0.0 1.0]
+        for t in 0:20
+            v = y_ss + At * (y0 - y_ss)
+            @test result.y[t + 1] ≈ v[1] atol = 1e-12
+            @test result.π[t + 1] ≈ v[2] atol = 1e-12
+            At = A * At
+        end
+    end
+
+    @testset "simulate と impulse_response の整合性" begin
+        # 線形性より simulate(y* + shock) - y* は IRF に一致するはず
+        ss = steady_state(m)
+        shock = [1.0, -0.5]
+        irf = impulse_response(m, shock; T = 20)
+        result = simulate(m, [ss.y + shock[1], ss.π + shock[2]]; T = 19)
+        @test maximum(abs.(result.y .- ss.y .- irf.y)) < 1e-12
+        @test maximum(abs.(result.π .- ss.π .- irf.π)) < 1e-12
+    end
+
+    @testset "収束率が支配固有値と一致" begin
+        # 十分先の期では偏差の減衰比が支配固有値 λ₁ = 0.9 に一致する
+        ss = steady_state(m)
+        result = simulate(m, [0.0, 0.0]; T = 60)
+        for t in 50:55
+            ratio = (result.y[t + 1] - ss.y) / (result.y[t] - ss.y)
+            @test ratio ≈ 0.9 atol = 1e-8
+        end
+    end
+
+    @testset "単位根 VAR（A=1）の厳密解" begin
+        # x_t = c + x_{t-1} は等差数列。定常状態は存在しないが
+        # simulate / impulse_response の再帰自体は厳密に検証できる
+        mu = VARModel([:x], reshape([1.0], 1, 1), [0.5])
+        result = simulate(mu, [2.0]; T = 10)
+        for t in 0:10
+            @test result.x[t + 1] ≈ 2.0 + 0.5 * t atol = 1e-12
+        end
+        # 単位根では IRF が減衰せず一定
+        irf = impulse_response(mu, [1.0]; T = 5)
+        @test all(irf.x .== 1.0)
     end
 
     @testset "to_simulation_result: simulate" begin
