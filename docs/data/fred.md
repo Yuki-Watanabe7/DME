@@ -1,6 +1,5 @@
 # FRED API 接続ガイド
 
-> Phase 5 / P0
 > 関連 Issue: #61
 
 ---

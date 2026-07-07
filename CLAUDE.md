@@ -1,7 +1,22 @@
 # CLAUDE.md
 
-DME は動学的マクロ経済モデル（Ramsey・RBC）を Julia で実装したパッケージです。
+DME は動学的マクロ経済モデルを Julia で実装したパッケージです。
+モデル群（Ramsey / Solow / RBC / IS-LM / AD-AS / New Keynesian / Mundell-Fleming / VAR）の計算・可視化に加え、
+実データ接続（FRED・e-Stat）と LLM による結果説明生成をサポートします。
 このファイルは Claude Code がこのリポジトリで作業する際の入口ガイドです。
+
+## リポジトリ構成
+
+| パス | 内容 |
+|---|---|
+| `src/models/` | 各モデルの実装 |
+| `src/core/` | モデル共通インターフェース・SimulationResult・比較・可視化 |
+| `src/data/` | 実データ層（DataSeries・前処理・FRED / e-Stat クライアント） |
+| `src/llm/` | LLM 層（AnalysisContext・プロンプト・provider 抽象化） |
+| `src/numerics/` | グリッド・補間などの数値計算ユーティリティ |
+| `examples/` | 機能別デモスクリプト（API キー不要で完走） |
+| `test/` | テスト（`test/fixtures/` に API fixture） |
+| `docs/` | 詳細ドキュメント（下表参照） |
 
 ## よく使うコマンド
 
@@ -46,24 +61,27 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 
 ## 詳細ドキュメント
 
+各モデルの解説は `docs/models/<モデル名>.md`（ramsey / solow / rbc / islm / adas / new_keynesian / mundell_fleming / var、テンプレートは template.md）。全ドキュメントの一覧は [README のドキュメント節](README.md#ドキュメント) を参照。
+
 | ドキュメント | 内容 |
 |---|---|
 | [API リファレンス](docs/api.md) | Public/Internal API の一覧・シグネチャ・移行ガイド |
+| [モデル選択ガイド](docs/model_selection_guide.md) | 問い・現象からモデルを選ぶためのリファレンス・比較表・決定木 |
+| [出力結果の読み方](docs/simulation_outputs.md) | 定常状態・移行経路・IRF・水準/対数偏差の概念 |
 | [モデル共通インターフェース](docs/architecture/model_interface.md) | 抽象型階層・命名方針・新規モデル追加ルール |
 | [パッケージ構成とアーキテクチャ概要](docs/architecture/package_structure.md) | ソースツリー・include 順序・Node 型階層・補間・モデル内部関数 |
-| [AIエコノミスト化アーキテクチャ](docs/architecture/ai_economist.md) | Phase 3 以降の層構成・データフロー |
+| [AIエコノミスト化アーキテクチャ](docs/architecture/ai_economist.md) | 分析カーネル・データ層・LLM 層の全体構成とデータフロー |
 | [LLM接続層の設計](docs/architecture/llm_layer.md) | LLM層の責務・入出力仕様・禁止事項・安全性方針 |
 | [LLM Provider設定ガイド](docs/architecture/llm_provider.md) | provider抽象化・OpenAI設定・MockProvider・差し替え方法 |
 | [AnalysisContext 設計](docs/architecture/analysis_context.md) | LLMへ渡す構造化コンテキスト型の設計・構造・利用例 |
 | [LLM出力の安全性・免責・禁止表現ルール](docs/llm_safety.md) | 禁止表現・必須記載・プロンプトテンプレート・出力チェックリスト |
-| [Ramsey モデル解説](docs/models/ramsey.md) | 目的・変数・パラメータ・出力・限界 |
-| [RBC モデル解説](docs/models/rbc.md) | 目的・変数・パラメータ・IRF・限界 |
-| [出力結果の読み方](docs/simulation_outputs.md) | 定常状態・移行経路・IRF・水準/対数偏差の概念 |
-| [品質チェックとローカル検証手順](docs/development/quality_checks.md) | Aqua.jl・JuliaFormatter・JET.jl 見送り理由・テスト実行方法 |
-| [依存パッケージ管理と注意点](docs/development/dependency_management.md) | JuMP・Interpolations・NLsolve の注意点・Manifest.toml 管理 |
-| [小国開放経済モデル設計方針](docs/models/open_economy_design.md) | 候補モデル比較・最小実装選定（Mundell-Fleming）・実データ候補系列 |
+| [DataSeries / MacroDataset 利用ガイド](docs/data/data_series_guide.md) | 実データ標準型の構造と操作 |
 | [モデル変数と実データ系列のマッピング表](docs/data/variable_mapping.md) | 各モデル変数と候補実データ系列の対応・単位・変換注意事項 |
 | [実データ前処理ユーティリティ](docs/data/preprocess.md) | 欠損値補完・対数・差分・移動平均・標準化・頻度変換などの使用例 |
 | [FRED API 接続ガイド](docs/data/fred.md) | FRED API クライアントの使い方・API キー設定・fixture モード |
 | [e-Stat API 接続ガイド](docs/data/estat.md) | e-Stat API クライアントの使い方・appId 設定・日本統計系列・fixture モード |
-| [日本マクロデータ接続 設計方針](docs/data/japan_macro_sources.md) | BOJ・内閣府・財務省・総務省のデータソース整理・優先順位・ライセンス・Phase 5 実装方針 |
+| [日本マクロデータ接続 設計方針](docs/data/japan_macro_sources.md) | BOJ・内閣府・財務省・総務省のデータソース整理・優先順位・ライセンス |
+| [小国開放経済モデル設計方針](docs/models/open_economy_design.md) | 候補モデル比較・最小実装選定（Mundell-Fleming）・実データ候補系列 |
+| [品質チェックとローカル検証手順](docs/development/quality_checks.md) | Aqua.jl・JuliaFormatter・テスト実行方法 |
+| [依存パッケージ管理と注意点](docs/development/dependency_management.md) | JuMP・Interpolations・NLsolve の注意点・Manifest.toml 管理 |
+| [設定・環境変数管理ガイド](docs/development/configuration.md) | API キー設定・fixture/mock モード・CI 運用方針 |

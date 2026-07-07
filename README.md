@@ -2,13 +2,27 @@
 
 動学的マクロ経済モデルを Julia で実装したパッケージです。
 
+モデルの数値解法にとどまらず、以下を一つの共通 API で扱えます。
+
+- **モデル計算**: 定常状態・移行経路・シミュレーション・インパルス応答（IRF）
+- **可視化**: `plot_result` / `plot_irf` / `plot_comparison`
+- **実データ接続**: FRED・e-Stat からの系列取得と前処理・モデル出力との定量比較
+- **LLM による結果説明**: 分析コンテキスト（`AnalysisContext`）を構築し、自然言語の説明文を生成
+
 ## モデル一覧
 
-| モデル | 概要 |
-|---|---|
-| **Ramsey モデル** | 無限期間最適成長モデル。価値反復法と完全予見経路の計算をサポート |
-| **RBC モデル** | リアル・ビジネス・サイクルモデル。線形化（Blanchard-Kahn 法）によるインパルス応答計算をサポート |
-| **Solow モデル** | 外生的貯蓄率による長期成長モデル。解析的定常状態と収束経路の計算をサポート |
+| モデル | 分類 | 概要 |
+|---|---|---|
+| [Ramsey](docs/models/ramsey.md) | 長期成長 | 無限期間最適成長モデル。価値反復法と完全予見経路の計算をサポート |
+| [Solow](docs/models/solow.md) | 長期成長 | 外生的貯蓄率による長期成長モデル。解析的定常状態と収束経路の計算をサポート |
+| [RBC](docs/models/rbc.md) | 景気変動 | リアル・ビジネス・サイクルモデル。線形化（Blanchard-Kahn 法）によるインパルス応答計算をサポート |
+| [IS-LM](docs/models/islm.md) | 短期政策 | 財市場・貨幣市場の同時均衡。財政・金融政策ショックの比較静学 |
+| [AD-AS](docs/models/adas.md) | 短期政策 | 総需要・総供給モデル。物価と産出に対する需要・供給ショックの分析 |
+| [New Keynesian](docs/models/new_keynesian.md) | 短期政策 | 3方程式 NK モデル。需要・コストプッシュ・金融政策ショックの IRF |
+| [Mundell-Fleming](docs/models/mundell_fleming.md) | 開放経済 | 小国開放経済（変動相場制・完全資本移動）の政策効果分析 |
+| [VAR](docs/models/var.md) | データ駆動 | 簡易ベクトル自己回帰（1 次）。多変量時系列のシミュレーションと IRF |
+
+どのモデルを使うべきか迷った場合は[モデル選択ガイド](docs/model_selection_guide.md)を参照してください。
 
 ## セットアップ
 
@@ -20,7 +34,7 @@ Pkg.activate(".")
 Pkg.instantiate()
 ```
 
-### 外部 API 設定（Phase 5-6 実データ・LLM 機能）
+### 外部 API 設定（実データ・LLM 機能）
 
 FRED・e-Stat・OpenAI など外部 API を使う場合は、環境変数ファイルを作成してください。
 
@@ -152,39 +166,81 @@ control_variables(m)   # [:C]
 parameters(m)          # (α = 0.3, β = 0.99, δ = 0.25)
 ```
 
+### 実データ接続（FRED / e-Stat）
+
+FRED・e-Stat の系列を取得し、前処理を経てモデル出力と比較できます。デフォルトは fixture モード（API キー不要）です。
+
+```julia
+using DME
+
+# FRED から実質 GDP を取得（デフォルト: fixture モード）
+gdp = fetch_fred_series("GDPC1")
+
+# e-Stat から日本の統計系列を取得
+cpi = fetch_estat_series("0003427113")
+
+# 前処理: 対数化・前年比・標準化など
+gdp_log = apply_log(gdp)
+gdp_yoy = pct_change(gdp; periods = 4)
+
+# モデル出力と実データの定量比較（SimulationResult 同士を変数マッピングで比較）
+m = RBCModel(0.3, 0.99, 1.0, 0.025, 1.0, 0.9)
+model_sr = to_simulation_result(m, impulse_response(m, 0.01), "tech_shock")
+data_sr = to_simulation_result(standardize(gdp_yoy), "actual_data")
+cr = compare_with_data(model_sr, data_sr; mapping = Dict("ŷ" => "FRED_GDPC1"))
+cr.variables["ŷ"].rmse         # RMSE
+cr.variables["ŷ"].correlation  # 相関係数
+```
+
+詳細は [FRED 接続ガイド](docs/data/fred.md)・[e-Stat 接続ガイド](docs/data/estat.md)・[前処理ユーティリティ](docs/data/preprocess.md) を参照してください。
+
+### LLM による結果説明
+
+シミュレーション結果を `AnalysisContext` に集約し、自然言語の説明を生成できます。`OPENAI_API_KEY` 未設定時は Mock プロバイダが使われるため、API キーなしで試せます。
+
+```julia
+using DME
+
+m = RBCModel(0.3, 0.99, 1.0, 0.025, 1.0, 0.9)
+sr = to_simulation_result(m, impulse_response(m, 0.01), "tech_shock")
+
+ctx = AnalysisContext(m, sr; shock_description = "1% positive technology shock")
+explanation = explain_result(ctx)   # 構造化された説明（caveats・免責付き）
+
+# 実 LLM を呼ぶ場合
+provider = create_provider()        # OPENAI_API_KEY があれば OpenAIProvider
+response = complete_from_prompt(provider, build_explain_prompt(ctx))
+```
+
+出力の安全性ルールは [LLM 出力の安全性・免責・禁止表現ルール](docs/llm_safety.md) を参照してください。
+
 ## サンプルスクリプト
 
-`examples/` ディレクトリにモデルの使い方を示すサンプルスクリプトがあります。
+`examples/` ディレクトリに、機能ごとのデモスクリプトがあります。いずれも API キー不要で完走します。
 
 | スクリプト | 内容 |
 |---|---|
-| [examples/ai_economist_demo.jl](examples/ai_economist_demo.jl) | **Phase 5-6 AIエコノミスト統合デモ**。モデル選択→シミュレーション→実データ取得→前処理→モデル比較→AnalysisContext→docs コンテキスト→LLM 説明生成の一連のフロー。API キー不要で完走。 |
-| [examples/real_data_demo.jl](examples/real_data_demo.jl) | **Phase 5 実データ接続デモ**。FRED からのデータ取得（fixture / live モード）・前処理・SimulationResult 変換・モデル比較・可視化・AnalysisContext 接続の一連のフローを示す。API キー不要で動作。 |
-| [examples/phase3_phase4_demo.jl](examples/phase3_phase4_demo.jl) | **Phase 3-4 統合デモ**。Ramsey / Solow / RBC / Mundell-Fleming / New Keynesian を横断し、共通 API・可視化・横断比較・Phase 5-6 への橋渡しを示す。 |
-| [examples/growth_models.jl](examples/growth_models.jl) | Ramsey / RBC / Solow の比較デモ。定常状態・移行経路・IRF・プロット API の使い方を示す。 |
-| [examples/policy_analysis.jl](examples/policy_analysis.jl) | IS-LM / AD-AS / New Keynesian の短期政策分析デモ。財政・金融・需要・供給ショックの比較と各モデルの使い分けを示す。 |
+| [examples/growth_models.jl](examples/growth_models.jl) | **長期成長・景気変動デモ**。Ramsey / RBC / Solow の定常状態・移行経路・IRF・プロット API の使い方を示す。 |
+| [examples/policy_analysis.jl](examples/policy_analysis.jl) | **短期政策分析デモ**。IS-LM / AD-AS / New Keynesian による財政・金融・需要・供給ショックの比較と各モデルの使い分けを示す。 |
+| [examples/model_overview_demo.jl](examples/model_overview_demo.jl) | **モデル横断デモ**。Ramsey / Solow / RBC / Mundell-Fleming / New Keynesian を共通 API で横断し、可視化・横断比較までの一連のワークフローを示す。 |
+| [examples/real_data_demo.jl](examples/real_data_demo.jl) | **実データ接続デモ**。FRED からのデータ取得（fixture / live モード）・前処理・SimulationResult 変換・モデル比較・可視化・AnalysisContext 接続を示す。 |
+| [examples/ai_economist_demo.jl](examples/ai_economist_demo.jl) | **AIエコノミスト統合デモ**。モデル選択 → シミュレーション → 実データ取得 → 前処理 → モデル比較 → AnalysisContext → docs コンテキスト → LLM 説明生成の一連のフロー。 |
 
 ```bash
-# AIエコノミスト統合デモ（API キー不要、fixture + Mock LLM で完走）
-julia --project=. examples/ai_economist_demo.jl
-
-# 実データ + 実 LLM で実行する場合
-# export FRED_API_KEY=your_api_key_here
-# export DME_DATA_MODE=live
-# export OPENAI_API_KEY=sk-...
-# julia --project=. examples/ai_economist_demo.jl
-
-# API キー不要（fixture モードで動作）
-julia --project=. examples/real_data_demo.jl
-
-# 実データモードで実行する場合（FRED API キーが必要）
-# export FRED_API_KEY=your_api_key_here
-# export DME_DATA_MODE=live
-# julia --project=. examples/real_data_demo.jl
-
-julia --project=. examples/phase3_phase4_demo.jl
 julia --project=. examples/growth_models.jl
 julia --project=. examples/policy_analysis.jl
+julia --project=. examples/model_overview_demo.jl
+julia --project=. examples/real_data_demo.jl
+julia --project=. examples/ai_economist_demo.jl
+```
+
+実データ・実 LLM で実行する場合は環境変数を設定します。
+
+```bash
+export FRED_API_KEY=your_api_key_here
+export DME_DATA_MODE=live
+export OPENAI_API_KEY=sk-...
+julia --project=. examples/ai_economist_demo.jl
 ```
 
 ## テスト
@@ -195,23 +251,59 @@ julia --project=. -e "using Pkg; Pkg.test()"
 
 ## ドキュメント
 
+### ガイド
+
 | ドキュメント | 内容 |
 |---|---|
 | [モデル選択ガイド](docs/model_selection_guide.md) | 問い・現象からモデルを選ぶためのリファレンス。比較表・決定木・各モデルの限界 |
-| [モデル変数と実データ系列のマッピング表](docs/data/variable_mapping.md) | 各モデル変数と候補実データ系列の対応・単位・変換注意事項。LLM 解釈の前提 |
+| [出力結果の読み方](docs/simulation_outputs.md) | 定常状態・移行経路・IRF・水準/対数偏差の概念と出力例 |
 | [API リファレンス](docs/api.md) | Public/Internal API の一覧・シグネチャ・移行ガイド |
+
+### モデル解説
+
+| ドキュメント | 内容 |
+|---|---|
+| [Ramsey モデル](docs/models/ramsey.md) | 無限期間最適成長モデルの目的・変数・パラメータ・出力・限界 |
+| [Solow モデル](docs/models/solow.md) | 外生的貯蓄率による長期成長モデルの解説 |
+| [RBC モデル](docs/models/rbc.md) | リアル・ビジネス・サイクルモデルの目的・変数・IRF・限界 |
+| [IS-LM モデル](docs/models/islm.md) | 財市場・貨幣市場の同時均衡モデルの解説 |
+| [AD-AS モデル](docs/models/adas.md) | 総需要・総供給モデルの解説 |
+| [New Keynesian モデル](docs/models/new_keynesian.md) | 3方程式 NK モデルの解説 |
+| [Mundell-Fleming モデル](docs/models/mundell_fleming.md) | 小国開放経済モデルの解説 |
+| [VAR モデル](docs/models/var.md) | 簡易ベクトル自己回帰モデルの解説 |
+| [小国開放経済モデル設計方針](docs/models/open_economy_design.md) | 候補モデル比較と Mundell-Fleming 選定の経緯 |
+| [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメント作成用テンプレート |
+
+### 実データ接続
+
+| ドキュメント | 内容 |
+|---|---|
+| [FRED API 接続ガイド](docs/data/fred.md) | FRED クライアントの使い方・API キー設定・fixture モード |
+| [e-Stat API 接続ガイド](docs/data/estat.md) | e-Stat クライアントの使い方・appId 設定・日本統計系列 |
+| [DataSeries / MacroDataset 利用ガイド](docs/data/data_series_guide.md) | 実データ標準型の構造と操作 |
+| [実データ前処理ユーティリティ](docs/data/preprocess.md) | 欠損値補完・対数・差分・移動平均・標準化・頻度変換 |
+| [モデル変数と実データ系列のマッピング表](docs/data/variable_mapping.md) | 各モデル変数と実データ系列の対応・単位・変換注意事項 |
+| [日本マクロデータ接続 設計方針](docs/data/japan_macro_sources.md) | BOJ・内閣府・財務省・総務省のデータソース整理・優先順位・ライセンス |
+
+### アーキテクチャ・LLM 層
+
+| ドキュメント | 内容 |
+|---|---|
 | [モデル共通インターフェース](docs/architecture/model_interface.md) | 抽象型階層・命名方針・新規モデル追加ルール |
-| [パッケージ構成とアーキテクチャ概要](docs/architecture/package_structure.md) | ソースツリー・include 順序・Node 型階層・補間・モデル内部関数 |
-| [AIエコノミスト化アーキテクチャ](docs/architecture/ai_economist.md) | Phase 3 以降の層構成・データフロー・設計方針 |
-| [LLM接続層の設計](docs/architecture/llm_layer.md) | LLM層の責務・入出力仕様・禁止事項・安全性方針 |
-| [LLM出力の安全性・免責・禁止表現ルール](docs/llm_safety.md) | 禁止表現・必須記載・プロンプトテンプレート・出力チェックリスト |
-| [Ramsey モデル解説](docs/models/ramsey.md) | Ramsey 最適成長モデルの目的・変数・パラメータ・出力・限界 |
-| [RBC モデル解説](docs/models/rbc.md) | リアル・ビジネス・サイクルモデルの目的・変数・パラメータ・IRF・限界 |
-| [出力結果の読み方](docs/simulation_outputs.md) | 定常状態・移行経路・IRF・水準/対数偏差の概念と Ramsey/RBC の出力例 |
-| [品質チェックとローカル検証手順](docs/development/quality_checks.md) | Aqua.jl・JuliaFormatter・テスト実行方法・フォーマット確認 |
+| [パッケージ構成とアーキテクチャ概要](docs/architecture/package_structure.md) | ソースツリー・include 順序・Node 型階層・補間 |
+| [AIエコノミスト化アーキテクチャ](docs/architecture/ai_economist.md) | 分析カーネル・データ層・LLM 層の全体構成とデータフロー |
+| [LLM 接続層の設計](docs/architecture/llm_layer.md) | LLM 層の責務・入出力仕様・禁止事項・安全性方針 |
+| [LLM Provider 設定ガイド](docs/architecture/llm_provider.md) | provider 抽象化・OpenAI 設定・MockProvider・差し替え方法 |
+| [AnalysisContext 設計](docs/architecture/analysis_context.md) | LLM へ渡す構造化コンテキスト型の設計・構造・利用例 |
+| [LLM 出力の安全性・免責・禁止表現ルール](docs/llm_safety.md) | 禁止表現・必須記載・プロンプトテンプレート・出力チェックリスト |
+
+### 開発
+
+| ドキュメント | 内容 |
+|---|---|
+| [品質チェックとローカル検証手順](docs/development/quality_checks.md) | Aqua.jl・JuliaFormatter・テスト実行方法 |
 | [依存パッケージ管理と注意点](docs/development/dependency_management.md) | JuMP・Interpolations・NLsolve の注意点・Manifest.toml 管理 |
 | [設定・環境変数管理ガイド](docs/development/configuration.md) | API キー設定・fixture/mock モード・CI 運用方針 |
-| [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメントを作成する際のテンプレート |
 
 ## 外部データソース
 
@@ -221,13 +313,3 @@ julia --project=. -e "using Pkg; Pkg.test()"
 |---|---|
 | [政府統計総合窓口（e-Stat）](https://www.e-stat.go.jp/) | このサービスは、政府統計総合窓口(e-Stat)のAPI機能を使用していますが、サービスの内容は国によって保証されたものではありません。 |
 | [FRED（Federal Reserve Economic Data）](https://fred.stlouisfed.org/) | データは St. Louis Fed が提供する FRED API 経由で取得します。利用には [FRED 利用規約](https://fred.stlouisfed.org/docs/api/terms_of_use.html) が適用されます。 |
-
-## 開発ロードマップ
-
-| Phase | 状態 | 内容 |
-|---|---|---|
-| Phase 1 | 完了 | Public/Internal API の分離 |
-| Phase 2 | 進行中 | ドキュメント整備・`@deprecated` マーク追加 |
-| Phase 3 | 予定 | 旧 Internal API（`calc_ep` 等）の削除 |
-
-詳細は [API リファレンス](docs/api.md) を参照。

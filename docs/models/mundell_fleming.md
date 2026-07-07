@@ -1,6 +1,5 @@
 # Mundell-Flemingモデル
 
-> **Phase 3 / P2**
 > 関連Issue: #48
 
 ---

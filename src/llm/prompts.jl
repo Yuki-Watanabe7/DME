@@ -36,8 +36,8 @@ const _DISCLAIMER_JA =
 
 `explain_result` の出力型。LLMへ渡すプロンプトと構造化された応答を保持する。
 
-Phase 6 初期はLLMを呼ばず、コンテキストから生成した mock 応答を返す。
-実LLM接続への差し替えは後続の接続実装 Issue にて行う。
+`explain_result` はLLMを呼ばず、コンテキストから生成した mock 応答を返す。
+実LLMで応答を得る場合は `prompt` を `complete_from_prompt` に渡す。
 
 ## フィールド
 - `prompt::String` : LLMへ渡すプロンプト全文（システム指示＋ユーザープロンプト）
@@ -138,10 +138,10 @@ end
 
 `AnalysisContext` からモデル結果の説明プロンプトを生成し、構造化された mock 応答を返す。
 
-Phase 6 初期実装では LLM API を呼ばず、コンテキストデータからテンプレートベースの
-構造化 mock 応答を生成する。出力には必ず `caveats` と `disclaimer` が含まれる。
+LLM API は呼ばず、コンテキストデータからテンプレートベースの構造化 mock 応答を
+生成する。出力には必ず `caveats` と `disclaimer` が含まれる。
 
-実LLM応答への差し替えは後続の LLM 接続実装 Issue にて行う。
+実LLMで応答を得る場合は `build_explain_prompt` と `complete_from_prompt` を組み合わせる。
 """
 function explain_result(ctx::AnalysisContext)::ExplainResultOutput
     meta = ctx.model_metadata
@@ -246,8 +246,8 @@ const _DATA_COMPARISON_SYSTEM_PROMPT = """
 
 `explain_data_comparison` の出力型。LLMへ渡すプロンプトと構造化された応答を保持する。
 
-Phase 6 初期はLLMを呼ばず、コンテキストから生成した mock 応答を返す。
-実LLM接続への差し替えは後続の接続実装 Issue にて行う。
+`explain_data_comparison` はLLMを呼ばず、コンテキストから生成した mock 応答を返す。
+実LLMで応答を得る場合は `prompt` を `complete_from_prompt` に渡す。
 
 ## フィールド
 - `prompt::String` : LLMへ渡すプロンプト全文（システム指示＋ユーザープロンプト）
@@ -346,12 +346,12 @@ end
 `AnalysisContext`（`data_comparison_summary` が設定済み）から、実データ比較の説明プロンプトを
 生成し、構造化された mock 応答を返す。
 
-Phase 6 初期実装では LLM API を呼ばず、コンテキストデータからテンプレートベースの
-構造化 mock 応答を生成する。出力には必ず `caveats` と `disclaimer` が含まれる。
+LLM API は呼ばず、コンテキストデータからテンプレートベースの構造化 mock 応答を
+生成する。出力には必ず `caveats` と `disclaimer` が含まれる。
 
 `data_comparison_summary` が `nothing` の場合は `ArgumentError` を送出する。
 
-実LLM応答への差し替えは後続の LLM 接続実装 Issue にて行う。
+実LLMで応答を得る場合は `build_data_comparison_prompt` と `complete_from_prompt` を組み合わせる。
 """
 function explain_data_comparison(ctx::AnalysisContext)::ExplainDataComparisonOutput
     isnothing(ctx.data_comparison_summary) && throw(

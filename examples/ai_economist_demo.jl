@@ -1,6 +1,6 @@
 # examples/ai_economist_demo.jl
 #
-# DME Phase 5-6 AIエコノミスト統合デモ
+# DME AIエコノミスト統合デモ
 #
 # モデル選択 → シミュレーション → 実データ取得/fixture → 前処理 →
 # SimulationResult 変換 → モデル結果比較 → AnalysisContext 生成 →
@@ -31,7 +31,7 @@ using Statistics: mean, std
 
 println("""
 ╔═══════════════════════════════════════════════════════════════════╗
-║   DME Phase 5-6 AIエコノミスト統合デモ                            ║
+║   DME AIエコノミスト統合デモ                                      ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
 このデモは「AIエコノミスト」としての DME が一連のフローで機能する様子を示す。
@@ -324,7 +324,7 @@ println("""
 """)
 
 # explain_result: AnalysisContext から構造化 mock 応答を生成する
-# （Phase 6 初期実装。実 LLM 接続は後続の Issue にて complete_from_prompt で差し替え）
+# （実 LLM で生成する場合は create_provider + complete_from_prompt を使う）
 explanation = explain_result(ctx_with_docs)
 
 println("[何を計算したか]")
@@ -407,7 +407,7 @@ println("  " * replace(llm_response_cmp.content, "\n" => "\n  "))
 # 完了サマリー
 # ─────────────────────────────────────────────────────────────────
 println("\n" * "=" ^ 68)
-println("  Phase 5-6 AIエコノミスト統合デモ — 完了")
+println("  AIエコノミスト統合デモ — 完了")
 println("=" ^ 68)
 println("""
 このデモで示したフロー:

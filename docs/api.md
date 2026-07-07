@@ -338,13 +338,13 @@ irf.ĉ
 
 ---
 
-## 今後のロードマップ
+## 旧 Internal API の移行状況
 
-| Phase | 内容 |
+| 状態 | 内容 |
 |---|---|
-| **Phase 1（現在）** | Public/Internal API の分離。旧関数は `DME.` 修飾でアクセス可能。 |
-| **Phase 2** | 旧関数に `@deprecated` マークを追加。`SolverOptions` を計算APIに組み込み。 |
-| **Phase 3** | 旧関数（`calc_ep`, `find_path`, `simulate_by_nlvar`, `solve_rbc`, `shock`）を削除。 |
+| 完了 | Public/Internal API の分離。旧関数は `DME.` 修飾でアクセス可能。 |
+| 完了 | ソルバー設定（`SolverOptions` / `ValueIterationOptions`）の計算 API への組み込み。 |
+| 未着手 | 旧関数（`calc_ep`, `find_path`, `simulate_by_nlvar`, `solve_rbc`, `shock`）への `@deprecated` マーク追加と削除。 |
 
 ### 新規モデル追加時のルール
 

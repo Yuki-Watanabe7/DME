@@ -1,6 +1,6 @@
 # examples/real_data_demo.jl
 #
-# DME Phase 5 実データ接続デモ
+# DME 実データ接続デモ
 #
 # 実データ取得（FRED）→ 前処理 → SimulationResult 変換 →
 # モデル結果との比較 → 可視化 → AnalysisContext への接続
@@ -23,7 +23,7 @@ using DME
 
 println("""
 ╔═══════════════════════════════════════════════════════════════╗
-║   DME Phase 5 実データ接続デモ                                 ║
+║   DME 実データ接続デモ                                         ║
 ╚═══════════════════════════════════════════════════════════════╝
 
 フロー:
@@ -33,7 +33,7 @@ println("""
   Step 4  SR 変換          ─ SimulationResult 互換形式へ
   Step 5  モデル比較       ─ RBC モデル結果 vs 実データ
   Step 6  可視化           ─ plot_result / plot_irf
-  Step 7  Phase 6 準備     ─ AnalysisContext への接続例
+  Step 7  LLM 接続         ─ AnalysisContext への接続例
 """)
 
 
@@ -345,10 +345,10 @@ println("""
 
 
 # ─────────────────────────────────────────────────────────────────
-# Step 7  Phase 6 準備 — AnalysisContext への接続例
+# Step 7  LLM 接続 — AnalysisContext への接続例
 # ─────────────────────────────────────────────────────────────────
 println("=" ^ 60)
-println("Step 7  Phase 6 準備 — AnalysisContext への接続例")
+println("Step 7  LLM 接続 — AnalysisContext への接続例")
 println("=" ^ 60)
 
 println("""
@@ -385,18 +385,19 @@ println("\n[to_compact_dict のトップレベルキー]")
 println("  $ctx_keys")
 
 println("""
-[Phase 6 での使い方イメージ（コメント参照）]
+[LLM 接続層での使い方（実装済み）]
 
-  # プロンプトへの埋め込み（Phase 6 で LLM 接続層が担当）
-  # using JSON3
-  # ctx_json = to_json(ctx)          # JSON 文字列に変換
-  # prompt = "次の経済分析結果を解釈してください。" * ctx_json
-  # response = call_llm(prompt)      # LLM API 呼び出し（Phase 6 で実装）
+  # AnalysisContext を LLM に渡して自然言語の説明を生成する
+  # explanation = explain_result(ctx)                # Mock LLM（API キー不要）
+  # provider = create_provider()                     # OpenAIProvider 等を設定
+  # text = complete_from_prompt(provider, build_explain_prompt(ctx))
+
+  → 一連のフローは examples/ai_economist_demo.jl を参照
 """)
 
 
 println("=" ^ 60)
-println("  Phase 5 実データ接続デモ — 完了")
+println("  実データ接続デモ — 完了")
 println("=" ^ 60)
 println("""
 このデモで示したフロー:
@@ -406,9 +407,9 @@ println("""
   ④ to_simulation_result で既存 API（plot / summarize）に接続
   ⑤ compare_with_data でモデル結果と実データを定量比較
   ⑥ plot_result / plot_irf / plot_comparison で可視化
-  ⑦ AnalysisContext で LLM 接続（Phase 6）への橋渡し
+  ⑦ AnalysisContext で LLM 接続への橋渡し
 
-次のステップ（Phase 6）:
-  - LLM Provider（OpenAI 等）を設定し、AnalysisContext を JSON でプロンプトに埋め込む
+さらに進むには:
+  - LLM 説明生成デモ: examples/ai_economist_demo.jl
   - docs/architecture/llm_layer.md および docs/architecture/llm_provider.md を参照
 """)
