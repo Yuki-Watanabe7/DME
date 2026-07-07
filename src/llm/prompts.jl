@@ -91,7 +91,9 @@ function build_explain_prompt(ctx::AnalysisContext)::String
     sort!(var_lines)
     vars_str = isempty(var_lines) ? "  （変数サマリーなし）" : join(var_lines, "\n")
 
-    shock_str = isnothing(srs.shock_description) ? "（移行経路シミュレーション）" : srs.shock_description
+    shock_str =
+        isnothing(srs.shock_description) ? "（移行経路シミュレーション）" :
+        srs.shock_description
 
     docs_section = _build_docs_section(ctx.docs_excerpts)
 
@@ -101,7 +103,8 @@ function build_explain_prompt(ctx::AnalysisContext)::String
         ctx.caveats.interpretation_warnings,
     )
     caveats_str =
-        isempty(caveat_items) ? "  （特になし）" : join(["  - $(c)" for c in caveat_items], "\n")
+        isempty(caveat_items) ? "  （特になし）" :
+        join(["  - $(c)" for c in caveat_items], "\n")
 
     user_prompt = """
 以下のシミュレーション結果を経済学的に要約してください。
@@ -151,7 +154,8 @@ function explain_result(ctx::AnalysisContext)::ExplainResultOutput
 
     # 何を計算したか
     shock_clause =
-        isnothing(srs.shock_description) ? "移行経路シミュレーション" : "ショック「$(srs.shock_description)」"
+        isnothing(srs.shock_description) ? "移行経路シミュレーション" :
+        "ショック「$(srs.shock_description)」"
     what_computed =
         "$(meta.model_name) を用いた $(srs.scenario_name) の計算です" *
         "（$(shock_clause)、期間: $(srs.n_periods) 期）。"
@@ -166,7 +170,9 @@ function explain_result(ctx::AnalysisContext)::ExplainResultOutput
     variable_movements = if isempty(var_lines)
         "変数サマリーが利用できません。"
     else
-        "このモデルの仮定のもとでは、各変数は以下の動きを示しました" * "（数値は対数偏差または水準値）:\n" * join(var_lines, "\n")
+        "このモデルの仮定のもとでは、各変数は以下の動きを示しました" *
+        "（数値は対数偏差または水準値）:\n" *
+        join(var_lines, "\n")
     end
 
     # 経済学的解釈
@@ -175,14 +181,16 @@ function explain_result(ctx::AnalysisContext)::ExplainResultOutput
     # モデルの限界
     limitations = vcat(ctx.caveats.model_limitations, ctx.caveats.interpretation_warnings)
     model_limitations = if isempty(limitations)
-        "$(meta.model_name) は特定の経済学的仮定に基づく条件付きモデルです。" * "仮定が成立しない状況への適用には注意が必要です。"
+        "$(meta.model_name) は特定の経済学的仮定に基づく条件付きモデルです。" *
+        "仮定が成立しない状況への適用には注意が必要です。"
     else
         join(["- $(l)" for l in limitations], "\n")
     end
 
     # 次の分析候補（候補提示であり断定推奨ではない）
     next_analyses = [
-        "パラメータ感度分析: 主要パラメータ（例: 資本分配率・割引因子）を変化させた" * "比較シミュレーションを検討してください。",
+        "パラメータ感度分析: 主要パラメータ（例: 資本分配率・割引因子）を変化させた" *
+        "比較シミュレーションを検討してください。",
         "別シナリオとの比較: 異なるショック規模・種類での IRF 比較を検討してください。",
         "実データとの参考比較: FRED 等から取得した実データとモデル出力を参考比較することで、" *
         "モデルの特性を把握できます（キャリブレーションなしの参考比較として）。",
@@ -195,7 +203,8 @@ function explain_result(ctx::AnalysisContext)::ExplainResultOutput
         ctx.caveats.interpretation_warnings,
     )
     if isempty(all_caveats)
-        all_caveats = ["$(meta.model_name) は特定の仮定に基づく学術的なマクロ経済モデルです。"]
+        all_caveats =
+            ["$(meta.model_name) は特定の仮定に基づく学術的なマクロ経済モデルです。"]
     end
 
     ExplainResultOutput(
@@ -388,8 +397,10 @@ function explain_data_comparison(ctx::AnalysisContext)::ExplainDataComparisonOut
         ctx.caveats.interpretation_warnings,
     )
     if isempty(all_caveats)
-        all_caveats =
-            ["$(meta.model_name) は特定の仮定に基づく学術的なマクロ経済モデルです。", "キャリブレーションなしの参考比較として解釈してください。"]
+        all_caveats = [
+            "$(meta.model_name) は特定の仮定に基づく学術的なマクロ経済モデルです。",
+            "キャリブレーションなしの参考比較として解釈してください。",
+        ]
     end
 
     ExplainDataComparisonOutput(
@@ -518,16 +529,20 @@ function _classify_deviation_variables(
         well = if isempty(high_corr)
             "$(model_name) の仮定のもとでは、全変数で相関が低く、定性的な動態の説明にも限界がある可能性があります。"
         else
-            high_names =
-                join(["$(k)（相関: $(round(v; digits=3))）" for (k, v) in high_corr], "、")
+            high_names = join(
+                ["$(k)（相関: $(round(v; digits=3))）" for (k, v) in high_corr],
+                "、",
+            )
             "このモデルの仮定のもとでは、以下の変数で実データと比較的高い相関が観察されました（参考）: $(high_names)。"
         end
 
         poorly = if isempty(low_corr)
             "$(model_name) の仮定のもとでは、特定の変数で顕著な乖離は観察されませんでした（相関係数に基づく参考評価）。"
         else
-            low_names =
-                join(["$(k)（相関: $(round(v; digits=3))）" for (k, v) in low_corr], "、")
+            low_names = join(
+                ["$(k)（相関: $(round(v; digits=3))）" for (k, v) in low_corr],
+                "、",
+            )
             "このモデルの仮定のもとでは、以下の変数で乖離が大きく観察されました（参考）: $(low_names)。" *
             " ただし乖離の原因は断定できません。モデルの構造的な仮定（例: 閉鎖経済・代表的家計）が" *
             "影響している可能性を考慮してください。"
@@ -593,15 +608,27 @@ function _suggest_additional_series(
         "モデルの主要パラメータ（例: 資本分配率・割引因子）を変化させた感度分析を検討してください（参考）。",
     ]
     if occursin("RBC", model_name) || occursin("Ramsey", model_name)
-        push!(suggestions, "全要素生産性（TFP）や投資系列との追加比較を検討してください（参考）。")
+        push!(
+            suggestions,
+            "全要素生産性（TFP）や投資系列との追加比較を検討してください（参考）。",
+        )
     elseif occursin("ISLM", model_name) || occursin("NewKeynesian", model_name)
-        push!(suggestions, "名目金利・物価水準などの名目変数系列との追加比較を検討してください（参考）。")
+        push!(
+            suggestions,
+            "名目金利・物価水準などの名目変数系列との追加比較を検討してください（参考）。",
+        )
     elseif occursin("MundellFleming", model_name)
-        push!(suggestions, "為替レート・経常収支などの国際収支系列との追加比較を検討してください（参考）。")
+        push!(
+            suggestions,
+            "為替レート・経常収支などの国際収支系列との追加比較を検討してください（参考）。",
+        )
     end
     # データ出典ごとの追加提案
     if occursin("FRED", dcs.data_source)
-        push!(suggestions, "FRED の改訂履歴（vintage data）を確認し、リアルタイムデータとの差異も考慮してください（参考）。")
+        push!(
+            suggestions,
+            "FRED の改訂履歴（vintage data）を確認し、リアルタイムデータとの差異も考慮してください（参考）。",
+        )
     end
     suggestions
 end

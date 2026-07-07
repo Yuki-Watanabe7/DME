@@ -49,7 +49,9 @@ struct VARModel <: AbstractMacroModel
         n = length(var_names)
         size(A) == (n, n) ||
             throw(ArgumentError("A は $(n)×$(n) でなければなりません（指定: $(size(A))）"))
-        length(c) == n || throw(ArgumentError("c の長さは $(n) でなければなりません（指定: $(length(c))）"))
+        length(c) == n || throw(
+            ArgumentError("c の長さは $(n) でなければなりません（指定: $(length(c))）"),
+        )
         new(Vector{Symbol}(var_names), Matrix{Float64}(A), Vector{Float64}(c))
     end
 end
@@ -95,7 +97,8 @@ t=0（y0）から t=T まで T+1 期間の経路を返す。
 """
 function simulate(m::VARModel, y0::Vector{Float64}; T::Int = 40)
     n = length(m.var_names)
-    length(y0) == n || throw(ArgumentError("y0 の長さは $(n) でなければなりません（指定: $(length(y0))）"))
+    length(y0) == n ||
+        throw(ArgumentError("y0 の長さは $(n) でなければなりません（指定: $(length(y0))）"))
     y = Matrix{Float64}(undef, n, T + 1)
     y[:, 1] = y0
     for t in 1:T
@@ -127,8 +130,9 @@ irf[t] = A^(t-1) * shock
 """
 function impulse_response(m::VARModel, shock::Vector{Float64}; T::Int = 20)
     n = length(m.var_names)
-    length(shock) == n ||
-        throw(ArgumentError("shock の長さは $(n) でなければなりません（指定: $(length(shock))）"))
+    length(shock) == n || throw(
+        ArgumentError("shock の長さは $(n) でなければなりません（指定: $(length(shock))）"),
+    )
     irf = Matrix{Float64}(undef, n, T)
     v = copy(shock)
     for t in 1:T

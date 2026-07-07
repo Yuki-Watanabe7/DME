@@ -24,15 +24,7 @@ end
 
 function impulse_response(m::RBCModel, shock_size::Float64; maxT::Int = 150)
     d = shock(m, shock_size; maxT = maxT)
-    (
-        â = d["â"],
-        r̂ = d["r̂"],
-        ŵ = d["ŵ"],
-        l̂ = d["l̂"],
-        k̂ = d["k̂"],
-        ŷ = d["ŷ"],
-        ĉ = d["ĉ"],
-    )
+    (â = d["â"], r̂ = d["r̂"], ŵ = d["ŵ"], l̂ = d["l̂"], k̂ = d["k̂"], ŷ = d["ŷ"], ĉ = d["ĉ"])
 end
 
 function U(m::RBCModel, C, L)

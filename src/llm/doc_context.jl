@@ -19,7 +19,8 @@ const _MODEL_DOC_MAP = Dict{String, String}(
 )
 
 # 「限界・注意事項」セクションを特定するためのキーワード
-const _LIMITATION_SECTION_KEYWORDS = String["限界", "注意事項", "前提", "caveats", "limitations"]
+const _LIMITATION_SECTION_KEYWORDS =
+    String["限界", "注意事項", "前提", "caveats", "limitations"]
 
 """
     build_docs_excerpts(model_name::String;
@@ -179,8 +180,11 @@ function _extract_model_doc(model_name::String, docs_root::String, max_chars::In
     isempty(content) && return ""
 
     llm_summary = _extract_llm_summary(content)
-    purpose_section =
-        _extract_section_by_keywords(content, ["目的", "モデルの目的", "purpose"], max_chars)
+    purpose_section = _extract_section_by_keywords(
+        content,
+        ["目的", "モデルの目的", "purpose"],
+        max_chars,
+    )
 
     parts = String[]
     isempty(llm_summary) || push!(parts, "【モデル概要】$(llm_summary)")
