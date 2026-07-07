@@ -39,6 +39,50 @@
         @test I > 0
     end
 
+    @testset "islm_equilibrium（数値アンカー）" begin
+        # 実装と独立に手計算した値:
+        #   A = c0 + I0 + G - c1·T = 320, D = b·l1 + l2(1-c1) = 30
+        #   Y* = (l2·A + b·M/P)/D = 82000/30, r* = (l1·Y* - M/P)/l2
+        # このキャリブレーションでは r* が負になる点に注意
+        # （M/P = 1000 が l1·Y* を上回るため。実装バグではなく設定由来）
+        Y, r, C, I = DME.islm_equilibrium(m)
+        @test Y ≈ 82000 / 30 atol = 1e-8
+        @test r ≈ -68 / 15 atol = 1e-10
+        @test C ≈ 2206.6666666667 atol = 1e-8
+        @test I ≈ 426.6666666667 atol = 1e-8
+    end
+
+    @testset "政策乗数が閉形式と一致する" begin
+        # 線形モデルなので乗数は厳密:
+        #   dY/dG = l2/D, dr/dG = l1/D, dY/dM = b/(P·D)
+        D = m.b * m.l1 + m.l2 * (1 - m.c1)
+        ss = steady_state(m)
+        # 財政乗数
+        m_g = ISLMModel(100.0, 0.8, 200.0, 50.0, 150.0, 100.0, 0.2, 100.0, 1000.0, 1.0)
+        ss_g = steady_state(m_g)
+        ΔG = m_g.G - m.G
+        @test ss_g.Y - ss.Y ≈ ΔG * m.l2 / D atol = 1e-9
+        @test ss_g.r - ss.r ≈ ΔG * m.l1 / D atol = 1e-12
+        # 貨幣乗数
+        m_m = ISLMModel(100.0, 0.8, 200.0, 50.0, 100.0, 100.0, 0.2, 100.0, 1200.0, 1.0)
+        ss_m = steady_state(m_m)
+        ΔM = m_m.M - m.M
+        @test ss_m.Y - ss.Y ≈ ΔM * m.b / (m.P * D) atol = 1e-9
+    end
+
+    @testset "特殊ケース: b=0 でケインジアン・クロスに退化" begin
+        # 投資が利子率に反応しなければ Y = A/(1-c1)（単純乗数モデル）
+        m_b0 = ISLMModel(100.0, 0.8, 200.0, 0.0, 100.0, 100.0, 0.2, 100.0, 1000.0, 1.0)
+        Y, r, C, I = DME.islm_equilibrium(m_b0)
+        A = m_b0.c0 + m_b0.I0 + m_b0.G - m_b0.c1 * m_b0.T
+        @test Y ≈ A / (1 - m_b0.c1) atol = 1e-10   # = 1600
+        @test I ≈ m_b0.I0 atol = 1e-12
+        # 財政乗数も 1/(1-c1) = 5 に一致
+        m_b0g = ISLMModel(100.0, 0.8, 200.0, 0.0, 110.0, 100.0, 0.2, 100.0, 1000.0, 1.0)
+        Y_g, _, _, _ = DME.islm_equilibrium(m_b0g)
+        @test (Y_g - Y) / 10.0 ≈ 1 / (1 - m_b0.c1) atol = 1e-10
+    end
+
     @testset "steady_state" begin
         ss = steady_state(m)
         @test haskey(NamedTuple(ss), :Y)
@@ -90,7 +134,8 @@
 
     @testset "金融政策の効果（マネーサプライ増加→Yが増加、rが低下）" begin
         # M を1000から1200に増加
-        m_monetary = ISLMModel(100.0, 0.8, 200.0, 50.0, 100.0, 100.0, 0.2, 100.0, 1200.0, 1.0)
+        m_monetary =
+            ISLMModel(100.0, 0.8, 200.0, 50.0, 100.0, 100.0, 0.2, 100.0, 1200.0, 1.0)
         ss_base = steady_state(m)
         ss_monetary = steady_state(m_monetary)
         @test ss_monetary.Y > ss_base.Y
@@ -99,7 +144,11 @@
 
     @testset "islm_policy_shock" begin
         m_fiscal = ISLMModel(100.0, 0.8, 200.0, 50.0, 150.0, 100.0, 0.2, 100.0, 1000.0, 1.0)
-        result = DME.islm_policy_shock(m, m_fiscal; scenario_names = ("baseline", "fiscal_expansion"))
+        result = DME.islm_policy_shock(
+            m,
+            m_fiscal;
+            scenario_names = ("baseline", "fiscal_expansion"),
+        )
         @test result.model_name == "IS-LM Model"
         @test result.scenario_name == "policy_comparison"
         @test haskey(result, "Y")
