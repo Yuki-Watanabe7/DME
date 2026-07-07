@@ -2,8 +2,21 @@
     # 標準パラメータ（ISLMModelのパラメータを継承し、開放経済パラメータを追加）
     # c0=100, c1=0.8, I0=200, b=50, G=100, T=100, l1=0.2, l2=100, M=1000, P=1.0
     # r_star=0.02, nx0=50, nx1=10
-    m = MundellFlemingModel(100.0, 0.8, 200.0, 50.0, 100.0, 100.0,
-                            0.2, 100.0, 1000.0, 1.0, 0.02, 50.0, 10.0)
+    m = MundellFlemingModel(
+        100.0,
+        0.8,
+        200.0,
+        50.0,
+        100.0,
+        100.0,
+        0.2,
+        100.0,
+        1000.0,
+        1.0,
+        0.02,
+        50.0,
+        10.0,
+    )
 
     @testset "model_name" begin
         @test model_name(m) == "Mundell-Fleming Model"
@@ -55,6 +68,65 @@
         @test I > 0
     end
 
+    @testset "mf_equilibrium（数値アンカー）" begin
+        # 実装と独立に計算した数値アンカー
+        Y, r, e, NX, C, I = DME.mf_equilibrium(m)
+        @test Y ≈ 5010.0 atol = 1e-8
+        @test r ≈ 0.02 atol = 1e-12
+        @test e ≈ 63.3 atol = 1e-8
+        @test NX ≈ 683.0 atol = 1e-8
+        @test C ≈ 4028.0 atol = 1e-8
+        @test I ≈ 199.0 atol = 1e-8
+    end
+
+    @testset "政策乗数が閉形式と一致する" begin
+        # LM から Y = (M/P + l2·r*)/l1 なので:
+        #   dY/dM = 1/(l1·P), dY/dr* = l2/l1
+        # 国民所得恒等式 NX = Y-C-I-G, C=c0+c1(Y-T) より
+        #   dNX/dM = (1-c1)·dY/dM, de/dM = dNX/dM / nx1
+        ss = steady_state(m)
+        m_m = MundellFlemingModel(
+            100.0,
+            0.8,
+            200.0,
+            50.0,
+            100.0,
+            100.0,
+            0.2,
+            100.0,
+            1200.0,
+            1.0,
+            0.02,
+            50.0,
+            10.0,
+        )
+        ss_m = steady_state(m_m)
+        ΔM = m_m.M - m.M
+        dY = ΔM / (m.l1 * m.P)
+        @test ss_m.Y - ss.Y ≈ dY atol = 1e-8
+        @test ss_m.NX - ss.NX ≈ (1 - m.c1) * dY atol = 1e-8
+        @test ss_m.e - ss.e ≈ (1 - m.c1) * dY / m.nx1 atol = 1e-8
+
+        m_r = MundellFlemingModel(
+            100.0,
+            0.8,
+            200.0,
+            50.0,
+            100.0,
+            100.0,
+            0.2,
+            100.0,
+            1000.0,
+            1.0,
+            0.04,
+            50.0,
+            10.0,
+        )
+        ss_r = steady_state(m_r)
+        Δrstar = m_r.r_star - m.r_star
+        @test ss_r.Y - ss.Y ≈ Δrstar * m.l2 / m.l1 atol = 1e-8
+    end
+
     @testset "steady_state" begin
         ss = steady_state(m)
         @test haskey(NamedTuple(ss), :Y)
@@ -75,16 +147,16 @@
 
     @testset "simulate（長さ1ベクトル）" begin
         result = simulate(m)
-        @test length(result.Y)  == 1
-        @test length(result.r)  == 1
-        @test length(result.e)  == 1
+        @test length(result.Y) == 1
+        @test length(result.r) == 1
+        @test length(result.e) == 1
         @test length(result.NX) == 1
-        @test length(result.C)  == 1
-        @test length(result.I)  == 1
+        @test length(result.C) == 1
+        @test length(result.I) == 1
         ss = steady_state(m)
-        @test result.Y[1]  ≈ ss.Y  atol = 1e-12
-        @test result.r[1]  ≈ ss.r  atol = 1e-12
-        @test result.e[1]  ≈ ss.e  atol = 1e-12
+        @test result.Y[1] ≈ ss.Y atol = 1e-12
+        @test result.r[1] ≈ ss.r atol = 1e-12
+        @test result.e[1] ≈ ss.e atol = 1e-12
         @test result.NX[1] ≈ ss.NX atol = 1e-12
     end
 
@@ -105,9 +177,22 @@
 
     @testset "財政政策（変動相場制でのクラウドアウト）" begin
         # G を100から150に増加 → 変動相場制では Y 不変、e 増価（自国通貨高）、NX 減少
-        m_fiscal = MundellFlemingModel(100.0, 0.8, 200.0, 50.0, 150.0, 100.0,
-                                       0.2, 100.0, 1000.0, 1.0, 0.02, 50.0, 10.0)
-        ss_base   = steady_state(m)
+        m_fiscal = MundellFlemingModel(
+            100.0,
+            0.8,
+            200.0,
+            50.0,
+            150.0,
+            100.0,
+            0.2,
+            100.0,
+            1000.0,
+            1.0,
+            0.02,
+            50.0,
+            10.0,
+        )
+        ss_base = steady_state(m)
         ss_fiscal = steady_state(m_fiscal)
 
         # Mundell-Fleming定理: 変動相場制では財政政策無効（Y 不変）
@@ -121,20 +206,33 @@
         @test ss_fiscal.NX < ss_base.NX
 
         # クラウドアウトの量: ΔNX = -ΔG
-        ΔG  = 150.0 - 100.0
+        ΔG = 150.0 - 100.0
         ΔNX = ss_fiscal.NX - ss_base.NX
         @test ΔNX ≈ -ΔG atol = 1e-10
     end
 
     @testset "金融政策（マネーサプライ増加→Y増加・e減価）" begin
         # M を1000から1200に増加 → Y 増加、e 減価（自国通貨安）、NX 改善
-        m_monetary = MundellFlemingModel(100.0, 0.8, 200.0, 50.0, 100.0, 100.0,
-                                         0.2, 100.0, 1200.0, 1.0, 0.02, 50.0, 10.0)
-        ss_base     = steady_state(m)
+        m_monetary = MundellFlemingModel(
+            100.0,
+            0.8,
+            200.0,
+            50.0,
+            100.0,
+            100.0,
+            0.2,
+            100.0,
+            1200.0,
+            1.0,
+            0.02,
+            50.0,
+            10.0,
+        )
+        ss_base = steady_state(m)
         ss_monetary = steady_state(m_monetary)
 
-        @test ss_monetary.Y  > ss_base.Y
-        @test ss_monetary.e  > ss_base.e   # e 増加 = 自国通貨安
+        @test ss_monetary.Y > ss_base.Y
+        @test ss_monetary.e > ss_base.e   # e 増加 = 自国通貨安
         @test ss_monetary.NX > ss_base.NX  # NX 改善
 
         # 金利は r* に固定
@@ -143,9 +241,22 @@
 
     @testset "海外金利ショック（r* 上昇→Y増加・e変化）" begin
         # r_star を0.02から0.04に上昇
-        m_rstar = MundellFlemingModel(100.0, 0.8, 200.0, 50.0, 100.0, 100.0,
-                                      0.2, 100.0, 1000.0, 1.0, 0.04, 50.0, 10.0)
-        ss_base  = steady_state(m)
+        m_rstar = MundellFlemingModel(
+            100.0,
+            0.8,
+            200.0,
+            50.0,
+            100.0,
+            100.0,
+            0.2,
+            100.0,
+            1000.0,
+            1.0,
+            0.04,
+            50.0,
+            10.0,
+        )
+        ss_base = steady_state(m)
         ss_rstar = steady_state(m_rstar)
 
         # LM: Y = (M/P + l2*r*)/l1 より r* 上昇 → Y 増加
@@ -155,9 +266,22 @@
 
     @testset "外需ショック（nx0 低下→NX減少・e減価）" begin
         # nx0 を50から30に低下（貿易相手国の景気後退）
-        m_demand = MundellFlemingModel(100.0, 0.8, 200.0, 50.0, 100.0, 100.0,
-                                       0.2, 100.0, 1000.0, 1.0, 0.02, 30.0, 10.0)
-        ss_base   = steady_state(m)
+        m_demand = MundellFlemingModel(
+            100.0,
+            0.8,
+            200.0,
+            50.0,
+            100.0,
+            100.0,
+            0.2,
+            100.0,
+            1000.0,
+            1.0,
+            0.02,
+            30.0,
+            10.0,
+        )
+        ss_base = steady_state(m)
         ss_demand = steady_state(m_demand)
 
         # Y は LM で決まるため変化なし
@@ -171,12 +295,28 @@
     end
 
     @testset "mf_policy_shock" begin
-        m_monetary = MundellFlemingModel(100.0, 0.8, 200.0, 50.0, 100.0, 100.0,
-                                         0.2, 100.0, 1200.0, 1.0, 0.02, 50.0, 10.0)
-        result = DME.mf_policy_shock(m, m_monetary;
-                                     scenario_names = ("baseline", "monetary_easing"))
+        m_monetary = MundellFlemingModel(
+            100.0,
+            0.8,
+            200.0,
+            50.0,
+            100.0,
+            100.0,
+            0.2,
+            100.0,
+            1200.0,
+            1.0,
+            0.02,
+            50.0,
+            10.0,
+        )
+        result = DME.mf_policy_shock(
+            m,
+            m_monetary;
+            scenario_names = ("baseline", "monetary_easing"),
+        )
 
-        @test result.model_name    == "Mundell-Fleming Model"
+        @test result.model_name == "Mundell-Fleming Model"
         @test result.scenario_name == "policy_comparison"
         @test haskey(result, "Y")
         @test haskey(result, "r")
@@ -189,11 +329,11 @@
         @test result.metadata["scenario_names"] == ["baseline", "monetary_easing"]
 
         # インデックス1がベースライン、2が政策後
-        ss_base     = steady_state(m)
+        ss_base = steady_state(m)
         ss_monetary = steady_state(m_monetary)
-        @test result["Y"][1] ≈ ss_base.Y     atol = 1e-12
+        @test result["Y"][1] ≈ ss_base.Y atol = 1e-12
         @test result["Y"][2] ≈ ss_monetary.Y atol = 1e-12
-        @test result["e"][1] ≈ ss_base.e     atol = 1e-12
+        @test result["e"][1] ≈ ss_base.e atol = 1e-12
         @test result["e"][2] ≈ ss_monetary.e atol = 1e-12
     end
 end
