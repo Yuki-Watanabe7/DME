@@ -1,23 +1,27 @@
-# examples/phase3_phase4_demo.jl
+# examples/model_overview_demo.jl
 #
-# DME Phase 3-4 統合デモ — AI エコノミストの原型
+# DME モデル横断デモ — 共通 API による複数モデル分析
 #
-# Phase 3-4 で整備したモデル群・共通 API・可視化機能を一通り実行し、
-# 「複数モデルを横断して経済分析を行う AI エコノミストの原型」を示す。
+# モデル群・共通 API・可視化機能を一通り実行し、
+# 「複数モデルを横断して経済分析を行う」ワークフローを示す。
 #
 # 対象モデル（長期成長系・ビジネスサイクル・開放経済・短期政策分析）:
 #   Ramsey / Solow / RBC / Mundell-Fleming / New Keynesian
 #
 # 実行方法:
-#   julia --project=. examples/phase3_phase4_demo.jl
+#   julia --project=. examples/model_overview_demo.jl
 #
 # 外部 API キーや実データは不要。プロットを保存したい場合は savefig 行を有効化。
+#
+# 関連デモ:
+#   実データ接続  → examples/real_data_demo.jl
+#   LLM 説明生成  → examples/ai_economist_demo.jl
 
 using DME
 
 println("""
 ╔═══════════════════════════════════════════════════════════════╗
-║   DME Phase 3-4 統合デモ — AI エコノミストの原型              ║
+║   DME モデル横断デモ — 共通 API による複数モデル分析          ║
 ╚═══════════════════════════════════════════════════════════════╝
 
 このデモは「経済的な問い → モデル選択 → 実行 → 可視化 → 解釈」という
@@ -29,7 +33,7 @@ println("""
   Step 4  開放経済 ─ Mundell-Fleming モデル（政策比較）
   Step 5  短期政策 ─ New Keynesian モデル（ショック IRF）
   Step 6  横断比較 ─ 複数シナリオの plot_comparison
-  Step 7  Phase 5-6 への橋渡し
+  Step 7  発展編への案内 ─ 実データ接続・LLM 説明生成
 """)
 
 
@@ -365,68 +369,32 @@ println("\n  → p_summary_mf を生成")
 
 
 # ─────────────────────────────────────────────────────────────────
-# Step 7  Phase 5-6 への橋渡し
+# Step 7  発展編への案内 — 実データ接続・LLM 説明生成
 # ─────────────────────────────────────────────────────────────────
 println("\n" * "=" ^ 60)
-println("Step 7  Phase 5-6 への橋渡し")
+println("Step 7  発展編への案内 — 実データ接続・LLM 説明生成")
 println("=" ^ 60)
 println("""
-このデモで示した機能は、AI エコノミストを構成する「分析カーネル」にあたる。
-Phase 5-6 では、このカーネルに外部データと LLM 推論を接続し、
-自律的な経済分析エージェントへ発展させる。
+このデモで示した機能は、DME の「分析カーネル」（モデル・共通 API・可視化）
+にあたる。DME にはこのカーネルに接続する実データ層・LLM 層も実装されている。
 
-─── Phase 5: 実データ接続 ───────────────────────────────────────
+─── 実データ接続 ────────────────────────────────────────────────
 
-  現在 (Phase 3-4)
-    パラメータはすべてハードコードされた仮想値。
+  FredClient / EStatClient で FRED・e-Stat からマクロ系列を取得し、
+  前処理（fill_missing / apply_log / pct_change / to_quarterly など）を経て
+  compare_with_data でモデル出力と比較できる。
 
-  Phase 5 で追加予定
-    ① データ取得層
-       内閣府 / 日本銀行 / FRED API からマクロ系列を取得する
-       DataFetcher モジュール（GDP 成長率・インフレ率・金利・為替）
+  → デモ: examples/real_data_demo.jl（API キー不要、fixture モードで完走）
+  → docs: docs/data/fred.md, docs/data/estat.md, docs/data/preprocess.md
 
-    ② パラメータ推定層
-       カリブレーション（モーメントマッチング）または最小二乗法で
-       モデルパラメータを実データから自動推定する
+─── LLM 説明生成 ────────────────────────────────────────────────
 
-    ③ 実証的シナリオ分析
-       2022-2023 日本のインフレ局面を NK モデルで再現する
-       コストプッシュ vs 需要ショックの要因分解など
+  AnalysisContext にモデル・結果・データ比較・注意事項を集約し、
+  explain_result / explain_data_comparison で自然言語の説明を生成できる。
+  LLM プロバイダは差し替え可能（MockLLMProvider / OpenAIProvider）。
 
-    現在のコードへの影響
-       SimulationResult・plot_result・summarize_result は変更不要。
-       DataFetcher が NamedTuple を返せば to_simulation_result がそのまま機能する。
-
-─── Phase 6: LLM 接続 ──────────────────────────────────────────
-
-  Phase 6 で追加予定
-    ① 自然言語インターフェース
-       "2023年の利上げは産出ギャップにどう影響したか？" といった問いを
-       LLM が分析ワークフローに変換する
-
-    ② 結果の自動解釈
-       summarize_result の出力を LLM に渡し、
-       「経済学者のコメント」として自然言語サマリーを生成する
-
-    ③ AI エコノミストエージェント
-       データ取得 → モデル選択 → パラメータ推定 → シナリオ実行 →
-       可視化 → 解釈レポート生成 を自律的に実行するエージェント
-
-─── 今後の残課題 ────────────────────────────────────────────────
-
-  優先度 高
-    [ ] DataFetcher モジュールの設計・実装（Phase 5 の入口）
-    [ ] Ramsey/RBC のカリブレーション機能（パラメータ推定）
-    [ ] SimulationResult の時系列長を揃える共通化（モデル横断比較の前提）
-
-  優先度 中
-    [ ] VARModel の to_simulation_result 対応の強化
-    [ ] plot_comparison のクロスモデル対応（単位正規化オプション）
-    [ ] LLM インターフェース仕様の draft（Phase 6 設計）
-
-  優先度 低
-    [ ] notebook (.ipynb) 形式の整備
-    [ ] 実データを使った docs/examples の充実
+  → デモ: examples/ai_economist_demo.jl（API キー不要、Mock LLM で完走）
+  → docs: docs/architecture/llm_layer.md, docs/llm_safety.md
 """)
 
 

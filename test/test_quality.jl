@@ -2,7 +2,7 @@ using Aqua
 using JuliaFormatter
 
 @testset "Aqua.jl package quality" begin
-    # recursive=false: 依存パッケージのメソッドとの曖昧性は対象外（Phase 1 安定化のため）
+    # recursive=false: 依存パッケージのメソッドとの曖昧性は対象外（誤検知が多いため）
     Aqua.test_all(DME; ambiguities = (recursive = false,))
 end
 

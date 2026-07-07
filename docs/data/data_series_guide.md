@@ -1,6 +1,5 @@
 # DataSeries / MacroDataset 利用ガイド
 
-> Phase 5 / P0
 > 関連 Issue: #60
 
 ---
@@ -48,7 +47,7 @@ API ごとに異なる戻り値・メタデータ形式を各接続モジュー�
 - 欠損値は `missing` で表現する（`values` の型は `Vector{Union{Float64,Missing}}`）
 - 後処理では `nonmissing_values(s)` で欠損を除いた `Vector{Float64}` を取得する
 - 欠損の個数は `missing_count(s)` で確認する
-- 欠損値の補完・前方補完・線形補間などは上位の前処理層（Phase 5 以降に実装）が担う
+- 欠損値の補完・前方補完・線形補間などは上位の前処理層（`fill_missing` 等、[前処理ユーティリティ](preprocess.md)）が担う
 
 ---
 
@@ -180,9 +179,9 @@ nonmissing_values(s)    # [1200.0, 1250.0]
 
 ---
 
-## 7. 後続実装（Phase 5 以降）への引き継ぎ事項
+## 7. 外部 API 接続モジュールの責務
 
-本型は外部 API 接続実装（FRED・e-Stat・日銀）の「受け皿」として設計されている。
+本型は外部 API 接続実装（FRED・e-Stat 等）の「受け皿」として設計されている。
 各接続モジュールは以下の責務を持つ：
 
 - API レスポンスを `DataSeries` に変換して返す

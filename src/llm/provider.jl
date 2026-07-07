@@ -321,7 +321,9 @@ function _openai_request_with_retry(
         end
     end
     throw(
-        LLMProviderError("OpenAI API リクエストが $(max_retries) 回のリトライ後に失敗しました: $(last_error)"),
+        LLMProviderError(
+            "OpenAI API リクエストが $(max_retries) 回のリトライ後に失敗しました: $(last_error)",
+        ),
     )
 end
 
@@ -360,8 +362,9 @@ function _parse_openai_response(raw::String, model::String)::LLMResponse
         throw(LLMProviderError("OpenAI API エラー: $(msg)"))
     end
 
-    (haskey(parsed, :choices) && !isempty(parsed[:choices])) ||
-        throw(LLMProviderError("OpenAI レスポンスに choices がありません: $(first(raw, 200))"))
+    (haskey(parsed, :choices) && !isempty(parsed[:choices])) || throw(
+        LLMProviderError("OpenAI レスポンスに choices がありません: $(first(raw, 200))"),
+    )
 
     first_choice = parsed[:choices][1]
     message = first_choice[:message]

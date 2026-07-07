@@ -1,6 +1,5 @@
 # AnalysisContext 設計ドキュメント
 
-> Phase 6 / P0・P1
 > 関連Issue: #70, #73
 > 関連ドキュメント: [LLM接続層の設計](llm_layer.md)
 

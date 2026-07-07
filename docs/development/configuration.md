@@ -1,6 +1,6 @@
 # 設定・環境変数管理ガイド
 
-Phase 5-6 で利用する外部 API（FRED・e-Stat・OpenAI 等）の設定方法と、API キーなしでも動作させる方法を説明します。
+実データ・LLM 機能で利用する外部 API（FRED・e-Stat・OpenAI 等）の設定方法と、API キーなしでも動作させる方法を説明します。
 
 ## 概要
 
@@ -54,7 +54,7 @@ cp config/dme.example.toml config/dme.toml
 ```bash
 # fixture モードで明示的に起動する場合
 export DME_DATA_MODE=fixture
-julia --project=. examples/phase3_phase4_demo.jl
+julia --project=. examples/real_data_demo.jl
 ```
 
 ## CI での運用方針
@@ -84,6 +84,6 @@ config/
 
 ## 関連ドキュメント
 
-- [AIエコノミスト化アーキテクチャ](../architecture/ai_economist.md) — Phase 5-6 の全体設計
+- [AIエコノミスト化アーキテクチャ](../architecture/ai_economist.md) — データ層・LLM 層の全体設計
 - [モデル変数と実データ系列のマッピング表](../data/variable_mapping.md) — 使用するデータ系列の一覧
 - [実データ前処理ユーティリティ](../data/preprocess.md) — データ取得後の前処理

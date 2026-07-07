@@ -103,5 +103,5 @@ AbstractNode2D
 ## 6. 関連ドキュメント
 
 - [モデル共通インターフェース設計方針](model_interface.md) — 抽象型階層・共通関数命名・新規モデル追加ルール
-- [AIエコノミスト化アーキテクチャ](ai_economist.md) — Phase 3 以降の層構成・データフロー
+- [AIエコノミスト化アーキテクチャ](ai_economist.md) — 分析カーネル・データ層・LLM 層の層構成・データフロー
 - [API リファレンス](../api.md) — Public/Internal API の一覧

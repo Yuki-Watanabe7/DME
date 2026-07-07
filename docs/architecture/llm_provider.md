@@ -1,6 +1,5 @@
 # LLM Provider 抽象化と設定ガイド
 
-> Phase 6 / P1
 > 関連Issue: #74
 
 ---

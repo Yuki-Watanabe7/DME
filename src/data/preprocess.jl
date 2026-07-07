@@ -119,7 +119,12 @@ unit は `"log(<元の unit>)"` に更新される。
 function apply_log(s::DataSeries)
     for (i, v) in enumerate(s.values)
         if !ismissing(v) && v <= 0.0
-            throw(DomainError(v, "対数変換: 非正値が含まれています (dates[$(i)]=$(s.dates[i]), value=$v)"))
+            throw(
+                DomainError(
+                    v,
+                    "対数変換: 非正値が含まれています (dates[$(i)]=$(s.dates[i]), value=$v)",
+                ),
+            )
         end
     end
 
@@ -345,7 +350,8 @@ function trim_period(
         i_end = idx
     end
 
-    i_start <= i_end || throw(ArgumentError("start_date は end_date 以前でなければなりません"))
+    i_start <= i_end ||
+        throw(ArgumentError("start_date は end_date 以前でなければなりません"))
 
     new_dates = s.dates[i_start:i_end]
     new_values = collect(s.values[i_start:i_end])
@@ -384,15 +390,19 @@ end
 四半期内がすべて欠損の場合は `missing` を返す。
 """
 function to_quarterly(s::DataSeries; method::Symbol = :mean)
-    s.frequency == Monthly || throw(ArgumentError("月次系列が必要です (frequency=$(s.frequency))"))
-    method in (:mean, :sum) || throw(ArgumentError("method は :mean または :sum でなければなりません"))
+    s.frequency == Monthly ||
+        throw(ArgumentError("月次系列が必要です (frequency=$(s.frequency))"))
+    method in (:mean, :sum) ||
+        throw(ArgumentError("method は :mean または :sum でなければなりません"))
 
     q_keys = String[]
     q_groups = Dict{String, Vector{Union{Float64, Missing}}}()
 
     for (date, val) in zip(s.dates, s.values)
         m = match(r"^(\d{4})-(\d{2})$", date)
-        m === nothing && throw(ArgumentError("月次日付形式が不正です: '$(date)'. YYYY-MM 形式が必要です"))
+        m === nothing && throw(
+            ArgumentError("月次日付形式が不正です: '$(date)'. YYYY-MM 形式が必要です"),
+        )
         year = m.captures[1]
         mon = parse(Int, m.captures[2])
         qnum = cld(mon, 3)
@@ -447,14 +457,17 @@ end
 function to_annual(s::DataSeries; method::Symbol = :mean)
     s.frequency == Quarterly ||
         throw(ArgumentError("四半期次系列が必要です (frequency=$(s.frequency))"))
-    method in (:mean, :sum) || throw(ArgumentError("method は :mean または :sum でなければなりません"))
+    method in (:mean, :sum) ||
+        throw(ArgumentError("method は :mean または :sum でなければなりません"))
 
     a_keys = String[]
     a_groups = Dict{String, Vector{Union{Float64, Missing}}}()
 
     for (date, val) in zip(s.dates, s.values)
         m = match(r"^(\d{4})-Q\d$", date)
-        m === nothing && throw(ArgumentError("四半期日付形式が不正です: '$(date)'. YYYY-Qn 形式が必要です"))
+        m === nothing && throw(
+            ArgumentError("四半期日付形式が不正です: '$(date)'. YYYY-Qn 形式が必要です"),
+        )
         year = m.captures[1]
         if !haskey(a_groups, year)
             push!(a_keys, year)
