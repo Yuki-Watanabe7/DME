@@ -11,7 +11,7 @@
 | **カテゴリ** | 動的最適化 / 最適成長理論 |
 | **求解手法** | 解析的定常状態 / NLsolve（完全予見経路） / 価値反復法（ポリシー関数） |
 | **実装ファイル** | `src/models/ramsey.jl` |
-| **テストファイル** | `test/runtests.jl`（`@testset "RamseyModel"` ブロック） |
+| **テストファイル** | `test/test_ramsey.jl`（`@testset "ramsey"` ブロック） |
 
 ---
 
