@@ -13,16 +13,16 @@
         @test state_variables(m) == Symbol[]
         @test control_variables(m) == [:x, :π, :i]
         p = parameters(m)
-        @test p.σ      == 1.0
-        @test p.r_n    == 0.02
-        @test p.β      == 0.99
-        @test p.κ      == 0.1
-        @test p.φ_π    == 1.5
-        @test p.φ_x    == 0.5
+        @test p.σ == 1.0
+        @test p.r_n == 0.02
+        @test p.β == 0.99
+        @test p.κ == 0.1
+        @test p.φ_π == 1.5
+        @test p.φ_x == 0.5
         @test p.π_star == 0.02
-        @test p.ρ_x    == 0.8
-        @test p.ρ_c    == 0.5
-        @test p.ρ_m    == 0.5
+        @test p.ρ_x == 0.8
+        @test p.ρ_c == 0.5
+        @test p.ρ_m == 0.5
     end
 
     @testset "steady_state" begin
@@ -113,18 +113,94 @@
     @testset "Taylor ruleパラメータ変更の効果（コストプッシュショック）" begin
         # タカ派（高い φ_π）はコストプッシュショックのインフレ影響を小さくする
         m_hawkish = NewKeynesianModel(1.0, 0.02, 0.99, 0.1, 2.0, 0.5, 0.02, 0.8, 0.5, 0.5)
-        m_dovish  = NewKeynesianModel(1.0, 0.02, 0.99, 0.1, 1.5, 0.5, 0.02, 0.8, 0.5, 0.5)
+        m_dovish = NewKeynesianModel(1.0, 0.02, 0.99, 0.1, 1.5, 0.5, 0.02, 0.8, 0.5, 0.5)
         irf_hawk = impulse_response(m_hawkish, 1.0; shock = :cost_push, T = 20)
-        irf_dove = impulse_response(m_dovish,  1.0; shock = :cost_push, T = 20)
+        irf_dove = impulse_response(m_dovish, 1.0; shock = :cost_push, T = 20)
         # より積極的なインフレ反応 → インフレ影響が小さい
         @test abs(irf_hawk.π[1]) < abs(irf_dove.π[1])
         # 一方で産出ギャップの犠牲は大きくなる（より深い景気後退）
         @test abs(irf_hawk.x[1]) > abs(irf_dove.x[1])
     end
 
+    @testset "IRF が3本の構造方程式を満たす" begin
+        # MSV 解の正しさの直接検証。AR(1) ショック経路上では
+        # E_t[·_{t+1}] は t+1 期の IRF 値に等しいことを使う。
+        σ, β, κ, φ_π, φ_x = m.σ, m.β, m.κ, m.φ_π, m.φ_x
+        for (sh, ρ) in [(:demand, m.ρ_x), (:cost_push, m.ρ_c), (:monetary, m.ρ_m)]
+            irf = impulse_response(m, 1.0; shock = sh, T = 20)
+            for t in 1:19
+                ε = 1.0 * ρ^(t - 1)
+                ε_d = sh === :demand ? ε : 0.0
+                ε_c = sh === :cost_push ? ε : 0.0
+                ε_m = sh === :monetary ? ε : 0.0
+                # IS 曲線: x_t = E_t[x_{t+1}] - (1/σ)(i_t - E_t[π_{t+1}]) + ε_d
+                @test irf.x[t] ≈ irf.x[t + 1] - (1 / σ) * (irf.i[t] - irf.π[t + 1]) + ε_d atol =
+                    1e-12
+                # NKPC: π_t = β·E_t[π_{t+1}] + κ·x_t + ε_c
+                @test irf.π[t] ≈ β * irf.π[t + 1] + κ * irf.x[t] + ε_c atol = 1e-12
+                # Taylor rule: i_t = φ_π·π_t + φ_x·x_t + ε_m
+                @test irf.i[t] ≈ φ_π * irf.π[t] + φ_x * irf.x[t] + ε_m atol = 1e-12
+            end
+        end
+    end
+
+    @testset "インパクト応答が閉形式解と一致する" begin
+        # 2x2 系 (A - ρB)Ψ = d の手計算逆行列による閉形式解:
+        #   D  = (1 + φ_x/σ - ρ)(1 - ρβ) + (κ/σ)(φ_π - ρ)
+        #   x1 = ((1 - ρβ)d1 - ((φ_π - ρ)/σ)d2) / D
+        #   π1 = (κ·d1 + (1 + φ_x/σ - ρ)d2) / D
+        σ, β, κ, φ_π, φ_x = m.σ, m.β, m.κ, m.φ_π, m.φ_x
+        function closed_form_impact(ρ, d1, d2)
+            D = (1 + φ_x / σ - ρ) * (1 - ρ * β) + (κ / σ) * (φ_π - ρ)
+            x1 = ((1 - ρ * β) * d1 - (φ_π - ρ) / σ * d2) / D
+            π1 = (κ * d1 + (1 + φ_x / σ - ρ) * d2) / D
+            (x1, π1)
+        end
+        for (sh, ρ, d1, d2) in [
+            (:demand, m.ρ_x, 1.0, 0.0),
+            (:cost_push, m.ρ_c, 0.0, 1.0),
+            (:monetary, m.ρ_m, -1.0 / σ, 0.0),
+        ]
+            x1, π1 = closed_form_impact(ρ, d1, d2)
+            irf = impulse_response(m, 1.0; shock = sh, T = 3)
+            @test irf.x[1] ≈ x1 atol = 1e-12
+            @test irf.π[1] ≈ π1 atol = 1e-12
+        end
+        # 実装と独立に計算した数値アンカー
+        irf_d = impulse_response(m, 1.0; shock = :demand, T = 3)
+        @test irf_d.x[1] ≈ 0.964749536178 atol = 1e-10
+        @test irf_d.π[1] ≈ 0.463821892393 atol = 1e-10
+        irf_c = impulse_response(m, 1.0; shock = :cost_push, T = 3)
+        @test irf_c.x[1] ≈ -1.652892561983 atol = 1e-10
+        @test irf_c.π[1] ≈ 1.652892561983 atol = 1e-10
+        irf_m = impulse_response(m, 1.0; shock = :monetary, T = 3)
+        @test irf_m.x[1] ≈ -0.834710743802 atol = 1e-10
+        @test irf_m.π[1] ≈ -0.165289256198 atol = 1e-10
+    end
+
+    @testset "特殊ケース: κ=0 なら需要・金融ショックでインフレ応答ゼロ" begin
+        # NKPC が π_t = β·E_t[π_{t+1}] となり、需要・金融ショック
+        # （d2=0）では MSV 解のインフレ応答が恒等的にゼロになる
+        m_flat = NewKeynesianModel(1.0, 0.02, 0.99, 0.0, 1.5, 0.5, 0.02, 0.8, 0.5, 0.5)
+        @test maximum(abs.(impulse_response(m_flat, 1.0; shock = :demand).π)) == 0.0
+        @test maximum(abs.(impulse_response(m_flat, 1.0; shock = :monetary).π)) == 0.0
+    end
+
+    @testset "特殊ケース: ρ=0 ならインパクト後に全変数がゼロ" begin
+        m_iid = NewKeynesianModel(1.0, 0.02, 0.99, 0.1, 1.5, 0.5, 0.02, 0.0, 0.0, 0.0)
+        for sh in [:demand, :cost_push, :monetary]
+            irf = impulse_response(m_iid, 1.0; shock = sh, T = 5)
+            @test all(irf.x[2:end] .== 0.0)
+            @test all(irf.π[2:end] .== 0.0)
+            @test all(irf.i[2:end] .== 0.0)
+        end
+    end
+
     @testset "nk_irf_compare" begin
         m_hawk = NewKeynesianModel(1.0, 0.02, 0.99, 0.1, 2.0, 0.5, 0.02, 0.8, 0.5, 0.5)
-        result = DME.nk_irf_compare(m, m_hawk;
+        result = DME.nk_irf_compare(
+            m,
+            m_hawk;
             shock = :cost_push,
             scenario_names = ("dovish", "hawkish"),
         )
