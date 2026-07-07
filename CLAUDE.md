@@ -15,7 +15,7 @@ DME は動学的マクロ経済モデルを Julia で実装したパッケージ
 | `src/llm/` | LLM 層（AnalysisContext・プロンプト・provider 抽象化） |
 | `src/numerics/` | グリッド・補間などの数値計算ユーティリティ |
 | `examples/` | 機能別デモスクリプト（API キー不要で完走） |
-| `test/` | テスト（`test/fixtures/` に API fixture） |
+| `test/` | テスト（`test/fixtures/` に API fixture、`test/Project.toml`/`test/Manifest.toml` にテスト専用依存を固定） |
 | `docs/` | 詳細ドキュメント（下表参照） |
 
 ## よく使うコマンド
@@ -38,6 +38,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
       - 可能であれば対象テストセット相当の最小確認
    - `docs/` 配下のみの変更（docs-only）の場合は Julia 環境セットアップや `Pkg.test()` は不要。docs-only 変更をした場合は PR 本文または最終コメントに「docs-only のため Julia test は未実行」と明記すること。
 3. **Project.toml を変更した場合**: `julia --project=. -e 'using Pkg; Pkg.resolve()'` を実行し、`Manifest.toml` もコミットすること。
+4. **test/Project.toml を変更した場合**: `julia --project=test -e 'using Pkg; Pkg.instantiate()'` を実行し、`test/Manifest.toml` もコミットすること。テスト専用依存（`Aqua`・`JuliaFormatter`・`Test`）を追加・変更する場合はルート `Project.toml` の `[extras]`/`[targets]` も更新すること（詳細: [品質チェックとローカル検証手順](docs/development/quality_checks.md) 2.1 節）。
 
 ## GitHub Issue対応の標準手順
 

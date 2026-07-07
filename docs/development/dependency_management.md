@@ -73,7 +73,28 @@ git commit -m "Add NewPackage dependency"
 
 ---
 
-## 3. 関連ドキュメント
+## 3. test/Project.toml / test/Manifest.toml の管理
+
+`Aqua` / `JuliaFormatter` / `Test`（および `Plots` など、テストコードから直接
+`using` するルート依存）は `test/Project.toml` で宣言し、`test/Manifest.toml` で
+バージョンを固定している。ルートの `Manifest.toml` と同様に、再現性確保のため
+両ファイルともリポジトリに含める。
+
+固定バージョンを更新する場合:
+
+```bash
+julia --project=test -e 'using Pkg; Pkg.instantiate()'  # test/Project.toml の変更を反映
+julia --project=test -e 'using Pkg; Pkg.update()'       # 全テスト依存を最新化
+
+git add test/Project.toml test/Manifest.toml
+```
+
+`JuliaFormatter` の更新後は、新バージョンのルールで `src/` がフォーマット済みか
+必ず確認すること（詳細は [品質チェックとローカル検証手順](quality_checks.md) 2.1 節）。
+
+---
+
+## 4. 関連ドキュメント
 
 - [品質チェックとローカル検証手順](quality_checks.md) — テスト実行・フォーマット確認
 - [API リファレンス](../api.md) — Public API 一覧

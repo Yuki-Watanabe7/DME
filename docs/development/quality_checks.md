@@ -28,6 +28,40 @@ julia --project=. -e "using JuliaFormatter; format(\"src/\")"
 コードを変更した場合は PR 前にフォーマットを確認すること。
 フォーマット設定は `.JuliaFormatter.toml` に記載されている。
 
+上記コマンドは `--project=.`（メインの依存関係環境）で実行しているように見えるが、
+`Aqua` / `JuliaFormatter` / `Test` は `test/Project.toml` のテスト専用環境に属する。
+実際に使われるバージョンは `test/Manifest.toml` で固定されている（[2.1 節](#21-テスト依存のバージョン固定)参照）。
+
+---
+
+### 2.1 テスト依存のバージョン固定
+
+`Aqua` / `JuliaFormatter` / `Test` は `test/Project.toml` で宣言し、`test/Manifest.toml` で
+解決済みバージョンを固定している。これにより `Pkg.test()` は常に同じバージョンの
+`JuliaFormatter` を使用し、上流のマイナー/パッチリリースでフォーマットルールが変わっても
+CI が予告なく壊れることを防ぐ。
+
+`test/Project.toml` の `[deps]` のうち、ルート `Project.toml` の `[deps]` に含まれない
+パッケージ（= テスト専用依存）は、ルートの `[extras]` / `[targets]` と一致していなければ
+ならない（`Aqua.test_all` の `project_extras` チェックが検証する）。テスト専用依存を
+追加・変更する場合は両方を更新すること。
+
+なお `Plots` のようにルート `Project.toml` の `[deps]` に既に含まれるパッケージは、
+テストコードから直接 `using Plots` する場合のみ `test/Project.toml` にも追加する
+（`test/Project.toml` が存在すると、テスト環境はルート環境をスタックしないため）。
+
+```bash
+# テスト依存を更新した場合、test/Manifest.toml を再生成する
+julia --project=test -e 'using Pkg; Pkg.instantiate()'
+# または特定パッケージだけバージョンを上げる場合
+julia --project=test -e 'using Pkg; Pkg.update("JuliaFormatter")'
+
+git add test/Project.toml test/Manifest.toml
+```
+
+`JuliaFormatter` を更新した際は、新バージョンのルールで `src/` 全体が
+フォーマット済みかを必ず確認すること（2 節のコマンド）。
+
 ---
 
 ## 3. 導入を見送ったチェック
