@@ -64,11 +64,12 @@ git add test/Project.toml test/Manifest.toml
 
 ---
 
-## 3. 導入を見送ったチェック
+## 3. 導入を見送ったチェック / 無効化したチェック
 
 | ツール | 理由 |
 |--------|------|
 | **JET.jl** | 数値計算コードでの誤検知が多く CI が不安定化するリスクあり。必要になった時点で再検討 |
+| **Aqua.jl の `persistent_tasks`** | DME は JuMP・Ipopt・Plots など重量級のバイナリ依存を持つ。このチェックは独立した一時プロジェクトで DME を再解決・再プリコンパイルするサブプロセスを spawn するため、メインテストプロセスと同時実行時に CI ランナーのメモリ/CPU 制約でサブプロセスが完了前にクラッシュし、CI が不安定化する（ローカルでは安定して成功する）。`test/test_quality.jl` で `persistent_tasks = false` により無効化 |
 
 ---
 
