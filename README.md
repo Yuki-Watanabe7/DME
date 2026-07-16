@@ -273,6 +273,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [VAR モデル](docs/models/var.md) | 簡易ベクトル自己回帰モデルの解説 |
 | [小国開放経済モデル設計方針](docs/models/open_economy_design.md) | 候補モデル比較と Mundell-Fleming 選定の経緯 |
 | [Minsky系金融不安定性モデル設計方針](docs/models/minsky_design.md) | Keen / Ryoo / Godley-Lavoie (SFC) の候補比較と Keen モデル選定の経緯 |
+| [Minsky系（Keen）モデル DME統合設計](docs/models/minsky_integration_design.md) | Keen モデルのインターフェース適合・ソルバー接続・出力スキーマ・LLM メタデータ設計 |
 | [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメント作成用テンプレート |
 
 ### 実データ接続
@@ -303,6 +304,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | ドキュメント | 内容 |
 |---|---|
 | [ADR 0001: Minsky系モデルとして Keen モデルを採用](docs/adr/0001-minsky-model-selection.md) | Minsky系金融不安定性モデル初版の採用決定と選定理由 |
+| [ADR 0002: Keen モデルの統合方式](docs/adr/0002-minsky-integration-design.md) | 既存インターフェース準拠・自前 RK4・LLM 層無拡張という統合方針の決定記録 |
 
 ### 開発
 
