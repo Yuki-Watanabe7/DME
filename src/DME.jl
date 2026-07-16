@@ -106,7 +106,7 @@ export
 #   adas_equilibrium, adas_shock_compare,
 #   nk_msv_response, nk_irf_compare,
 #   mf_equilibrium, mf_policy_shock,
-#   keen_rhs
+#   keen_rhs, keen_rk4_step, keen_diverged
 #   _load_fred_fixture, _fetch_fred_live, _parse_fred_json,
 #   _parse_fred_observations, _fred_date_to_label, _detect_frequency,
 #   _build_fred_url, _http_get
