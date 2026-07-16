@@ -232,3 +232,75 @@ function simulate(
 
     (ω = ω, λ = λ, d = d, π = π, g = g)
 end
+
+"""
+    impulse_response(m::KeenModel, shock::Float64; T::Int = 300, variable::Symbol = :d,
+                      options::ODESolverOptions = ODESolverOptions()) -> NamedTuple
+
+均衡攪乱型のインパルス応答。良い均衡から `variable` を `shock` だけ加法的にずらした
+初期値で `simulate` を実行し、水準系列 `(ω, λ, d, π, g)` を返す。
+
+線形化した対数偏差 IRF は提供しない（双安定性というモデルの本質が失われるため）。
+小さな `shock` では良い均衡へ回帰し、大きな `shock`（例: `d̄ + 1.0`）では債務崩壊経路へ
+移行する、双安定性そのものを観察できる。
+
+`variable` は `:ω`・`:λ`・`:d` のいずれか。`SimulationResult` へ変換する際の
+`scenario_name` 規約は `"irf_<variable>"`（例: `"irf_d"`）とする。
+"""
+function impulse_response(
+    m::KeenModel,
+    shock::Float64;
+    T::Int = 300,
+    variable::Symbol = :d,
+    options::ODESolverOptions = ODESolverOptions(),
+)
+    ss = steady_state(m)
+    ω0, λ0, d0 = ss.ω, ss.λ, ss.d
+
+    if variable == :ω
+        ω0 += shock
+    elseif variable == :λ
+        λ0 += shock
+    elseif variable == :d
+        d0 += shock
+    else
+        throw(
+            ArgumentError(
+                "variable は :ω, :λ, :d のいずれかでなければなりません（指定: $(variable)）",
+            ),
+        )
+    end
+
+    simulate(m, ω0, λ0, d0; T = T, options = options)
+end
+
+"""
+    keen_scenario_comparison(m_base::KeenModel, m_scenario::KeenModel;
+                              scenario_names::Tuple{String, String} = ("baseline", "scenario")) -> SimulationResult
+
+ベースラインとパラメータ変更後（例: 金利 `r` の引き上げ）の Keen モデルの良い均衡を比較する。
+
+`mf_policy_shock` と同型の出力構造: 返り値の `SimulationResult` は変数ごとに長さ2の
+ベクトルを持ち、インデックス1がベースライン、インデックス2がシナリオの良い均衡値。
+"""
+function keen_scenario_comparison(
+    m_base::KeenModel,
+    m_scenario::KeenModel;
+    scenario_names::Tuple{String, String} = ("baseline", "scenario"),
+)
+    ss_base = steady_state(m_base)
+    ss_scenario = steady_state(m_scenario)
+    vars = Dict{String, Vector{Float64}}(
+        "ω" => [ss_base.ω, ss_scenario.ω],
+        "λ" => [ss_base.λ, ss_scenario.λ],
+        "d" => [ss_base.d, ss_scenario.d],
+        "π" => [ss_base.π, ss_scenario.π],
+        "g" => [ss_base.g, ss_scenario.g],
+    )
+    meta = Dict{String, Any}(
+        "scenario_names" => collect(scenario_names),
+        "parameters_base" => parameters(m_base),
+        "parameters_scenario" => parameters(m_scenario),
+    )
+    SimulationResult("Keen Model", "scenario_comparison", vars, meta)
+end

@@ -125,4 +125,106 @@ using Plots
         p_collapse = plot_result(sr_collapse)
         @test p_collapse isa Plots.Plot
     end
+
+    @testset "impulse_response: 微小攪乱は均衡へ回帰（局所安定性）" begin
+        ss = steady_state(m)
+        irf = impulse_response(m, 0.01; T = 300, variable = :d)
+        @test length(irf.d) == 300
+        @test irf.d[1] ≈ ss.d + 0.01 atol = 1e-12
+        @test irf.ω[1] ≈ ss.ω atol = 1e-12
+        @test irf.λ[1] ≈ ss.λ atol = 1e-12
+        @test irf.d[end] ≈ ss.d atol = 1e-3
+        @test !any(isnan, irf.d)
+    end
+
+    @testset "impulse_response: 大きな攪乱は崩壊経路へ移行（双安定性）" begin
+        irf = impulse_response(m, 5.0; T = 300, variable = :d)
+        @test any(isnan, irf.d)
+        @test any(isnan, irf.ω)
+        @test any(isnan, irf.λ)
+    end
+
+    @testset "impulse_response: variable = :ω / :λ" begin
+        ss = steady_state(m)
+        irf_ω = impulse_response(m, -0.05; T = 300, variable = :ω)
+        @test irf_ω.ω[1] ≈ ss.ω - 0.05 atol = 1e-12
+        @test irf_ω.λ[1] ≈ ss.λ atol = 1e-12
+        @test irf_ω.d[1] ≈ ss.d atol = 1e-12
+        @test irf_ω.ω[end] ≈ ss.ω atol = 1e-3
+
+        irf_λ = impulse_response(m, -0.02; T = 300, variable = :λ)
+        @test irf_λ.λ[1] ≈ ss.λ - 0.02 atol = 1e-12
+        @test irf_λ.λ[end] ≈ ss.λ atol = 1e-3
+    end
+
+    @testset "impulse_response: 不正な variable" begin
+        @test_throws ArgumentError impulse_response(m, 0.1; variable = :x)
+    end
+
+    @testset "keen_scenario_comparison: 出力構造・metadata" begin
+        m_rate_hike = KeenModel(
+            0.025,
+            0.02,
+            0.01,
+            3.0,
+            0.05,
+            0.0400641,
+            6.41e-5,
+            -0.0065,
+            exp(-5),
+            20.0,
+        )
+        sr = DME.keen_scenario_comparison(
+            m,
+            m_rate_hike;
+            scenario_names = ("baseline", "rate_hike"),
+        )
+        @test sr.model_name == "Keen Model"
+        @test sr.scenario_name == "scenario_comparison"
+        @test haskey(sr, "ω")
+        @test haskey(sr, "λ")
+        @test haskey(sr, "d")
+        @test haskey(sr, "π")
+        @test haskey(sr, "g")
+        @test nperiods(sr) == 2
+        @test sr.metadata["scenario_names"] == ["baseline", "rate_hike"]
+        @test sr.metadata["parameters_base"] == parameters(m)
+        @test sr.metadata["parameters_scenario"] == parameters(m_rate_hike)
+
+        ss_base = steady_state(m)
+        ss_rate_hike = steady_state(m_rate_hike)
+        # r の引き上げは良い均衡の ω のみに影響する（d̄・λ̄・π̄・ḡ の閉形式は r に依存しない）
+        @test sr["ω"][1] ≈ ss_base.ω atol = 1e-12
+        @test sr["ω"][2] ≈ ss_rate_hike.ω atol = 1e-12
+        @test sr["ω"][2] < sr["ω"][1]
+        @test sr["d"][1] ≈ sr["d"][2] atol = 1e-12
+    end
+
+    @testset "keen_scenario_comparison + plot_comparison（smoke test）" begin
+        ss = steady_state(m)
+        m_rate_hike = KeenModel(
+            0.025,
+            0.02,
+            0.01,
+            3.0,
+            0.05,
+            0.0400641,
+            6.41e-5,
+            -0.0065,
+            exp(-5),
+            20.0,
+        )
+        # 同一初期値からの動学経路を比較することで金利引き上げの収束過程の違いを可視化する
+        result_base = simulate(m, ss.ω, ss.λ, ss.d + 0.01; T = 100)
+        result_hike = simulate(m_rate_hike, ss.ω, ss.λ, ss.d + 0.01; T = 100)
+        sr_base = to_simulation_result(m, result_base, "baseline")
+        sr_hike = to_simulation_result(m_rate_hike, result_hike, "rate_hike")
+
+        p = plot_comparison(
+            [sr_base, sr_hike];
+            var = "ω",
+            labels = ["baseline", "rate_hike"],
+        )
+        @test p isa Plots.Plot
+    end
 end
