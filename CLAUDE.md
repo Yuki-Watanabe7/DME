@@ -83,6 +83,8 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 | [e-Stat API 接続ガイド](docs/data/estat.md) | e-Stat API クライアントの使い方・appId 設定・日本統計系列・fixture モード |
 | [日本マクロデータ接続 設計方針](docs/data/japan_macro_sources.md) | BOJ・内閣府・財務省・総務省のデータソース整理・優先順位・ライセンス |
 | [小国開放経済モデル設計方針](docs/models/open_economy_design.md) | 候補モデル比較・最小実装選定（Mundell-Fleming）・実データ候補系列 |
+| [Minsky系金融不安定性モデル設計方針](docs/models/minsky_design.md) | 候補モデル比較（Keen / Ryoo / SFC）・初版採用モデル選定・実データ候補系列 |
+| [ADR 0001: Minsky系モデル選定](docs/adr/0001-minsky-model-selection.md) | Keen モデル採用の決定記録（`docs/adr/` は設計決定記録の置き場） |
 | [品質チェックとローカル検証手順](docs/development/quality_checks.md) | Aqua.jl・JuliaFormatter・テスト実行方法 |
 | [依存パッケージ管理と注意点](docs/development/dependency_management.md) | JuMP・Interpolations・NLsolve の注意点・Manifest.toml 管理 |
 | [設定・環境変数管理ガイド](docs/development/configuration.md) | API キー設定・fixture/mock モード・CI 運用方針 |

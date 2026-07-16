@@ -272,6 +272,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [Mundell-Fleming モデル](docs/models/mundell_fleming.md) | 小国開放経済モデルの解説 |
 | [VAR モデル](docs/models/var.md) | 簡易ベクトル自己回帰モデルの解説 |
 | [小国開放経済モデル設計方針](docs/models/open_economy_design.md) | 候補モデル比較と Mundell-Fleming 選定の経緯 |
+| [Minsky系金融不安定性モデル設計方針](docs/models/minsky_design.md) | Keen / Ryoo / Godley-Lavoie (SFC) の候補比較と Keen モデル選定の経緯 |
 | [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメント作成用テンプレート |
 
 ### 実データ接続
@@ -296,6 +297,12 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [LLM Provider 設定ガイド](docs/architecture/llm_provider.md) | provider 抽象化・OpenAI 設定・MockProvider・差し替え方法 |
 | [AnalysisContext 設計](docs/architecture/analysis_context.md) | LLM へ渡す構造化コンテキスト型の設計・構造・利用例 |
 | [LLM 出力の安全性・免責・禁止表現ルール](docs/llm_safety.md) | 禁止表現・必須記載・プロンプトテンプレート・出力チェックリスト |
+
+### 設計決定記録（ADR）
+
+| ドキュメント | 内容 |
+|---|---|
+| [ADR 0001: Minsky系モデルとして Keen モデルを採用](docs/adr/0001-minsky-model-selection.md) | Minsky系金融不安定性モデル初版の採用決定と選定理由 |
 
 ### 開発
 
