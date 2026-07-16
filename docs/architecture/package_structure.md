@@ -16,11 +16,12 @@ src/
     interpolation.jl  # 補間型（Cheb/線形/三次スプライン）と interpo 関数群
   core/
     model_interface.jl   # AbstractMacroModel インターフェース定義
-    solver_options.jl    # SolverOptions / ValueIterationOptions
+    solver_options.jl    # SolverOptions / ValueIterationOptions / ODESolverOptions
     simulation_result.jl # SimulationResult（モデル横断的な結果型）
   models/
     ramsey.jl  # Ramsey モデル実装
     rbc.jl     # RBC モデル実装
+    keen.jl    # Keen モデル実装（連続時間 ODE、固定刻み RK4 自前実装）
 ```
 
 ---
@@ -38,6 +39,8 @@ src/
 7. `core/simulation_result.jl`（`RamseyModel`・`RBCModel` を使用）
 
 新しいファイルを追加する際は、依存関係を確認してこの順序に挿入すること。
+
+> 上記は初期構成の抜粋。実際には Solow・IS-LM・AD-AS・New Keynesian・VAR・Mundell-Fleming・Keen の各モデルファイルが `models/` に追加されており、`models/keen.jl` は `models/mundell_fleming.jl` の直後、`core/solver_options.jl`（`ODESolverOptions` を定義）より後に include される。現在の正確な順序は [`src/DME.jl`](../../src/DME.jl) を参照すること。
 
 ---
 
@@ -97,6 +100,19 @@ AbstractNode2D
 | `shock` | `solve_rbc` の結果を使いインパルス応答を計算 |
 
 詳細は [RBC モデル解説](../models/rbc.md) を参照。
+
+### Keen モデル（`src/models/keen.jl`）
+
+連続時間 ODE モデル。他モデルの `NLsolve`／価値反復法とは異なり、固定刻み RK4 を自前実装する。
+
+| 関数 | 役割 |
+|---|---|
+| `keen_rhs` | ODE 右辺 `(ω', λ', d')` を計算 |
+| `keen_rk4_step` | 古典的4次 Runge-Kutta 法の1ステップ |
+| `keen_diverged` | 発散判定（非有限値・`abs > guard_max`・`λ ≥ 1`） |
+| `keen_scenario_comparison` | 2つの `KeenModel` の良い均衡を比較（`mf_policy_shock` と同型） |
+
+詳細は [Keen モデル解説](../models/keen.md) を参照。
 
 ---
 

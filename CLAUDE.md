@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 DME は動学的マクロ経済モデルを Julia で実装したパッケージです。
-モデル群（Ramsey / Solow / RBC / IS-LM / AD-AS / New Keynesian / Mundell-Fleming / VAR）の計算・可視化に加え、
+モデル群（Ramsey / Solow / RBC / IS-LM / AD-AS / New Keynesian / Mundell-Fleming / VAR / Keen）の計算・可視化に加え、
 実データ接続（FRED・e-Stat）と LLM による結果説明生成をサポートします。
 このファイルは Claude Code がこのリポジトリで作業する際の入口ガイドです。
 
@@ -62,7 +62,7 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 
 ## 詳細ドキュメント
 
-各モデルの解説は `docs/models/<モデル名>.md`（ramsey / solow / rbc / islm / adas / new_keynesian / mundell_fleming / var、テンプレートは template.md）。全ドキュメントの一覧は [README のドキュメント節](README.md#ドキュメント) を参照。
+各モデルの解説は `docs/models/<モデル名>.md`（ramsey / solow / rbc / islm / adas / new_keynesian / mundell_fleming / var / keen、テンプレートは template.md）。全ドキュメントの一覧は [README のドキュメント節](README.md#ドキュメント) を参照。
 
 | ドキュメント | 内容 |
 |---|---|

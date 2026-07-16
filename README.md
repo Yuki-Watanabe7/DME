@@ -21,6 +21,7 @@
 | [New Keynesian](docs/models/new_keynesian.md) | 短期政策 | 3方程式 NK モデル。需要・コストプッシュ・金融政策ショックの IRF |
 | [Mundell-Fleming](docs/models/mundell_fleming.md) | 開放経済 | 小国開放経済（変動相場制・完全資本移動）の政策効果分析 |
 | [VAR](docs/models/var.md) | データ駆動 | 簡易ベクトル自己回帰（1 次）。多変量時系列のシミュレーションと IRF |
+| [Keen](docs/models/keen.md) | 金融不安定性 | Minsky系金融不安定性モデル（連続時間 ODE）。良い均衡への収束と債務崩壊の双安定性を再現 |
 
 どのモデルを使うべきか迷った場合は[モデル選択ガイド](docs/model_selection_guide.md)を参照してください。
 
@@ -271,6 +272,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [New Keynesian モデル](docs/models/new_keynesian.md) | 3方程式 NK モデルの解説 |
 | [Mundell-Fleming モデル](docs/models/mundell_fleming.md) | 小国開放経済モデルの解説 |
 | [VAR モデル](docs/models/var.md) | 簡易ベクトル自己回帰モデルの解説 |
+| [Keen モデル](docs/models/keen.md) | Minsky系金融不安定性モデルの目的・変数・パラメータ・出力・限界 |
 | [小国開放経済モデル設計方針](docs/models/open_economy_design.md) | 候補モデル比較と Mundell-Fleming 選定の経緯 |
 | [Minsky系金融不安定性モデル設計方針](docs/models/minsky_design.md) | Keen / Ryoo / Godley-Lavoie (SFC) の候補比較と Keen モデル選定の経緯 |
 | [Minsky系（Keen）モデル DME統合設計](docs/models/minsky_integration_design.md) | Keen モデルのインターフェース適合・ソルバー接続・出力スキーマ・LLM メタデータ設計 |

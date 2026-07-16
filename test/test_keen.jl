@@ -227,4 +227,30 @@ using Plots
         )
         @test p isa Plots.Plot
     end
+
+    @testset "AnalysisContext → build_docs_excerpts → explain_result（smoke test）" begin
+        ss = steady_state(m)
+        result = simulate(m, ss.ω, ss.λ, ss.d + 0.01; T = 300)
+        sr = to_simulation_result(m, result, "simulate")
+
+        de = build_docs_excerpts(
+            "Keen Model";
+            variable_names = state_variables(m),
+            scenario_name = "simulate",
+        )
+        @test de isa DocsExcerpts
+        @test !isempty(de.model_doc)
+        @test !isempty(de.caveats_doc)
+
+        ctx = AnalysisContext(m, sr; docs_excerpts = de)
+        @test ctx isa AnalysisContext
+
+        prompt = build_explain_prompt(ctx)
+        @test prompt isa String
+        @test occursin("Keen Model", prompt)
+
+        out = explain_result(ctx)
+        @test out isa ExplainResultOutput
+        @test !isempty(out.prompt)
+    end
 end

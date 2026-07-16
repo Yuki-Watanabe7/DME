@@ -16,6 +16,7 @@ const _MODEL_DOC_MAP = Dict{String, String}(
     "New Keynesian Model" => "models/new_keynesian.md",
     "VAR Model" => "models/var.md",
     "Mundell-Fleming Model" => "models/mundell_fleming.md",
+    "Keen Model" => "models/keen.md",
 )
 
 # 「限界・注意事項」セクションを特定するためのキーワード
