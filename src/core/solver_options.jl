@@ -35,3 +35,18 @@ Base.@kwdef struct ValueIterationOptions
     tolerance::Float64 = 0.0001
     itp_type::Interpo_Type = ITPCubic
 end
+
+"""
+    ODESolverOptions
+
+連続時間 ODE モデル（`KeenModel` 等）の `simulate` / `impulse_response` に渡す
+固定刻み RK4 ソルバーの設定。
+
+## フィールド
+- `substeps::Int`      : 1期（1年）あたりの RK4 サブステップ数（デフォルト: 20、dt = 1/substeps）
+- `guard_max::Float64` : 発散判定の閾値。状態変数の絶対値がこれを超えると打ち切る（デフォルト: 1e6）
+"""
+Base.@kwdef struct ODESolverOptions
+    substeps::Int = 20
+    guard_max::Float64 = 1e6
+end
