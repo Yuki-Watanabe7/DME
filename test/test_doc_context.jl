@@ -20,7 +20,7 @@
     @testset "既知モデル: model_doc が空でないこと" begin
         for mn in ["RBC Model", "Ramsey Model", "Solow Model",
                    "IS-LM Model", "AD-AS Model", "New Keynesian Model",
-                   "VAR Model", "Mundell-Fleming Model"]
+                   "VAR Model", "Mundell-Fleming Model", "Keen Model"]
             de = build_docs_excerpts(mn; docs_root = docs_root)
             @test de isa DocsExcerpts
             @test !isempty(de.model_doc)
@@ -47,8 +47,8 @@
         @test !isempty(de.output_guide)
     end
 
-    @testset "caveats_doc が空でないこと (RBC / Ramsey)" begin
-        for mn in ["RBC Model", "Ramsey Model"]
+    @testset "caveats_doc が空でないこと (RBC / Ramsey / Keen)" begin
+        for mn in ["RBC Model", "Ramsey Model", "Keen Model"]
             de = build_docs_excerpts(mn; docs_root = docs_root)
             @test !isempty(de.caveats_doc)
         end

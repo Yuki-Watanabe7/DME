@@ -19,6 +19,7 @@ DME では関数・型を **Public API** と **Internal API** に分類してい
 abstract type AbstractMacroModel end
 struct RamseyModel <: AbstractMacroModel  # RamseyModel(α, β, δ)
 struct RBCModel    <: AbstractMacroModel  # RBCModel(α, β, γ, δ, μ, ρ)
+struct KeenModel   <: AbstractMacroModel  # KeenModel(α, β, δ, ν, r, φ0, φ1, κ0, κ1, κ2)
 ```
 
 ### モデルメタ情報
@@ -48,6 +49,11 @@ simulate(m::RamseyModel, K0::Float64; maxT=30, vi_opts=ValueIterationOptions()) 
 
 # インパルス応答（RBC のみ）
 impulse_response(m::RBCModel, shock_size::Float64; maxT=150) -> (â, r̂, ŵ, l̂, k̂, ŷ, ĉ)
+
+# Keen モデル（連続時間 ODE、固定刻み RK4）
+steady_state(m::KeenModel)                                -> (ω, λ, d, π, g)  # 良い均衡（閉形式）
+simulate(m::KeenModel, ω0, λ0, d0; T=300, options=ODESolverOptions()) -> (ω, λ, d, π, g)
+impulse_response(m::KeenModel, shock; T=300, variable=:d, options=ODESolverOptions()) -> (ω, λ, d, π, g)
 ```
 
 ### 結果型
@@ -258,6 +264,11 @@ Base.@kwdef struct ValueIterationOptions
     tolerance::Float64 = 0.0001
     itp_type           = ITPCubic
 end
+
+Base.@kwdef struct ODESolverOptions
+    substeps::Int      = 20      # 1期（1年）あたりの RK4 サブステップ数
+    guard_max::Float64 = 1e6     # 発散判定の閾値（状態変数の絶対値上限）
+end
 ```
 
 ---
@@ -275,6 +286,7 @@ end
 | `DME.solve_by_nlvar(m; opts)` | 価値反復法（ポリシー関数を返す） | 高度な用途専用 |
 | `DME.solve_rbc(m)` | 線形化（Blanchard-Kahn 法）の行列計算 | 高度な用途専用 |
 | `DME.shock(m, ε)` | インパルス応答の計算 | `impulse_response(m, ε)` |
+| `DME.keen_scenario_comparison(m_base, m_scenario)` | Keen モデルのパラメータシナリオ比較（`mf_policy_shock` と同型） | 高度な用途専用 |
 
 ---
 
