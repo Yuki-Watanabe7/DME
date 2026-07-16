@@ -42,6 +42,7 @@ export
     NewKeynesianModel,
     VARModel,
     MundellFlemingModel,
+    KeenModel,
     # Model metadata
     model_name,
     state_variables,
@@ -69,6 +70,7 @@ export
     # Solver options
     SolverOptions,
     ValueIterationOptions,
+    ODESolverOptions,
     # LLM context types
     ModelMetadata,
     SimulationResultSummary,
@@ -103,7 +105,8 @@ export
 #   islm_equilibrium, islm_policy_shock,
 #   adas_equilibrium, adas_shock_compare,
 #   nk_msv_response, nk_irf_compare,
-#   mf_equilibrium, mf_policy_shock
+#   mf_equilibrium, mf_policy_shock,
+#   keen_rhs
 #   _load_fred_fixture, _fetch_fred_live, _parse_fred_json,
 #   _parse_fred_observations, _fred_date_to_label, _detect_frequency,
 #   _build_fred_url, _http_get
@@ -145,6 +148,7 @@ include("./models/adas.jl")
 include("./models/new_keynesian.jl")
 include("./models/var.jl")
 include("./models/mundell_fleming.jl")
+include("./models/keen.jl")
 
 # Cross-model result type (depends on RamseyModel and RBCModel)
 include("./core/simulation_result.jl")
