@@ -122,3 +122,113 @@ function steady_state(m::KeenModel)
 
     (ω = ω, λ = λ, d = d, π = π, g = g)
 end
+
+"""
+    keen_rk4_step(m::KeenModel, ω::Float64, λ::Float64, d::Float64, dt::Float64) -> (ω_next, λ_next, d_next)
+
+古典的4次 Runge-Kutta法（固定刻み）で `keen_rhs` を `dt` だけ積分し、1ステップ先の
+状態 `(ω, λ, d)` を返す。
+"""
+function keen_rk4_step(m::KeenModel, ω::Float64, λ::Float64, d::Float64, dt::Float64)
+    k1ω, k1λ, k1d = keen_rhs(m, ω, λ, d)
+    k2ω, k2λ, k2d = keen_rhs(m, ω + dt / 2 * k1ω, λ + dt / 2 * k1λ, d + dt / 2 * k1d)
+    k3ω, k3λ, k3d = keen_rhs(m, ω + dt / 2 * k2ω, λ + dt / 2 * k2λ, d + dt / 2 * k2d)
+    k4ω, k4λ, k4d = keen_rhs(m, ω + dt * k3ω, λ + dt * k3λ, d + dt * k3d)
+
+    ω_next = ω + dt / 6 * (k1ω + 2k2ω + 2k3ω + k4ω)
+    λ_next = λ + dt / 6 * (k1λ + 2k2λ + 2k3λ + k4λ)
+    d_next = d + dt / 6 * (k1d + 2k2d + 2k3d + k4d)
+
+    return ω_next, λ_next, d_next
+end
+
+"""
+    keen_diverged(ω::Float64, λ::Float64, d::Float64, guard_max::Float64) -> Bool
+
+発散判定: 非有限値・`abs` が `guard_max` 超過・`λ ≥ 1`（Phillips曲線の特異点）の
+いずれかを満たすかを返す。
+"""
+function keen_diverged(ω::Float64, λ::Float64, d::Float64, guard_max::Float64)
+    !isfinite(ω) ||
+        !isfinite(λ) ||
+        !isfinite(d) ||
+        abs(ω) > guard_max ||
+        abs(λ) > guard_max ||
+        abs(d) > guard_max ||
+        λ >= 1
+end
+
+"""
+    simulate(m::KeenModel, ω0::Float64, λ0::Float64, d0::Float64;
+             T::Int = 300, options::ODESolverOptions = ODESolverOptions()) -> NamedTuple
+
+初期値 `(ω0, λ0, d0)` から固定刻み RK4 で `T` 期（年）シミュレーションする。
+
+1期の内部刻みは `dt = 1 / options.substeps`。出力は各整数時点でサンプリングした
+長さ `T` の水準系列（第1要素が初期値）。発散ガード（非有限値・`abs > guard_max`・
+`λ ≥ 1`）に抵触した時点で打ち切り、残り期間は `NaN` で埋める。
+"""
+function simulate(
+    m::KeenModel,
+    ω0::Float64,
+    λ0::Float64,
+    d0::Float64;
+    T::Int = 300,
+    options::ODESolverOptions = ODESolverOptions(),
+)
+    dt = 1.0 / options.substeps
+
+    ω = Vector{Float64}(undef, T)
+    λ = Vector{Float64}(undef, T)
+    d = Vector{Float64}(undef, T)
+
+    ω[1] = ω0
+    λ[1] = λ0
+    d[1] = d0
+
+    diverged = keen_diverged(ω0, λ0, d0, options.guard_max)
+
+    for t in 1:(T - 1)
+        if diverged
+            ω[t + 1] = NaN
+            λ[t + 1] = NaN
+            d[t + 1] = NaN
+            continue
+        end
+
+        ωc, λc, dc = ω[t], λ[t], d[t]
+        for _ in 1:(options.substeps)
+            ωc, λc, dc = keen_rk4_step(m, ωc, λc, dc, dt)
+            if keen_diverged(ωc, λc, dc, options.guard_max)
+                diverged = true
+                break
+            end
+        end
+
+        if diverged
+            ω[t + 1] = NaN
+            λ[t + 1] = NaN
+            d[t + 1] = NaN
+        else
+            ω[t + 1] = ωc
+            λ[t + 1] = λc
+            d[t + 1] = dc
+        end
+    end
+
+    π = Vector{Float64}(undef, T)
+    g = Vector{Float64}(undef, T)
+    for t in 1:T
+        if isnan(ω[t]) || isnan(λ[t]) || isnan(d[t])
+            π[t] = NaN
+            g[t] = NaN
+        else
+            π_t = 1 - ω[t] - m.r * d[t]
+            κ_π = m.κ0 + m.κ1 * exp(m.κ2 * π_t)
+            π[t] = π_t
+            g[t] = κ_π / m.ν - m.δ
+        end
+    end
+
+    (ω = ω, λ = λ, d = d, π = π, g = g)
+end
