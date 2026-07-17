@@ -7,8 +7,8 @@
 | 項目 | 内容 |
 |---|---|
 | **対象モデル** | Keen モデル（`KeenModel`、[keen.md](keen.md)） |
-| **ステータス** | 設計確定（本実装は後続 Issue、本書は実装基準の固定） |
-| **関連 Issue** | #99（ロードマップ）・#111（本設計）。依存: #103–#106 |
+| **ステータス** | 実装済み（`src/analysis/minsky_regimes.jl`、#112） |
+| **関連 Issue** | #99（ロードマップ）・#111（本設計）・#112（実装）。依存: #103–#106 |
 | **関連 ADR** | [ADR 0003](../adr/0003-minsky-financing-regime-diagnostics.md)（責務境界・tolerance/hysteresis 採否） |
 | **前提 ADR** | [ADR 0001](../adr/0001-minsky-model-selection.md)・[ADR 0002](../adr/0002-minsky-integration-design.md) |
 | **methodology version** | `minsky-regime/1.0.0` |
@@ -311,12 +311,12 @@ Issue #111 §4 の限界を、LLM 出力でも必須記載とする（[LLM 出�
 
 後続 Issue は次を追加の理論判断なしに実装できる。
 
-- [ ] §6.1–§6.3 の 4 型（`FinancingRegimeConfig`・`FinancingRegimeObservation`・`FinancingRegimeTransition`・`FinancingRegimeDiagnostics`）を定義する
-- [ ] §6.4 の `classify_financing_regime` を §4.3 の precedence どおりに実装する
-- [ ] §6.4 の `diagnose_financing_regime` を `NamedTuple`・`SimulationResult` の 2 経路で実装する
-- [ ] `methodology_version = "minsky-regime/1.0.0"` を既定に設定する
-- [ ] テスト: `unlevered`（`d≈0`）・`invalid`（`NaN`）を Hedge/Ponzi に誤分類しないこと、退化ケース `amortization_rate=0` で `speculative` が消えること、崩壊経路で終盤が `invalid` になることをアンカーする
-- [ ] 感応度（§3.3 のグリッド）で質的結論の頑健性を確認する
+- [x] §6.1–§6.3 の 4 型（`FinancingRegimeConfig`・`FinancingRegimeObservation`・`FinancingRegimeTransition`・`FinancingRegimeDiagnostics`）を定義する
+- [x] §6.4 の `classify_financing_regime` を §4.3 の precedence どおりに実装する
+- [x] §6.4 の `diagnose_financing_regime` を `NamedTuple`・`SimulationResult` の 2 経路で実装する
+- [x] `methodology_version = "minsky-regime/1.0.0"` を既定に設定する
+- [x] テスト: `unlevered`（`d≈0`）・`invalid`（`NaN`）を Hedge/Ponzi に誤分類しないこと、退化ケース `amortization_rate=0` で `speculative` が消えること、崩壊経路で終盤が `invalid` になることをアンカーする
+- [x] 感応度（§3.3 のグリッド）で質的結論の頑健性を確認する
 
 ---
 

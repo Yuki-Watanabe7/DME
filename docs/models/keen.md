@@ -181,6 +181,23 @@ ss = steady_state(m)
 
 `shock` は加法的な水準シフト（比率のポイント差）であり、%表示ではない。例えば `variable=:d, shock=0.01` は債務比率を良い均衡から 1 ポイント（比率で 0.01）引き上げることを意味する。
 
+### Minsky 資金調達区分（Hedge / Speculative / Ponzi）診断
+
+`simulate`/`impulse_response` の出力（または `to_simulation_result` 後の `SimulationResult`）から、
+時点ごとの資金調達区分（`hedge`/`speculative`/`ponzi`/`unlevered`/`invalid`）と区分遷移を
+診断する読み取り専用の後処理層を提供する。`KeenModel` 本体の ODE 動学・パラメータには影響しない。
+
+```julia
+result = simulate(m, ss.ω, ss.λ, 5.0; T = 300)  # 高債務初期値 → 崩壊経路
+diag = diagnose_financing_regime(m, result)
+diag.observations[end].regime   # invalid（発散後の NaN 区間。ponzi へ誤分類されない）
+diag.transitions                # 区分が変化した時点の一覧
+```
+
+判定式・仮定（`amortization_rate` 等）・型契約の詳細は
+[Minsky 資金調達区分診断](minsky_regime_diagnostics.md) と [`docs/api.md`](../api.md) を参照。
+集計モデル上の代理指標であり、倒産予測・危機予測ではない点に注意する（§9・§10）。
+
 ---
 
 ## 8. 出力結果の読み方
@@ -241,7 +258,7 @@ RBC・New Keynesian の IRF（対数偏差）とは異なり、**水準（比率
 - **開放経済**: 為替レート・国際資本移動は扱わない
 - **名目変数・金融政策**: 物価・名目金利は固定された実質モデルであり、金利 `r` は一定パラメータとして扱う
 - **銀行部門の内生的与信行動**: 銀行は受動的に貸し出すと仮定し、信用供給制約・銀行の自己資本制約を扱わない
-- **Hedge / Speculative / Ponzi 判定**: 資金繰り区分の判定・金融不安定性指標は本体では扱わない。区分を Keen 出力から診断する操作的定義・契約は別レイヤーとして [Minsky 資金調達区分診断](minsky_regime_diagnostics.md) で設計している（集計モデル上の代理指標であり、倒産・危機予測ではない）
+- **Hedge / Speculative / Ponzi 判定**: 資金繰り区分の判定・金融不安定性指標は `KeenModel` 本体では扱わない。区分は `classify_financing_regime`/`diagnose_financing_regime`（§7「Minsky 資金調達区分診断」）が提供する別レイヤーの診断であり、操作的定義は [Minsky 資金調達区分診断](minsky_regime_diagnostics.md) を参照（集計モデル上の代理指標であり、倒産・危機予測ではない）
 - **崩壊経路は予測ではない**: 債務崩壊経路はモデル内メカニズムの提示であり、現実の金融危機の発生時期・規模を予測するものではない
 
 ### LLM が参照する際の注意点
