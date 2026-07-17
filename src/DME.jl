@@ -71,6 +71,19 @@ export
     SolverOptions,
     ValueIterationOptions,
     ODESolverOptions,
+    # Minsky financing regime diagnostics (Keen model)
+    FinancingRegime,
+    unlevered,
+    hedge,
+    speculative,
+    ponzi,
+    invalid,
+    FinancingRegimeConfig,
+    FinancingRegimeObservation,
+    FinancingRegimeTransition,
+    FinancingRegimeDiagnostics,
+    classify_financing_regime,
+    diagnose_financing_regime,
     # LLM context types
     ModelMetadata,
     SimulationResultSummary,
@@ -107,6 +120,7 @@ export
 #   nk_msv_response, nk_irf_compare,
 #   mf_equilibrium, mf_policy_shock,
 #   keen_rhs, keen_rk4_step, keen_diverged, keen_scenario_comparison
+#   _classify_financing_regime, _diagnose_from_series
 #   _load_fred_fixture, _fetch_fred_live, _parse_fred_json,
 #   _parse_fred_observations, _fred_date_to_label, _detect_frequency,
 #   _build_fred_url, _http_get
@@ -153,6 +167,9 @@ include("./models/keen.jl")
 # Cross-model result type (depends on RamseyModel and RBCModel)
 include("./core/simulation_result.jl")
 include("./core/compare.jl")
+
+# Minsky financing regime diagnostics (depends on KeenModel and SimulationResult)
+include("./analysis/minsky_regimes.jl")
 
 # Visualization (depends on SimulationResult)
 include("./core/visualization.jl")

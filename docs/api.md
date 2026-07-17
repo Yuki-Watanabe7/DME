@@ -56,6 +56,94 @@ simulate(m::KeenModel, ω0, λ0, d0; T=300, options=ODESolverOptions()) -> (ω, 
 impulse_response(m::KeenModel, shock; T=300, variable=:d, options=ODESolverOptions()) -> (ω, λ, d, π, g)
 ```
 
+### Minsky 資金調達区分診断（Keen モデル）
+
+Keen モデルの出力から Hedge / Speculative / Ponzi 等の資金調達区分を診断する読み取り専用の後処理層。
+`KeenModel` の ODE 動学・パラメータには一切影響しない。操作的定義・仮定の詳細は
+[Minsky 資金調達区分診断](models/minsky_regime_diagnostics.md)、責務分離の理由は
+[ADR 0003](adr/0003-minsky-financing-regime-diagnostics.md) を参照。
+
+```julia
+@enum FinancingRegime unlevered hedge speculative ponzi invalid
+
+struct FinancingRegimeConfig
+    amortization_rate::Float64         # 元本返済代理率（1/年）。既定 0.05
+    debt_tolerance::Float64            # unlevered 判定閾値。既定 1e-8
+    classification_tolerance::Float64  # 境界の数値許容差 τ。既定 1e-9
+    methodology_version::String        # 既定 "minsky-regime/1.0.0"
+end
+FinancingRegimeConfig(; amortization_rate=0.05, debt_tolerance=1e-8,
+                       classification_tolerance=1e-9,
+                       methodology_version="minsky-regime/1.0.0")
+
+struct FinancingRegimeObservation
+    time::Int
+    regime::FinancingRegime
+    ω::Float64
+    d::Float64
+    r::Float64
+    operating_surplus::Float64      # 1 - ω
+    interest_commitment::Float64    # r * max(d, 0)
+    principal_commitment::Float64   # amortization_rate * max(d, 0)
+    debt_service::Float64           # interest_commitment + principal_commitment
+    ponzi_margin::Float64           # operating_surplus - interest_commitment
+    hedge_margin::Float64           # operating_surplus - debt_service
+    methodology_version::String
+end
+
+struct FinancingRegimeTransition
+    time::Int                       # 遷移後（to側）の時点
+    from::FinancingRegime
+    to::FinancingRegime
+    ponzi_margin::Float64           # 遷移後時点の ponzi_margin
+    hedge_margin::Float64           # 遷移後時点の hedge_margin
+    from_observation::FinancingRegimeObservation
+    to_observation::FinancingRegimeObservation
+end
+
+struct FinancingRegimeDiagnostics
+    observations::Vector{FinancingRegimeObservation}  # 元の時系列と同じ長さ・順序
+    transitions::Vector{FinancingRegimeTransition}
+    config::FinancingRegimeConfig
+    valid_periods::Vector{Int}      # regime != invalid な時点
+    invalid_periods::Vector{Int}    # regime == invalid な時点（発散後の NaN 区間に対応）
+end
+
+# 単一時点の診断（純粋関数、m・ω・d を変更しない）
+classify_financing_regime(m::KeenModel, ω::Float64, d::Float64;
+                           config::FinancingRegimeConfig = FinancingRegimeConfig(),
+                           time::Int = 1) -> FinancingRegimeObservation
+
+# NamedTuple 出力（simulate / impulse_response）からの時系列診断
+diagnose_financing_regime(m::KeenModel, result::NamedTuple;
+                           config::FinancingRegimeConfig = FinancingRegimeConfig()) -> FinancingRegimeDiagnostics
+
+# SimulationResult からの時系列診断（"ω"・"d" 変数と metadata["parameters"].r が必要）
+diagnose_financing_regime(sr::SimulationResult;
+                           config::FinancingRegimeConfig = FinancingRegimeConfig()) -> FinancingRegimeDiagnostics
+```
+
+**使用例**:
+
+```julia
+m = KeenModel(0.025, 0.02, 0.01, 3.0, 0.03, 0.0400641, 6.41e-5, -0.0065, exp(-5), 20.0)
+ss = steady_state(m)
+result = simulate(m, ss.ω, ss.λ, 5.0; T = 300)  # 高債務初期値 → 崩壊経路
+
+diag = diagnose_financing_regime(m, result)
+diag.observations[end].regime   # invalid（発散後の NaN 区間は Ponzi へ誤分類されない）
+diag.invalid_periods            # 発散後の時点インデックス
+diag.transitions                # 区分が変化した時点の一覧（invalid への遷移も含む）
+
+# NamedTuple / SimulationResult の両経路は同一契約を満たす
+sr = to_simulation_result(m, result, "simulate")
+diagnose_financing_regime(sr).observations == diag.observations  # true 相当（NaN 比較を除く）
+```
+
+`unlevered`（`d ≤ debt_tolerance`、負の `d` を含む）と `invalid`（非有限値）は
+Hedge/Speculative/Ponzi の基本分類より優先して判定されるため、無借金・発散後の
+`NaN` が誤って `hedge`/`ponzi` に分類されることはない。
+
 ### 結果型
 
 ```julia
