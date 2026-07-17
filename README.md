@@ -276,6 +276,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [小国開放経済モデル設計方針](docs/models/open_economy_design.md) | 候補モデル比較と Mundell-Fleming 選定の経緯 |
 | [Minsky系金融不安定性モデル設計方針](docs/models/minsky_design.md) | Keen / Ryoo / Godley-Lavoie (SFC) の候補比較と Keen モデル選定の経緯 |
 | [Minsky系（Keen）モデル DME統合設計](docs/models/minsky_integration_design.md) | Keen モデルのインターフェース適合・ソルバー接続・出力スキーマ・LLM メタデータ設計 |
+| [Minsky 資金調達区分診断](docs/models/minsky_regime_diagnostics.md) | Hedge / Speculative / Ponzi の操作的定義・仮定・型/関数契約・限界の設計 |
 | [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメント作成用テンプレート |
 
 ### 実データ接続
@@ -307,6 +308,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 |---|---|
 | [ADR 0001: Minsky系モデルとして Keen モデルを採用](docs/adr/0001-minsky-model-selection.md) | Minsky系金融不安定性モデル初版の採用決定と選定理由 |
 | [ADR 0002: Keen モデルの統合方式](docs/adr/0002-minsky-integration-design.md) | 既存インターフェース準拠・自前 RK4・LLM 層無拡張という統合方針の決定記録 |
+| [ADR 0003: Minsky 資金調達区分の診断層](docs/adr/0003-minsky-financing-regime-diagnostics.md) | 診断を Keen 本体から分離した読み取り専用層とし hysteresis を不採用とする決定記録 |
 
 ### 開発
 
