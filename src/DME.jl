@@ -106,6 +106,21 @@ export
     minsky_diagnostics,
     minsky_diagnostics_summary,
     minsky_diagnostics_comparison,
+    # Keen 限定キャリブレーション（ODE residual）
+    KEEN_CALIBRATION_METHODOLOGY_VERSION,
+    KEEN_LITERATURE_PARAMS,
+    keen_literature_params,
+    KeenCalibrationConfig,
+    KeenCalibrationStart,
+    KeenCalibrationResult,
+    keen_default_calibration_config,
+    calibrate_keen,
+    keen_calibration_config_to_dict,
+    keen_calibration_config_from_dict,
+    keen_calibration_to_dict,
+    save_keen_calibration,
+    save_keen_calibration_config,
+    load_keen_calibration_config,
     # Minsky visualization (Keen model, Phase 2)
     plot_financing_regimes,
     plot_minsky_diagnostics,
@@ -147,6 +162,8 @@ export
 #   mf_equilibrium, mf_policy_shock,
 #   keen_rhs, keen_rk4_step, keen_diverged, keen_scenario_comparison
 #   _classify_financing_regime, _diagnose_from_series
+#   _keen_build_pairs, _keen_objective, _keen_model_from_params, _nelder_mead,
+#   _keen_weights, _keen_invalid_penalty, _keen_lcg, _keen_rand, _keen_dataset_metadata
 #   _contiguous_regime_runs, _clip_ratio_for_plot, _minsky_diagnostic_panel,
 #   _check_comparable_minsky_configs
 #   _load_fred_fixture, _fetch_fred_live, _parse_fred_json,
@@ -202,6 +219,9 @@ include("./analysis/minsky_regimes.jl")
 
 # Minsky continuous diagnostics & summary (depends on minsky_regimes.jl)
 include("./analysis/minsky_diagnostics.jl")
+
+# Keen 限定キャリブレーション（depends on KeenModel と KeenEmpiricalDataset）
+include("./analysis/keen_calibration.jl")
 
 # Visualization (depends on SimulationResult)
 include("./core/visualization.jl")

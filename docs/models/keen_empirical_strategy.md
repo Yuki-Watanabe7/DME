@@ -9,7 +9,8 @@
 | 項目 | 内容 |
 |---|---|
 | **対象モデル** | Keen モデル（`KeenModel`、[keen.md](keen.md)） |
-| **ステータス** | 設計 + データ層実装済み。§2〜§4 のデータ取得・単位変換・四半期整列は `src/data/keen_empirical.jl`（`build_keen_empirical_dataset`、#120）で実装。§5 の推定・§6 の検証コードは後続 Issue |
+| **ステータス** | 設計 + データ層 + 推定層実装済み。§2〜§4 のデータ取得・単位変換・四半期整列は `src/data/keen_empirical.jl`（`build_keen_empirical_dataset`、#120）で実装。§5 の限定キャリブレーション（ODE residual）は `src/analysis/keen_calibration.jl`（`calibrate_keen`、#121）で実装。§6 の検証コードは後続 Issue |
+| **methodology version（推定層）** | `keen-calibration/1.0.0`（`KEEN_CALIBRATION_METHODOLOGY_VERSION`。データ層 `keen-empirical/*` とは独立） |
 | **前提ドキュメント** | [Keen モデル解説](keen.md)・[Minsky系金融不安定性モデル設計方針](minsky_design.md)・[モデル変数と実データ系列のマッピング表](../data/variable_mapping.md)・[Minsky 資金調達区分診断](minsky_regime_diagnostics.md) |
 | **methodology version（予定）** | `keen-empirical/1.0.0`（診断層の `minsky-regime/*`・`minsky-diagnostics/*` とは独立に管理） |
 | **基準経済（初版）** | 米国。日本は同一契約への拡張対象 |
@@ -204,6 +205,28 @@ Keen の 10 パラメータを、**実データ・文献値・固定仮定のど
 | **複数局所解・弱識別の検出** | 複数の初期パラメータ推定値から最適化を再起動し解の散らばりを確認。ヤコビアン/ヘッセ行列の条件数、パラメータ間相関、`κ2` 固定値に対する感応度で弱識別を検出。検出結果を診断出力に含める |
 | **再現性 metadata** | `keen-empirical/1.0.0`、系列 ID・取得日・vintage 区分・変換履歴・集計方法・標本期間・固定パラメータと供給源・推定パラメータと境界・objective 定義・最適化手法・重み・除外期間を保存 |
 
+### 5.4 実装（`calibrate_keen`、#121）
+
+§5.2〜§5.3 を `src/analysis/keen_calibration.jl` に実装した。設定は `KeenCalibrationConfig`、
+結果は `KeenCalibrationResult`（API は [api.md](../api.md) の「Keen 限定キャリブレーション」節）。
+
+| 項目 | 実装 |
+|---|---|
+| **objective** | 各隣接観測の**前進差分**で state の変化率を作り、**開始点で評価した `keen_rhs`（level 形）** との残差を方程式別（`ω`/`λ`/`d`）に最小化。ADR 0004 決定5「観測状態の差分と `keen_rhs` の残差」に対応。差分近似方式（`:forward`）と端点処理（最終観測点は残差の開始点にしない）を metadata へ保存 |
+| **重み** | `weight_mode=:std_normalize`（既定）で各方程式の観測差分の母標準偏差の逆数。`:fixed` / `:none` も選択可。実際に用いた重みを結果へ保存 |
+| **除外規則** | 非連続（`Δt≠0.25`）・非有限・状態域逸脱（`λ≥1`・`ω≤0`・`d<0`）のペアを objective から除外し、内訳（`excluded_reasons`）と有効/除外ペア数を保存 |
+| **固定/推定分離** | `estimated_params` の既定は `[:φ0,:φ1,:κ0,:κ1]`（`κ2` は文献値で固定）。`α,β,δ,ν,r,κ2` は `fixed_params`。全 10 パラメータ同時推定は公開既定にしない（構築時に固定/推定の網羅性・排他性・符号制約を検証） |
+| **符号制約・penalty** | `φ1,κ1,κ2` は下限 `>0` を強制。良い均衡が閉形式で定義できない候補には `invalid_penalty` を付与 |
+| **optimizer** | 自前の bound 付き Nelder-Mead（決定的な初期単体）。境界は clamp + 二乗 penalty で内側へ戻す |
+| **multi-start・識別診断** | 決定的な擬似乱数（自前 LCG・`seed`）で初期値を摂動し複数 start を実行。全 start・採用 start・境界到達（`boundary_hits`）・objective が近いが異なる解（`nonunique_solutions`/`alternative_solutions`）・収束解のばらつきや感応度の平坦さによる弱識別（`weak_identification`）・各推定値への objective 感応度（曲率近似）を返す |
+| **標準誤差** | `standard_errors_supported=false`。`sensitivity` は objective の曲率近似であり分散推定ではない（Hessian ベースの統計推論は本 version 未対応） |
+| **literature 比較** | 文献 default での objective（`literature_objective`）を併せて返し、calibrated との差を取得できる |
+| **保存・再実行** | `save_keen_calibration` / `save_keen_calibration_config` で JSON 保存、`load_keen_calibration_config` で復元。系列 ID・期間・measurement version・methodology version を含む。optimizer 内部状態ではなく再現に必要な公開設定のみを保存し、同じ fixture・seed・設定で決定的に再現できる |
+
+**限界の明示**: 推定値は近似対応する集計系列への当てはめであり、**因果パラメータ・普遍定数・
+危機発生確率ではない**（§8）。短い標本・双安定性のため弱識別や複数局所解が生じうるので、
+`weak_identification` / `nonunique_solutions` / `boundary_hits` を単一の確定解として隠さず参照する。
+
 ---
 
 ## 6. バリデーション方針
@@ -247,10 +270,13 @@ Keen の 10 パラメータを、**実データ・文献値・固定仮定のど
 
 ## 9. 対象外（本設計のスコープ外）
 
-- データ取得・変換コードの本実装（`to_quarterly` の `:end` 追加を含む）
-- パラメータ推定コードの本実装
+> 以下は本設計（#119）自体のスコープ外。データ取得・変換（#120）と限定キャリブレーション（#121, §5.4）は
+> 後続 Issue で実装済み。
+
+- 全 10 パラメータの完全推定（限定キャリブレーションは §5.4 で実装済み。全同時推定は将来オプション）
 - 日本向け系列の最終実装
 - ベイズ推定・粒子フィルタ・状態空間モデル
+- 標準誤差の厳密な統計推論（Hessian ベース）
 - 危機発生確率・投資シグナルの推定
 - LLM による自然言語解説
 
