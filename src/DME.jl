@@ -96,6 +96,10 @@ export
     minsky_diagnostics,
     minsky_diagnostics_summary,
     minsky_diagnostics_comparison,
+    # Minsky visualization (Keen model, Phase 2)
+    plot_financing_regimes,
+    plot_minsky_diagnostics,
+    plot_minsky_scenario_comparison,
     # LLM context types
     ModelMetadata,
     SimulationResultSummary,
@@ -133,6 +137,8 @@ export
 #   mf_equilibrium, mf_policy_shock,
 #   keen_rhs, keen_rk4_step, keen_diverged, keen_scenario_comparison
 #   _classify_financing_regime, _diagnose_from_series
+#   _contiguous_regime_runs, _clip_ratio_for_plot, _minsky_diagnostic_panel,
+#   _check_comparable_minsky_configs
 #   _load_fred_fixture, _fetch_fred_live, _parse_fred_json,
 #   _parse_fred_observations, _fred_date_to_label, _detect_frequency,
 #   _build_fred_url, _http_get
@@ -188,6 +194,9 @@ include("./analysis/minsky_diagnostics.jl")
 
 # Visualization (depends on SimulationResult)
 include("./core/visualization.jl")
+
+# Minsky visualization (depends on minsky_diagnostics.jl and Plots, Phase 2)
+include("./analysis/minsky_visualization.jl")
 
 # LLM context layer (depends on SimulationResult and model interface)
 include("./llm/analysis_context.jl")

@@ -455,6 +455,82 @@ plot_irf(sr_irf; vars = ["ŷ", "ĉ", "k̂"])   # 特定変数のみ
 plot_irf(sr_irf; vars = "ŷ", shock_size = 0.01)  # ショックサイズをタイトルに表示
 ```
 
+### Minsky 可視化API（Keen モデル、Phase 2）
+
+`MinskyDiagnosticsResult`/`MinskyDiagnosticsComparison`（上記「Minsky 連続診断指標・サマリー」）を
+読み取るだけの可視化専用レイヤー。診断値の再計算は行わない。発散後の `NaN` は
+`Plots.jl` の標準挙動どおり線を途切れさせるだけであり、補間・0化・Ponzi帯への混入は行わない。
+図の読み方・注意事項の詳細は [Keen モデル §7](models/keen.md#7-ショックシナリオ) を参照。
+
+```julia
+# 資金調達区分（unlevered/hedge/speculative/ponzi/invalid）のタイムライン
+plot_financing_regimes(diag::MinskyDiagnosticsResult;
+    title            = nothing,  # 省略時: 代理診断である旨を含む既定タイトル
+    show_transitions = true,     # 区分変化時点（invalid との遷移を含む）に縦線を表示
+    kwargs...                    # Plots.jl に直接渡す追加オプション
+) -> Plots.Plot
+
+# 金融不安定性連続診断指標の複数パネルプロット
+plot_minsky_diagnostics(diag::MinskyDiagnosticsResult;
+    panels  = :all,   # :debt_ratio, :burden, :coverage, :margin, :profit_growth の Symbol 配列
+    combine = true,   # true: layout で結合した単一 Plots.Plot／false: Vector{Plots.Plot}
+    kwargs...         # combine=true のとき Plots.jl に直接渡す追加オプション
+) -> Plots.Plot または Vector{Plots.Plot}
+
+# 複数シナリオの比較プロット（同一指標・同一軸）
+plot_minsky_scenario_comparison(comparison::MinskyDiagnosticsComparison;
+    var    = :debt_ratio,  # :debt_ratio, :interest_coverage_ratio, :debt_service_coverage_ratio,
+                            # :ponzi_margin, :hedge_margin, :net_profit_share, :growth_rate, :debt_change
+    strict = true,          # true: methodology_version/config 不一致で ArgumentError（比較拒否）
+                             # false: 不一致でも @warn のみで比較を続行
+    title  = nothing,
+    kwargs...
+) -> Plots.Plot
+```
+
+`plot_financing_regimes` は帯の色に加えてマーカー形状でも区分を識別できる（色覚非依存）。
+`invalid`（発散後の `NaN` 埋め・非有限入力）は破線境界・別配色・別ラベルで表示し、
+`ponzi` の帯へは混入しない。
+
+`plot_minsky_diagnostics` の `:coverage` パネルには coverage ratio `= 1`（損益分岐点）、
+`:margin` パネルには margin `= 0` の境界線が自動的に追加される。coverage ratio が
+`Inf`（無借金でデットサービスが 0）になる期間はプロット専用に `NaN` 化してギャップとして
+表示する（値そのものは変更しない）。両パネルとも `divergence_time`（発散ガード作動時点）に
+縦線を表示する。
+
+`plot_minsky_scenario_comparison` は既定 (`strict=true`) で `methodology_version` または
+`config`（`amortization_rate` 等）が異なるシナリオの比較を拒否する。異なる診断設定を
+暗黙に重ねて比較しないための安全策であり、意図的な感応度比較を行う場合のみ
+`strict=false` を指定する。
+
+**エラー**:
+
+- `diag.observations`/`diag.regime_diagnostics.observations` が空の場合は `ArgumentError`
+- `plot_minsky_diagnostics` の `panels` に未知のキーを指定した場合は `ArgumentError`
+- `plot_minsky_scenario_comparison` は比較対象が2シナリオ未満、`var` が未知、
+  または `strict=true` で診断設定が不一致の場合に `ArgumentError`
+
+**例**:
+
+```julia
+m = KeenModel(0.025, 0.02, 0.01, 3.0, 0.03, 0.0400641, 6.41e-5, -0.0065, exp(-5), 20.0)
+ss = steady_state(m)
+
+diag_base = minsky_diagnostics(m, simulate(m, ss.ω, ss.λ, ss.d + 0.01; T = 300);
+                               scenario_name = "baseline")
+diag_high_debt = minsky_diagnostics(m, simulate(m, ss.ω, ss.λ, 5.0; T = 300);
+                                    scenario_name = "high_debt")
+
+plot_financing_regimes(diag_high_debt)
+plot_minsky_diagnostics(diag_high_debt)                       # 5パネル結合
+plot_minsky_diagnostics(diag_high_debt; panels = [:debt_ratio, :margin])
+
+cmp = minsky_diagnostics_comparison(["baseline" => diag_base, "high_debt" => diag_high_debt])
+plot_minsky_scenario_comparison(cmp; var = :debt_ratio)
+```
+
+統合デモは [`examples/minsky_phase2_demo.jl`](../examples/minsky_phase2_demo.jl) を参照。
+
 ### オプション型
 
 ```julia
