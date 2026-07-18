@@ -276,7 +276,16 @@ Keen の 10 パラメータを、**実データ・文献値・固定仮定のど
   `calibrated_worse_than_literature` と `warnings` で明示し隠さない。発散・弱識別・境界張り付きも
   `warnings` に集約する。`caveats`（`KEEN_VALIDATION_CAVEATS`）で fit ≠ 因果・危機確率・投資助言を明記する。
 - **再現性**: 同一 `dataset`・`config` で決定的。`keen_validation_to_dict` / `save_keen_validation` で
-  metric・regime サマリー・感応度・split 情報・provenance を JSON 保存する（生系列・dataset は含めない）。
+  metric・regime サマリー・感応度・split 情報・provenance を JSON 保存する（生系列・dataset は含めない。
+  非有限値 `NaN`/`Inf` は JSON `null` として保存し 0 化しない）。
+- **可視化**: `plot_keen_empirical_trajectories`（observed/literature/calibrated 軌跡）・
+  `plot_keen_regime_comparison`（regime timeline 3 段）・`plot_keen_sensitivity`（シナリオ別スカラー）。
+  `result.trajectories`（`KeenTrajectoryBundle`）を読むだけで再計算せず、欠損・発散後は補間・0 化しない。
+- **統合レポート**: `keen_empirical_report` / `save_keen_empirical_report` が dataset provenance
+  （採用系列・source・mode・単位変換・共通期間・quality）と検証要約・artifact パスを機械可読 JSON へまとめる
+  （API key・環境変数値・秘密情報は保存しない）。
+- **統合デモ**: `examples/keen_empirical_phase3_demo.jl` が fixture/live/rest_api の全フローを 1 本で完走する
+  （fixture は決定的・API キー不要。取得モード `DME_DATA_MODE`、出力先 `KEEN_DEMO_OUTDIR`）。
 
 ---
 

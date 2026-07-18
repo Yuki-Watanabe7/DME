@@ -129,12 +129,26 @@ function _keen_tp_timing_error(obs_tps::Vector{Int}, pred_tps::Vector{Int})
 end
 
 """
-    _keen_variable_metrics(pred, obs, var) -> KeenVariableMetrics
+    _keen_variable_metrics(pred, obs, var; skip_first=false) -> KeenVariableMetrics
 
 予測系列 `pred` と観測系列 `obs`（同じ長さ・時間順）から `var` の定量 metric を計算する。
 非有限（`NaN`/`Inf`）を含むペアは除外し、`0` として扱わない。
+
+`skip_first=true` のとき先頭点（初期化アンカー）を評価窓から除外する。実観測から積分を
+開始する方式（`:observed_start`）では `pred[1] ≡ obs[1]` が構成上必ず成立し誤差が恒等的に 0 に
+なるため、これを fit として数えると発散直後（有効ペアが初期点のみ）のモデルが RMSE=0 と
+なって「発散を隠す」。アンカーを除いて予測ホライズン上でのみ評価することで、発散・欠損を
+0 化せず正しく反映する。
 """
-function _keen_variable_metrics(pred::Vector{Float64}, obs::Vector{Float64}, var::Symbol)
+function _keen_variable_metrics(
+    pred::Vector{Float64},
+    obs::Vector{Float64},
+    var::Symbol;
+    skip_first::Bool = false,
+)
+    if skip_first && length(pred) >= 1
+        return _keen_variable_metrics(pred[2:end], obs[2:end], var)
+    end
     n = length(pred)
     idx = [k for k in 1:n if isfinite(pred[k]) && isfinite(obs[k])]
     np = length(idx)
@@ -599,6 +613,30 @@ struct KeenSensitivityResult
 end
 
 """
+    KeenTrajectoryBundle
+
+observed（観測 proxy）・literature・calibrated の full-sample 系列を**同一時間軸**で束ねた
+可視化用バンドル。model 側は観測開始状態（`:observed_start`）からの予測 trajectory。
+発散後は `NaN`（0 化・補間しない）。可視化層はこれを読むだけで再計算しない。
+
+## フィールド
+- `times::Vector{Float64}` : 年単位の観測時間軸（`dataset.observation_times`）
+- `dates::Vector{String}` : 四半期ラベル（`dataset.dates`）
+- `calibration_end_time` / `validation_start_time::Union{Float64,Nothing}` : 期間境界（描画用）
+- `observed` / `literature` / `calibrated::Dict{Symbol,Vector{Float64}}` : `:ω`・`:λ`・`:d` の系列
+  （すべて `length(times)` と同じ長さ・同じ時間軸）
+"""
+struct KeenTrajectoryBundle
+    times::Vector{Float64}
+    dates::Vector{String}
+    calibration_end_time::Union{Float64, Nothing}
+    validation_start_time::Union{Float64, Nothing}
+    observed::Dict{Symbol, Vector{Float64}}
+    literature::Dict{Symbol, Vector{Float64}}
+    calibrated::Dict{Symbol, Vector{Float64}}
+end
+
+"""
     KeenValidationResult
 
 Keen 実証バリデーションの構造化結果。元の `KeenEmpiricalDataset`・`KeenModel`・
@@ -610,6 +648,7 @@ Keen 実証バリデーションの構造化結果。元の `KeenEmpiricalDatase
 - `evaluations::Vector{KeenPeriodEvaluation}` : （モデル × 期間 × 初期値方式）の評価
 - `regime_comparison::KeenRegimeComparison` : observed / literature / calibrated の診断比較
 - `sensitivity::Vector{KeenSensitivityResult}` : base を含む感応度結果
+- `trajectories::KeenTrajectoryBundle` : observed / literature / calibrated の full-sample 系列（可視化用）
 - `split_info::Dict{String,Any}` : split 境界・観測数・欠損除外の記録（look-ahead が無いことの根拠）
 - `calibrated_worse_than_literature::Bool` : out-of-sample（無ければ in-sample）集計 RMSE で
   calibrated が literature より悪いか（悪化を隠さない）
@@ -624,6 +663,7 @@ struct KeenValidationResult
     evaluations::Vector{KeenPeriodEvaluation}
     regime_comparison::KeenRegimeComparison
     sensitivity::Vector{KeenSensitivityResult}
+    trajectories::KeenTrajectoryBundle
     split_info::Dict{String, Any}
     calibrated_worse_than_literature::Bool
     warnings::Vector{String}
@@ -722,6 +762,7 @@ function _keen_period_evaluation(
     eval_vars::Vector{Symbol};
     substeps_per_year::Int,
     guard_max::Float64,
+    skip_first::Bool = false,
 )
     ω0, λ0, d0 = init_state
     traj = _keen_predict_over(
@@ -737,7 +778,8 @@ function _keen_period_evaluation(
     predicted = Dict(:ω => traj.ω, :λ => traj.λ, :d => traj.d)
     metrics = Dict{Symbol, KeenVariableMetrics}()
     for v in eval_vars
-        metrics[v] = _keen_variable_metrics(predicted[v], observed[v], v)
+        metrics[v] =
+            _keen_variable_metrics(predicted[v], observed[v], v; skip_first = skip_first)
     end
     off = _keen_divergence_offset(traj)
     KeenPeriodEvaluation(
@@ -781,6 +823,7 @@ function _keen_evaluate_model(
                 config.eval_variables;
                 substeps_per_year = config.substeps_per_year,
                 guard_max = config.guard_max,
+                skip_first = true,  # 初期化アンカー（pred≡obs）を fit から除外
             ),
         )
     end
@@ -804,6 +847,7 @@ function _keen_evaluate_model(
                         config.eval_variables;
                         substeps_per_year = config.substeps_per_year,
                         guard_max = config.guard_max,
+                        skip_first = true,  # 初期化アンカー（pred≡obs）を fit から除外
                     ),
                 )
             else # :calibration_continued
@@ -857,6 +901,25 @@ function _keen_evaluate_model(
         end
     end
     evals
+end
+
+# model の full-sample 予測 trajectory（観測開始状態から。ω・λ・d を返す）
+function _keen_full_trajectory(
+    m::KeenModel,
+    dataset::KeenEmpiricalDataset,
+    config::KeenValidationConfig,
+)
+    fs = _keen_slice(dataset, collect(1:length(dataset)))
+    traj = _keen_predict_over(
+        m,
+        fs.ω[1],
+        fs.λ[1],
+        fs.d[1],
+        fs.times;
+        substeps_per_year = config.substeps_per_year,
+        guard_max = config.guard_max,
+    )
+    Dict(:ω => traj.ω, :λ => traj.λ, :d => traj.d)
 end
 
 # observed proxy の診断（ω・d・r から。g は観測不能のため NaN）
@@ -948,7 +1011,7 @@ function _keen_run_sensitivity(
     obs = Dict(:ω => sl.ω, :λ => sl.λ, :d => sl.d)
     fit_rmse = Dict{Symbol, Float64}()
     for v in config.eval_variables
-        fit_rmse[v] = _keen_variable_metrics(pred[v], obs[v], v).rmse
+        fit_rmse[v] = _keen_variable_metrics(pred[v], obs[v], v; skip_first = true).rmse
     end
 
     # regime 診断（full-sample、scenario の regime_config）
@@ -1067,6 +1130,19 @@ function validate_keen(dataset::KeenEmpiricalDataset, config::KeenValidationConf
         "observed proxy は集計系列への Phase 2 診断の代理であり企業別実測分類ではない。model 側は観測開始状態からの full-sample 予測 trajectory への診断。",
     )
 
+    # ---- full-sample 系列バンドル（可視化用、再計算しないよう保持）----
+    trajectories = KeenTrajectoryBundle(
+        copy(dataset.observation_times),
+        copy(dataset.dates),
+        isempty(dataset.calibration_indices) ? nothing :
+        dataset.observation_times[dataset.calibration_indices[end]],
+        isempty(dataset.validation_indices) ? nothing :
+        dataset.observation_times[dataset.validation_indices[1]],
+        Dict(:ω => copy(dataset.ω), :λ => copy(dataset.λ), :d => copy(dataset.d)),
+        _keen_full_trajectory(m_literature, dataset, config),
+        _keen_full_trajectory(m_calibrated, dataset, config),
+    )
+
     # ---- 感応度 ----
     sensitivity = KeenSensitivityResult[]
     base_scenario = KeenSensitivityScenario(;
@@ -1162,6 +1238,7 @@ function validate_keen(dataset::KeenEmpiricalDataset, config::KeenValidationConf
         evaluations,
         regime_comparison,
         sensitivity,
+        trajectories,
         split_info,
         calibrated_worse,
         warnings,
@@ -1270,14 +1347,112 @@ function keen_validation_to_dict(result::KeenValidationResult)
     )
 end
 
+# JSON 化前の非有限値サニタイズ。JSON 仕様は NaN/Inf を許さないため、metric 等に現れる
+# 非有限 Float を `nothing`（JSON null）へ再帰的に置換する（0 化はしない。欠損・発散は null）。
+_keen_json_safe(x::AbstractFloat) = isfinite(x) ? x : nothing
+_keen_json_safe(x::AbstractDict) =
+    Dict{String, Any}(string(k) => _keen_json_safe(v) for (k, v) in x)
+_keen_json_safe(x::AbstractVector) = Any[_keen_json_safe(v) for v in x]
+_keen_json_safe(x::Tuple) = Any[_keen_json_safe(v) for v in x]
+_keen_json_safe(x) = x
+
 """
     save_keen_validation(path, result)
 
 `KeenValidationResult` を JSON として `path` へ保存する（報告・再現用の要約）。
+metric 等の非有限値（`NaN`/`Inf`、発散・欠損由来）は JSON `null` として保存する（0 化しない）。
 """
 function save_keen_validation(path::AbstractString, result::KeenValidationResult)
     open(path, "w") do io
-        JSON3.pretty(io, keen_validation_to_dict(result))
+        JSON3.pretty(io, _keen_json_safe(keen_validation_to_dict(result)))
+    end
+    path
+end
+
+# dataset provenance を系列別 Dict へ（採用系列・単位変換・共通期間・quality を機械可読化）
+function _keen_series_report(dataset::KeenEmpiricalDataset)
+    out = Dict{String, Any}()
+    for v in (:ω, :λ, :d, :r)
+        haskey(dataset.provenance, v) || continue
+        p = dataset.provenance[v]
+        out[string(v)] = Dict{String, Any}(
+            "source_id" => p.source_id,
+            "series_id" => p.series_id,
+            "source" => p.source,
+            "mode" => string(p.mode),
+            "original_unit" => p.original_unit,
+            "conversion_formula" => p.conversion_formula,
+            "aggregation" => string(p.aggregation),
+            "adopted_start" => p.adopted_start,
+            "adopted_end" => p.adopted_end,
+            "n_used" => p.n_used,
+            "n_source_missing" => p.n_source_missing,
+            "n_invalid" => p.n_invalid,
+        )
+    end
+    out
+end
+
+"""
+    keen_empirical_report(dataset, result; mode=nothing, artifact_paths=String[]) -> Dict{String,Any}
+
+fixture/live/rest_api いずれの経路でも同一契約の**機械可読な統合レポート**を組み立てる。
+dataset 系列 provenance（採用系列・source・mode・単位変換・共通期間・quality）と
+`KeenValidationResult` の全要約（推定設定・結果・warnings・validation metric・regime 遷移比較・
+感応度・caveats）に加え、生成した artifact（図・JSON）パスを束ねる。
+
+**API key・環境変数値・秘密情報は保存しない**（系列 ID・変換式・推定値・パスのみ）。
+`mode` は取得モード（`:fixture`/`:live`/`:rest_api`）の記録用。
+"""
+function keen_empirical_report(
+    dataset::KeenEmpiricalDataset,
+    result::KeenValidationResult;
+    mode::Union{Symbol, Nothing} = nothing,
+    artifact_paths::AbstractVector{<:AbstractString} = String[],
+)
+    resolved_mode =
+        mode === nothing ? string(get(dataset.metadata, "mode", "")) : string(mode)
+    Dict{String, Any}(
+        "report_kind" => "keen-empirical-phase3",
+        "methodology" => Dict{String, Any}(
+            "measurement" => get(dataset.metadata, "methodology_version", ""),
+            "calibration" => result.calibration_result.methodology_version,
+            "validation" => result.methodology_version,
+        ),
+        "dataset" => Dict{String, Any}(
+            "country" => get(dataset.metadata, "country", ""),
+            "mode" => resolved_mode,
+            "sample_start" => get(dataset.metadata, "sample_start", ""),
+            "sample_end" => get(dataset.metadata, "sample_end", ""),
+            "n_obs" => length(dataset),
+            "r_param" => dataset.r_param,
+            "r_mode" => string(dataset.config.r_mode),
+            "series" => _keen_series_report(dataset),
+            "quality_flags" => dataset.quality_flags,
+            "dropped_dates" => dataset.dropped_dates,
+        ),
+        "validation" => keen_validation_to_dict(result),
+        "artifact_paths" => collect(String, artifact_paths),
+        "caveats" => result.caveats,
+    )
+end
+
+"""
+    save_keen_empirical_report(path, dataset, result; mode=nothing, artifact_paths=String[]) -> path
+
+[`keen_empirical_report`](@ref) を JSON として `path` へ保存する。秘密情報は含めない。
+"""
+function save_keen_empirical_report(
+    path::AbstractString,
+    dataset::KeenEmpiricalDataset,
+    result::KeenValidationResult;
+    mode::Union{Symbol, Nothing} = nothing,
+    artifact_paths::AbstractVector{<:AbstractString} = String[],
+)
+    report =
+        keen_empirical_report(dataset, result; mode = mode, artifact_paths = artifact_paths)
+    open(path, "w") do io
+        JSON3.pretty(io, _keen_json_safe(report))
     end
     path
 end

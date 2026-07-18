@@ -227,6 +227,7 @@ response = complete_from_prompt(provider, build_explain_prompt(ctx))
 | [examples/real_data_demo.jl](examples/real_data_demo.jl) | **実データ接続デモ**。FRED からのデータ取得（fixture / live モード）・前処理・SimulationResult 変換・モデル比較・可視化・AnalysisContext 接続を示す。 |
 | [examples/ai_economist_demo.jl](examples/ai_economist_demo.jl) | **AIエコノミスト統合デモ**。モデル選択 → シミュレーション → 実データ取得 → 前処理 → モデル比較 → AnalysisContext → docs コンテキスト → LLM 説明生成の一連のフロー。 |
 | [examples/minsky_phase2_demo.jl](examples/minsky_phase2_demo.jl) | **Minsky Phase 2 統合デモ**。Keen モデルの良い均衡回帰経路・高債務崩壊経路の両方について、資金調達区分診断（Hedge/Speculative/Ponzi）・金融不安定性連続診断指標とサマリー・regime timeline / diagnostics plot・シナリオ比較を一通り実行する。 |
+| [examples/keen_empirical_phase3_demo.jl](examples/keen_empirical_phase3_demo.jl) | **Keen 実証統合デモ**。米国 Keen 実証 MVP について、実データ取得 → 観測系列変換 → 限定キャリブレーション → in-sample/out-of-sample 検証 → observed proxy / model の金融不安定性 regime 比較 → 感応度分析 → 可視化 → 機械可読レポート出力までを完走する。fixture モードは API キー不要・決定的。 |
 
 ```bash
 julia --project=. examples/growth_models.jl
@@ -235,6 +236,7 @@ julia --project=. examples/model_overview_demo.jl
 julia --project=. examples/real_data_demo.jl
 julia --project=. examples/ai_economist_demo.jl
 julia --project=. examples/minsky_phase2_demo.jl
+julia --project=. examples/keen_empirical_phase3_demo.jl
 ```
 
 実データ・実 LLM で実行する場合は環境変数を設定します。
@@ -245,6 +247,19 @@ export DME_DATA_MODE=live
 export OPENAI_API_KEY=sk-...
 julia --project=. examples/ai_economist_demo.jl
 ```
+
+Keen 実証デモは取得モードと図・レポートの出力先を環境変数で切り替えます（fixture が既定・正、`source unavailable` 時に fixture へ暗黙 fallback せず失敗理由を表示）。
+
+```bash
+# fixture（既定・API キー不要・決定的）
+julia --project=. examples/keen_empirical_phase3_demo.jl
+
+# live（FRED API、要 API キー） / rest_api（要 DATA_PROVIDER_BASE_URL）。図・JSON の出力先を指定
+DME_DATA_MODE=live FRED_API_KEY=... KEEN_DEMO_OUTDIR=./out \
+  julia --project=. examples/keen_empirical_phase3_demo.jl
+```
+
+> 実証結果の限界: 観測系列は理論変数（ω・λ・d）の近似 proxy、calibrated parameter は採用期間・proxy・weight・bounds 依存、observed regime も集計 proxy 診断、out-of-sample fit は危機予測能力を意味しない。本デモは投資助言・政策判断の自動化を目的としない。
 
 ## テスト
 
