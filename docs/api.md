@@ -469,6 +469,90 @@ ds.provenance[:d]         # 系列 d の source/変換式/採用期間
 
 ---
 
+### Keen 限定キャリブレーション（ODE residual）
+
+`KeenEmpiricalDataset`（上記）を入力に、固定パラメータと推定対象を明示的に分離して行動
+パラメータの最小集合だけを推定する読み取り専用の後処理層。観測状態の前進差分（`Δt=0.25`）と
+`keen_rhs` の残差を方程式単位で最小化する（ODE residual 方式）。`KeenModel`・`keen_rhs`・
+`steady_state` は無変更。方式・識別戦略の詳細は
+[Keen モデル 実証化戦略 §5](models/keen_empirical_strategy.md)（決定記録 [ADR 0004](adr/0004-keen-empirical-calibration-strategy.md)）。
+
+```julia
+const KEEN_CALIBRATION_METHODOLOGY_VERSION = "keen-calibration/1.0.0"
+const KEEN_LITERATURE_PARAMS  # Grasselli & Costa Lima (2012) 文献 default（α..κ2）
+keen_literature_params()      -> Dict{Symbol,Float64}
+
+struct KeenCalibrationConfig
+    estimated_params::Vector{Symbol}          # 既定 [:φ0,:φ1,:κ0,:κ1]（κ2 は固定推奨）
+    fixed_params::Dict{Symbol,Float64}        # α,β,δ,ν,r と非推定の行動パラメータを網羅
+    fixed_basis::Dict{Symbol,Symbol}          # :data / :literature / :assumption
+    bounds::Dict{Symbol,Tuple}                # 正値制約は下限>0 で表現（φ1,κ1,κ2）
+    initial_guess::Dict{Symbol,Float64}
+    weight_mode::Symbol                        # :std_normalize（既定）/ :fixed / :none
+    use_calibration_split::Bool                # true で calibration_indices のみ（look-ahead 回避）
+    difference_scheme::Symbol                  # :forward
+    optimizer::Symbol; max_iterations; tol     # :nelder_mead（自前・決定的）
+    n_starts::Int; seed::Int; start_perturbation  # multi-start
+    boundary_atol; nonunique_obj_rtol; nonunique_param_rtol; weak_param_rtol; sensitivity_step
+    invalid_penalty::Float64                   # 良い均衡が定義できない候補への penalty
+    methodology_version::String
+end
+
+# r を dataset.r_param（:data）から取り込み、α,β,δ,ν,κ2 を文献値で固定した米国既定設定
+keen_default_calibration_config(dataset; kwargs...) -> KeenCalibrationConfig
+
+calibrate_keen(dataset::KeenEmpiricalDataset, config) -> KeenCalibrationResult
+
+struct KeenCalibrationResult
+    model::KeenModel                           # calibrated（固定値は不変）
+    estimated; fixed::Dict{Symbol,Float64}
+    objective_value::Float64                   # 総値
+    objective_contributions::Dict{Symbol}      # 方程式別 :ω/:λ/:d 寄与
+    converged::Bool; iterations::Int
+    n_obs_used; n_obs_excluded::Int; excluded_reasons  # 欠損/非連続/状態域逸脱
+    weights_used::Dict{Symbol,Float64}
+    adopted_start::Int; starts::Vector{KeenCalibrationStart}
+    boundary_hits::Vector{Symbol}              # bounds へ張り付いた推定値の warning
+    weak_identification; nonunique_solutions::Bool; alternative_solutions
+    sensitivity::Dict{Symbol,Float64}          # objective 曲率近似（分散推定ではない）
+    standard_errors_supported::Bool            # 本 version は false（Hessian 推論未対応）
+    literature_objective::Float64; literature_params  # literature vs calibrated 比較用
+    predicted; observed::Dict{Symbol,Vector}; pair_times  # 有効ペアの予測/観測 state 差分
+    dataset_metadata::Dict{String,Any}         # 系列 ID・期間・measurement version（再現用）
+    methodology_version::String; metadata
+end
+
+# 保存・読込（再現に必要な公開設定のみ。optimizer 内部状態は保存しない）
+save_keen_calibration(path, result)           # 結果を JSON へ
+save_keen_calibration_config(path, config)    # 設定を JSON へ
+load_keen_calibration_config(path)  -> KeenCalibrationConfig  # 結果 JSON の "config" 配下も可
+keen_calibration_config_to_dict / _from_dict / keen_calibration_to_dict
+```
+
+**使用例**:
+
+```julia
+ds  = build_keen_empirical_dataset(keen_us_default_config();
+          client = FredClient(mode=:fixture, fixture_dir="test/fixtures/keen"))
+cfg = keen_default_calibration_config(ds)          # φ0,φ1,κ0,κ1 を推定・r は data 固定
+res = calibrate_keen(ds, cfg)
+
+res.estimated                     # Dict(:φ0=>..., :φ1=>..., :κ0=>..., :κ1=>...)
+res.objective_value - res.literature_objective   # literature default との fit 差
+res.boundary_hits                 # bounds 到達（識別上の注意）
+res.weak_identification           # 弱識別・非一意解の warning
+
+save_keen_calibration_config("cfg.json", cfg)      # 保存
+cfg2 = load_keen_calibration_config("cfg.json")    # 読込 → 同じ fixture で再実行すると一致
+```
+
+> **注意（fit ≠ 因果・危機確率）**: 推定値は近似対応する集計系列への当てはめであり、
+> 因果パラメータ・普遍定数・危機発生確率ではない。標準誤差（Hessian ベースの統計推論）は
+> 本 methodology version では未対応で、`sensitivity` は objective の曲率近似（分散推定ではない）。
+> 詳細は [実証化戦略 §8](models/keen_empirical_strategy.md) と [ADR 0004](adr/0004-keen-empirical-calibration-strategy.md)。
+
+---
+
 ### 可視化API
 
 ```julia
