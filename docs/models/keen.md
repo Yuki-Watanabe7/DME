@@ -412,6 +412,27 @@ observed proxy regime は集計系列への操作的定義の代理であり企�
 metric・`warnings`・`caveats` として返す）。詳細は [実証化戦略 §6](keen_empirical_strategy.md)・
 [API リファレンス](../api.md)、決定記録は [ADR 0004](../adr/0004-keen-empirical-calibration-strategy.md)。
 
+### literature default と calibrated model の違い・observed proxy regime の意味
+
+- **literature default**: Grasselli & Costa Lima (2012) の文献 default パラメータ（`KEEN_LITERATURE_PARAMS`）。
+  普遍的な参照点だが、観測初期状態（例: 米国の観測 `d` は BIS 総民間信用/GDP で ≈ 1.5、良い均衡 `d̄ ≈ 0.07` から大きく乖離）から積分すると発散しうる。
+- **calibrated model**: 採用した calibration 期間・観測 proxy・weight・bounds に依存する限定推定値。
+  literature より当てはまる保証はなく、悪化した場合も `calibrated_worse_than_literature` と `warnings` で明示する。
+  ODE residual 方式の推定であり、trajectory の完全再現を保証しない（自由走行の水準が乖離しうる）。
+- **observed proxy regime**: 観測 `ω`・`d` へ Phase 2 の資金調達区分診断を適用した**集計代理**であり、企業別の実測分類・倒産比率ではない。
+  model 側 regime は観測開始状態からの予測 trajectory への診断。
+
+### 実証化フロー（統合デモ）
+
+データ取得 → 観測系列変換 → 限定キャリブレーション → in-sample/out-of-sample 検証 →
+observed proxy / model の regime 比較 → 感応度分析 → 可視化 → 機械可読レポート出力までを
+1 本で完走する統合デモが [`examples/keen_empirical_phase3_demo.jl`](../../examples/keen_empirical_phase3_demo.jl)。
+fixture モード（既定・API キー不要）で決定的に完走する。取得モードは `DME_DATA_MODE`
+（`fixture`/`live`/`rest_api`、`source unavailable` 時に fixture へ暗黙 fallback しない）、
+図・レポートの出力先は `KEEN_DEMO_OUTDIR` で切り替える。可視化は
+`plot_keen_empirical_trajectories` / `plot_keen_regime_comparison` / `plot_keen_sensitivity`
+（欠損・発散後は補間・0 化せず線を途切れさせる）。
+
 ---
 
 ## 12. 参考文献・参考実装

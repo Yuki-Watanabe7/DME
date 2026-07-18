@@ -131,10 +131,17 @@ export
     KeenPeriodEvaluation,
     KeenRegimeComparison,
     KeenSensitivityResult,
+    KeenTrajectoryBundle,
     KeenValidationResult,
     validate_keen,
     keen_validation_to_dict,
     save_keen_validation,
+    keen_empirical_report,
+    save_keen_empirical_report,
+    # Keen 実証比較可視化（Phase 3）
+    plot_keen_empirical_trajectories,
+    plot_keen_regime_comparison,
+    plot_keen_sensitivity,
     # Minsky visualization (Keen model, Phase 2)
     plot_financing_regimes,
     plot_minsky_diagnostics,
@@ -179,7 +186,9 @@ export
 #   _keen_build_pairs, _keen_objective, _keen_model_from_params, _nelder_mead,
 #   _keen_weights, _keen_invalid_penalty, _keen_lcg, _keen_rand, _keen_dataset_metadata
 #   _keen_variable_metrics, _keen_corr, _keen_turning_points, _keen_predict_over,
-#   _keen_evaluate_model, _keen_run_sensitivity, _keen_model_diagnostics
+#   _keen_evaluate_model, _keen_run_sensitivity, _keen_model_diagnostics,
+#   _keen_full_trajectory, _keen_json_safe, _keen_series_report,
+#   _keen_add_split_marker!
 #   _contiguous_regime_runs, _clip_ratio_for_plot, _minsky_diagnostic_panel,
 #   _check_comparable_minsky_configs
 #   _load_fred_fixture, _fetch_fred_live, _parse_fred_json,
@@ -247,6 +256,9 @@ include("./core/visualization.jl")
 
 # Minsky visualization (depends on minsky_diagnostics.jl and Plots, Phase 2)
 include("./analysis/minsky_visualization.jl")
+
+# Keen 実証比較可視化（depends on keen_validation.jl と minsky_visualization.jl, Phase 3）
+include("./analysis/keen_empirical_visualization.jl")
 
 # LLM context layer (depends on SimulationResult and model interface)
 include("./llm/analysis_context.jl")

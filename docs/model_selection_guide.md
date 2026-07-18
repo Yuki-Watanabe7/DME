@@ -289,7 +289,22 @@
   `diagnose_financing_regime`/`minsky_diagnostics` が提供する読み取り専用の後処理層）
 - 崩壊経路はモデル内メカニズムの提示であり、現実の金融危機の予測ではない
 
+**理論実験と実証比較の使い分け**
+
+Keen モデルは 2 通りの使い方があり、目的に応じて選ぶ。
+
+| 目的 | 使い方 | 入口 |
+|---|---|---|
+| **理論実験** — 双安定性・崩壊メカニズム・金利/初期債務の効果を「仮想パラメータ」で観察 | `simulate`/`impulse_response`/`keen_scenario_comparison` と Phase 2 診断・可視化 | [`examples/minsky_phase2_demo.jl`](../examples/minsky_phase2_demo.jl) |
+| **実証比較** — 実データへ接続し literature/calibrated/observed proxy を同一時間軸で比較・検証 | `build_keen_empirical_dataset` → `calibrate_keen` → `validate_keen` と実証比較可視化 | [`examples/keen_empirical_phase3_demo.jl`](../examples/keen_empirical_phase3_demo.jl) |
+
+実証比較は「モデルが現実を再現するか」を in-sample/out-of-sample・方向性・転換点・regime 遷移・
+感応度で構造化評価するが、**当てはまり（fit）は因果関係・危機発生確率・予測精度と同一ではない**。
+observed regime も集計 proxy 診断であり、企業別実測分類ではない。実証比較の結果を投資助言・
+政策判断の自動化に用いてはならない（[実証化戦略 §6・§8](models/keen_empirical_strategy.md)）。
+
 **詳細**: [Keen モデル解説](models/keen.md)、
+[Keen モデル実証化戦略](models/keen_empirical_strategy.md)、
 [Minsky 資金調達区分診断](models/minsky_regime_diagnostics.md)、
 [Minsky 連続診断指標・サマリー](models/minsky_diagnostics_summary.md)
 

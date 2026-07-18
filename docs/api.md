@@ -591,18 +591,30 @@ validate_keen(dataset::KeenEmpiricalDataset, config) -> KeenValidationResult
 struct KeenPeriodEvaluation     # (model × period × init_mode) の観測/予測系列と変数別 metric
 struct KeenRegimeComparison     # observed / literature / calibrated の MinskyDiagnosticsSummary
 struct KeenSensitivityResult    # base を含むシナリオ別の推定値・fit・regime・遷移・発散
+struct KeenTrajectoryBundle     # observed/literature/calibrated の full-sample 系列（同一時間軸、可視化用）
 struct KeenValidationResult
     config; calibration_result::KeenCalibrationResult
     evaluations::Vector{KeenPeriodEvaluation}
     regime_comparison::KeenRegimeComparison
     sensitivity::Vector{KeenSensitivityResult}
+    trajectories::KeenTrajectoryBundle      # 可視化層はこれを読むだけ（再計算しない）
     split_info::Dict; calibrated_worse_than_literature::Bool
     warnings::Vector{String}; caveats::Vector{String}
     dataset_metadata::Dict; methodology_version::String; metadata::Dict
 end
 
+# 保存（metric 等の非有限値 NaN/Inf は JSON null。0 化しない）
 keen_validation_to_dict(result) -> Dict            # JSON 化可能な要約（生系列・dataset は含めない）
 save_keen_validation(path, result) -> path
+
+# 機械可読な統合レポート（dataset provenance + 検証要約 + artifact パス。秘密情報は含めない）
+keen_empirical_report(dataset, result; mode=nothing, artifact_paths=String[]) -> Dict
+save_keen_empirical_report(path, dataset, result; mode=nothing, artifact_paths=String[]) -> path
+
+# 実証比較可視化（KeenValidationResult を読むだけ。欠損・発散後は補間・0化せず線を途切れさせる）
+plot_keen_empirical_trajectories(result; variables=[:ω,:λ,:d], combine=true, kwargs...)  # observed vs literature vs calibrated
+plot_keen_regime_comparison(result; kwargs...)                                            # observed proxy / literature / calibrated の regime timeline（3段）
+plot_keen_sensitivity(result; metric=:peak_debt_ratio, kwargs...)                         # 感応度シナリオ別スカラー棒グラフ
 ```
 
 **使用例**:
@@ -618,9 +630,19 @@ res.calibrated_worse_than_literature   # calibrated が literature より悪化�
 res.regime_comparison.observed_summary.first_ponzi_time   # observed proxy の Ponzi 初到達（集計代理）
 res.sensitivity[1].estimated           # base 推定値。amort シナリオは reused_base_calibration=true で同一
 res.warnings                           # 発散・弱識別・境界張り付き・validation 空 等
+res.trajectories                       # observed/literature/calibrated の full-sample 系列（可視化用）
 
-save_keen_validation("val.json", res)  # 決定的（同一 ds・config で同一結果）
+# 可視化（ヘッドレスは ENV["GKSwstype"]="nul"）
+p1 = plot_keen_empirical_trajectories(res)               # ω/λ/d の observed vs literature vs calibrated
+p2 = plot_keen_regime_comparison(res)                    # regime timeline 3段比較
+save_keen_validation("val.json", res)                    # 決定的（同一 ds・config で同一結果）
+save_keen_empirical_report("report.json", ds, res; mode=:fixture,
+                           artifact_paths=["p1.png"])    # 統合レポート（秘密情報を含めない）
 ```
+
+fixture/live/rest_api の全フロー（データ→推定→検証→感応度→可視化→レポート）を 1 本で完走する
+統合デモは [`examples/keen_empirical_phase3_demo.jl`](../examples/keen_empirical_phase3_demo.jl)
+（取得モードは `DME_DATA_MODE`、出力先は `KEEN_DEMO_OUTDIR`）。
 
 > **注意（実証 fit の限界）**: 実証 fit は因果関係・危機発生確率・将来予測精度と同一ではない。
 > observed proxy regime は集計系列への操作的定義の代理であり企業別実測分類ではない。
