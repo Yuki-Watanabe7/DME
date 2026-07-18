@@ -226,6 +226,7 @@ response = complete_from_prompt(provider, build_explain_prompt(ctx))
 | [examples/model_overview_demo.jl](examples/model_overview_demo.jl) | **モデル横断デモ**。Ramsey / Solow / RBC / Mundell-Fleming / New Keynesian を共通 API で横断し、可視化・横断比較までの一連のワークフローを示す。 |
 | [examples/real_data_demo.jl](examples/real_data_demo.jl) | **実データ接続デモ**。FRED からのデータ取得（fixture / live モード）・前処理・SimulationResult 変換・モデル比較・可視化・AnalysisContext 接続を示す。 |
 | [examples/ai_economist_demo.jl](examples/ai_economist_demo.jl) | **AIエコノミスト統合デモ**。モデル選択 → シミュレーション → 実データ取得 → 前処理 → モデル比較 → AnalysisContext → docs コンテキスト → LLM 説明生成の一連のフロー。 |
+| [examples/minsky_phase2_demo.jl](examples/minsky_phase2_demo.jl) | **Minsky Phase 2 統合デモ**。Keen モデルの良い均衡回帰経路・高債務崩壊経路の両方について、資金調達区分診断（Hedge/Speculative/Ponzi）・金融不安定性連続診断指標とサマリー・regime timeline / diagnostics plot・シナリオ比較を一通り実行する。 |
 
 ```bash
 julia --project=. examples/growth_models.jl
@@ -233,6 +234,7 @@ julia --project=. examples/policy_analysis.jl
 julia --project=. examples/model_overview_demo.jl
 julia --project=. examples/real_data_demo.jl
 julia --project=. examples/ai_economist_demo.jl
+julia --project=. examples/minsky_phase2_demo.jl
 ```
 
 実データ・実 LLM で実行する場合は環境変数を設定します。

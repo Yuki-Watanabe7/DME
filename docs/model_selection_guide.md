@@ -37,6 +37,7 @@
 | 好況期の信用拡大が内生的にどう不安定化するか知りたい | **Keen** | — |
 | 債務比率の崩壊経路（金融不安定性）を分析したい | **Keen** | — |
 | 外生ショックなしに景気循環が生じるメカニズムを見たい | **Keen** | RBC |
+| 信用循環・資金調達区分（Hedge/Speculative/Ponzi）の悪化過程を可視化したい | **Keen**（Phase 2 診断・可視化） | — |
 
 ---
 
@@ -275,14 +276,22 @@
 - 良い均衡からの微小な債務攪乱 → 均衡へ回帰（局所安定性）
 - 良い均衡からの大きな債務攪乱 → 債務崩壊経路へ移行（双安定性）
 - 貸出金利の引き上げシナリオ比較（`keen_scenario_comparison`）
+- 資金調達区分（Hedge/Speculative/Ponzi）の悪化過程・coverage ratio・marginの推移を
+  `plot_financing_regimes`/`plot_minsky_diagnostics` で可視化し、baseline・高金利・
+  高初期債務シナリオを `plot_minsky_scenario_comparison` で比較（Phase 2、
+  [`examples/minsky_phase2_demo.jl`](../examples/minsky_phase2_demo.jl)）
 
 **限界**
 - 政府部門・開放経済・名目変数（物価・金融政策）を扱わない（実質・閉鎖経済モデル）
 - 資産価格・ポートフォリオ選択、銀行部門の内生的与信行動は扱わない
-- Hedge/Speculative/Ponzi 判定など金融不安定性指標は後続の分析機能で対応予定
+- Hedge/Speculative/Ponzi 判定・連続診断指標はモデル集計量から導かれる代理診断であり、
+  実測の企業比率・倒産予測・危機予測ではない（`classify_financing_regime`/
+  `diagnose_financing_regime`/`minsky_diagnostics` が提供する読み取り専用の後処理層）
 - 崩壊経路はモデル内メカニズムの提示であり、現実の金融危機の予測ではない
 
-**詳細**: [Keen モデル解説](models/keen.md)
+**詳細**: [Keen モデル解説](models/keen.md)、
+[Minsky 資金調達区分診断](models/minsky_regime_diagnostics.md)、
+[Minsky 連続診断指標・サマリー](models/minsky_diagnostics_summary.md)
 
 ---
 

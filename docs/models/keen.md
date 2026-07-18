@@ -222,6 +222,56 @@ cmp = minsky_diagnostics_comparison(["baseline" => diag_base, "high_debt" => dia
 [Minsky 連続診断指標・サマリー](minsky_diagnostics_summary.md) を参照。
 重み付き単一複合スコアは Phase 2 では提供しない（§9・§10 の限界に同じ）。
 
+### Minsky 可視化（Phase 2）
+
+区分診断・連続診断指標を読み取るだけの可視化専用レイヤー（`src/analysis/minsky_visualization.jl`）。
+診断値を再計算・変更せず、`Plots.jl`（`plot_result`/`plot_comparison` と同じライブラリ）で描画する。
+
+```julia
+diag_base = minsky_diagnostics(m, simulate(m, ss.ω, ss.λ, ss.d + 0.01; T = 300);
+                               scenario_name = "baseline")
+diag_high_debt = minsky_diagnostics(m, simulate(m, ss.ω, ss.λ, 5.0; T = 300);
+                                    scenario_name = "high_debt")
+
+plot_financing_regimes(diag_high_debt)     # 区分タイムライン（帯 + マーカー + 遷移縦線）
+plot_minsky_diagnostics(diag_high_debt)    # 5パネル: debt ratio / burden / coverage / margin / profit・growth
+
+cmp = minsky_diagnostics_comparison(["baseline" => diag_base, "high_debt" => diag_high_debt])
+plot_minsky_scenario_comparison(cmp; var = :debt_ratio)
+```
+
+#### 図の読み方
+
+- **`plot_financing_regimes`**: 横軸は時間、区分ごとの帯（色）と重ねたマーカー形状（色覚非依存の
+  二重エンコーディング）で `unlevered`/`hedge`/`speculative`/`ponzi` を識別する。縦の破線は
+  区分が変化した時点（`transitions`）。タイトルに「集計モデル上の代理診断であり実測の企業比率
+  ではない」旨を明記する
+- **`plot_minsky_diagnostics`**: `:coverage` パネルの水平点線（`= 1`）は損益分岐点、`:margin`
+  パネルの水平点線（`= 0`）は Hedge/Ponzi 境界。各パネルの縦の点線は発散ガード作動時点
+  （`divergence_time`）
+- **`plot_minsky_scenario_comparison`**: 同一指標・同一軸でシナリオを重ね描きし、各シナリオの
+  最初の Speculative 移行（破線）・最初の Ponzi 移行（一点鎖線）・発散時点（点線）を
+  シナリオごとに同色の縦線で示す
+
+#### 集計代理診断・注意事項（可視化固有）
+
+- **`invalid` はPonziと同じ帯へ混入しない**: `invalid`（発散後の `NaN` 埋め区間・非有限入力）は
+  破線境界・別配色・別ラベル（"invalid (unobservable / simulation truncated)"）で表示し、
+  経済状態としての `ponzi` とは明確に区別する
+- **発散後の `NaN` を補間・0化しない**: `Plots.jl` の標準挙動に従い、`NaN` の期間は線を
+  途切れさせるだけで、直前・直後の値を結んだり 0 に置き換えたりしない。coverage ratio が
+  `Inf`（無借金域）になる期間も同様にギャップとして表示する（値そのものは変更しない）
+  ため、「オフスケール（判読不能）区間」であってPonzi期間として塗りつぶされているわけではない
+- **`methodology_version`/`config` が異なるシナリオを暗黙に比較しない**:
+  `plot_minsky_scenario_comparison` は既定 (`strict=true`) でこれらの不一致を検出すると
+  `ArgumentError` を送出し、比較を拒否する
+- **「Ponzi = 危機予測」ではない**: §9 と同様、区分・図はモデル内メカニズムの提示であり、
+  倒産予測・危機予測・実測の企業比率ではない
+
+統合デモは [`examples/minsky_phase2_demo.jl`](../../examples/minsky_phase2_demo.jl) を参照
+（外部 API 不要、良い均衡回帰経路・崩壊経路の両方を含む）。API 詳細は
+[`docs/api.md`](../api.md) の「Minsky 可視化API」節を参照。
+
 ---
 
 ## 8. 出力結果の読み方
