@@ -277,6 +277,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [Minsky系金融不安定性モデル設計方針](docs/models/minsky_design.md) | Keen / Ryoo / Godley-Lavoie (SFC) の候補比較と Keen モデル選定の経緯 |
 | [Minsky系（Keen）モデル DME統合設計](docs/models/minsky_integration_design.md) | Keen モデルのインターフェース適合・ソルバー接続・出力スキーマ・LLM メタデータ設計 |
 | [Minsky 資金調達区分診断](docs/models/minsky_regime_diagnostics.md) | Hedge / Speculative / Ponzi の操作的定義・仮定・型/関数契約・限界の設計 |
+| [Minsky 連続診断指標・サマリー](docs/models/minsky_diagnostics_summary.md) | カバレッジ比率・マージン・regime滞在比率・peak/minimum・発散時点の指標定義とサマリー契約（Phase 2） |
 | [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメント作成用テンプレート |
 
 ### 実データ接続

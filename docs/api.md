@@ -144,6 +144,126 @@ diagnose_financing_regime(sr).observations == diag.observations  # true 相当�
 Hedge/Speculative/Ponzi の基本分類より優先して判定されるため、無借金・発散後の
 `NaN` が誤って `hedge`/`ponzi` に分類されることはない。
 
+### Minsky 連続診断指標・サマリー（Keen モデル、Phase 2）
+
+区分（Hedge/Speculative/Ponzi）だけでは失われる連続量（カバレッジ比率・境界からの距離・
+債務変化等）を提供する読み取り専用の後処理層。`diagnose_financing_regime`（上記）と同一の
+`FinancingRegimeDiagnostics` を内部で共有するため、区分の判定結果は完全に一致する。
+指標定義・型契約の詳細は [Minsky 連続診断指標・サマリー](models/minsky_diagnostics_summary.md)
+を参照。
+
+```julia
+@enum DivergenceStatus no_divergence divergence_onset divergence_continued
+
+const MINSKY_DIAGNOSTICS_METHODOLOGY_VERSION = "minsky-diagnostics/1.0.0"
+
+struct MinskyDiagnosticObservation
+    time::Int
+    debt_ratio::Float64                    # d
+    operating_surplus_share::Float64       # 1 - ω
+    net_profit_share::Float64              # π = 1 - ω - r*d
+    interest_burden::Float64                # r * max(d, 0)
+    principal_commitment_proxy::Float64     # amortization_rate * max(d, 0)
+    interest_coverage_ratio::Float64        # operating_surplus_share / interest_burden（0除算はInf）
+    debt_service_coverage_ratio::Float64     # operating_surplus_share / debt_service（0除算はInf）
+    ponzi_margin::Float64
+    hedge_margin::Float64
+    debt_change::Float64                    # 前期差分 d[t] - d[t-1]（t=1 は NaN）
+    growth_rate::Float64                    # 既存出力 g（再計算しない）
+    divergence_status::DivergenceStatus
+    methodology_version::String
+end
+
+struct MinskyDiagnosticsResult
+    model_name::String
+    scenario_name::String
+    observations::Vector{MinskyDiagnosticObservation}
+    regime_diagnostics::FinancingRegimeDiagnostics
+    config::FinancingRegimeConfig
+    methodology_version::String
+    valid_periods::Vector{Int}
+    invalid_periods::Vector{Int}
+    divergence_time::Union{Int, Nothing}
+    metadata::Dict{String, Any}
+end
+
+# NamedTuple 出力（simulate / impulse_response、:ω・:d・:g が必要）からの構築
+minsky_diagnostics(m::KeenModel, result::NamedTuple;
+                   config::FinancingRegimeConfig = FinancingRegimeConfig(),
+                   scenario_name::String = "simulate") -> MinskyDiagnosticsResult
+
+# SimulationResult（"ω"・"d"・"g" と metadata["parameters"].r が必要）からの構築
+minsky_diagnostics(sr::SimulationResult;
+                   config::FinancingRegimeConfig = FinancingRegimeConfig()) -> MinskyDiagnosticsResult
+
+struct MinskyDiagnosticsSummary
+    model_name::String
+    scenario_name::String
+    methodology_version::String
+    config::FinancingRegimeConfig
+    n_periods::Int
+    n_valid::Int
+    n_invalid::Int
+    regime_counts::Dict{FinancingRegime, Int}
+    regime_share_of_valid::Dict{FinancingRegime, Float64}
+    first_speculative_time::Union{Int, Nothing}
+    first_ponzi_time::Union{Int, Nothing}
+    recovery_to_hedge_time::Union{Int, Nothing}
+    peak_debt_ratio::Union{Float64, Nothing}
+    peak_debt_ratio_time::Union{Int, Nothing}
+    min_interest_coverage_ratio::Union{Float64, Nothing}
+    min_interest_coverage_ratio_time::Union{Int, Nothing}
+    min_debt_service_coverage_ratio::Union{Float64, Nothing}
+    min_debt_service_coverage_ratio_time::Union{Int, Nothing}
+    min_ponzi_margin::Union{Float64, Nothing}
+    min_ponzi_margin_time::Union{Int, Nothing}
+    min_hedge_margin::Union{Float64, Nothing}
+    min_hedge_margin_time::Union{Int, Nothing}
+    max_debt_change::Union{Float64, Nothing}
+    max_debt_change_time::Union{Int, Nothing}
+    diverged::Bool
+    divergence_time::Union{Int, Nothing}
+end
+
+minsky_diagnostics_summary(diag::MinskyDiagnosticsResult) -> MinskyDiagnosticsSummary
+
+struct MinskyDiagnosticsComparison
+    scenario_names::Vector{String}
+    diagnostics::Vector{MinskyDiagnosticsResult}
+    summaries::Vector{MinskyDiagnosticsSummary}
+end
+
+# 名前付き MinskyDiagnosticsResult のベクトルから比較結果を構築する
+minsky_diagnostics_comparison(
+    named_diagnostics::AbstractVector{<:Pair{String, MinskyDiagnosticsResult}},
+) -> MinskyDiagnosticsComparison
+```
+
+**使用例**:
+
+```julia
+m = KeenModel(0.025, 0.02, 0.01, 3.0, 0.03, 0.0400641, 6.41e-5, -0.0065, exp(-5), 20.0)
+ss = steady_state(m)
+result = simulate(m, ss.ω, ss.λ, 5.0; T = 300)  # 高債務初期値 → 崩壊経路
+
+diag = minsky_diagnostics(m, result)
+diag.divergence_time                 # 発散ガード作動時点（発散しなければ nothing）
+diag.observations[1].interest_coverage_ratio
+
+summary = minsky_diagnostics_summary(diag)
+summary.first_ponzi_time             # 最初に ponzi へ移行した時点（未到達なら nothing）
+summary.peak_debt_ratio              # 有効期間内の債務比率の最大値
+
+# シナリオ比較（baseline / 高金利 / 高初期債務 / amortization_rate 感応度）
+diag_base = minsky_diagnostics(m, simulate(m, ss.ω, ss.λ, ss.d + 0.01; T = 300); scenario_name = "baseline")
+diag_high_debt = minsky_diagnostics(m, simulate(m, ss.ω, ss.λ, 5.0; T = 300); scenario_name = "high_debt")
+cmp = minsky_diagnostics_comparison(["baseline" => diag_base, "high_debt" => diag_high_debt])
+cmp.summaries[2].peak_debt_ratio > cmp.summaries[1].peak_debt_ratio  # true
+```
+
+重み付き単一複合スコアは Phase 2 では提供しない。`raw` 指標を常に個別に参照し、
+「危機確率」等の予測値として解釈しない（[LLM 出力の安全性ルール](llm_safety.md)）。
+
 ### 結果型
 
 ```julia

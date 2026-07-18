@@ -84,6 +84,18 @@ export
     FinancingRegimeDiagnostics,
     classify_financing_regime,
     diagnose_financing_regime,
+    # Minsky continuous diagnostics & summary (Keen model, Phase 2)
+    DivergenceStatus,
+    no_divergence,
+    divergence_onset,
+    divergence_continued,
+    MinskyDiagnosticObservation,
+    MinskyDiagnosticsResult,
+    MinskyDiagnosticsSummary,
+    MinskyDiagnosticsComparison,
+    minsky_diagnostics,
+    minsky_diagnostics_summary,
+    minsky_diagnostics_comparison,
     # LLM context types
     ModelMetadata,
     SimulationResultSummary,
@@ -170,6 +182,9 @@ include("./core/compare.jl")
 
 # Minsky financing regime diagnostics (depends on KeenModel and SimulationResult)
 include("./analysis/minsky_regimes.jl")
+
+# Minsky continuous diagnostics & summary (depends on minsky_regimes.jl)
+include("./analysis/minsky_diagnostics.jl")
 
 # Visualization (depends on SimulationResult)
 include("./core/visualization.jl")
