@@ -9,8 +9,9 @@
 | 項目 | 内容 |
 |---|---|
 | **対象モデル** | Keen モデル（`KeenModel`、[keen.md](keen.md)） |
-| **ステータス** | 設計 + データ層 + 推定層実装済み。§2〜§4 のデータ取得・単位変換・四半期整列は `src/data/keen_empirical.jl`（`build_keen_empirical_dataset`、#120）で実装。§5 の限定キャリブレーション（ODE residual）は `src/analysis/keen_calibration.jl`（`calibrate_keen`、#121）で実装。§6 の検証コードは後続 Issue |
+| **ステータス** | 設計 + データ層 + 推定層 + 検証層実装済み。§2〜§4 のデータ取得・単位変換・四半期整列は `src/data/keen_empirical.jl`（`build_keen_empirical_dataset`、#120）で実装。§5 の限定キャリブレーション（ODE residual）は `src/analysis/keen_calibration.jl`（`calibrate_keen`、#121）で実装。§6 の実証バリデーション・感応度分析は `src/analysis/keen_validation.jl`（`validate_keen`、#122）で実装 |
 | **methodology version（推定層）** | `keen-calibration/1.0.0`（`KEEN_CALIBRATION_METHODOLOGY_VERSION`。データ層 `keen-empirical/*` とは独立） |
+| **methodology version（検証層）** | `keen-validation/1.0.0`（`KEEN_VALIDATION_METHODOLOGY_VERSION`。推定層・データ層・診断層とは独立） |
 | **前提ドキュメント** | [Keen モデル解説](keen.md)・[Minsky系金融不安定性モデル設計方針](minsky_design.md)・[モデル変数と実データ系列のマッピング表](../data/variable_mapping.md)・[Minsky 資金調達区分診断](minsky_regime_diagnostics.md) |
 | **methodology version（予定）** | `keen-empirical/1.0.0`（診断層の `minsky-regime/*`・`minsky-diagnostics/*` とは独立に管理） |
 | **基準経済（初版）** | 米国。日本は同一契約への拡張対象 |
@@ -236,8 +237,46 @@ Keen の 10 パラメータを、**実データ・文献値・固定仮定のど
 | **in-sample / out-of-sample** | 標本を推定区間と後方ホールドアウト区間へ分離（§1.2）。in-sample fit と out-of-sample の予測誤差を**別々に報告**する |
 | **literature vs calibrated** | Grasselli & Costa Lima (2012) の文献 default パラメータと calibrated モデルを**必ず比較**する（calibrated が literature を改善するとは限らないことも報告） |
 | **評価指標** | RMSE / MAE / correlation に加え、**方向性**（増減の一致）・**転換点**（ピーク/ボトムの一致）・**regime 遷移**（Hedge/Speculative/Ponzi、[minsky_regime_diagnostics.md](minsky_regime_diagnostics.md)）・**発散有無**を分けて評価する |
-| **感応度分析** | `amortization_rate`（診断仮定）・`r` の実質化方式（§2.4）・`ω` の proxy（指数 vs 比率、§2.1）・標本期間（§1.2）の 4 点に対する結果の感応度を確認する |
+| **感応度分析** | `amortization_rate`（診断仮定）・`r` の実質化方式（§2.4）・`ω` の proxy（指数 vs 比率、§2.1）・標本期間（§1.2）・initial guess／multi-start・variable weight に対する結果の感応度を確認する |
 | **fit の限界** | 当てはまりを**因果推論・危機確率・予測精度と同一視しない**（§8・[ADR 0004](../adr/0004-keen-empirical-calibration-strategy.md)） |
+
+### 6.1 実装（`validate_keen`、#122）
+
+`src/analysis/keen_validation.jl` が `KeenEmpiricalDataset` を入力に取り、`calibrate_keen`（§5.4）・
+`simulate` の RK4 積分・`minsky_diagnostics_summary`（Phase 2 診断）を組み合わせて実証結果を
+構造化して返す**読み取り専用の後処理層**。`KeenModel`・`KeenEmpiricalDataset`・
+`KeenCalibrationResult` は変更しない。
+
+- **入出力型**: `KeenValidationConfig`（設定）→ `validate_keen` → `KeenValidationResult`（結果）。
+  既定設定は `keen_default_validation_config(dataset)`。
+- **予測 trajectory**: 初期状態から観測時間軸（`Δt = 0.25`、§4）に沿って RK4 で積分する
+  （`substeps_per_year` 既定 4 = 四半期刻み）。発散ガードに抵触した以降は `NaN`。
+- **期間分離**: `in_sample` = `dataset.calibration_indices`、`out_of_sample` =
+  `dataset.validation_indices`（look-ahead・重複なし。`split_info` に境界・観測数・除外を保存）。
+  validation の情報は推定 objective へ使わない（推定は §5.4 の calibration split のみ）。
+- **validation 初期値**: `:observed_start`（validation 開始の実観測から積分）と
+  `:calibration_continued`（calibration 開始から連続積分し validation 部分をスライス）を
+  **別 metric として区別**する（`initial_state_modes`）。
+- **変数別 metric**（`KeenVariableMetrics`、`:ω`・`:λ`・`:d` 各々）: RMSE・MAE・correlation・
+  mean error（bias）・direction accuracy（前期比符号一致）・turning point 数と timing error。
+  スケール差は単一総合点へ集約せず、観測標準偏差で正規化した `rmse_standardized` を別途提供する。
+  欠損・発散後 `NaN` は有効ペアから除外し、`0` として扱わない。
+- **regime 検証**（`KeenRegimeComparison`）: observed proxy（観測 `ω`・`d` へ Phase 2 診断を直接適用。
+  `g` は観測不能のため成長依存指標のみ未定義）・literature モデル・calibrated モデルの
+  full-sample 予測 trajectory を、同一契約の `MinskyDiagnosticsSummary` で並べる
+  （first speculative/ponzi・hedge 回復・coverage/margin 最小値と時点・peak debt・発散）。
+  **observed proxy は集計系列への操作的定義の代理であり、企業別実測分類ではない**。
+- **感応度分析**（`KeenSensitivityResult`、base を含む）: `KeenSensitivityScenario` で base に対する
+  `dataset` / `calibration_config` / `regime_config` の上書きを表す。`dataset` と
+  `calibration_config` が両方 base のシナリオ（＝ `amortization_rate` 変更等）は**再推定せず base の
+  calibrated モデルを再利用**するため、ODE・推定結果は不変で診断だけが変わる。既定シナリオは
+  `amortization_rate` 3 値・実質金利代理・initial guess 変更・variable weight 変更。`ω` proxy 代替・
+  標本期間変更は代替 `KeenEmpiricalDataset` を要するため、`sensitivity_scenarios` へ追加して指定する。
+- **合格判定**: Phase 3 では単一 pass/fail 閾値を課さない。calibrated が literature より悪化した場合は
+  `calibrated_worse_than_literature` と `warnings` で明示し隠さない。発散・弱識別・境界張り付きも
+  `warnings` に集約する。`caveats`（`KEEN_VALIDATION_CAVEATS`）で fit ≠ 因果・危機確率・投資助言を明記する。
+- **再現性**: 同一 `dataset`・`config` で決定的。`keen_validation_to_dict` / `save_keen_validation` で
+  metric・regime サマリー・感応度・split 情報・provenance を JSON 保存する（生系列・dataset は含めない）。
 
 ---
 
@@ -270,8 +309,8 @@ Keen の 10 パラメータを、**実データ・文献値・固定仮定のど
 
 ## 9. 対象外（本設計のスコープ外）
 
-> 以下は本設計（#119）自体のスコープ外。データ取得・変換（#120）と限定キャリブレーション（#121, §5.4）は
-> 後続 Issue で実装済み。
+> 以下は本設計（#119）自体のスコープ外。データ取得・変換（#120）・限定キャリブレーション（#121, §5.4）・
+> 実証バリデーションと感応度分析（#122, §6.1）は後続 Issue で実装済み。
 
 - 全 10 パラメータの完全推定（限定キャリブレーションは §5.4 で実装済み。全同時推定は将来オプション）
 - 日本向け系列の最終実装

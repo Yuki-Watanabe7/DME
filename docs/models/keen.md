@@ -390,6 +390,28 @@ RBC・New Keynesian の IRF（対数偏差）とは異なり、**水準（比率
 2. BIS 信用統計（GDP比）の長期平均・トレンドから `d` の妥当な範囲を確認する
 3. 政策金利・貸出約定平均金利の長期平均から `r` を設定する
 
+実データ接続の実装は次の 3 層に分かれる（いずれも `KeenModel` 本体を変更しない読み取り専用層）。
+
+- **データ層** `build_keen_empirical_dataset`（`src/data/keen_empirical.jl`）: 系列取得・単位変換・四半期整列で `KeenEmpiricalDataset` を構築
+- **推定層** `calibrate_keen`（`src/analysis/keen_calibration.jl`）: 固定/推定パラメータを分離した ODE residual 方式の限定キャリブレーション
+- **検証層** `validate_keen`（`src/analysis/keen_validation.jl`）: in-sample/out-of-sample・literature vs calibrated・方向性/転換点/regime 遷移・診断仮定感応度を構造化して返す
+
+### 実証バリデーション（`validate_keen`）
+
+`validate_keen(dataset, config)` は、literature default と calibrated モデルを**同一データ・同一 metric**で
+in-sample（calibration 期間）と out-of-sample（validation 期間）へ分けて評価する。validation の初期値は
+実観測から開始する方式（`:observed_start`）と calibration 終点予測から連続する方式（`:calibration_continued`）を
+別 metric として区別し、look-ahead を作らない。水準誤差（RMSE/MAE）に加え方向性・転換点・
+金融不安定性 regime 遷移（[Minsky 資金調達区分診断](minsky_regime_diagnostics.md)・Phase 2 の
+`minsky_diagnostics_summary`）・発散有無を分けて評価し、`amortization_rate`・金利方式・系列 proxy・標本期間・
+initial guess・weight への感応度を返す。
+
+`amortization_rate` の変更は診断のみに作用し ODE・推定結果を変えない（感応度シナリオは base の推定を再利用）。
+observed proxy regime は集計系列への操作的定義の代理であり企業別実測分類ではない。実証 fit は因果関係・
+危機発生確率・将来予測精度と同一ではなく、Phase 3 では単一 pass/fail 閾値を課さない（成功・失敗・限界を
+metric・`warnings`・`caveats` として返す）。詳細は [実証化戦略 §6](keen_empirical_strategy.md)・
+[API リファレンス](../api.md)、決定記録は [ADR 0004](../adr/0004-keen-empirical-calibration-strategy.md)。
+
 ---
 
 ## 12. 参考文献・参考実装

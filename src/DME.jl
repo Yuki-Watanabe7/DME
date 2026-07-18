@@ -121,6 +121,20 @@ export
     save_keen_calibration,
     save_keen_calibration_config,
     load_keen_calibration_config,
+    # Keen 実証バリデーション・感応度分析
+    KEEN_VALIDATION_METHODOLOGY_VERSION,
+    KEEN_VALIDATION_CAVEATS,
+    KeenVariableMetrics,
+    KeenSensitivityScenario,
+    KeenValidationConfig,
+    keen_default_validation_config,
+    KeenPeriodEvaluation,
+    KeenRegimeComparison,
+    KeenSensitivityResult,
+    KeenValidationResult,
+    validate_keen,
+    keen_validation_to_dict,
+    save_keen_validation,
     # Minsky visualization (Keen model, Phase 2)
     plot_financing_regimes,
     plot_minsky_diagnostics,
@@ -164,6 +178,8 @@ export
 #   _classify_financing_regime, _diagnose_from_series
 #   _keen_build_pairs, _keen_objective, _keen_model_from_params, _nelder_mead,
 #   _keen_weights, _keen_invalid_penalty, _keen_lcg, _keen_rand, _keen_dataset_metadata
+#   _keen_variable_metrics, _keen_corr, _keen_turning_points, _keen_predict_over,
+#   _keen_evaluate_model, _keen_run_sensitivity, _keen_model_diagnostics
 #   _contiguous_regime_runs, _clip_ratio_for_plot, _minsky_diagnostic_panel,
 #   _check_comparable_minsky_configs
 #   _load_fred_fixture, _fetch_fred_live, _parse_fred_json,
@@ -222,6 +238,9 @@ include("./analysis/minsky_diagnostics.jl")
 
 # Keen 限定キャリブレーション（depends on KeenModel と KeenEmpiricalDataset）
 include("./analysis/keen_calibration.jl")
+
+# Keen 実証バリデーション・感応度分析（depends on keen_calibration.jl と minsky_diagnostics.jl）
+include("./analysis/keen_validation.jl")
 
 # Visualization (depends on SimulationResult)
 include("./core/visualization.jl")

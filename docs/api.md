@@ -553,6 +553,83 @@ cfg2 = load_keen_calibration_config("cfg.json")    # 読込 → 同じ fixture �
 
 ---
 
+### Keen 実証バリデーション・感応度分析
+
+`calibrate_keen`（推定層）・`simulate`（RK4 積分）・`minsky_diagnostics_summary`（Phase 2 診断）を
+組み合わせ、Keen モデルの実証結果を **in-sample / out-of-sample・literature vs calibrated・
+方向性/転換点/regime 遷移・診断仮定感応度**の観点で構造化して返す読み取り専用の後処理層。
+`KeenModel`・`KeenEmpiricalDataset`・`KeenCalibrationResult` は変更しない。設計は
+[実証化戦略 §6](models/keen_empirical_strategy.md)。
+
+```julia
+const KEEN_VALIDATION_METHODOLOGY_VERSION = "keen-validation/1.0.0"
+const KEEN_VALIDATION_CAVEATS  # fit ≠ 因果/危機確率/投資助言 等の固定注意文言
+
+struct KeenVariableMetrics      # 変数別 metric（RMSE/MAE/correlation/bias/direction/turning point/標準化）
+struct KeenSensitivityScenario  # base への上書き（dataset / calibration_config / regime_config）
+KeenSensitivityScenario(; name, kind, dataset=nothing, calibration_config=nothing,
+                          regime_config=nothing, note="") -> KeenSensitivityScenario
+#   kind ∈ (:amortization_rate,:rate_method,:wage_share_proxy,:calibration_sample,
+#           :initial_guess,:variable_weight,:custom)
+
+struct KeenValidationConfig
+    calibration_config::KeenCalibrationConfig
+    regime_config::FinancingRegimeConfig
+    comparison_models::Vector{Symbol}       # ⊆ [:literature,:calibrated]
+    initial_state_modes::Vector{Symbol}     # ⊆ [:observed_start,:calibration_continued]
+    eval_variables::Vector{Symbol}          # ⊆ [:ω,:λ,:d]
+    metrics::Vector{Symbol}
+    sensitivity_scenarios::Vector{KeenSensitivityScenario}
+    substeps_per_year::Int                  # 予測 RK4 の年あたりステップ数（既定 4）
+    guard_max::Float64; methodology_version::String
+end
+keen_default_validation_config(dataset; calibration_config=..., regime_config=...,
+                                real_rate_spread=0.02, kwargs...) -> KeenValidationConfig
+
+validate_keen(dataset::KeenEmpiricalDataset, config) -> KeenValidationResult
+
+struct KeenPeriodEvaluation     # (model × period × init_mode) の観測/予測系列と変数別 metric
+struct KeenRegimeComparison     # observed / literature / calibrated の MinskyDiagnosticsSummary
+struct KeenSensitivityResult    # base を含むシナリオ別の推定値・fit・regime・遷移・発散
+struct KeenValidationResult
+    config; calibration_result::KeenCalibrationResult
+    evaluations::Vector{KeenPeriodEvaluation}
+    regime_comparison::KeenRegimeComparison
+    sensitivity::Vector{KeenSensitivityResult}
+    split_info::Dict; calibrated_worse_than_literature::Bool
+    warnings::Vector{String}; caveats::Vector{String}
+    dataset_metadata::Dict; methodology_version::String; metadata::Dict
+end
+
+keen_validation_to_dict(result) -> Dict            # JSON 化可能な要約（生系列・dataset は含めない）
+save_keen_validation(path, result) -> path
+```
+
+**使用例**:
+
+```julia
+ds   = build_keen_empirical_dataset(keen_us_default_config();
+           client = FredClient(mode=:fixture, fixture_dir="test/fixtures/keen"))
+vcfg = keen_default_validation_config(ds)          # amort 3値・実質金利代理・init guess・weight 感応度を既定装備
+res  = validate_keen(ds, vcfg)
+
+res.evaluations                        # literature/calibrated × in_sample/out_of_sample × init_mode
+res.calibrated_worse_than_literature   # calibrated が literature より悪化したか（隠さない）
+res.regime_comparison.observed_summary.first_ponzi_time   # observed proxy の Ponzi 初到達（集計代理）
+res.sensitivity[1].estimated           # base 推定値。amort シナリオは reused_base_calibration=true で同一
+res.warnings                           # 発散・弱識別・境界張り付き・validation 空 等
+
+save_keen_validation("val.json", res)  # 決定的（同一 ds・config で同一結果）
+```
+
+> **注意（実証 fit の限界）**: 実証 fit は因果関係・危機発生確率・将来予測精度と同一ではない。
+> observed proxy regime は集計系列への操作的定義の代理であり企業別実測分類ではない。
+> `amortization_rate` 等の診断仮定は作業仮定であり、regime 判定はその仮定に依存する。
+> Phase 3 では単一 pass/fail 閾値を課さず、成功・失敗・限界を metric・`warnings`・`caveats` として返す。
+> 詳細は [実証化戦略 §6・§8](models/keen_empirical_strategy.md) と [ADR 0004](adr/0004-keen-empirical-calibration-strategy.md)。
+
+---
+
 ### 可視化API
 
 ```julia
