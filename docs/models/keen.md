@@ -198,6 +198,30 @@ diag.transitions                # 区分が変化した時点の一覧
 [Minsky 資金調達区分診断](minsky_regime_diagnostics.md) と [`docs/api.md`](../api.md) を参照。
 集計モデル上の代理指標であり、倒産予測・危機予測ではない点に注意する（§9・§10）。
 
+### Minsky 連続診断指標・サマリー（Phase 2）
+
+区分（Hedge/Speculative/Ponzi）だけでは失われる連続量（利払い・デットサービスの
+カバレッジ比率、境界までのマージン、債務変化等）と、regime 滞在比率・最初の悪化時点・
+peak/minimum・発散時点をまとめたサマリーを提供する。上記の区分診断と同一の判定結果を
+内部で共有するため、区分と連続指標が食い違うことはない。
+
+```julia
+diag = minsky_diagnostics(m, result)              # MinskyDiagnosticsResult
+diag.observations[1].interest_coverage_ratio      # 利払いカバレッジ比率
+diag.divergence_time                              # 発散ガード作動時点（nothing なら未発散）
+
+summary = minsky_diagnostics_summary(diag)         # MinskyDiagnosticsSummary
+summary.first_ponzi_time                           # 最初に ponzi へ移行した時点（nothing なら未到達）
+summary.peak_debt_ratio                            # 有効期間内の債務比率の最大値
+
+# baseline / 高金利 / 高初期債務 / amortization_rate 感応度シナリオの比較入口
+cmp = minsky_diagnostics_comparison(["baseline" => diag_base, "high_debt" => diag_high_debt])
+```
+
+指標定義・0除算規則・`debt_change` の算出方式・型契約の詳細は
+[Minsky 連続診断指標・サマリー](minsky_diagnostics_summary.md) を参照。
+重み付き単一複合スコアは Phase 2 では提供しない（§9・§10 の限界に同じ）。
+
 ---
 
 ## 8. 出力結果の読み方
