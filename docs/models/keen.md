@@ -380,6 +380,8 @@ RBC・New Keynesian の IRF（対数偏差）とは異なり、**水準（比率
 | `d`（民間債務比率） | FRED: `QJPPAM770A`（BIS 民間非金融部門信用/GDP、日本） | FRED: `CRDQUSAPABIS`（同・米国） | いずれも BIS 集計値ベース |
 | `r`（貸出金利） | 日本銀行・貸出約定平均金利 | FRED: `DPRIME` 等 | モデルの `r` は一定と仮定するが、実データは時変 |
 
+実データ接続の観測方程式・単位変換規則・共通頻度・年単位ODEと四半期観測を整合させる時間軸契約・固定/推定パラメータの分離・識別戦略・検証方針は、[Keen モデル 実証化戦略](keen_empirical_strategy.md)（決定記録は [ADR 0004](../adr/0004-keen-empirical-calibration-strategy.md)）で定義する。上表の系列は候補であり、採用前に「指数か比率か」「部門範囲」「季節調整」「基準年」を provider metadata で検証すること。
+
 詳細は [Minsky系金融不安定性モデル設計方針](minsky_design.md) セクション7、[モデル変数と実データ系列のマッピング表](../data/variable_mapping.md)を参照。
 
 ### キャリブレーション手順の概要
