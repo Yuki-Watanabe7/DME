@@ -32,6 +32,16 @@ export
     trim_period,
     to_quarterly,
     to_annual,
+    # Keen empirical dataset
+    KeenSeriesSpec,
+    keen_convert_value,
+    keen_value_valid,
+    KeenEmpiricalDataConfig,
+    keen_us_default_config,
+    KeenSeriesProvenance,
+    KeenEmpiricalDataset,
+    build_keen_empirical_dataset,
+    KEEN_EMPIRICAL_METHODOLOGY_VERSION,
     # Model type hierarchy
     AbstractMacroModel,
     RamseyModel,
@@ -162,6 +172,7 @@ include("./data/data_series.jl")
 include("./data/preprocess.jl")
 include("./data/fred.jl")
 include("./data/estat.jl")
+include("./data/keen_empirical.jl")
 
 # Numerical utilities: grid types and interpolation
 include("./numerics/grids.jl")

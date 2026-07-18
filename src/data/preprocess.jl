@@ -385,18 +385,21 @@ end
 各四半期の集計方法:
 - `method=:mean` : 平均（デフォルト）
 - `method=:sum`  : 合計
+- `method=:end`  : 期末値（四半期内で最も遅い月の非欠損値）
 
-四半期内に欠損値がある場合は欠損を除いて集計する。
+四半期内に欠損値がある場合は欠損を除いて集計する（`:end` は最も遅い月の非欠損値を採用）。
 四半期内がすべて欠損の場合は `missing` を返す。
+入力月の順序に依存せず、月番号に基づいて集計する。
 """
 function to_quarterly(s::DataSeries; method::Symbol = :mean)
     s.frequency == Monthly ||
         throw(ArgumentError("月次系列が必要です (frequency=$(s.frequency))"))
-    method in (:mean, :sum) ||
-        throw(ArgumentError("method は :mean または :sum でなければなりません"))
+    method in (:mean, :sum, :end) ||
+        throw(ArgumentError("method は :mean, :sum または :end でなければなりません"))
 
     q_keys = String[]
-    q_groups = Dict{String, Vector{Union{Float64, Missing}}}()
+    # 各四半期を (月番号, 値) の組で保持し、順序不定・期末集計に対応する
+    q_groups = Dict{String, Vector{Tuple{Int, Union{Float64, Missing}}}}()
 
     for (date, val) in zip(s.dates, s.values)
         m = match(r"^(\d{4})-(\d{2})$", date)
@@ -409,15 +412,29 @@ function to_quarterly(s::DataSeries; method::Symbol = :mean)
         key = "$(year)-Q$(qnum)"
         if !haskey(q_groups, key)
             push!(q_keys, key)
-            q_groups[key] = Union{Float64, Missing}[]
+            q_groups[key] = Tuple{Int, Union{Float64, Missing}}[]
         end
-        push!(q_groups[key], val)
+        push!(q_groups[key], (mon, val))
     end
 
     new_dates = q_keys
     new_values = Vector{Union{Float64, Missing}}(undef, length(q_keys))
     for (i, key) in enumerate(q_keys)
-        non_miss = collect(Float64, skipmissing(q_groups[key]))
+        pairs = q_groups[key]
+        if method === :end
+            # 月番号が最大の非欠損値を採用（欠損月は無視）
+            sorted = sort(pairs; by = first, rev = true)
+            v = missing
+            for (_, pv) in sorted
+                if !ismissing(pv)
+                    v = pv
+                    break
+                end
+            end
+            new_values[i] = v
+            continue
+        end
+        non_miss = collect(Float64, skipmissing(p[2] for p in pairs))
         if isempty(non_miss)
             new_values[i] = missing
         elseif method === :mean

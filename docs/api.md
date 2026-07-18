@@ -403,6 +403,72 @@ get_series(ds, "FRED_GDPC1").name  # "Real GDP"
 
 ---
 
+### Keen 実証データセット
+
+Keen モデルの状態変数 `ω`・`λ`・`d` と外生金利 `r` を実データ（FRED fixture/live/rest_api）から
+取得・単位変換・四半期整列し、キャリブレーション/検証にそのまま使える構造化データセットへまとめる
+読み取り専用層。観測方程式・時間軸契約・識別戦略の設計は
+[Keen モデル 実証化戦略](models/keen_empirical_strategy.md)（決定記録 [ADR 0004](adr/0004-keen-empirical-calibration-strategy.md)）。
+
+```julia
+# 1 系列の観測方程式・単位変換・四半期化方式・妥当域
+struct KeenSeriesSpec
+    variable::Symbol       # :ω / :λ / :d / :r
+    source_id::String      # 例 "CRDQUSAPABIS"（DataSeries.id は "FRED_<source_id>"）
+    conversion::Symbol     # :ratio_from_percent / :employment_from_unrate / :identity_ratio
+    aggregation::Symbol    # 月次→四半期: :mean / :sum / :end（四半期系列では無視）
+    domain_lo::Float64     # 変換後の妥当域（clamp せず域外は invalid）
+    domain_hi::Float64
+    forbid_index::Bool     # 指数 unit の水準シェア誤用を拒否
+end
+
+# 純粋関数（観測方程式・単位変換・妥当域検証）
+keen_convert_value(spec, v)   # v/100・1-v/100・v。missing/非有限は 0埋めせず伝播
+keen_value_valid(spec, v)     # 有限かつ domain 内なら true（clamp しない）
+
+# 国別設定（モデル本体から分離）
+struct KeenEmpiricalDataConfig
+    country::String
+    omega::KeenSeriesSpec; lambda; debt; rate
+    sample_start::Union{String,Nothing}; sample_end  # nothing で共通期間から自動
+    min_valid_obs::Int                                # 下回れば明示的に失敗
+    r_mode::Symbol                                    # :sample_mean / :start / :fixed
+    r_fixed::Float64
+    validation_split::Union{Float64,String}           # 末尾比率 or 分割点四半期
+    methodology_version::String
+end
+keen_us_default_config(; kwargs...)  # 米国 MVP 既定（ω は指数を拒否）
+
+# 構築（元データは無変更で派生 dataset を返す）
+build_keen_empirical_dataset(config; client=FredClient(), retrieved_at=nothing)  # fixture/live/rest_api 共通契約
+build_keen_empirical_dataset(config, dataset::MacroDataset; mode=:provided, retrieved_at=nothing)
+
+struct KeenEmpiricalDataset
+    config
+    dates::Vector{String}                # 共通四半期軸（日付 intersection・時間順）
+    observation_times::Vector{Float64}   # 年単位・先頭 0.0・Δ=0.25（欠損は間隔に反映）
+    ω; λ; d; r::Vector{Float64}          # モデル単位へ変換・整列済み
+    initial_state::NamedTuple            # (ω0, λ0, d0)
+    r_param::Float64                     # r_mode に基づく固定金利
+    calibration_indices; validation_indices::Vector{Int}  # 重複・look-ahead なし
+    provenance::Dict{Symbol,KeenSeriesProvenance}         # source/mode/元unit/変換式/aggregation/採用期間
+    dropped_dates::Vector{String}; quality_flags::Dict    # 欠損/invalid の追跡
+    source_dataset::MacroDataset; metadata::Dict
+end
+```
+
+**使用例**:
+
+```julia
+client = FredClient(mode=:fixture, fixture_dir="test/fixtures/keen")
+ds = build_keen_empirical_dataset(keen_us_default_config(); client=client)
+ds.initial_state          # (ω0=..., λ0=..., d0=...)  Keen simulate の初期値
+ds.observation_times      # [0.0, 0.25, 0.5, ...]
+ds.provenance[:d]         # 系列 d の source/変換式/採用期間
+```
+
+---
+
 ### 可視化API
 
 ```julia
