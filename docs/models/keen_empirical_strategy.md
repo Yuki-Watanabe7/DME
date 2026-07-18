@@ -9,7 +9,7 @@
 | 項目 | 内容 |
 |---|---|
 | **対象モデル** | Keen モデル（`KeenModel`、[keen.md](keen.md)） |
-| **ステータス** | 設計（本書はデータ取得・推定コードの本実装に先立つ設計文書。実装は後続 Issue） |
+| **ステータス** | 設計 + データ層実装済み。§2〜§4 のデータ取得・単位変換・四半期整列は `src/data/keen_empirical.jl`（`build_keen_empirical_dataset`、#120）で実装。§5 の推定・§6 の検証コードは後続 Issue |
 | **前提ドキュメント** | [Keen モデル解説](keen.md)・[Minsky系金融不安定性モデル設計方針](minsky_design.md)・[モデル変数と実データ系列のマッピング表](../data/variable_mapping.md)・[Minsky 資金調達区分診断](minsky_regime_diagnostics.md) |
 | **methodology version（予定）** | `keen-empirical/1.0.0`（診断層の `minsky-regime/*`・`minsky-diagnostics/*` とは独立に管理） |
 | **基準経済（初版）** | 米国。日本は同一契約への拡張対象 |
@@ -263,5 +263,6 @@ Keen の 10 パラメータを、**実データ・文献値・固定仮定のど
 - [モデル変数と実データ系列のマッピング表](../data/variable_mapping.md) §2.9 — Keen 変数の対応品質・変換注意
 - [Minsky 資金調達区分診断](minsky_regime_diagnostics.md) — regime 遷移による検証で再利用する診断層
 - [FRED API 接続ガイド](../data/fred.md)・[実データ前処理ユーティリティ](../data/preprocess.md) — 取得・変換の実装基盤
+- [API リファレンス](../api.md) の「Keen 実証データセット」節 — `build_keen_empirical_dataset`・`KeenEmpiricalDataConfig`・`KeenEmpiricalDataset`（本戦略のデータ層実装）
 - [ADR 0004](../adr/0004-keen-empirical-calibration-strategy.md) — 識別戦略の決定記録
 - Grasselli, M. R., & Costa Lima, B. (2012). An analysis of the Keen model for credit expansion, asset price bubbles and financial fragility. *Mathematics and Financial Economics*, 6(3), 191-210.
