@@ -174,6 +174,46 @@ adapter は dataset の dates / 観測系列と result の trajectory / summary 
 | `to_compact_dict(ctx)` | トークン量を抑えたコンパクト版 Dict に変換 |
 | `build_docs_excerpts(model_name; ...)` | モデル名・変数名・キーワードから `DocsExcerpts` を生成（軽量RAG） |
 | `build_docs_excerpts(ctx; ...)` | `AnalysisContext` から `DocsExcerpts` を生成（軽量RAG） |
+| `build_keen_empirical_prompt(ctx; audience, detail)` | Keen 実証説明用の prompt 全文を生成（ADR 0005 §4、`keen_empirical` 必須） |
+| `explain_keen_empirical_result(ctx; audience, detail, provider)` | Keen 実証結果の根拠付き構造化説明を生成（provider 未接続で決定的、ADR 0005 §4〜§7、下記 §2.2） |
+| `parse_keen_empirical_response(raw, kctx; ...)` | provider 応答（JSON）を検証し `:parsed` 出力を返す（失敗時 `nothing`、ADR 0005 §7.1） |
+
+---
+
+## 2.2 Keen 実証結果の根拠付き説明 API（ADR 0005 §4〜§9）
+
+`KeenEmpiricalContext` を持つ `AnalysisContext` から、認識論的性質を分離した構造化説明
+`KeenEmpiricalExplanationOutput` を生成する。prompt 生成（`build_keen_empirical_prompt`）は
+provider 呼び出しから分離し、provider 未接続でも決定的 fallback 出力を単体利用できる。
+
+```julia
+kctx = KeenEmpiricalContext(dataset, result; mode = :fixture)
+actx = AnalysisContext(model, sr; keen_empirical = kctx)
+
+out = explain_keen_empirical_result(actx)              # provider 未接続 → generation_status=:deterministic
+out.validation_assessment.status                       # :available / :not_available / :insufficient_evidence
+out.source_references                                  # claim から参照された EvidenceSource のみ（重複排除）
+
+out2 = explain_keen_empirical_result(actx; provider = create_provider())  # 応答検証: :parsed か :fallback
+```
+
+### 必須 section と表示順（ADR 0005 §4.3）
+
+`executive_summary` → `analysis_scope` → `observed_evidence` → `measurement_and_transformations`
+→ `calibration_interpretation` → `validation_assessment` → `regime_assessment`
+→ `sensitivity_and_robustness` → `interpretation_scope` → `limitations_and_alternatives`。
+各 section は `ExplanationSection`（`status` / `claims` / `missing_fields`）。`claims` の各
+`EvidenceClaim` は `epistemic_status`（`observed` / `measured` / `estimated` / `simulated` /
+`diagnostic` / `sensitivity` / `limitation`）と、category が整合する 1 件以上の `source_ids` を持つ。
+
+### warning・fallback の制御（ADR 0005 §5・§7）
+
+- `error` / `blocking` の warning が該当 section を `insufficient_evidence` にし、肯定的解釈 claim を
+  抑止する（値の存在は qualifier 付きで報告）。
+- `blocking` warning がある場合は provider を呼ばず決定的 fallback にする。
+- provider 応答は JSON parse・`contract_version`・必須 section・source registry・category/status
+  整合を検証し、いずれか失敗で `OUTPUT_SCHEMA_INVALID` warning 付き決定的 fallback（`:fallback`）へ落ちる。
+  部分的な自由文 salvage は行わない。
 
 ---
 

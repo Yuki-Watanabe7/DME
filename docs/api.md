@@ -689,6 +689,63 @@ to_dict(actx)["keen_empirical"]["sources"]   # source registry（category 別に
 
 ---
 
+### Keen 実証結果の根拠付き説明API（`explain_keen_empirical_result`）
+
+`KeenEmpiricalContext` を持つ `AnalysisContext` から、認識論的性質を分離した構造化説明を生成する。
+必須 section・source 参照・warning・免責を常に含み、provider 未接続でも決定的に動作する。契約は
+[ADR 0005 §4〜§9](adr/0005-keen-ai-explanation-contract.md)。
+
+```julia
+# prompt 生成（provider 呼び出しから分離。keen_empirical が nothing なら ArgumentError）
+build_keen_empirical_prompt(ctx::AnalysisContext; audience=:analyst, detail=:standard) -> String
+
+# 構造化説明（provider=nothing なら決定的生成。provider 指定時は応答を検証し parsed/fallback）
+explain_keen_empirical_result(ctx::AnalysisContext;
+    audience=:analyst, detail=:standard, provider=nothing,
+    max_tokens=3000, temperature=0.2) -> KeenEmpiricalExplanationOutput
+
+# provider raw 応答（JSON）を検証。成功で :parsed 出力、失敗で nothing（呼び出し側が fallback）
+parse_keen_empirical_response(raw, kctx::KeenEmpiricalContext;
+    audience=:analyst, detail=:standard, prompt="") -> Union{KeenEmpiricalExplanationOutput, Nothing}
+
+to_dict(out::KeenEmpiricalExplanationOutput)   # section を表示順で保持した JSON 化可能な Dict
+to_json(out::KeenEmpiricalExplanationOutput)
+```
+
+`KeenEmpiricalExplanationOutput` は次を常に持つ（順序は ADR 0005 §4.3）:
+`executive_summary`・`analysis_scope`・`observed_evidence`・`measurement_and_transformations`・
+`calibration_interpretation`・`validation_assessment`・`regime_assessment`・
+`sensitivity_and_robustness`・`interpretation_scope`・`limitations_and_alternatives`（各 `ExplanationSection`）、
+`source_references`・`reproducibility`・`warnings`・`disclaimer`・`generation_status`
+（`:deterministic` / `:parsed` / `:fallback`）・`contract_version`（`keen-ai-output/1.0.0`）。
+
+各 `ExplanationSection` は `status`（`:available` / `:not_available` / `:insufficient_evidence`）・
+`claims::Vector{EvidenceClaim}`・`missing_fields` を持つ。`EvidenceClaim` は `epistemic_status`
+（`observed` / `measured` / `estimated` / `simulated` / `diagnostic` / `sensitivity` / `limitation`）と
+1 件以上の `source_ids`（registry 登録済・category と整合）・`qualifiers` を持つ。
+
+```julia
+kctx = KeenEmpiricalContext(ds, res; mode=:fixture)
+actx = AnalysisContext(model, sr; keen_empirical=kctx)
+
+out = explain_keen_empirical_result(actx)          # provider 未接続 → :deterministic
+out.calibration_interpretation.status              # :available / :insufficient_evidence
+out.source_references                              # claim から参照された EvidenceSource のみ
+
+# 実 provider を使う場合（応答が検証を通れば :parsed、失敗すれば安全な :fallback）
+out2 = explain_keen_empirical_result(actx; provider=create_provider())
+```
+
+> **注意**: warning の severity=`error`/`blocking` が該当 section を `insufficient_evidence` にし、
+> 肯定的解釈 claim を抑止する（値の存在は qualifier 付きで報告）。`blocking` warning がある場合は
+> provider を呼ばず fallback にする。provider 応答は JSON parse・必須 section・source registry・
+> category/status 整合を検証し、いずれか失敗で `parser failure` warning 付き決定的 fallback へ落ちる。
+> 公開型: `KeenEmpiricalExplanationOutput`・`ExplanationSection`・`EvidenceClaim`。
+> 定数: `KEEN_AI_OUTPUT_CONTRACT_VERSION`・`KEEN_EPISTEMIC_STATUSES`・`KEEN_SECTION_STATUSES`・
+> `KEEN_OUTPUT_SECTION_ORDER`。
+
+---
+
 ### 可視化API
 
 ```julia
