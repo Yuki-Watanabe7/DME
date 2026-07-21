@@ -652,6 +652,43 @@ fixture/live/rest_api の全フロー（データ→推定→検証→感応度�
 
 ---
 
+### Keen 実証 AI コンテキスト（`KeenEmpiricalContext`）
+
+Keen 実証層の成果物を、認識論的性質（観測 / 測定 / 推定 / モデル出力 / 診断proxy / 感応度 / 限界）を
+混同せずに LLM へ渡すための `AnalysisContext` 拡張。全主張を安定 source ID（`EvidenceSource`）へ
+結び付ける。契約は [ADR 0005](adr/0005-keen-ai-explanation-contract.md)、型の詳細は
+[AnalysisContext 設計 §2.1](architecture/analysis_context.md)。
+
+```julia
+# 実証層成果物から生成する主 adapter（再計算せず写像。非有限は 0 化せず null）
+KeenEmpiricalContext(dataset::KeenEmpiricalDataset, result::KeenValidationResult;
+                     mode=nothing, prompt_version=KEEN_AI_PROMPT_VERSION) -> KeenEmpiricalContext
+
+# AnalysisContext の optional field として添付（既存 API・explain_result は無変更）
+AnalysisContext(m, result; keen_empirical=nothing, kwargs...)
+
+to_dict(ctx::KeenEmpiricalContext)          # JSON 化可能な Dict（未実施 section は nothing/空）
+to_compact_dict(ctx::KeenEmpiricalContext)  # observed の生系列を落としたトークン節約版
+```
+
+公開型: `KeenEmpiricalContext`・`EvidenceSource`・`ExplanationWarning`・`AnalysisScope`・
+`ObservedSeriesSummary`・`MethodologySummary`・`CalibrationSummary`・`ModelOutputSummary`・
+`ValidationSummary`（`ValidationEvaluationSummary`・`ValidationVariableFit`）・
+`RegimeDiagnosticSummary`・`SensitivitySummary`・`LimitationSummary`。
+定数: `KEEN_AI_CONTEXT_CONTRACT_VERSION`・`KEEN_AI_PROMPT_VERSION`・`KEEN_EVIDENCE_CATEGORIES`。
+
+```julia
+kctx = KeenEmpiricalContext(ds, res; mode=:fixture)
+actx = AnalysisContext(model, sr; keen_empirical=kctx)
+to_dict(actx)["keen_empirical"]["sources"]   # source registry（category 別に根拠を分離）
+```
+
+> **注意**: 推定値を因果パラメータ・普遍定数と断定しない。in/out-of-sample fit を妥当性・予測保証へ
+> 昇格させない。observed proxy regime をモデル内生 regime と同一視しない。warning severity が
+> 該当 section の解釈可否を規定する（ADR 0005 §5・§6）。
+
+---
+
 ### 可視化API
 
 ```julia

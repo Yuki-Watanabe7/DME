@@ -156,6 +156,24 @@ export
     to_dict,
     to_json,
     to_compact_dict,
+    # Keen 実証 AI コンテキスト（ADR 0005）
+    KEEN_AI_CONTEXT_CONTRACT_VERSION,
+    KEEN_AI_PROMPT_VERSION,
+    KEEN_EVIDENCE_CATEGORIES,
+    EvidenceSource,
+    ExplanationWarning,
+    AnalysisScope,
+    ObservedSeriesSummary,
+    MethodologySummary,
+    CalibrationSummary,
+    ModelOutputSummary,
+    ValidationVariableFit,
+    ValidationEvaluationSummary,
+    ValidationSummary,
+    RegimeDiagnosticSummary,
+    SensitivitySummary,
+    LimitationSummary,
+    KeenEmpiricalContext,
     # LLM doc context (軽量RAG)
     build_docs_excerpts,
     # LLM prompt generation
@@ -260,7 +278,11 @@ include("./analysis/minsky_visualization.jl")
 # Keen 実証比較可視化（depends on keen_validation.jl と minsky_visualization.jl）
 include("./analysis/keen_empirical_visualization.jl")
 
-# LLM context layer (depends on SimulationResult and model interface)
+# Keen 実証コンテキスト（depends on keen_validation.jl と minsky_diagnostics.jl。
+# AnalysisContext の optional field 型を提供するため analysis_context.jl より前に include）
+include("./llm/keen_empirical_context.jl")
+
+# LLM context layer (depends on SimulationResult, model interface, keen_empirical_context.jl)
 include("./llm/analysis_context.jl")
 include("./llm/doc_context.jl")
 include("./llm/prompts.jl")

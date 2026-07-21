@@ -148,6 +148,8 @@ Dict または JSON 文字列に変換してプロンプトへ埋め込む。
 - `data_comparison_summary::Union{DataComparisonSummary, Nothing}` : 実データ比較サマリー（任意）
 - `caveats::Caveats` : 免責・注意事項
 - `docs_excerpts::Union{DocsExcerpts, Nothing}` : ドキュメント抜粋（任意）
+- `keen_empirical::Union{KeenEmpiricalContext, Nothing}` : Keen 実証分析コンテキスト（任意、
+  ADR 0005 §3）。実証層成果物を説明する場合のみ設定し、通常の simulation 説明では `nothing`
 
 ## 使用例
 
@@ -177,6 +179,7 @@ struct AnalysisContext
     data_comparison_summary::Union{DataComparisonSummary, Nothing}
     caveats::Caveats
     docs_excerpts::Union{DocsExcerpts, Nothing}
+    keen_empirical::Union{KeenEmpiricalContext, Nothing}
 end
 
 """
@@ -189,6 +192,7 @@ end
 - `caveats::Caveats = Caveats()` : 免責・注意事項
 - `data_comparison_summary::Union{DataComparisonSummary, Nothing} = nothing` : 実データ比較サマリー
 - `docs_excerpts::Union{DocsExcerpts, Nothing} = nothing` : ドキュメント抜粋
+- `keen_empirical::Union{KeenEmpiricalContext, Nothing} = nothing` : Keen 実証コンテキスト（ADR 0005 §3）
 """
 function AnalysisContext(
     m::AbstractMacroModel,
@@ -197,6 +201,7 @@ function AnalysisContext(
     caveats::Caveats = Caveats(),
     data_comparison_summary::Union{DataComparisonSummary, Nothing} = nothing,
     docs_excerpts::Union{DocsExcerpts, Nothing} = nothing,
+    keen_empirical::Union{KeenEmpiricalContext, Nothing} = nothing,
 )
     AnalysisContext(
         ModelMetadata(m),
@@ -204,6 +209,7 @@ function AnalysisContext(
         data_comparison_summary,
         caveats,
         docs_excerpts,
+        keen_empirical,
     )
 end
 
@@ -292,7 +298,7 @@ end
     to_dict(ctx::AnalysisContext) -> Dict{String, Any}
 
 `AnalysisContext` を `Dict{String, Any}` に変換する。
-`Nothing` のオプショナルフィールド（`data_comparison_summary`, `docs_excerpts`）は出力に含まれない。
+`Nothing` のオプショナルフィールド（`data_comparison_summary`, `docs_excerpts`, `keen_empirical`）は出力に含まれない。
 """
 function to_dict(ctx::AnalysisContext)
     d = Dict{String, Any}(
@@ -305,6 +311,9 @@ function to_dict(ctx::AnalysisContext)
     end
     if !isnothing(ctx.docs_excerpts)
         d["docs_excerpts"] = to_dict(ctx.docs_excerpts)
+    end
+    if !isnothing(ctx.keen_empirical)
+        d["keen_empirical"] = to_dict(ctx.keen_empirical)
     end
     d
 end
@@ -350,6 +359,9 @@ function to_compact_dict(ctx::AnalysisContext)
         if all(v == "" for v in values(de))
             delete!(d, "docs_excerpts")
         end
+    end
+    if !isnothing(ctx.keen_empirical)
+        d["keen_empirical"] = to_compact_dict(ctx.keen_empirical)
     end
     d
 end
