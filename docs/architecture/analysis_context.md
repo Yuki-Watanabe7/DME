@@ -22,8 +22,15 @@ AnalysisContext
 ├── simulation_result_summary :: SimulationResultSummary
 ├── data_comparison_summary   :: Union{DataComparisonSummary, Nothing}
 ├── caveats               :: Caveats
-└── docs_excerpts         :: Union{DocsExcerpts, Nothing}
+├── docs_excerpts         :: Union{DocsExcerpts, Nothing}
+└── keen_empirical        :: Union{KeenEmpiricalContext, Nothing}   # ADR 0005 §3（下記 §2.1）
 ```
+
+`keen_empirical` は Keen 実証分析（キャリブレーション・検証・regime 診断・感応度・方法論）を
+LLM へ構造化して渡すための optional field である。通常の simulation 説明では `nothing` とし、
+実証層成果物を説明する場合のみ設定する。既存 constructor・`explain_result` /
+`explain_data_comparison` の意味は一切変更しない。詳細は §2.1 と
+[ADR 0005](../adr/0005-keen-ai-explanation-contract.md) を参照。
 
 ### ModelMetadata
 
@@ -82,6 +89,76 @@ LLM の文脈として提供するドキュメント抜粋。RAG 層が検索・
 
 ---
 
+## 2.1 Keen 実証コンテキスト（`KeenEmpiricalContext`, ADR 0005 §3）
+
+Keen 実証層（観測系列変換・限定キャリブレーション・in/out-of-sample 検証・observed proxy /
+model の regime 診断・感応度分析）の成果物を、**認識論的性質を混同せずに** LLM へ渡すための
+拡張コンテキスト。値の性質を 7 つの固定カテゴリ（`observed_data` / `measurement` /
+`calibration` / `model_output` / `diagnostic_proxy` / `sensitivity` / `limitations`）へ分離し、
+すべての主要主張を安定 source ID（`EvidenceSource` registry）へ結び付ける。設計契約は
+[ADR 0005](../adr/0005-keen-ai-explanation-contract.md)。
+
+### 構造
+
+```
+KeenEmpiricalContext
+├── contract_version   :: String                         # "keen-ai-context/1.0.0"
+├── analysis_scope     :: AnalysisScope                   # 国・期間・mode・比較モデル・split
+├── observed_data      :: Vector{ObservedSeriesSummary}   # 観測値・provenance（欠損は nothing）
+├── measurement        :: Union{MethodologySummary, Nothing}   # 観測方程式・変換・頻度・version
+├── calibration        :: Union{CalibrationSummary, Nothing}   # 推定設定・値・識別診断
+├── model_outputs      :: Vector{ModelOutputSummary}      # literature/calibrated trajectory・発散
+├── validation         :: Union{ValidationSummary, Nothing}    # in/OOS の変数別 fit metric
+├── regime_diagnostics :: Vector{RegimeDiagnosticSummary} # observed/literature/calibrated を別要素
+├── sensitivity        :: Vector{SensitivitySummary}      # base と変更 scenario・差・安定性
+├── limitations        :: Vector{LimitationSummary}       # 安定 code 付き caveats
+├── warnings           :: Vector{ExplanationWarning}      # code/severity/affected（§5）
+├── sources            :: Dict{String, EvidenceSource}    # source registry（§2）
+└── prompt_version     :: String
+```
+
+### 主要な補助型
+
+| 型 | 役割 |
+|---|---|
+| `EvidenceSource` | 主張の出所（`id`・`category`・`context_path`・provider/series/period/unit/method_id 等）。`id` は `^[a-z][a-z0-9_.-]*$` を満たす一意 ID |
+| `ExplanationWarning` | `code`・`severity`（`:info`/`:warning`/`:error`/`:blocking`）・`message`・`affected_source_ids`・`affected_sections` |
+| `AnalysisScope` | country・mode・sample 期間・比較モデル・calibration/validation 期間 |
+| `ObservedSeriesSummary` | 変数・date/value（欠損は `nothing`）・provider・series_id・mode・変換前後 unit・quality |
+| `MethodologySummary` | 系列対応・単位・変換式・頻度集約・欠損処理・各層 methodology version・seed |
+| `CalibrationSummary` | 推定/固定パラメータ・bounds・objective・収束・弱識別・非一意・境界張り付き等 |
+| `ModelOutputSummary` | literature/calibrated の full-sample trajectory 点数・発散・期間 |
+| `ValidationSummary` | 評価別（モデル×期間×初期値方式）の変数別 fit と literature 悪化フラグ |
+| `RegimeDiagnosticSummary` | subject（`observed_proxy`/`literature_model`/`calibrated_model`）別の regime share・遷移・カバレッジ・margin・発散 |
+| `SensitivitySummary` | シナリオ・変更仮定・base との差・符号反転・robustness status |
+| `LimitationSummary` | 安定 code・本文・根拠 category・affected source IDs |
+
+### 生成（adapter）
+
+```julia
+# 実証層成果物（keen_validation.jl）から生成する主 adapter
+dataset = build_keen_empirical_dataset(config, macro_ds)
+result  = validate_keen(dataset, keen_default_validation_config(dataset))
+kctx    = KeenEmpiricalContext(dataset, result; mode = :fixture)
+
+# AnalysisContext に optional field として載せる
+actx = AnalysisContext(model, sr; keen_empirical = kctx)
+to_dict(actx)["keen_empirical"]        # 実証コンテキストを含む Dict
+```
+
+adapter は dataset の dates / 観測系列と result の trajectory / summary を**再計算せず写像**する。
+非有限値（欠損・発散由来の `NaN`/`Inf`）は 0 化せず JSON `null`（`nothing`）とする。validation split が
+無い等で分析が欠ける場合は該当 section を空 / `nothing` とし、simulation-only に近い context も表現できる。
+
+### warning の標準 code（ADR 0005 §5）
+
+構造化フラグ・自由文 warning は標準 code へ写像される（`CALIBRATION_NOT_CONVERGED`・
+`WEAK_IDENTIFICATION`・`NONUNIQUE_SOLUTION`・`PARAMETER_AT_BOUND`・`OOS_WORSE_THAN_LITERATURE`・
+`MODEL_DIVERGED`・`REGIME_MISMATCH`・`SENSITIVITY_UNSTABLE`）。severity が該当 section の解釈可否を
+規定する（後続 #131 の説明 API が利用）。
+
+---
+
 ## 3. 公開 API
 
 | 関数 / コンストラクタ | 説明 |
@@ -90,8 +167,9 @@ LLM の文脈として提供するドキュメント抜粋。RAG 層が検索・
 | `SimulationResultSummary(result; shock_description)` | `SimulationResult` から統計サマリーを作成 |
 | `Caveats()` | 空の `Caveats` を作成 |
 | `DocsExcerpts()` | 空の `DocsExcerpts` を作成 |
-| `AnalysisContext(m, result; kwargs...)` | モデルと `SimulationResult` から `AnalysisContext` を作成 |
-| `to_dict(ctx)` | `Dict{String, Any}` に変換（各サブ型にも定義） |
+| `AnalysisContext(m, result; kwargs...)` | モデルと `SimulationResult` から `AnalysisContext` を作成（`keen_empirical` kwarg で Keen 実証コンテキストを添付可） |
+| `KeenEmpiricalContext(dataset, result; mode, prompt_version)` | 実証層成果物から Keen 実証コンテキストを生成（ADR 0005 §3、§2.1） |
+| `to_dict(ctx)` | `Dict{String, Any}` に変換（各サブ型・`KeenEmpiricalContext` にも定義） |
 | `to_json(ctx)` | JSON 文字列に変換 |
 | `to_compact_dict(ctx)` | トークン量を抑えたコンパクト版 Dict に変換 |
 | `build_docs_excerpts(model_name; ...)` | モデル名・変数名・キーワードから `DocsExcerpts` を生成（軽量RAG） |
