@@ -183,6 +183,17 @@ export
     ExplainDataComparisonOutput,
     build_data_comparison_prompt,
     explain_data_comparison,
+    # Keen 実証結果の根拠付き説明 API（ADR 0005 §4）
+    KEEN_AI_OUTPUT_CONTRACT_VERSION,
+    KEEN_EPISTEMIC_STATUSES,
+    KEEN_SECTION_STATUSES,
+    KEEN_OUTPUT_SECTION_ORDER,
+    EvidenceClaim,
+    ExplanationSection,
+    KeenEmpiricalExplanationOutput,
+    build_keen_empirical_prompt,
+    explain_keen_empirical_result,
+    parse_keen_empirical_response,
     # LLM provider abstraction
     LLMProviderError,
     LLMRequest,
@@ -287,5 +298,9 @@ include("./llm/analysis_context.jl")
 include("./llm/doc_context.jl")
 include("./llm/prompts.jl")
 include("./llm/provider.jl")
+
+# Keen 実証結果の根拠付き説明 API・専用 prompt（depends on keen_empirical_context.jl,
+# prompts.jl の _DISCLAIMER_JA, provider.jl の complete_from_prompt）
+include("./llm/keen_empirical_prompts.jl")
 
 end
