@@ -1,7 +1,7 @@
 # LLM出力の安全性・免責・禁止表現ルール
 
 > 関連Issue: #76
-> 関連ドキュメント: [LLM接続層の設計](architecture/llm_layer.md)
+> 関連ドキュメント: [LLM接続層の設計](architecture/llm_layer.md)・[ADR 0005: Keen 実証結果の AI 説明契約](adr/0005-keen-ai-explanation-contract.md)
 
 ---
 
@@ -84,6 +84,29 @@ DME のマクロ経済モデルは「特定の仮定下での条件付きシミ�
 
 ---
 
+### 2.6 Keen 実証分析固有の禁止解釈
+
+Keen の実証分析では、観測データ、測定変換、推定値、モデル出力、diagnostic proxy、感応度を
+異なる根拠として扱う。詳細な category、source reference、warning severity、fallback は
+[ADR 0005](adr/0005-keen-ai-explanation-contract.md) を正本とする。
+
+| 禁止する解釈 | 必要な限定 |
+|---|---|
+| calibrated parameter を経済構造の真値、因果 parameter、普遍定数と断定する | 標本、proxy、bounds、initial guess、objective、収束・識別 warning に依存する限定推定値とする |
+| in-sample fit をモデル妥当性の十分条件とする | 標本内 metric として、対象期間・変数・初期値方式を併記する |
+| out-of-sample fit を因果的妥当性、将来予測保証、政策効果の証明とする | holdout 区間に対する条件付き model trajectory の fit とする |
+| observed proxy regime を Keen モデル内部の endogenous regime または企業別実測分類と同一視する | 集計 proxy に操作的診断を適用した結果と明示する |
+| 相関、方向一致、転換点・timing 一致だけから危機の因果経路を確定する | 一致した metric と、因果証拠が不足していることを分けて記載する |
+| 感応度分析で未検証の parameter・proxy・期間まで頑健性を外挿する | 実際に変更した仮定と範囲内だけで安定性を述べる |
+| 欠損、頻度変換、単位差、data vintage / 系列改定を無視して値を直接比較する | measurement metadata と quality flag を併記する |
+| 発散後の `NaN` / JSON `null` を 0、Ponzi、または観測値へ読み替える | 欠損または model divergence として扱う |
+| context に存在しないデータ、文献、モデル特性を一般知識から補完する | `not_available` または `insufficient_evidence` とする |
+
+推定未収束、弱識別、複数局所解、OOS 悪化、regime 不一致、感応度不安定は、不利な結果であっても
+省略してはならない。warning と矛盾する肯定的な結論を本文で生成することも禁止する。
+
+---
+
 ## 3. 必須表現・必須記載事項
 
 LLM 出力には以下の情報を必ず含める。プロンプトテンプレートに組み込むことで確実に反映する。
@@ -156,6 +179,31 @@ LLM 出力が分析補助であることを示し、ユーザーが独立して�
 
 **記載例:**
 > 本出力はモデルシミュレーションの補助説明です。政策判断・投資判断への適用には、より詳細な実証分析や専門家の判断が必要です。
+
+---
+
+### 3.6 Keen 実証説明の必須構造と根拠参照
+
+Keen 実証説明では、通常の免責に加えて次を必須とする。
+
+1. 分析対象と期間
+2. 観測された事実
+3. 測定・データ変換
+4. キャリブレーション結果
+5. in-sample / out-of-sample 検証
+6. regime 診断
+7. 感応度・頑健性
+8. 解釈可能な範囲
+9. 限界・代替説明
+10. 根拠参照と再現情報
+
+各主要主張は context の source ID を 1 件以上参照し、`[観測]`、`[測定・変換]`、`[推定]`、
+`[モデル出力]`、`[診断proxy]`、`[感応度]`、`[限界]` のいずれかを表示する。情報がない section を
+省略せず、未実施なら `not_available`、入力はあるが根拠不十分なら `insufficient_evidence` とする。
+
+出力 JSON が parse 不能、必須 section が欠落、source ID が未登録、または warning severity と結論が
+矛盾する場合は、provider の自由文を表示せず [ADR 0005 §7](adr/0005-keen-ai-explanation-contract.md#7-schema-validation-と-fallback)
+の決定的 fallback を返す。
 
 ---
 
@@ -285,6 +333,18 @@ LLM が生成した出力を評価・レビューする際の確認項目。
 - [ ] 次に検討すべき分析の候補が提示されているか（候補の提示であり、断定的指示ではない）
 - [ ] モデル変数と実データ変数が明確に区別されているか
 
+### 5.4 Keen 実証説明チェック
+
+- [ ] 観測、測定・変換、推定、モデル出力、diagnostic proxy、感応度が label と型で分離されているか
+- [ ] 数値・期間・系列・methodology に関する主要主張が登録済み source ID を参照しているか
+- [ ] calibrated parameter を真値・因果 parameter・普遍定数として扱っていないか
+- [ ] in-sample / out-of-sample が別々に報告され、fit を因果妥当性や予測保証へ昇格させていないか
+- [ ] observed proxy regime と literature / calibrated model diagnosis が別々に表示されているか
+- [ ] 感応度の結論が検証済み scenario / 範囲を超えていないか
+- [ ] 未収束・弱識別・OOS 悪化・発散・regime 不一致・感応度不安定が本文の結論へ反映されているか
+- [ ] 全必須 section があり、情報不足が `not_available` / `insufficient_evidence` で明示されているか
+- [ ] context にない知識を補完していないか
+
 ---
 
 ## 6. 統合デモへの反映方針
@@ -329,6 +389,8 @@ LLM が生成した出力を評価・レビューする際の確認項目。
 | [AIエコノミスト化アーキテクチャ](architecture/ai_economist.md) | セクション7「直近では実装しないこと」の方針と本ドキュメントの禁止表現ルールが整合する |
 | [出力結果の読み方](simulation_outputs.md) | セクション6.2のモデル変数と実データの対応ルールは本ドキュメントの2.5節（混同禁止）の根拠 |
 | [モデル変数と実データ系列のマッピング表](data/variable_mapping.md) | 実データとモデル出力を区別する際の変数対応の参照先 |
+| [ADR 0005: Keen 実証結果の AI 説明契約](adr/0005-keen-ai-explanation-contract.md) | Keen 固有の根拠 category、source reference、必須 section、warning severity、parser fallback の正本 |
+| [Keen モデル実証化戦略](models/keen_empirical_strategy.md) | 観測方程式、限定推定、in/out-of-sample 検証、regime 診断、感応度の根拠となる実証層契約 |
 
 ---
 

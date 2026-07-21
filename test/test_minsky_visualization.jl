@@ -2,7 +2,7 @@
 ENV["GKSwstype"] = "nul"
 using Plots
 
-@testset "Minsky visualization (Phase 2)" begin
+@testset "Minsky visualization" begin
     m = KeenModel(0.025, 0.02, 0.01, 3.0, 0.03, 0.0400641, 6.41e-5, -0.0065, exp(-5), 20.0)
 
     # unlevered → hedge → hedge(同一regime継続) → speculative → ponzi → invalid → invalid

@@ -94,7 +94,7 @@ export
     FinancingRegimeDiagnostics,
     classify_financing_regime,
     diagnose_financing_regime,
-    # Minsky continuous diagnostics & summary (Keen model, Phase 2)
+    # Minsky continuous diagnostics & summary (Keen model)
     DivergenceStatus,
     no_divergence,
     divergence_onset,
@@ -138,11 +138,11 @@ export
     save_keen_validation,
     keen_empirical_report,
     save_keen_empirical_report,
-    # Keen 実証比較可視化（Phase 3）
+    # Keen 実証比較可視化
     plot_keen_empirical_trajectories,
     plot_keen_regime_comparison,
     plot_keen_sensitivity,
-    # Minsky visualization (Keen model, Phase 2)
+    # Minsky visualization (Keen model)
     plot_financing_regimes,
     plot_minsky_diagnostics,
     plot_minsky_scenario_comparison,
@@ -254,10 +254,10 @@ include("./analysis/keen_validation.jl")
 # Visualization (depends on SimulationResult)
 include("./core/visualization.jl")
 
-# Minsky visualization (depends on minsky_diagnostics.jl and Plots, Phase 2)
+# Minsky visualization (depends on minsky_diagnostics.jl and Plots)
 include("./analysis/minsky_visualization.jl")
 
-# Keen 実証比較可視化（depends on keen_validation.jl と minsky_visualization.jl, Phase 3）
+# Keen 実証比較可視化（depends on keen_validation.jl と minsky_visualization.jl）
 include("./analysis/keen_empirical_visualization.jl")
 
 # LLM context layer (depends on SimulationResult and model interface)

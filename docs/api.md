@@ -144,7 +144,7 @@ diagnose_financing_regime(sr).observations == diag.observations  # true 相当�
 Hedge/Speculative/Ponzi の基本分類より優先して判定されるため、無借金・発散後の
 `NaN` が誤って `hedge`/`ponzi` に分類されることはない。
 
-### Minsky 連続診断指標・サマリー（Keen モデル、Phase 2）
+### Minsky 連続診断指標・サマリー（Keen モデル）
 
 区分（Hedge/Speculative/Ponzi）だけでは失われる連続量（カバレッジ比率・境界からの距離・
 債務変化等）を提供する読み取り専用の後処理層。`diagnose_financing_regime`（上記）と同一の
@@ -261,7 +261,7 @@ cmp = minsky_diagnostics_comparison(["baseline" => diag_base, "high_debt" => dia
 cmp.summaries[2].peak_debt_ratio > cmp.summaries[1].peak_debt_ratio  # true
 ```
 
-重み付き単一複合スコアは Phase 2 では提供しない。`raw` 指標を常に個別に参照し、
+重み付き単一複合スコアは提供しない。`raw` 指標を常に個別に参照し、
 「危機確率」等の予測値として解釈しない（[LLM 出力の安全性ルール](llm_safety.md)）。
 
 ### 結果型
@@ -555,7 +555,7 @@ cfg2 = load_keen_calibration_config("cfg.json")    # 読込 → 同じ fixture �
 
 ### Keen 実証バリデーション・感応度分析
 
-`calibrate_keen`（推定層）・`simulate`（RK4 積分）・`minsky_diagnostics_summary`（Phase 2 診断）を
+`calibrate_keen`（推定層）・`simulate`（RK4 積分）・`minsky_diagnostics_summary`（診断層）を
 組み合わせ、Keen モデルの実証結果を **in-sample / out-of-sample・literature vs calibrated・
 方向性/転換点/regime 遷移・診断仮定感応度**の観点で構造化して返す読み取り専用の後処理層。
 `KeenModel`・`KeenEmpiricalDataset`・`KeenCalibrationResult` は変更しない。設計は
@@ -641,13 +641,13 @@ save_keen_empirical_report("report.json", ds, res; mode=:fixture,
 ```
 
 fixture/live/rest_api の全フロー（データ→推定→検証→感応度→可視化→レポート）を 1 本で完走する
-統合デモは [`examples/keen_empirical_phase3_demo.jl`](../examples/keen_empirical_phase3_demo.jl)
+統合デモは [`examples/keen_empirical_demo.jl`](../examples/keen_empirical_demo.jl)
 （取得モードは `DME_DATA_MODE`、出力先は `KEEN_DEMO_OUTDIR`）。
 
 > **注意（実証 fit の限界）**: 実証 fit は因果関係・危機発生確率・将来予測精度と同一ではない。
 > observed proxy regime は集計系列への操作的定義の代理であり企業別実測分類ではない。
 > `amortization_rate` 等の診断仮定は作業仮定であり、regime 判定はその仮定に依存する。
-> Phase 3 では単一 pass/fail 閾値を課さず、成功・失敗・限界を metric・`warnings`・`caveats` として返す。
+> 実証層では単一 pass/fail 閾値を課さず、成功・失敗・限界を metric・`warnings`・`caveats` として返す。
 > 詳細は [実証化戦略 §6・§8](models/keen_empirical_strategy.md) と [ADR 0004](adr/0004-keen-empirical-calibration-strategy.md)。
 
 ---
@@ -704,7 +704,7 @@ plot_irf(sr_irf; vars = ["ŷ", "ĉ", "k̂"])   # 特定変数のみ
 plot_irf(sr_irf; vars = "ŷ", shock_size = 0.01)  # ショックサイズをタイトルに表示
 ```
 
-### Minsky 可視化API（Keen モデル、Phase 2）
+### Minsky 可視化API（Keen モデル）
 
 `MinskyDiagnosticsResult`/`MinskyDiagnosticsComparison`（上記「Minsky 連続診断指標・サマリー」）を
 読み取るだけの可視化専用レイヤー。診断値の再計算は行わない。発散後の `NaN` は
@@ -778,7 +778,7 @@ cmp = minsky_diagnostics_comparison(["baseline" => diag_base, "high_debt" => dia
 plot_minsky_scenario_comparison(cmp; var = :debt_ratio)
 ```
 
-統合デモは [`examples/minsky_phase2_demo.jl`](../examples/minsky_phase2_demo.jl) を参照。
+統合デモは [`examples/minsky_diagnostics_demo.jl`](../examples/minsky_diagnostics_demo.jl) を参照。
 
 ### オプション型
 

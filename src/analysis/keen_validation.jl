@@ -6,7 +6,7 @@
 #   - validation 初期値の扱い（実観測から開始 / calibration 終点予測から連続）を別 metric として区別
 #   - 水準誤差（RMSE/MAE）に加え、方向性・転換点・regime 遷移・発散を分けて評価する
 #   - literature default と calibrated モデルを同一データ・同一 metric で比較する（悪化も隠さない）
-#   - 金融不安定性診断（Phase 2 の minsky_diagnostics_summary）を observed proxy・model 双方へ適用
+#   - 金融不安定性診断（minsky_diagnostics_summary）を observed proxy・model 双方へ適用
 #   - amortization_rate・金利方式・系列 proxy・標本期間・initial guess・weight への感応度を返す
 #   - 単一 pass/fail 閾値を必須にせず、成功・失敗・限界を構造化して返す
 #   - 欠損・発散後 NaN を 0 として metric 計算しない（有効ペアのみで計算）
@@ -35,7 +35,7 @@ const KEEN_VALIDATION_METHODOLOGY_VERSION = "keen-validation/1.0.0"
 const KEEN_VALIDATION_CAVEATS = String[
     "実証 fit（当てはまり）は因果関係・危機発生確率・将来予測精度と同一ではない。",
     "モデル変数（ω・λ・d）と統計系列は近似対応であり厳密に同一ではない。",
-    "observed proxy regime は集計系列に Phase 2 と同じ操作的定義を適用した代理であり、企業別実測分類ではない。",
+    "observed proxy regime は集計系列に Minsky 診断と同じ操作的定義を適用した代理であり、企業別実測分類ではない。",
     "amortization_rate 等の診断仮定は理論的アンカーではなく作業仮定であり、regime 判定はその仮定に依存する。",
     "発散しないことはモデルの妥当性を保証しない。転換点・方向性・regime 遷移も併せて評価する必要がある。",
 ]
@@ -335,7 +335,7 @@ Keen 実証バリデーションの再現可能な設定。
 
 ## 主なフィールド
 - `calibration_config::KeenCalibrationConfig` : calibrated モデルを得る推定設定（`calibrate_keen`）
-- `regime_config::FinancingRegimeConfig` : 金融不安定性診断の基準設定（Phase 2）
+- `regime_config::FinancingRegimeConfig` : 金融不安定性診断の基準設定
 - `comparison_models::Vector{Symbol}` : 比較対象（`:literature`・`:calibrated` の部分集合）
 - `initial_state_modes::Vector{Symbol}` : validation 初期値方式（`:observed_start`・
   `:calibration_continued` の部分集合。別 metric として区別される）
@@ -556,7 +556,7 @@ end
     KeenRegimeComparison
 
 observed proxy・literature モデル・calibrated モデルの金融不安定性診断を同一契約
-（Phase 2 の `MinskyDiagnosticsResult` / `MinskyDiagnosticsSummary`）で並べた比較結果。
+（`MinskyDiagnosticsResult` / `MinskyDiagnosticsSummary`）で並べた比較結果。
 
 model 側の regime 系列は「観測開始状態から full-sample を積分した予測 trajectory」に対する診断。
 observed 側は観測系列 `ω`・`d` へ直接適用した集計 proxy（`g` は観測不能のため `NaN`、
@@ -1127,7 +1127,7 @@ function validate_keen(dataset::KeenEmpiricalDataset, config::KeenValidationConf
         minsky_diagnostics_summary(obs_diag),
         minsky_diagnostics_summary(lit_diag),
         minsky_diagnostics_summary(cal_diag),
-        "observed proxy は集計系列への Phase 2 診断の代理であり企業別実測分類ではない。model 側は観測開始状態からの full-sample 予測 trajectory への診断。",
+        "observed proxy は集計系列への Minsky 診断の代理であり企業別実測分類ではない。model 側は観測開始状態からの full-sample 予測 trajectory への診断。",
     )
 
     # ---- full-sample 系列バンドル（可視化用、再計算しないよう保持）----
@@ -1229,7 +1229,7 @@ function validate_keen(dataset::KeenEmpiricalDataset, config::KeenValidationConf
         "aggregate_rmse_period" => string(cal_period),
         "prediction_scheme" => "RK4, substeps_per_year=$(config.substeps_per_year)",
         "initial_state_modes" => string.(config.initial_state_modes),
-        "pass_fail_note" => "Phase 3 では単一 pass/fail 閾値を課さない。成功・失敗・限界を metric・warnings として構造化して返す。",
+        "pass_fail_note" => "実証層では単一 pass/fail 閾値を課さない。成功・失敗・限界を metric・warnings として構造化して返す。",
     )
 
     KeenValidationResult(

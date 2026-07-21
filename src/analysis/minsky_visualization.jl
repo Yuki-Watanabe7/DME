@@ -1,5 +1,5 @@
 # minsky_visualization.jl: Minsky 資金調達区分・金融不安定性連続診断指標（#112・#113）の
-# 可視化専用レイヤー（Phase 2, #114）。
+# 可視化専用レイヤー（#114）。
 #
 # `src/core/visualization.jl`（`plot_result`/`plot_comparison`/`plot_irf`）と同じ
 # Plots.jl ベースのパターンに従う。診断値そのものは一切再計算せず、
@@ -7,7 +7,7 @@
 # 読み取るだけの読み取り専用レイヤーであり、`KeenModel`・診断層のロジックには影響しない。
 #
 # 発散後の `NaN` は Plots.jl の標準挙動どおり線を途切れさせる（補間・0化・Ponzi塗りつぶしは
-# 行わない）。詳細は docs/models/keen.md 「Phase 2 可視化」節を参照。
+# 行わない）。詳細は docs/models/keen.md 「Minsky 可視化」節を参照。
 
 const _FINANCING_REGIME_STYLE = Dict(
     unlevered => (color = :gray70, marker = :circle, label = "unlevered"),

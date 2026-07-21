@@ -13,6 +13,7 @@
 | **methodology version（推定層）** | `keen-calibration/1.0.0`（`KEEN_CALIBRATION_METHODOLOGY_VERSION`。データ層 `keen-empirical/*` とは独立） |
 | **methodology version（検証層）** | `keen-validation/1.0.0`（`KEEN_VALIDATION_METHODOLOGY_VERSION`。推定層・データ層・診断層とは独立） |
 | **前提ドキュメント** | [Keen モデル解説](keen.md)・[Minsky系金融不安定性モデル設計方針](minsky_design.md)・[モデル変数と実データ系列のマッピング表](../data/variable_mapping.md)・[Minsky 資金調達区分診断](minsky_regime_diagnostics.md) |
+| **AI 説明契約** | [ADR 0005](../adr/0005-keen-ai-explanation-contract.md)。本書の観測・推定・検証・診断・感応度を LLM へ渡す際の category、source reference、禁止解釈を定める |
 | **methodology version（予定）** | `keen-empirical/1.0.0`（診断層の `minsky-regime/*`・`minsky-diagnostics/*` とは独立に管理） |
 | **基準経済（初版）** | 米国。日本は同一契約への拡張対象 |
 
@@ -243,7 +244,7 @@ Keen の 10 パラメータを、**実データ・文献値・固定仮定のど
 ### 6.1 実装（`validate_keen`、#122）
 
 `src/analysis/keen_validation.jl` が `KeenEmpiricalDataset` を入力に取り、`calibrate_keen`（§5.4）・
-`simulate` の RK4 積分・`minsky_diagnostics_summary`（Phase 2 診断）を組み合わせて実証結果を
+`simulate` の RK4 積分・`minsky_diagnostics_summary`（診断層）を組み合わせて実証結果を
 構造化して返す**読み取り専用の後処理層**。`KeenModel`・`KeenEmpiricalDataset`・
 `KeenCalibrationResult` は変更しない。
 
@@ -261,7 +262,7 @@ Keen の 10 パラメータを、**実データ・文献値・固定仮定のど
   mean error（bias）・direction accuracy（前期比符号一致）・turning point 数と timing error。
   スケール差は単一総合点へ集約せず、観測標準偏差で正規化した `rmse_standardized` を別途提供する。
   欠損・発散後 `NaN` は有効ペアから除外し、`0` として扱わない。
-- **regime 検証**（`KeenRegimeComparison`）: observed proxy（観測 `ω`・`d` へ Phase 2 診断を直接適用。
+- **regime 検証**（`KeenRegimeComparison`）: observed proxy（観測 `ω`・`d` へ Minsky 診断を直接適用。
   `g` は観測不能のため成長依存指標のみ未定義）・literature モデル・calibrated モデルの
   full-sample 予測 trajectory を、同一契約の `MinskyDiagnosticsSummary` で並べる
   （first speculative/ponzi・hedge 回復・coverage/margin 最小値と時点・peak debt・発散）。
@@ -272,7 +273,7 @@ Keen の 10 パラメータを、**実データ・文献値・固定仮定のど
   calibrated モデルを再利用**するため、ODE・推定結果は不変で診断だけが変わる。既定シナリオは
   `amortization_rate` 3 値・実質金利代理・initial guess 変更・variable weight 変更。`ω` proxy 代替・
   標本期間変更は代替 `KeenEmpiricalDataset` を要するため、`sensitivity_scenarios` へ追加して指定する。
-- **合格判定**: Phase 3 では単一 pass/fail 閾値を課さない。calibrated が literature より悪化した場合は
+- **合格判定**: 実証層では単一 pass/fail 閾値を課さない。calibrated が literature より悪化した場合は
   `calibrated_worse_than_literature` と `warnings` で明示し隠さない。発散・弱識別・境界張り付きも
   `warnings` に集約する。`caveats`（`KEEN_VALIDATION_CAVEATS`）で fit ≠ 因果・危機確率・投資助言を明記する。
 - **再現性**: 同一 `dataset`・`config` で決定的。`keen_validation_to_dict` / `save_keen_validation` で
@@ -284,7 +285,10 @@ Keen の 10 パラメータを、**実データ・文献値・固定仮定のど
 - **統合レポート**: `keen_empirical_report` / `save_keen_empirical_report` が dataset provenance
   （採用系列・source・mode・単位変換・共通期間・quality）と検証要約・artifact パスを機械可読 JSON へまとめる
   （API key・環境変数値・秘密情報は保存しない）。
-- **統合デモ**: `examples/keen_empirical_phase3_demo.jl` が fixture/live/rest_api の全フローを 1 本で完走する
+- **AI 説明への受け渡し**: AI 説明層ではこの統合レポートを直接自由文へ潰さず、
+  [ADR 0005](../adr/0005-keen-ai-explanation-contract.md) の根拠 category と source registry へ写像する。
+  observed / estimated / simulated / diagnostic / sensitivity を分離し、warning を説明可否へ反映する。
+- **統合デモ**: `examples/keen_empirical_demo.jl` が fixture/live/rest_api の全フローを 1 本で完走する
   （fixture は決定的・API キー不要。取得モード `DME_DATA_MODE`、出力先 `KEEN_DEMO_OUTDIR`）。
 
 ---
@@ -312,7 +316,7 @@ Keen の 10 パラメータを、**実データ・文献値・固定仮定のど
 | `r` の性質差 | モデルは `r` を実質・一定と仮定するが実データは時変・名目。国債実質金利と企業借入金利は別物（§2.4） |
 | 双安定性による当てはめの脆弱性 | trajectory 方式は崩壊経路への跳びで目的関数が不連続。ODE residual を採るが差分近似誤差は残る（§5） |
 | 弱識別 | 短い標本から非線形行動パラメータを同時推定すると弱識別・複数局所解が生じうる（§5.3 で検出） |
-| fit ≠ 予測・因果・危機確率 | in-sample の当てはまりの良さは、危機の予測精度・因果関係・危機発生確率を意味しない（§6・[ADR 0004](../adr/0004-keen-empirical-calibration-strategy.md)・[LLM 安全性ルール](../llm_safety.md)） |
+| fit ≠ 予測・因果・危機確率 | in-sample の当てはまりの良さは、危機の予測精度・因果関係・危機発生確率を意味しない（§6・[ADR 0004](../adr/0004-keen-empirical-calibration-strategy.md)・[ADR 0005](../adr/0005-keen-ai-explanation-contract.md)・[LLM 安全性ルール](../llm_safety.md)） |
 
 ---
 
@@ -339,4 +343,5 @@ Keen の 10 パラメータを、**実データ・文献値・固定仮定のど
 - [FRED API 接続ガイド](../data/fred.md)・[実データ前処理ユーティリティ](../data/preprocess.md) — 取得・変換の実装基盤
 - [API リファレンス](../api.md) の「Keen 実証データセット」節 — `build_keen_empirical_dataset`・`KeenEmpiricalDataConfig`・`KeenEmpiricalDataset`（本戦略のデータ層実装）
 - [ADR 0004](../adr/0004-keen-empirical-calibration-strategy.md) — 識別戦略の決定記録
+- [ADR 0005](../adr/0005-keen-ai-explanation-contract.md) — 実証層成果物を根拠付きで AI 説明へ渡す category・schema・禁止解釈
 - Grasselli, M. R., & Costa Lima, B. (2012). An analysis of the Keen model for credit expansion, asset price bubbles and financial fragility. *Mathematics and Financial Economics*, 6(3), 191-210.

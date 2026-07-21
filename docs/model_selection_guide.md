@@ -37,7 +37,7 @@
 | 好況期の信用拡大が内生的にどう不安定化するか知りたい | **Keen** | — |
 | 債務比率の崩壊経路（金融不安定性）を分析したい | **Keen** | — |
 | 外生ショックなしに景気循環が生じるメカニズムを見たい | **Keen** | RBC |
-| 信用循環・資金調達区分（Hedge/Speculative/Ponzi）の悪化過程を可視化したい | **Keen**（Phase 2 診断・可視化） | — |
+| 信用循環・資金調達区分（Hedge/Speculative/Ponzi）の悪化過程を可視化したい | **Keen**（診断・可視化） | — |
 
 ---
 
@@ -278,8 +278,8 @@
 - 貸出金利の引き上げシナリオ比較（`keen_scenario_comparison`）
 - 資金調達区分（Hedge/Speculative/Ponzi）の悪化過程・coverage ratio・marginの推移を
   `plot_financing_regimes`/`plot_minsky_diagnostics` で可視化し、baseline・高金利・
-  高初期債務シナリオを `plot_minsky_scenario_comparison` で比較（Phase 2、
-  [`examples/minsky_phase2_demo.jl`](../examples/minsky_phase2_demo.jl)）
+  高初期債務シナリオを `plot_minsky_scenario_comparison` で比較（
+  [`examples/minsky_diagnostics_demo.jl`](../examples/minsky_diagnostics_demo.jl)）
 
 **限界**
 - 政府部門・開放経済・名目変数（物価・金融政策）を扱わない（実質・閉鎖経済モデル）
@@ -295,8 +295,8 @@ Keen モデルは 2 通りの使い方があり、目的に応じて選ぶ。
 
 | 目的 | 使い方 | 入口 |
 |---|---|---|
-| **理論実験** — 双安定性・崩壊メカニズム・金利/初期債務の効果を「仮想パラメータ」で観察 | `simulate`/`impulse_response`/`keen_scenario_comparison` と Phase 2 診断・可視化 | [`examples/minsky_phase2_demo.jl`](../examples/minsky_phase2_demo.jl) |
-| **実証比較** — 実データへ接続し literature/calibrated/observed proxy を同一時間軸で比較・検証 | `build_keen_empirical_dataset` → `calibrate_keen` → `validate_keen` と実証比較可視化 | [`examples/keen_empirical_phase3_demo.jl`](../examples/keen_empirical_phase3_demo.jl) |
+| **理論実験** — 双安定性・崩壊メカニズム・金利/初期債務の効果を「仮想パラメータ」で観察 | `simulate`/`impulse_response`/`keen_scenario_comparison` と診断・可視化 | [`examples/minsky_diagnostics_demo.jl`](../examples/minsky_diagnostics_demo.jl) |
+| **実証比較** — 実データへ接続し literature/calibrated/observed proxy を同一時間軸で比較・検証 | `build_keen_empirical_dataset` → `calibrate_keen` → `validate_keen` と実証比較可視化 | [`examples/keen_empirical_demo.jl`](../examples/keen_empirical_demo.jl) |
 
 実証比較は「モデルが現実を再現するか」を in-sample/out-of-sample・方向性・転換点・regime 遷移・
 感応度で構造化評価するが、**当てはまり（fit）は因果関係・危機発生確率・予測精度と同一ではない**。
