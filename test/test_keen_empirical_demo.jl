@@ -4,7 +4,7 @@ using Plots
 # JSON3 は DME の依存（test 環境へ直接は入れない）。DME 経由で参照する。
 const JSON3 = DME.JSON3
 
-@testset "Keen 実証統合デモ（Phase 3）" begin
+@testset "Keen 実証統合デモ" begin
     fixture_dir = joinpath(@__DIR__, "fixtures", "keen")
 
     # fixture mode で dataset → 推定 → 検証 を実行するヘルパー（外部接続なし・決定的）

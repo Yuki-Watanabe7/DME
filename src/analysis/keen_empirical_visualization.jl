@@ -1,5 +1,5 @@
 # keen_empirical_visualization.jl: Keen 実証バリデーション結果（#122）の実証比較専用
-# 可視化レイヤー（Phase 3, #123）。
+# 可視化レイヤー（#123）。
 #
 # `src/core/visualization.jl`（`plot_result` 等）・`src/analysis/minsky_visualization.jl`
 # （`plot_financing_regimes` 等）と同じ Plots.jl ベースのパターンに従う。

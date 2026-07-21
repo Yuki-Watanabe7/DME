@@ -1,13 +1,13 @@
-# examples/keen_empirical_phase3_demo.jl
+# examples/keen_empirical_demo.jl
 #
-# Keen 実データ接続・限定キャリブレーション・検証の統合デモ（Phase 3, Issue #123）
+# Keen 実データ接続・限定キャリブレーション・検証の統合デモ（Issue #123）
 #
 # 米国 Keen 実証 MVP について、実データ入力 → 観測系列変換 → 限定キャリブレーション →
 # in-sample/out-of-sample 検証 → 金融不安定性診断 → 感応度分析 → 可視化 →
 # 機械可読レポート出力までを 1 本で完走する。
 #
 # 実行方法（外部 API キー不要の fixture 経路が既定・正）:
-#   julia --project=. examples/keen_empirical_phase3_demo.jl
+#   julia --project=. examples/keen_empirical_demo.jl
 #
 # 取得モードの切替（同一の公開契約。live/rest_api は追加経路）:
 #   DME_DATA_MODE=fixture   … test/fixtures/keen の固定 JSON（既定・決定的・CI 用）
@@ -44,7 +44,7 @@ isdir(OUTDIR) || mkpath(OUTDIR)
 println(
     """
 ╔═══════════════════════════════════════════════════════════════╗
-║   Keen 実証 Phase 3 統合デモ — データ→推定→検証→感応度→可視化   ║
+║   Keen 実証統合デモ — データ→推定→検証→感応度→可視化          ║
 ╚═══════════════════════════════════════════════════════════════╝
 
   Step 1  KeenEmpiricalDataset の構築（採用系列・単位変換・共通期間・quality）

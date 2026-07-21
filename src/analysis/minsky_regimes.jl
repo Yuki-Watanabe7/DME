@@ -37,7 +37,7 @@ Minsky 資金調達区分診断の設定。**診断層専用の仮定**であり
 
 ## デフォルト値の根拠
 `amortization_rate` の既定値 `0.05` は企業債務の平均満期を保守的に長め（20年）に取る
-作業仮定であり、理論的アンカーではない。実データによる校正は Phase 3 の対象
+作業仮定であり、理論的アンカーではない。実データによる校正は将来対応予定
 （`docs/models/minsky_regime_diagnostics.md` §3・§7）。
 """
 struct FinancingRegimeConfig

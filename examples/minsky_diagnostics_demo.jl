@@ -1,13 +1,13 @@
-# examples/minsky_phase2_demo.jl
+# examples/minsky_diagnostics_demo.jl
 #
-# Minsky 資金調達区分・金融不安定性診断 統合デモ（Phase 2, Issue #114）
+# Minsky 資金調達区分・金融不安定性診断 統合デモ（Issue #114）
 #
 # Keen モデルの2つのシナリオ（良い均衡への回帰経路・高債務からの崩壊経路）について、
 # 資金調達区分診断（#112）・金融不安定性連続診断指標とサマリー（#113）・
 # 可視化（regime timeline / diagnostics plot / scenario比較, #114）を一通り実行する。
 #
 # 実行方法:
-#   julia --project=. examples/minsky_phase2_demo.jl
+#   julia --project=. examples/minsky_diagnostics_demo.jl
 #
 # 外部 API キーや実データは不要。固定パラメータ・固定初期値で決定的に実行できる。
 # プロットを保存したい場合は savefig 行を有効化。
@@ -22,7 +22,7 @@ using DME
 
 println("""
 ╔═══════════════════════════════════════════════════════════════╗
-║   Minsky Phase 2 統合デモ — 資金調達区分・金融不安定性診断     ║
+║   Minsky 統合デモ — 資金調達区分・金融不安定性診断            ║
 ╚═══════════════════════════════════════════════════════════════╝
 
 Keen モデルの2シナリオを比較し、「好況の内生的崩壊」が資金調達区分

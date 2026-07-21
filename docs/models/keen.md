@@ -198,7 +198,7 @@ diag.transitions                # 区分が変化した時点の一覧
 [Minsky 資金調達区分診断](minsky_regime_diagnostics.md) と [`docs/api.md`](../api.md) を参照。
 集計モデル上の代理指標であり、倒産予測・危機予測ではない点に注意する（§9・§10）。
 
-### Minsky 連続診断指標・サマリー（Phase 2）
+### Minsky 連続診断指標・サマリー
 
 区分（Hedge/Speculative/Ponzi）だけでは失われる連続量（利払い・デットサービスの
 カバレッジ比率、境界までのマージン、債務変化等）と、regime 滞在比率・最初の悪化時点・
@@ -220,9 +220,9 @@ cmp = minsky_diagnostics_comparison(["baseline" => diag_base, "high_debt" => dia
 
 指標定義・0除算規則・`debt_change` の算出方式・型契約の詳細は
 [Minsky 連続診断指標・サマリー](minsky_diagnostics_summary.md) を参照。
-重み付き単一複合スコアは Phase 2 では提供しない（§9・§10 の限界に同じ）。
+重み付き単一複合スコアは提供しない（§9・§10 の限界に同じ）。
 
-### Minsky 可視化（Phase 2）
+### Minsky 可視化
 
 区分診断・連続診断指標を読み取るだけの可視化専用レイヤー（`src/analysis/minsky_visualization.jl`）。
 診断値を再計算・変更せず、`Plots.jl`（`plot_result`/`plot_comparison` と同じライブラリ）で描画する。
@@ -268,7 +268,7 @@ plot_minsky_scenario_comparison(cmp; var = :debt_ratio)
 - **「Ponzi = 危機予測」ではない**: §9 と同様、区分・図はモデル内メカニズムの提示であり、
   倒産予測・危機予測・実測の企業比率ではない
 
-統合デモは [`examples/minsky_phase2_demo.jl`](../../examples/minsky_phase2_demo.jl) を参照
+統合デモは [`examples/minsky_diagnostics_demo.jl`](../../examples/minsky_diagnostics_demo.jl) を参照
 （外部 API 不要、良い均衡回帰経路・崩壊経路の両方を含む）。API 詳細は
 [`docs/api.md`](../api.md) の「Minsky 可視化API」節を参照。
 
@@ -402,13 +402,13 @@ RBC・New Keynesian の IRF（対数偏差）とは異なり、**水準（比率
 in-sample（calibration 期間）と out-of-sample（validation 期間）へ分けて評価する。validation の初期値は
 実観測から開始する方式（`:observed_start`）と calibration 終点予測から連続する方式（`:calibration_continued`）を
 別 metric として区別し、look-ahead を作らない。水準誤差（RMSE/MAE）に加え方向性・転換点・
-金融不安定性 regime 遷移（[Minsky 資金調達区分診断](minsky_regime_diagnostics.md)・Phase 2 の
+金融不安定性 regime 遷移（[Minsky 資金調達区分診断](minsky_regime_diagnostics.md)・
 `minsky_diagnostics_summary`）・発散有無を分けて評価し、`amortization_rate`・金利方式・系列 proxy・標本期間・
 initial guess・weight への感応度を返す。
 
 `amortization_rate` の変更は診断のみに作用し ODE・推定結果を変えない（感応度シナリオは base の推定を再利用）。
 observed proxy regime は集計系列への操作的定義の代理であり企業別実測分類ではない。実証 fit は因果関係・
-危機発生確率・将来予測精度と同一ではなく、Phase 3 では単一 pass/fail 閾値を課さない（成功・失敗・限界を
+危機発生確率・将来予測精度と同一ではなく、実証層では単一 pass/fail 閾値を課さない（成功・失敗・限界を
 metric・`warnings`・`caveats` として返す）。詳細は [実証化戦略 §6](keen_empirical_strategy.md)・
 [API リファレンス](../api.md)、決定記録は [ADR 0004](../adr/0004-keen-empirical-calibration-strategy.md)。
 
@@ -419,14 +419,14 @@ metric・`warnings`・`caveats` として返す）。詳細は [実証化戦略 
 - **calibrated model**: 採用した calibration 期間・観測 proxy・weight・bounds に依存する限定推定値。
   literature より当てはまる保証はなく、悪化した場合も `calibrated_worse_than_literature` と `warnings` で明示する。
   ODE residual 方式の推定であり、trajectory の完全再現を保証しない（自由走行の水準が乖離しうる）。
-- **observed proxy regime**: 観測 `ω`・`d` へ Phase 2 の資金調達区分診断を適用した**集計代理**であり、企業別の実測分類・倒産比率ではない。
+- **observed proxy regime**: 観測 `ω`・`d` へ Minsky の資金調達区分診断を適用した**集計代理**であり、企業別の実測分類・倒産比率ではない。
   model 側 regime は観測開始状態からの予測 trajectory への診断。
 
 ### 実証化フロー（統合デモ）
 
 データ取得 → 観測系列変換 → 限定キャリブレーション → in-sample/out-of-sample 検証 →
 observed proxy / model の regime 比較 → 感応度分析 → 可視化 → 機械可読レポート出力までを
-1 本で完走する統合デモが [`examples/keen_empirical_phase3_demo.jl`](../../examples/keen_empirical_phase3_demo.jl)。
+1 本で完走する統合デモが [`examples/keen_empirical_demo.jl`](../../examples/keen_empirical_demo.jl)。
 fixture モード（既定・API キー不要）で決定的に完走する。取得モードは `DME_DATA_MODE`
 （`fixture`/`live`/`rest_api`、`source unavailable` 時に fixture へ暗黙 fallback しない）、
 図・レポートの出力先は `KEEN_DEMO_OUTDIR` で切り替える。可視化は

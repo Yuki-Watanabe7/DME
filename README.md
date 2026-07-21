@@ -226,8 +226,8 @@ response = complete_from_prompt(provider, build_explain_prompt(ctx))
 | [examples/model_overview_demo.jl](examples/model_overview_demo.jl) | **モデル横断デモ**。Ramsey / Solow / RBC / Mundell-Fleming / New Keynesian を共通 API で横断し、可視化・横断比較までの一連のワークフローを示す。 |
 | [examples/real_data_demo.jl](examples/real_data_demo.jl) | **実データ接続デモ**。FRED からのデータ取得（fixture / live モード）・前処理・SimulationResult 変換・モデル比較・可視化・AnalysisContext 接続を示す。 |
 | [examples/ai_economist_demo.jl](examples/ai_economist_demo.jl) | **AIエコノミスト統合デモ**。モデル選択 → シミュレーション → 実データ取得 → 前処理 → モデル比較 → AnalysisContext → docs コンテキスト → LLM 説明生成の一連のフロー。 |
-| [examples/minsky_phase2_demo.jl](examples/minsky_phase2_demo.jl) | **Minsky Phase 2 統合デモ**。Keen モデルの良い均衡回帰経路・高債務崩壊経路の両方について、資金調達区分診断（Hedge/Speculative/Ponzi）・金融不安定性連続診断指標とサマリー・regime timeline / diagnostics plot・シナリオ比較を一通り実行する。 |
-| [examples/keen_empirical_phase3_demo.jl](examples/keen_empirical_phase3_demo.jl) | **Keen 実証統合デモ**。米国 Keen 実証 MVP について、実データ取得 → 観測系列変換 → 限定キャリブレーション → in-sample/out-of-sample 検証 → observed proxy / model の金融不安定性 regime 比較 → 感応度分析 → 可視化 → 機械可読レポート出力までを完走する。fixture モードは API キー不要・決定的。 |
+| [examples/minsky_diagnostics_demo.jl](examples/minsky_diagnostics_demo.jl) | **Minsky 統合デモ**。Keen モデルの良い均衡回帰経路・高債務崩壊経路の両方について、資金調達区分診断（Hedge/Speculative/Ponzi）・金融不安定性連続診断指標とサマリー・regime timeline / diagnostics plot・シナリオ比較を一通り実行する。 |
+| [examples/keen_empirical_demo.jl](examples/keen_empirical_demo.jl) | **Keen 実証統合デモ**。米国 Keen 実証 MVP について、実データ取得 → 観測系列変換 → 限定キャリブレーション → in-sample/out-of-sample 検証 → observed proxy / model の金融不安定性 regime 比較 → 感応度分析 → 可視化 → 機械可読レポート出力までを完走する。fixture モードは API キー不要・決定的。 |
 
 ```bash
 julia --project=. examples/growth_models.jl
@@ -235,8 +235,8 @@ julia --project=. examples/policy_analysis.jl
 julia --project=. examples/model_overview_demo.jl
 julia --project=. examples/real_data_demo.jl
 julia --project=. examples/ai_economist_demo.jl
-julia --project=. examples/minsky_phase2_demo.jl
-julia --project=. examples/keen_empirical_phase3_demo.jl
+julia --project=. examples/minsky_diagnostics_demo.jl
+julia --project=. examples/keen_empirical_demo.jl
 ```
 
 実データ・実 LLM で実行する場合は環境変数を設定します。
@@ -252,11 +252,11 @@ Keen 実証デモは取得モードと図・レポートの出力先を環境変
 
 ```bash
 # fixture（既定・API キー不要・決定的）
-julia --project=. examples/keen_empirical_phase3_demo.jl
+julia --project=. examples/keen_empirical_demo.jl
 
 # live（FRED API、要 API キー） / rest_api（要 DATA_PROVIDER_BASE_URL）。図・JSON の出力先を指定
 DME_DATA_MODE=live FRED_API_KEY=... KEEN_DEMO_OUTDIR=./out \
-  julia --project=. examples/keen_empirical_phase3_demo.jl
+  julia --project=. examples/keen_empirical_demo.jl
 ```
 
 > 実証結果の限界: 観測系列は理論変数（ω・λ・d）の近似 proxy、calibrated parameter は採用期間・proxy・weight・bounds 依存、observed regime も集計 proxy 診断、out-of-sample fit は危機予測能力を意味しない。本デモは投資助言・政策判断の自動化を目的としない。
@@ -294,7 +294,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [Minsky系金融不安定性モデル設計方針](docs/models/minsky_design.md) | Keen / Ryoo / Godley-Lavoie (SFC) の候補比較と Keen モデル選定の経緯 |
 | [Minsky系（Keen）モデル DME統合設計](docs/models/minsky_integration_design.md) | Keen モデルのインターフェース適合・ソルバー接続・出力スキーマ・LLM メタデータ設計 |
 | [Minsky 資金調達区分診断](docs/models/minsky_regime_diagnostics.md) | Hedge / Speculative / Ponzi の操作的定義・仮定・型/関数契約・限界の設計 |
-| [Minsky 連続診断指標・サマリー](docs/models/minsky_diagnostics_summary.md) | カバレッジ比率・マージン・regime滞在比率・peak/minimum・発散時点の指標定義とサマリー契約（Phase 2） |
+| [Minsky 連続診断指標・サマリー](docs/models/minsky_diagnostics_summary.md) | カバレッジ比率・マージン・regime滞在比率・peak/minimum・発散時点の指標定義とサマリー契約 |
 | [Keen モデル 実証化戦略](docs/models/keen_empirical_strategy.md) | 実データ接続の観測方程式・単位変換・共通頻度・年単位ODE↔四半期の時間軸契約・固定/推定パラメータ分離・識別戦略・検証方針 |
 | [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメント作成用テンプレート |
 
@@ -329,6 +329,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [ADR 0002: Keen モデルの統合方式](docs/adr/0002-minsky-integration-design.md) | 既存インターフェース準拠・自前 RK4・LLM 層無拡張という統合方針の決定記録 |
 | [ADR 0003: Minsky 資金調達区分の診断層](docs/adr/0003-minsky-financing-regime-diagnostics.md) | 診断を Keen 本体から分離した読み取り専用層とし hysteresis を不採用とする決定記録 |
 | [ADR 0004: Keen モデル実証化の識別戦略](docs/adr/0004-keen-empirical-calibration-strategy.md) | 米国基準・指数/比率の検証義務・Δt=0.25 の時間軸契約・固定/推定分離・ODE residual 採用の決定記録 |
+| [ADR 0005: Keen 実証結果の AI 説明契約](docs/adr/0005-keen-ai-explanation-contract.md) | 観測・測定・推定・モデル出力・診断proxy・感応度を分離する根拠階層、source reference、禁止解釈、構造化出力・fallback 契約 |
 
 ### 開発
 

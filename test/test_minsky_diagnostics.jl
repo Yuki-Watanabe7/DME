@@ -1,4 +1,4 @@
-@testset "Minsky continuous diagnostics & summary (Phase 2)" begin
+@testset "Minsky continuous diagnostics & summary" begin
     # Grasselli & Costa Lima (2012) の数値例
     m = KeenModel(0.025, 0.02, 0.01, 3.0, 0.03, 0.0400641, 6.41e-5, -0.0065, exp(-5), 20.0)
     ss = steady_state(m)
