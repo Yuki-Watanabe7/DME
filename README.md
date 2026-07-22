@@ -319,6 +319,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [LLM 接続層の設計](docs/architecture/llm_layer.md) | LLM 層の責務・入出力仕様・禁止事項・安全性方針 |
 | [LLM Provider 設定ガイド](docs/architecture/llm_provider.md) | provider 抽象化・OpenAI 設定・MockProvider・差し替え方法 |
 | [AnalysisContext 設計](docs/architecture/analysis_context.md) | LLM へ渡す構造化コンテキスト型の設計・構造・利用例 |
+| [クロスモデル推論層の設計](docs/architecture/cross_model_reasoning.md) | Keen 実証結果と既存モデルの概念対応・mapping 導出・出力 section・安全性（ADR 0006） |
 | [LLM 出力の安全性・免責・禁止表現ルール](docs/llm_safety.md) | 禁止表現・必須記載・プロンプトテンプレート・出力チェックリスト |
 
 ### 設計決定記録（ADR）
@@ -330,6 +331,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [ADR 0003: Minsky 資金調達区分の診断層](docs/adr/0003-minsky-financing-regime-diagnostics.md) | 診断を Keen 本体から分離した読み取り専用層とし hysteresis を不採用とする決定記録 |
 | [ADR 0004: Keen モデル実証化の識別戦略](docs/adr/0004-keen-empirical-calibration-strategy.md) | 米国基準・指数/比率の検証義務・Δt=0.25 の時間軸契約・固定/推定分離・ODE residual 採用の決定記録 |
 | [ADR 0005: Keen 実証結果の AI 説明契約](docs/adr/0005-keen-ai-explanation-contract.md) | 観測・測定・推定・モデル出力・診断proxy・感応度を分離する根拠階層、source reference、禁止解釈、構造化出力・fallback 契約 |
+| [ADR 0006: クロスモデル推論契約](docs/adr/0006-cross-model-reasoning-contract.md) | 概念対応（ModelConceptMapping）の明示、repository metadata 限定、同名変数の非同一視、比較不能の非統合、fit 比較制限の決定記録 |
 
 ### 開発
 

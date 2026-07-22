@@ -75,6 +75,7 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 | [LLM接続層の設計](docs/architecture/llm_layer.md) | LLM層の責務・入出力仕様・禁止事項・安全性方針 |
 | [LLM Provider設定ガイド](docs/architecture/llm_provider.md) | provider抽象化・OpenAI設定・MockProvider・差し替え方法 |
 | [AnalysisContext 設計](docs/architecture/analysis_context.md) | LLMへ渡す構造化コンテキスト型の設計・構造・利用例 |
+| [クロスモデル推論層の設計](docs/architecture/cross_model_reasoning.md) | Keen 実証結果と既存モデルの概念対応・mapping 導出・出力 section・安全性（ADR 0006） |
 | [LLM出力の安全性・免責・禁止表現ルール](docs/llm_safety.md) | 禁止表現・必須記載・プロンプトテンプレート・出力チェックリスト |
 | [DataSeries / MacroDataset 利用ガイド](docs/data/data_series_guide.md) | 実データ標準型の構造と操作 |
 | [モデル変数と実データ系列のマッピング表](docs/data/variable_mapping.md) | 各モデル変数と候補実データ系列の対応・単位・変換注意事項 |
@@ -93,6 +94,7 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 | [ADR 0003: Minsky 資金調達区分の診断層](docs/adr/0003-minsky-financing-regime-diagnostics.md) | 診断を Keen 本体から分離した読み取り専用層とし hysteresis を不採用とする決定記録 |
 | [ADR 0004: Keen モデル実証化の識別戦略](docs/adr/0004-keen-empirical-calibration-strategy.md) | 米国基準・指数/比率の検証義務・Δt=0.25 の時間軸契約・固定/推定分離・ODE residual 採用の決定記録 |
 | [ADR 0005: Keen 実証結果の AI 説明契約](docs/adr/0005-keen-ai-explanation-contract.md) | 観測・測定・推定・モデル出力・診断proxy・感応度を分離する根拠階層・source reference・禁止解釈・構造化出力/fallback の決定記録 |
+| [ADR 0006: クロスモデル推論契約](docs/adr/0006-cross-model-reasoning-contract.md) | 概念対応（ModelConceptMapping）の明示・repository metadata 限定・同名変数の非同一視・比較不能の非統合（insufficient_comparability）・fit 比較制限の決定記録 |
 | [品質チェックとローカル検証手順](docs/development/quality_checks.md) | Aqua.jl・JuliaFormatter・テスト実行方法 |
 | [依存パッケージ管理と注意点](docs/development/dependency_management.md) | JuMP・Interpolations・NLsolve の注意点・Manifest.toml 管理 |
 | [設定・環境変数管理ガイド](docs/development/configuration.md) | API キー設定・fixture/mock モード・CI 運用方針 |
