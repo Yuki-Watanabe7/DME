@@ -1,0 +1,2 @@
+以下が分析結果の JSON です:
+{"contract_version": "keen-ai-output/1.0.0", "executive_summary": {"status": "available", "claims": [], "missing_fields": []}}

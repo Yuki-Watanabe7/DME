@@ -1,0 +1,16 @@
+{
+  "contract_version": "keen-ai-output/1.0.0",
+  "executive_summary": {
+    "status": "available",
+    "claims": [
+      {
+        "claim_id": "x",
+        "text": "t",
+        "epistemic_status": "prophecy",
+        "source_ids": ["calibration.base"],
+        "qualifiers": []
+      }
+    ],
+    "missing_fields": []
+  }
+}
