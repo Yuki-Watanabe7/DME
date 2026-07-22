@@ -1,0 +1,640 @@
+{
+    "analysis_scope": {
+        "status": "available",
+        "missing_fields": [
+        ],
+        "claims": [
+            {
+                "source_ids": [
+                    "measurement.methodology"
+                ],
+                "epistemic_status": "measured",
+                "claim_id": "scope.extent",
+                "qualifiers": [
+                ],
+                "text": "分析対象は TEST、標本期間 2000-Q1〜2009-Q4（観測数 40、取得モード fixture）。"
+            },
+            {
+                "source_ids": [
+                    "measurement.methodology"
+                ],
+                "epistemic_status": "measured",
+                "claim_id": "scope.split",
+                "qualifiers": [
+                ],
+                "text": "比較モデル: literature, calibrated。キャリブレーション期間 2000-Q1〜2006-Q4、検証期間 2007-Q1〜2009-Q4。"
+            }
+        ]
+    },
+    "measurement_and_transformations": {
+        "status": "available",
+        "missing_fields": [
+        ],
+        "claims": [
+            {
+                "source_ids": [
+                    "measurement.methodology"
+                ],
+                "epistemic_status": "measured",
+                "claim_id": "measurement.mapping",
+                "qualifiers": [
+                    "単位差・頻度変換・系列改定を伴うため観測値とは区別する"
+                ],
+                "text": "観測方程式・系列対応: d←DEBT, r←RATE, λ←LAMBDA, ω←OMEGA。変換式: d: value / 100; r: value / 100; λ: 1 - value / 100; ω: value / 100。r_mode=sample_mean（r_param=0.03）、欠損により除外した日付 0 件。"
+            }
+        ]
+    },
+    "validation_assessment": {
+        "status": "available",
+        "missing_fields": [
+        ],
+        "claims": [
+            {
+                "source_ids": [
+                    "validation.literature.is.observed-start"
+                ],
+                "epistemic_status": "simulated",
+                "claim_id": "validation.literature.in_sample.observed_start",
+                "qualifiers": [
+                    "標本内/外の条件付き trajectory fit であり、因果妥当性・将来予測保証・政策効果ではない"
+                ],
+                "text": "literature / in_sample / observed_start: n=28。ω: n=27, RMSE=0.0041, MAE=0.0034, corr=0.784 | λ: n=27, RMSE=0.0023, MAE=0.0019, corr=0.748 | d: n=27, RMSE=0.0085, MAE=0.0065, corr=0.585。"
+            },
+            {
+                "source_ids": [
+                    "validation.literature.oos.observed-start"
+                ],
+                "epistemic_status": "simulated",
+                "claim_id": "validation.literature.out_of_sample.observed_start",
+                "qualifiers": [
+                    "標本内/外の条件付き trajectory fit であり、因果妥当性・将来予測保証・政策効果ではない"
+                ],
+                "text": "literature / out_of_sample / observed_start: n=12。ω: n=11, RMSE=0.0033, MAE=0.0028, corr=0.947 | λ: n=11, RMSE=0.0017, MAE=0.0015, corr=0.89 | d: n=11, RMSE=0.0018, MAE=0.0014, corr=0.975。"
+            },
+            {
+                "source_ids": [
+                    "validation.literature.oos.calibration-continued"
+                ],
+                "epistemic_status": "simulated",
+                "claim_id": "validation.literature.out_of_sample.calibration_continued",
+                "qualifiers": [
+                    "標本内/外の条件付き trajectory fit であり、因果妥当性・将来予測保証・政策効果ではない"
+                ],
+                "text": "literature / out_of_sample / calibration_continued: n=12。ω: n=12, RMSE=0.005, MAE=0.0042, corr=0.395 | λ: n=12, RMSE=0.0029, MAE=0.0025, corr=0.423 | d: n=12, RMSE=0.0161, MAE=0.0149, corr=0.372。"
+            },
+            {
+                "source_ids": [
+                    "validation.calibrated.is.observed-start"
+                ],
+                "epistemic_status": "simulated",
+                "claim_id": "validation.calibrated.in_sample.observed_start",
+                "qualifiers": [
+                    "標本内/外の条件付き trajectory fit であり、因果妥当性・将来予測保証・政策効果ではない"
+                ],
+                "text": "calibrated / in_sample / observed_start: n=28。ω: n=27, RMSE=0.0019, MAE=0.0015, corr=0.944 | λ: n=27, RMSE=0.0011, MAE=0.0009, corr=0.93 | d: n=27, RMSE=0.0024, MAE=0.0018, corr=0.927。"
+            },
+            {
+                "source_ids": [
+                    "validation.calibrated.oos.observed-start"
+                ],
+                "epistemic_status": "simulated",
+                "claim_id": "validation.calibrated.out_of_sample.observed_start",
+                "qualifiers": [
+                    "標本内/外の条件付き trajectory fit であり、因果妥当性・将来予測保証・政策効果ではない"
+                ],
+                "text": "calibrated / out_of_sample / observed_start: n=12。ω: n=11, RMSE=0.0007, MAE=0.0006, corr=0.991 | λ: n=11, RMSE=0.0005, MAE=0.0004, corr=0.984 | d: n=11, RMSE=0.001, MAE=0.0008, corr=0.983。"
+            },
+            {
+                "source_ids": [
+                    "validation.calibrated.oos.calibration-continued"
+                ],
+                "epistemic_status": "simulated",
+                "claim_id": "validation.calibrated.out_of_sample.calibration_continued",
+                "qualifiers": [
+                    "標本内/外の条件付き trajectory fit であり、因果妥当性・将来予測保証・政策効果ではない"
+                ],
+                "text": "calibrated / out_of_sample / calibration_continued: n=12。ω: n=12, RMSE=0.0036, MAE=0.0032, corr=0.702 | λ: n=12, RMSE=0.002, MAE=0.0018, corr=0.673 | d: n=12, RMSE=0.0042, MAE=0.0037, corr=0.667。"
+            },
+            {
+                "source_ids": [
+                    "validation.literature.is.observed-start",
+                    "validation.literature.oos.observed-start",
+                    "validation.literature.oos.calibration-continued",
+                    "validation.calibrated.is.observed-start",
+                    "validation.calibrated.oos.observed-start",
+                    "validation.calibrated.oos.calibration-continued"
+                ],
+                "epistemic_status": "simulated",
+                "claim_id": "validation.aggregate",
+                "qualifiers": [
+                    "標本内/外の条件付き trajectory fit であり、因果妥当性・将来予測保証・政策効果ではない"
+                ],
+                "text": "集計 RMSE（out_of_sample）: literature=0.0068、calibrated=0.0022。calibrated が literature より悪化: false。"
+            }
+        ]
+    },
+    "contract_version": "keen-ai-output/1.0.0",
+    "reproducibility": {
+        "context_contract_version": "keen-ai-context/1.0.0",
+        "calibration_version": "keen-calibration/1.0.0",
+        "mode": "fixture",
+        "validation_version": "keen-validation/1.0.0",
+        "sample_start": "2000-Q1",
+        "diagnostic_version": "minsky-diagnostics/1.0.0",
+        "audience": "analyst",
+        "country": "TEST",
+        "prompt_version": "keen-ai-explanation-prompt/1.0.0",
+        "output_contract_version": "keen-ai-output/1.0.0",
+        "sample_end": "2009-Q4",
+        "measurement_version": "keen-empirical/1.0.0",
+        "detail": "standard",
+        "seed": 20260718
+    },
+    "interpretation_scope": {
+        "status": "available",
+        "missing_fields": [
+        ],
+        "claims": [
+            {
+                "source_ids": [
+                    "limitation.caveats"
+                ],
+                "epistemic_status": "limitation",
+                "claim_id": "interpretation.boundary",
+                "qualifiers": [
+                ],
+                "text": "本説明は、観測系列と測定変換、限定キャリブレーション推定値、標本内/外の条件付き fit、集計 proxy への regime 診断、検証済み感応度シナリオに限定される。因果効果・将来予測・政策効果・危機確率へは拡張できない。"
+            }
+        ]
+    },
+    "calibration_interpretation": {
+        "status": "available",
+        "missing_fields": [
+        ],
+        "claims": [
+            {
+                "source_ids": [
+                    "calibration.base"
+                ],
+                "epistemic_status": "estimated",
+                "claim_id": "calibration.estimates",
+                "qualifiers": [
+                    "特定の標本・proxy・bounds・objective に依存する限定推定値であり、構造の真値・因果parameter・普遍定数ではない"
+                ],
+                "text": "限定キャリブレーションの採用推定値: κ0=0.0031, κ1=0.0067, φ0=0.0465, φ1=0.0001（objective_method=ode_residual, objective=5.2644, iterations=265, converged=true）。"
+            },
+            {
+                "source_ids": [
+                    "calibration.base"
+                ],
+                "epistemic_status": "estimated",
+                "claim_id": "calibration.fixed",
+                "qualifiers": [
+                ],
+                "text": "固定パラメータ: r=0.03, α=0.025, β=0.02, δ=0.01, κ2=20.0, ν=3.0（推定対象外）。"
+            }
+        ]
+    },
+    "audience": "analyst",
+    "prompt_version": "keen-ai-explanation-prompt/1.0.0",
+    "regime_assessment": {
+        "status": "available",
+        "missing_fields": [
+        ],
+        "claims": [
+            {
+                "source_ids": [
+                    "regime.observed-proxy"
+                ],
+                "epistemic_status": "diagnostic",
+                "claim_id": "regime.observed_proxy",
+                "qualifiers": [
+                    "observed proxy は集計系列への Minsky 診断の代理であり企業別実測分類ではない。model 側は観測開始状態からの full-sample 予測 trajectory への診断。",
+                    "集計 proxy への操作的診断であり、Keen 内部の endogenous regime や企業別実測分類ではない"
+                ],
+                "text": "observed_proxy の financing regime 診断: 滞在比率 [hedge=1.0, invalid=0.0, ponzi=0.0, speculative=0.0, unlevered=0.0]、first_speculative=nothing、first_ponzi=nothing、peak_debt_ratio=0.1343。"
+            },
+            {
+                "source_ids": [
+                    "regime.literature-model"
+                ],
+                "epistemic_status": "diagnostic",
+                "claim_id": "regime.literature_model",
+                "qualifiers": [
+                    "observed proxy は集計系列への Minsky 診断の代理であり企業別実測分類ではない。model 側は観測開始状態からの full-sample 予測 trajectory への診断。"
+                ],
+                "text": "literature_model の financing regime 診断: 滞在比率 [hedge=1.0, invalid=0.0, ponzi=0.0, speculative=0.0, unlevered=0.0]、first_speculative=nothing、first_ponzi=nothing、peak_debt_ratio=0.1334。"
+            },
+            {
+                "source_ids": [
+                    "regime.calibrated-model"
+                ],
+                "epistemic_status": "diagnostic",
+                "claim_id": "regime.calibrated_model",
+                "qualifiers": [
+                    "observed proxy は集計系列への Minsky 診断の代理であり企業別実測分類ではない。model 側は観測開始状態からの full-sample 予測 trajectory への診断。"
+                ],
+                "text": "calibrated_model の financing regime 診断: 滞在比率 [hedge=1.0, invalid=0.0, ponzi=0.0, speculative=0.0, unlevered=0.0]、first_speculative=nothing、first_ponzi=nothing、peak_debt_ratio=0.1337。"
+            }
+        ]
+    },
+    "sensitivity_and_robustness": {
+        "status": "available",
+        "missing_fields": [
+        ],
+        "claims": [
+            {
+                "source_ids": [
+                    "sensitivity.base"
+                ],
+                "epistemic_status": "sensitivity",
+                "claim_id": "sensitivity.base",
+                "qualifiers": [
+                    "実際に変更した仮定と検証済み範囲内でのみ成立し、範囲外へ外挿しない"
+                ],
+                "text": "シナリオ「base」（custom）: Δκ0=0.0, Δκ1=0.0, Δφ0=0.0, Δφ1=0.0、objective_Δ=0.0、符号反転=false、発散=false、robustness=base。"
+            },
+            {
+                "source_ids": [
+                    "sensitivity.amortization_rate-0.03"
+                ],
+                "epistemic_status": "sensitivity",
+                "claim_id": "sensitivity.amortization_rate=0.03",
+                "qualifiers": [
+                    "実際に変更した仮定と検証済み範囲内でのみ成立し、範囲外へ外挿しない"
+                ],
+                "text": "シナリオ「amortization_rate=0.03」（amortization_rate）: Δκ0=0.0, Δκ1=0.0, Δφ0=0.0, Δφ1=0.0、objective_Δ=0.0、符号反転=false、発散=false、robustness=stable。"
+            },
+            {
+                "source_ids": [
+                    "sensitivity.amortization_rate-0.05"
+                ],
+                "epistemic_status": "sensitivity",
+                "claim_id": "sensitivity.amortization_rate=0.05",
+                "qualifiers": [
+                    "実際に変更した仮定と検証済み範囲内でのみ成立し、範囲外へ外挿しない"
+                ],
+                "text": "シナリオ「amortization_rate=0.05」（amortization_rate）: Δκ0=0.0, Δκ1=0.0, Δφ0=0.0, Δφ1=0.0、objective_Δ=0.0、符号反転=false、発散=false、robustness=stable。"
+            },
+            {
+                "source_ids": [
+                    "sensitivity.amortization_rate-0.1"
+                ],
+                "epistemic_status": "sensitivity",
+                "claim_id": "sensitivity.amortization_rate=0.1",
+                "qualifiers": [
+                    "実際に変更した仮定と検証済み範囲内でのみ成立し、範囲外へ外挿しない"
+                ],
+                "text": "シナリオ「amortization_rate=0.1」（amortization_rate）: Δκ0=0.0, Δκ1=0.0, Δφ0=0.0, Δφ1=0.0、objective_Δ=0.0、符号反転=false、発散=false、robustness=stable。"
+            },
+            {
+                "source_ids": [
+                    "sensitivity.rate_method-real_proxy"
+                ],
+                "epistemic_status": "sensitivity",
+                "claim_id": "sensitivity.rate_method=real_proxy",
+                "qualifiers": [
+                    "実際に変更した仮定と検証済み範囲内でのみ成立し、範囲外へ外挿しない"
+                ],
+                "text": "シナリオ「rate_method=real_proxy」（rate_method）: Δκ0=0.0026, Δκ1=-0.0004, Δφ0=-0.0, Δφ1=-0.0、objective_Δ=0.9148、符号反転=false、発散=false、robustness=stable。"
+            },
+            {
+                "source_ids": [
+                    "sensitivity.initial_guess-midpoint_blend"
+                ],
+                "epistemic_status": "sensitivity",
+                "claim_id": "sensitivity.initial_guess=midpoint_blend",
+                "qualifiers": [
+                    "実際に変更した仮定と検証済み範囲内でのみ成立し、範囲外へ外挿しない"
+                ],
+                "text": "シナリオ「initial_guess=midpoint_blend」（initial_guess）: Δκ0=-0.0, Δκ1=0.0, Δφ0=-0.0, Δφ1=-0.0、objective_Δ=0.0、符号反転=false、発散=false、robustness=stable。"
+            },
+            {
+                "source_ids": [
+                    "sensitivity.variable_weight-none"
+                ],
+                "epistemic_status": "sensitivity",
+                "claim_id": "sensitivity.variable_weight=none",
+                "qualifiers": [
+                    "実際に変更した仮定と検証済み範囲内でのみ成立し、範囲外へ外挿しない"
+                ],
+                "text": "シナリオ「variable_weight=none」（variable_weight）: Δκ0=-0.0005, Δκ1=0.0, Δφ0=-0.0, Δφ1=-0.0、objective_Δ=-5.2638、符号反転=false、発散=false、robustness=stable。"
+            }
+        ]
+    },
+    "observed_evidence": {
+        "status": "available",
+        "missing_fields": [
+        ],
+        "claims": [
+            {
+                "source_ids": [
+                    "obs.omega"
+                ],
+                "epistemic_status": "observed",
+                "claim_id": "obs.ω",
+                "qualifiers": [
+                    "変換後 unit=model-unit (ratio)（元 unit=Percent、変換=value / 100）は測定・変換であり生の公表値ではない"
+                ],
+                "text": "観測系列 ω（TEST/OMEGA）は 40 点を採用（source 欠損 0、無効 0）。期間 2000-Q1〜2009-Q4。"
+            },
+            {
+                "source_ids": [
+                    "obs.lambda"
+                ],
+                "epistemic_status": "observed",
+                "claim_id": "obs.λ",
+                "qualifiers": [
+                    "変換後 unit=model-unit (ratio)（元 unit=Percent、変換=1 - value / 100）は測定・変換であり生の公表値ではない"
+                ],
+                "text": "観測系列 λ（TEST/LAMBDA）は 40 点を採用（source 欠損 0、無効 0）。期間 2000-Q1〜2009-Q4。"
+            },
+            {
+                "source_ids": [
+                    "obs.debt"
+                ],
+                "epistemic_status": "observed",
+                "claim_id": "obs.d",
+                "qualifiers": [
+                    "変換後 unit=model-unit (ratio)（元 unit=Percent of GDP、変換=value / 100）は測定・変換であり生の公表値ではない"
+                ],
+                "text": "観測系列 d（TEST/DEBT）は 40 点を採用（source 欠損 0、無効 0）。期間 2000-Q1〜2009-Q4。"
+            },
+            {
+                "source_ids": [
+                    "obs.rate"
+                ],
+                "epistemic_status": "observed",
+                "claim_id": "obs.r",
+                "qualifiers": [
+                    "変換後 unit=model-unit (ratio)（元 unit=Percent、変換=value / 100）は測定・変換であり生の公表値ではない"
+                ],
+                "text": "観測系列 r（TEST/RATE）は 40 点を採用（source 欠損 0、無効 0）。期間 2000-Q1〜2009-Q4。"
+            }
+        ]
+    },
+    "source_references": [
+        {
+            "label": "観測方程式・単位変換・頻度集約",
+            "method_id": "keen-empirical/1.0.0",
+            "id": "measurement.methodology",
+            "category": "measurement",
+            "context_path": "/methodology"
+        },
+        {
+            "label": "観測系列 ω（OMEGA）",
+            "provider": "TEST",
+            "period_end": "2009-Q4",
+            "series_id": "OMEGA",
+            "method_id": "keen-empirical/1.0.0",
+            "id": "obs.omega",
+            "unit": "model-unit (ratio)",
+            "period_start": "2000-Q1",
+            "category": "observed_data",
+            "context_path": "/dataset/series/ω"
+        },
+        {
+            "label": "観測系列 λ（LAMBDA）",
+            "provider": "TEST",
+            "period_end": "2009-Q4",
+            "series_id": "LAMBDA",
+            "method_id": "keen-empirical/1.0.0",
+            "id": "obs.lambda",
+            "unit": "model-unit (ratio)",
+            "period_start": "2000-Q1",
+            "category": "observed_data",
+            "context_path": "/dataset/series/λ"
+        },
+        {
+            "label": "観測系列 d（DEBT）",
+            "provider": "TEST",
+            "period_end": "2009-Q4",
+            "series_id": "DEBT",
+            "method_id": "keen-empirical/1.0.0",
+            "id": "obs.debt",
+            "unit": "model-unit (ratio)",
+            "period_start": "2000-Q1",
+            "category": "observed_data",
+            "context_path": "/dataset/series/d"
+        },
+        {
+            "label": "観測系列 r（RATE）",
+            "provider": "TEST",
+            "period_end": "2009-Q4",
+            "series_id": "RATE",
+            "method_id": "keen-empirical/1.0.0",
+            "id": "obs.rate",
+            "unit": "model-unit (ratio)",
+            "period_start": "2000-Q1",
+            "category": "observed_data",
+            "context_path": "/dataset/series/r"
+        },
+        {
+            "label": "限定キャリブレーション（採用解）",
+            "method_id": "keen-calibration/1.0.0",
+            "period_end": "2006-Q4",
+            "id": "calibration.base",
+            "period_start": "2000-Q1",
+            "category": "calibration",
+            "context_path": "/validation/calibration"
+        },
+        {
+            "label": "literature / in_sample / observed_start の検証",
+            "method_id": "keen-validation/1.0.0",
+            "id": "validation.literature.is.observed-start",
+            "category": "model_output",
+            "context_path": "/validation/evaluations/0"
+        },
+        {
+            "label": "literature / out_of_sample / observed_start の検証",
+            "method_id": "keen-validation/1.0.0",
+            "id": "validation.literature.oos.observed-start",
+            "category": "model_output",
+            "context_path": "/validation/evaluations/1"
+        },
+        {
+            "label": "literature / out_of_sample / calibration_continued の検証",
+            "method_id": "keen-validation/1.0.0",
+            "id": "validation.literature.oos.calibration-continued",
+            "category": "model_output",
+            "context_path": "/validation/evaluations/2"
+        },
+        {
+            "label": "calibrated / in_sample / observed_start の検証",
+            "method_id": "keen-validation/1.0.0",
+            "id": "validation.calibrated.is.observed-start",
+            "category": "model_output",
+            "context_path": "/validation/evaluations/3"
+        },
+        {
+            "label": "calibrated / out_of_sample / observed_start の検証",
+            "method_id": "keen-validation/1.0.0",
+            "id": "validation.calibrated.oos.observed-start",
+            "category": "model_output",
+            "context_path": "/validation/evaluations/4"
+        },
+        {
+            "label": "calibrated / out_of_sample / calibration_continued の検証",
+            "method_id": "keen-validation/1.0.0",
+            "id": "validation.calibrated.oos.calibration-continued",
+            "category": "model_output",
+            "context_path": "/validation/evaluations/5"
+        },
+        {
+            "label": "金融不安定性診断: observed_proxy",
+            "method_id": "minsky-diagnostics/1.0.0",
+            "id": "regime.observed-proxy",
+            "category": "diagnostic_proxy",
+            "context_path": "/validation/regime_comparison/observed_proxy"
+        },
+        {
+            "label": "金融不安定性診断: literature_model",
+            "method_id": "minsky-diagnostics/1.0.0",
+            "id": "regime.literature-model",
+            "category": "diagnostic_proxy",
+            "context_path": "/validation/regime_comparison/literature_model"
+        },
+        {
+            "label": "金融不安定性診断: calibrated_model",
+            "method_id": "minsky-diagnostics/1.0.0",
+            "id": "regime.calibrated-model",
+            "category": "diagnostic_proxy",
+            "context_path": "/validation/regime_comparison/calibrated_model"
+        },
+        {
+            "label": "感応度シナリオ: base",
+            "method_id": "keen-validation/1.0.0",
+            "id": "sensitivity.base",
+            "category": "sensitivity",
+            "context_path": "/validation/sensitivity/0"
+        },
+        {
+            "label": "感応度シナリオ: amortization_rate=0.03",
+            "method_id": "keen-validation/1.0.0",
+            "id": "sensitivity.amortization_rate-0.03",
+            "category": "sensitivity",
+            "context_path": "/validation/sensitivity/1"
+        },
+        {
+            "label": "感応度シナリオ: amortization_rate=0.05",
+            "method_id": "keen-validation/1.0.0",
+            "id": "sensitivity.amortization_rate-0.05",
+            "category": "sensitivity",
+            "context_path": "/validation/sensitivity/2"
+        },
+        {
+            "label": "感応度シナリオ: amortization_rate=0.1",
+            "method_id": "keen-validation/1.0.0",
+            "id": "sensitivity.amortization_rate-0.1",
+            "category": "sensitivity",
+            "context_path": "/validation/sensitivity/3"
+        },
+        {
+            "label": "感応度シナリオ: rate_method=real_proxy",
+            "method_id": "keen-validation/1.0.0",
+            "id": "sensitivity.rate_method-real_proxy",
+            "category": "sensitivity",
+            "context_path": "/validation/sensitivity/4"
+        },
+        {
+            "label": "感応度シナリオ: initial_guess=midpoint_blend",
+            "method_id": "keen-validation/1.0.0",
+            "id": "sensitivity.initial_guess-midpoint_blend",
+            "category": "sensitivity",
+            "context_path": "/validation/sensitivity/5"
+        },
+        {
+            "label": "感応度シナリオ: variable_weight=none",
+            "method_id": "keen-validation/1.0.0",
+            "id": "sensitivity.variable_weight-none",
+            "category": "sensitivity",
+            "context_path": "/validation/sensitivity/6"
+        },
+        {
+            "label": "実証層の固定 caveats",
+            "method_id": "keen-validation/1.0.0",
+            "id": "limitation.caveats",
+            "category": "limitations",
+            "context_path": "/validation/caveats"
+        }
+    ],
+    "limitations_and_alternatives": {
+        "status": "available",
+        "missing_fields": [
+        ],
+        "claims": [
+            {
+                "source_ids": [
+                    "limitation.caveats"
+                ],
+                "epistemic_status": "limitation",
+                "claim_id": "limitation.KEEN_CAVEAT_1",
+                "qualifiers": [
+                ],
+                "text": "実証 fit（当てはまり）は因果関係・危機発生確率・将来予測精度と同一ではない。"
+            },
+            {
+                "source_ids": [
+                    "limitation.caveats"
+                ],
+                "epistemic_status": "limitation",
+                "claim_id": "limitation.KEEN_CAVEAT_2",
+                "qualifiers": [
+                ],
+                "text": "モデル変数（ω・λ・d）と統計系列は近似対応であり厳密に同一ではない。"
+            },
+            {
+                "source_ids": [
+                    "limitation.caveats"
+                ],
+                "epistemic_status": "limitation",
+                "claim_id": "limitation.KEEN_CAVEAT_3",
+                "qualifiers": [
+                ],
+                "text": "observed proxy regime は集計系列に Minsky 診断と同じ操作的定義を適用した代理であり、企業別実測分類ではない。"
+            },
+            {
+                "source_ids": [
+                    "limitation.caveats"
+                ],
+                "epistemic_status": "limitation",
+                "claim_id": "limitation.KEEN_CAVEAT_4",
+                "qualifiers": [
+                ],
+                "text": "amortization_rate 等の診断仮定は理論的アンカーではなく作業仮定であり、regime 判定はその仮定に依存する。"
+            },
+            {
+                "source_ids": [
+                    "limitation.caveats"
+                ],
+                "epistemic_status": "limitation",
+                "claim_id": "limitation.KEEN_CAVEAT_5",
+                "qualifiers": [
+                ],
+                "text": "発散しないことはモデルの妥当性を保証しない。転換点・方向性・regime 遷移も併せて評価する必要がある。"
+            }
+        ]
+    },
+    "detail": "standard",
+    "disclaimer": "このシミュレーションは特定の仮定に基づく条件付き計算です。実際の経済動向の予測ではありません。本出力は投資判断・政策立案の根拠として使用することを意図していません。",
+    "warnings": [
+    ],
+    "generation_status": "parsed",
+    "executive_summary": {
+        "status": "available",
+        "missing_fields": [
+        ],
+        "claims": [
+            {
+                "source_ids": [
+                    "measurement.methodology"
+                ],
+                "epistemic_status": "measured",
+                "claim_id": "exec.overview",
+                "qualifiers": [
+                ],
+                "text": "TEST（2000-Q1〜2009-Q4、fixture）の Keen 実証分析を、観測・測定・推定・モデル出力・診断proxy・感応度・限界に分離して評価した。"
+            }
+        ]
+    }
+}

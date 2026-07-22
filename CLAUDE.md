@@ -96,5 +96,6 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 | [ADR 0005: Keen 実証結果の AI 説明契約](docs/adr/0005-keen-ai-explanation-contract.md) | 観測・測定・推定・モデル出力・診断proxy・感応度を分離する根拠階層・source reference・禁止解釈・構造化出力/fallback の決定記録 |
 | [ADR 0006: クロスモデル推論契約](docs/adr/0006-cross-model-reasoning-contract.md) | 概念対応（ModelConceptMapping）の明示・repository metadata 限定・同名変数の非同一視・比較不能の非統合（insufficient_comparability）・fit 比較制限の決定記録 |
 | [品質チェックとローカル検証手順](docs/development/quality_checks.md) | Aqua.jl・JuliaFormatter・テスト実行方法 |
+| [Keen 実証説明の LLM 回帰テストと安全性評価](docs/development/keen_llm_regression.md) | 契約/parser/シナリオ/golden/forbidden の評価レイヤー・安全性評価器・fixture 再生成/追加手順・任意 provider 評価 |
 | [依存パッケージ管理と注意点](docs/development/dependency_management.md) | JuMP・Interpolations・NLsolve の注意点・Manifest.toml 管理 |
 | [設定・環境変数管理ガイド](docs/development/configuration.md) | API キー設定・fixture/mock モード・CI 運用方針 |
