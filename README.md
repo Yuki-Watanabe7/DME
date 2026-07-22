@@ -228,6 +228,7 @@ response = complete_from_prompt(provider, build_explain_prompt(ctx))
 | [examples/ai_economist_demo.jl](examples/ai_economist_demo.jl) | **AIエコノミスト統合デモ**。モデル選択 → シミュレーション → 実データ取得 → 前処理 → モデル比較 → AnalysisContext → docs コンテキスト → LLM 説明生成の一連のフロー。 |
 | [examples/minsky_diagnostics_demo.jl](examples/minsky_diagnostics_demo.jl) | **Minsky 統合デモ**。Keen モデルの良い均衡回帰経路・高債務崩壊経路の両方について、資金調達区分診断（Hedge/Speculative/Ponzi）・金融不安定性連続診断指標とサマリー・regime timeline / diagnostics plot・シナリオ比較を一通り実行する。 |
 | [examples/keen_empirical_demo.jl](examples/keen_empirical_demo.jl) | **Keen 実証統合デモ**。米国 Keen 実証 MVP について、実データ取得 → 観測系列変換 → 限定キャリブレーション → in-sample/out-of-sample 検証 → observed proxy / model の金融不安定性 regime 比較 → 感応度分析 → 可視化 → 機械可読レポート出力までを完走する。fixture モードは API キー不要・決定的。 |
+| [examples/keen_empirical_ai_economist.jl](examples/keen_empirical_ai_economist.jl) | **Keen 実証 AIエコノミスト統合デモ**。データ取得 → 実証分析（推定・検証・regime・感応度）→ 拡張 AnalysisContext → 根拠付き LLM 説明 → クロスモデル比較 → 数値・図表・説明・provenance の run 単位保存までを再現可能に完走する。offline（fixture + deterministic）は API キー不要・決定的。詳細: [docs/examples/keen_empirical_ai_economist.md](docs/examples/keen_empirical_ai_economist.md)。 |
 
 ```bash
 julia --project=. examples/growth_models.jl
@@ -237,6 +238,7 @@ julia --project=. examples/real_data_demo.jl
 julia --project=. examples/ai_economist_demo.jl
 julia --project=. examples/minsky_diagnostics_demo.jl
 julia --project=. examples/keen_empirical_demo.jl
+julia --project=. examples/keen_empirical_ai_economist.jl
 ```
 
 実データ・実 LLM で実行する場合は環境変数を設定します。
@@ -259,6 +261,17 @@ DME_DATA_MODE=live FRED_API_KEY=... KEEN_DEMO_OUTDIR=./out \
   julia --project=. examples/keen_empirical_demo.jl
 ```
 
+Keen 実証 AIエコノミスト統合デモは、上記の実証分析に加えて根拠付き LLM 説明・クロスモデル比較・provenance 保存まで行います。offline（fixture + MockLLMProvider）が既定・正で決定的、`OPENAI_API_KEY` 設定時のみ実 LLM を呼びます。
+
+```bash
+# offline（既定・API キー不要・決定的）。成果物は artifacts/keen_empirical_ai_economist/ へ
+julia --project=. examples/keen_empirical_ai_economist.jl
+
+# 実データ + 実 LLM。出力先を指定
+DME_DATA_MODE=live FRED_API_KEY=... OPENAI_API_KEY=sk-... KEEN_AI_DEMO_OUTDIR=./out \
+  julia --project=. examples/keen_empirical_ai_economist.jl
+```
+
 > 実証結果の限界: 観測系列は理論変数（ω・λ・d）の近似 proxy、calibrated parameter は採用期間・proxy・weight・bounds 依存、observed regime も集計 proxy 診断、out-of-sample fit は危機予測能力を意味しない。本デモは投資助言・政策判断の自動化を目的としない。
 
 ## テスト
@@ -276,6 +289,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [モデル選択ガイド](docs/model_selection_guide.md) | 問い・現象からモデルを選ぶためのリファレンス。比較表・決定木・各モデルの限界 |
 | [出力結果の読み方](docs/simulation_outputs.md) | 定常状態・移行経路・IRF・水準/対数偏差の概念と出力例 |
 | [API リファレンス](docs/api.md) | Public/Internal API の一覧・シグネチャ・移行ガイド |
+| [Keen 実証 AIエコノミスト統合デモ](docs/examples/keen_empirical_ai_economist.md) | データ取得 → 実証分析 → 根拠付き LLM 説明 → クロスモデル比較 → provenance 保存の再現可能な統合デモの実行手順・成果物・設定例 |
 
 ### モデル解説
 
