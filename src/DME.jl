@@ -160,6 +160,7 @@ export
     KEEN_AI_CONTEXT_CONTRACT_VERSION,
     KEEN_AI_PROMPT_VERSION,
     KEEN_EVIDENCE_CATEGORIES,
+    DME_EVIDENCE_CATEGORIES,
     EvidenceSource,
     ExplanationWarning,
     AnalysisScope,
@@ -194,6 +195,26 @@ export
     build_keen_empirical_prompt,
     explain_keen_empirical_result,
     parse_keen_empirical_response,
+    # クロスモデル推論層（#132 / ADR 0006）
+    CROSS_MODEL_CONTEXT_CONTRACT_VERSION,
+    CROSS_MODEL_PROMPT_VERSION,
+    CROSS_MODEL_OUTPUT_CONTRACT_VERSION,
+    CROSS_MODEL_CONCEPTS,
+    CROSS_MODEL_TREATMENTS,
+    CROSS_MODEL_MAPPING_TYPES,
+    CROSS_MODEL_OUTPUT_SECTION_ORDER,
+    ModelConceptCoverage,
+    ModelConceptMapping,
+    derive_concept_mapping,
+    MODEL_CONCEPT_REGISTRY,
+    model_concept_coverage,
+    CrossModelComparisonContext,
+    build_cross_model_comparison_context,
+    insufficient_comparability_concepts,
+    CrossModelReasoningOutput,
+    build_cross_model_prompt,
+    explain_cross_model_comparison,
+    parse_cross_model_response,
     # LLM provider abstraction
     LLMProviderError,
     LLMRequest,
@@ -302,5 +323,10 @@ include("./llm/provider.jl")
 # Keen 実証結果の根拠付き説明 API・専用 prompt（depends on keen_empirical_context.jl,
 # prompts.jl の _DISCLAIMER_JA, provider.jl の complete_from_prompt）
 include("./llm/keen_empirical_prompts.jl")
+
+# クロスモデル推論層（#132 / ADR 0006。depends on keen_empirical_context.jl の EvidenceSource 等,
+# keen_empirical_prompts.jl の EvidenceClaim/ExplanationSection/_KEEN_SEVERITY_RANK/_keen_fmt,
+# analysis_context.jl の ModelMetadata, provider.jl の complete_from_prompt）
+include("./llm/cross_model_reasoning.jl")
 
 end

@@ -37,6 +37,17 @@ const KEEN_EVIDENCE_CATEGORIES = (
     :limitations,
 )
 
+# クロスモデル推論層（#132 / ADR 0006）と共有する拡張根拠カテゴリ。
+# `EvidenceSource` / `EvidenceClaim` などの共通プリミティブはこの superset で検証し、
+# Keen 層は引き続き狭い `KEEN_*` 語彙で内部整合を検証する（ADR 0005 §10 の再利用方針）。
+const DME_EVIDENCE_CATEGORIES = (
+    KEEN_EVIDENCE_CATEGORIES...,
+    :model_concept,       # モデルが概念をどう扱うかの repository metadata（ADR 0006）
+    :concept_mapping,     # モデル間の概念対応（ModelConceptMapping）
+    :empirical_evidence,  # 実証結果サマリー（Keen 実証層由来）
+    :comparison,          # クロスモデル比較の合成観察
+)
+
 # warning severity（ADR 0005 §5）
 const KEEN_WARNING_SEVERITIES = (:info, :warning, :error, :blocking)
 
@@ -111,9 +122,9 @@ function EvidenceSource(;
     occursin(r"^[a-z][a-z0-9_.-]*$", id) || throw(
         ArgumentError("EvidenceSource.id が不正です: $(repr(id))（^[a-z][a-z0-9_.-]*\$）"),
     )
-    category in KEEN_EVIDENCE_CATEGORIES || throw(
+    category in DME_EVIDENCE_CATEGORIES || throw(
         ArgumentError(
-            "未知の category: $(repr(category))（有効: $(KEEN_EVIDENCE_CATEGORIES)）",
+            "未知の category: $(repr(category))（有効: $(DME_EVIDENCE_CATEGORIES)）",
         ),
     )
     EvidenceSource(

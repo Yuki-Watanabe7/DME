@@ -746,6 +746,80 @@ out2 = explain_keen_empirical_result(actx; provider=create_provider())
 
 ---
 
+### クロスモデル推論（`explain_cross_model_comparison`）
+
+Keen 実証結果と既存マクロモデルの比較を、モデル間の概念対応（`ModelConceptMapping`）を明示した
+うえで根拠付きに説明する。同名変数でも定義が異なれば同一視せず、比較不能な項目は
+`insufficient_comparability` として統合しない。モデルの性質は `MODEL_CONCEPT_REGISTRY`
+（docs 由来の repository metadata）のみを根拠とする。契約は
+[ADR 0006](adr/0006-cross-model-reasoning-contract.md)、設計は
+[クロスモデル推論層の設計](architecture/cross_model_reasoning.md)。
+
+```julia
+# repository metadata registry（(model, concept) の絞り込み）
+model_concept_coverage(; model=nothing, concept=nothing) -> Vector{ModelConceptCoverage}
+
+# 2 coverage → 概念対応（equivalent / proxy / partial / incompatible を保守的に導出）
+derive_concept_mapping(a::ModelConceptCoverage, b::ModelConceptCoverage) -> ModelConceptMapping
+
+# 比較コンテキスト（registry を (models × concepts) で絞り込み、mapping・source・warning を生成）
+build_cross_model_comparison_context(; models::Vector{Symbol},
+    concepts=collect(CROSS_MODEL_CONCEPTS), empirical=nothing,
+    model_metadata=Dict{Symbol,ModelMetadata}()) -> CrossModelComparisonContext
+
+# 全 mapping が incompatible で比較不能な概念
+insufficient_comparability_concepts(ctx::CrossModelComparisonContext) -> Vector{Symbol}
+
+# prompt 生成（provider 呼び出しから分離）
+build_cross_model_prompt(ctx::CrossModelComparisonContext; audience=:analyst, detail=:standard) -> String
+
+# 構造化推論（provider=nothing なら決定的生成。provider 指定時は応答を検証し parsed/fallback）
+explain_cross_model_comparison(ctx::CrossModelComparisonContext;
+    audience=:analyst, detail=:standard, provider=nothing,
+    max_tokens=3500, temperature=0.2) -> CrossModelReasoningOutput
+
+# provider raw 応答（JSON）を検証。成功で :parsed、失敗で nothing（呼び出し側が fallback）
+parse_cross_model_response(raw, ctx::CrossModelComparisonContext;
+    audience=:analyst, detail=:standard, prompt="") -> Union{CrossModelReasoningOutput, Nothing}
+
+to_dict(ctx) / to_json(ctx) / to_dict(out) / to_json(out)
+```
+
+`CrossModelReasoningOutput` は次の section を表示順で常に持つ（ADR 0006 §6）:
+`executive_summary`・`comparison_scope`・`concept_mappings`・`mechanisms_by_model`・
+`consistent_observations`・`divergent_conclusions`・`empirical_support`・
+`incomparable_or_insufficient`・`next_evidence`・`limitations`（各 `ExplanationSection`）、
+`source_references`・`reproducibility`・`warnings`・`disclaimer`・`generation_status`
+（`:deterministic` / `:parsed` / `:fallback`）・`contract_version`（`cross-model-output/1.0.0`）。
+
+section status は `:available` / `:not_available` / `:insufficient_comparability`。claim の
+`epistemic_status` は `metadata`（coverage）・`mapping`（概念対応）・`empirical`（実証結果）・
+`comparative`（合成観察）・`limitation`（限界）。`metadata`/`mapping`/`empirical` の claim は
+対応 category の source のみ、`comparative`/`limitation` の合成 claim は複数 category を参照できる。
+
+```julia
+# 民間債務は Keen のみ内生 → 全 mapping incompatible → insufficient_comparability
+ctx = build_cross_model_comparison_context(; models=[:keen, :rbc, :islm])
+out = explain_cross_model_comparison(ctx)              # provider 未接続 → :deterministic
+out.concept_mappings.claims                            # equivalent/proxy/partial/incompatible の明示
+insufficient_comparability_concepts(ctx)              # [:private_debt_credit]
+
+# Keen 実証結果を渡すと empirical_support が available になる
+ctx2 = build_cross_model_comparison_context(; models=[:keen, :rbc], empirical=kctx)
+out2 = explain_cross_model_comparison(ctx2; provider=create_provider())
+```
+
+> **安全性**（ADR 0006 §7）: 同名変数の定義差は `DEFINITION_MISMATCH` warning で明示し `equivalent`
+> としない。fit の単純比較は `FIT_COMPARISON_RESTRICTED`（対象系列・期間・自由度・推定方法の一致が
+> 必要）で抑止し、実証 fit を持つのは Keen 実証層のみ（`EMPIRICAL_ONLY_FOR_KEEN`）。あるモデルの
+> 失敗を別モデルの正しさの証明にしない。
+> 公開型: `ModelConceptCoverage`・`ModelConceptMapping`・`CrossModelComparisonContext`・
+> `CrossModelReasoningOutput`。定数: `CROSS_MODEL_CONCEPTS`・`CROSS_MODEL_TREATMENTS`・
+> `CROSS_MODEL_MAPPING_TYPES`・`CROSS_MODEL_OUTPUT_SECTION_ORDER`・`MODEL_CONCEPT_REGISTRY`・
+> `CROSS_MODEL_CONTEXT_CONTRACT_VERSION`・`CROSS_MODEL_OUTPUT_CONTRACT_VERSION`。
+
+---
+
 ### 可視化API
 
 ```julia

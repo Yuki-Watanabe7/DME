@@ -24,8 +24,24 @@ const KEEN_AI_OUTPUT_CONTRACT_VERSION = "keen-ai-output/1.0.0"
 const KEEN_EPISTEMIC_STATUSES =
     (:observed, :measured, :estimated, :simulated, :diagnostic, :sensitivity, :limitation)
 
+# クロスモデル推論層（#132 / ADR 0006）と共有する拡張 epistemic_status。
+# 共通プリミティブ `EvidenceClaim` はこの superset で検証し、Keen 層は引き続き
+# `KEEN_EPISTEMIC_STATUSES` の狭い語彙で parser 内整合を検証する（ADR 0005 §10）。
+const DME_EPISTEMIC_STATUSES = (
+    KEEN_EPISTEMIC_STATUSES...,
+    :metadata,     # モデル構造の repository metadata（category=:model_concept）
+    :mapping,      # 概念対応（category=:concept_mapping）
+    :empirical,    # 実証結果（category=:empirical_evidence）
+    :comparative,  # クロスモデル比較の合成観察（category=:comparison）
+)
+
 # section status 固定語彙（ADR 0005 §4.2）
 const KEEN_SECTION_STATUSES = (:available, :not_available, :insufficient_evidence)
+
+# クロスモデル層（#132 / ADR 0006）と共有する section status superset。
+# 共通 `ExplanationSection` はこの superset で検証し、Keen 層は parser 内で
+# `KEEN_SECTION_STATUSES` に限定する。`:insufficient_comparability` は比較不能の明示に使う。
+const DME_SECTION_STATUSES = (KEEN_SECTION_STATUSES..., :insufficient_comparability)
 
 # category → epistemic_status 対応（ADR 0005 §1.3）
 const _KEEN_CATEGORY_STATUS = Dict{Symbol, Symbol}(
@@ -69,7 +85,7 @@ const _KEEN_SEVERITY_RANK =
 ## フィールド
 - `claim_id::String` : section 内で一意な安定 ID
 - `text::String` : 主張本文
-- `epistemic_status::Symbol` : `KEEN_EPISTEMIC_STATUSES` の 1 つ
+- `epistemic_status::Symbol` : `DME_EPISTEMIC_STATUSES` の 1 つ（Keen 層は `KEEN_EPISTEMIC_STATUSES` に限定）
 - `source_ids::Vector{String}` : 参照する `EvidenceSource.id`（1 件以上）
 - `qualifiers::Vector{String}` : 限定・注意（warning message など）
 """
@@ -88,9 +104,9 @@ function EvidenceClaim(;
     source_ids::Vector{String},
     qualifiers::Vector{String} = String[],
 )
-    epistemic_status in KEEN_EPISTEMIC_STATUSES || throw(
+    epistemic_status in DME_EPISTEMIC_STATUSES || throw(
         ArgumentError(
-            "未知の epistemic_status: $(repr(epistemic_status))（有効: $(KEEN_EPISTEMIC_STATUSES)）",
+            "未知の epistemic_status: $(repr(epistemic_status))（有効: $(DME_EPISTEMIC_STATUSES)）",
         ),
     )
     EvidenceClaim(claim_id, text, epistemic_status, source_ids, qualifiers)
@@ -104,7 +120,7 @@ end
 不整合で結論を支えられない）のいずれか。空文字やセクション省略で代用しない。
 
 ## フィールド
-- `status::Symbol` : `KEEN_SECTION_STATUSES` の 1 つ
+- `status::Symbol` : `DME_SECTION_STATUSES` の 1 つ（Keen 層は `KEEN_SECTION_STATUSES` に限定）
 - `claims::Vector{EvidenceClaim}`
 - `missing_fields::Vector{String}` : 欠落・抑止された情報の説明
 """
@@ -118,9 +134,9 @@ struct ExplanationSection
         claims::Vector{EvidenceClaim} = EvidenceClaim[],
         missing_fields::Vector{String} = String[],
     )
-        status in KEEN_SECTION_STATUSES || throw(
+        status in DME_SECTION_STATUSES || throw(
             ArgumentError(
-                "未知の section status: $(repr(status))（有効: $(KEEN_SECTION_STATUSES)）",
+                "未知の section status: $(repr(status))（有効: $(DME_SECTION_STATUSES)）",
             ),
         )
         new(status, claims, missing_fields)
