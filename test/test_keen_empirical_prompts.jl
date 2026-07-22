@@ -330,7 +330,7 @@
         out = explain_keen_empirical_result(build_actx(base_kctx))
         good = to_dict(out)
         good["generation_status"] = "parsed"
-        good_json = JSON3.write(good)
+        good_json = DME.JSON3.write(good)
 
         # 正常 JSON は :parsed
         p = parse_keen_empirical_response(good_json, base_kctx)
@@ -344,12 +344,12 @@
         # 必須 section 欠落は nothing
         miss = copy(good)
         delete!(miss, "validation_assessment")
-        @test parse_keen_empirical_response(JSON3.write(miss), base_kctx) === nothing
+        @test parse_keen_empirical_response(DME.JSON3.write(miss), base_kctx) === nothing
 
         # contract_version 不一致は nothing
         badv = copy(good)
         badv["contract_version"] = "keen-ai-output/9.9.9"
-        @test parse_keen_empirical_response(JSON3.write(badv), base_kctx) === nothing
+        @test parse_keen_empirical_response(DME.JSON3.write(badv), base_kctx) === nothing
 
         # 未登録 source_id は nothing
         badsrc = deepcopy(good)
@@ -360,7 +360,7 @@
             "source_ids" => ["nonexistent.id"],
             "qualifiers" => String[],
         )]
-        @test parse_keen_empirical_response(JSON3.write(badsrc), base_kctx) === nothing
+        @test parse_keen_empirical_response(DME.JSON3.write(badsrc), base_kctx) === nothing
 
         # category と epistemic_status の不整合は nothing
         obs_id = base_kctx.observed_data[1].source_ids[1]
@@ -372,7 +372,8 @@
             "source_ids" => [obs_id],
             "qualifiers" => String[],
         )]
-        @test parse_keen_empirical_response(JSON3.write(badstatus), base_kctx) === nothing
+        @test parse_keen_empirical_response(DME.JSON3.write(badstatus), base_kctx) ===
+              nothing
     end
 
     # ---- provider 経路（mock は非 JSON → fallback）-----------------------
