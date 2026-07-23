@@ -169,6 +169,10 @@ DME のロードマップ（#99）でも SFC は将来的な発展として位�
 
 選定の正式な決定記録は [ADR 0001](../adr/0001-minsky-model-selection.md) を参照。
 
+なお、ここで将来的発展として位置づけた SFC 会計行列基盤は、最小 SIM 型モデルとして
+[SFC 統合設計](sfc_integration_design.md)・[ADR 0007](../adr/0007-sfc-integration-contract.md) で
+統合スコープ・会計恒等式の検証契約を確定した。
+
 ---
 
 ## 6. 最小実装のスコープ
