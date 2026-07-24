@@ -187,9 +187,9 @@ H_t − H_{t-1} = (YD_t − C_t) + 0
 
 ---
 
-## 5. 型・API スケッチ（実装は後続Issue）
+## 5. 型・API（会計プリミティブは実装済み、モデル型・検証層は将来対応予定）
 
-### 5.1 モデル型
+### 5.1 モデル型（将来対応予定）
 
 `src/models/sfc_sim.jl`（既存 `models/` include ブロックに追加。`core/model_interface.jl` の後）:
 
@@ -209,70 +209,96 @@ end
 汎用 `to_simulation_result(::AbstractMacroModel, ::NamedTuple, scenario)` で `SimulationResult` へ変換する
 （既存の cross-model 表面と可視化・`compare_with_data` にそのまま乗る）。
 
-### 5.2 SFC 固有結果型と検証層
+### 5.2 SFC 会計プリミティブ（実装済み: `src/sfc/`）
 
-`src/analysis/sfc_accounting.jl`（`core/simulation_result.jl` の後に include。Minsky 診断層と同じ配置方針）:
+会計表現をモデル方程式から分離するため、標準データ構造は `src/sfc/types.jl`
+（型・バリデーション）と `src/sfc/serialization.jl`（JSON 往復）に集約する
+（Issue #146 で実装）。会計恒等式の判定ロジックはここには含めず、後続の会計検証層が担う（§5.3）。
 
 ```julia
-struct SectorDef;     id::Symbol; label::String; end
-struct InstrumentDef; id::Symbol; label::String; is_financial::Bool; end
-
-struct BalanceSheetMatrix           # 期末ストック（資産+ / 負債−）
-    instruments::Vector{Symbol}     # 行
-    sectors::Vector{Symbol}         # 列
-    holdings::Matrix{Float64}       # rows=instrument, cols=sector
-    period::Int
+struct SFCSector           # 会計主体（部門）
+    id::Symbol             # stable id（保存キー・比較キー）
+    name::String           # 表示名（変更しても id は不変）
+    sector_type::Symbol    # :household / :firm / :government / :bank / :central_bank / :rest_of_world / :other
+    metadata::Dict{String, Any}
 end
 
-struct TransactionFlowMatrix        # 期中フロー（源泉+ / 使途−）
-    transactions::Vector{Symbol}    # 行
-    sectors::Vector{Symbol}         # 列
-    flows::Matrix{Float64}          # rows=transaction, cols=sector
-    period::Int
+struct SFCInstrument       # 金融商品
+    id::Symbol
+    name::String
+    issuers::Vector{Symbol}   # 負債として発行しうる部門 id（id 昇順に正準化）
+    holders::Vector{Symbol}   # 資産として保有しうる部門 id（id 昇順に正準化）
+    unit::String
+    metadata::Dict{String, Any}
 end
 
-struct AccountingCheck
-    name::Symbol          # :balance_row_sum / :balance_column_sum / :flow_row_sum / :flow_column_sum / :stock_flow
-    period::Int
-    residual::Float64
+struct BalanceSheetMatrix     # 期末ストック（資産+ / 負債−）
+    instruments::Vector{Symbol}   # 行（id 昇順に正準化）
+    sectors::Vector{Symbol}       # 列（id 昇順に正準化）
+    holdings::Matrix{Float64}     # rows=instrument, cols=sector
+end
+
+struct TransactionFlowMatrix  # 当期フロー（源泉+ / 使途−）
+    transactions::Vector{Symbol}  # 行（id 昇順に正準化）
+    sectors::Vector{Symbol}       # 列（id 昇順に正準化）
+    flows::Matrix{Float64}        # rows=transaction, cols=sector
+end
+
+struct SFCPeriodSnapshot      # 1 期分
+    period::String
+    balance_sheet::BalanceSheetMatrix
+    transaction_flow::TransactionFlowMatrix
+    valuation_adjustment::BalanceSheetMatrix   # 評価調整（同一軸）。MVP は全ゼロの独立項
+    warnings::Vector{String}
+end
+
+struct SFCMethodologyMetadata
+    contract_version::String    # "sfc-primitives/1.0.0"
+    model_version::String       # 例 "sfc-sim/1.0.0"
+    sign_convention::Symbol     # :source_use（既定）/ :receipt_payment
+    time_convention::Symbol     # :end_of_period / :during_period
     tolerance_abs::Float64
     tolerance_rel::Float64
-    passed::Bool
-    detail::String
+    provenance::Dict{String, Any}
 end
 
-struct SFCResult
+struct SFCResult              # 既存 SimulationResult と SFC 構造を束ねる
     model_name::String
     scenario_name::String
-    sectors::Vector{SectorDef}
-    instruments::Vector{InstrumentDef}
-    balance_sheets::Vector{BalanceSheetMatrix}        # 期末（各期）
-    transaction_flows::Vector{TransactionFlowMatrix}  # 期中（各期）
-    valuation_changes::Vector{Matrix{Float64}}        # MVP は全ゼロ。独立項として保持
-    checks::Vector{AccountingCheck}
-    methodology_version::String                        # 例 "sfc-sim/1.0.0"
-    valid_periods::Vector{Int}
-    invalid_periods::Vector{Int}
-    divergence_time::Union{Int, Nothing}
+    sectors::Vector{SFCSector}          # id 昇順の登録簿
+    instruments::Vector{SFCInstrument}  # id 昇順の登録簿
+    snapshots::Vector{SFCPeriodSnapshot}
+    simulation_result::Union{SimulationResult, Nothing}
+    methodology::SFCMethodologyMetadata
+    warnings::Vector{String}
     metadata::Dict{String, Any}
 end
 ```
 
-### 5.3 adapter と検証関数
+コンストラクタが保証する不変条件（会計恒等式の判定は対象外）:
 
-Minsky 診断層と同じ「`SimulationResult` を消費して richer な型を返す」idiom:
+- sector・instrument・transaction の順序を stable id 昇順へ正準化し、入力順・`Dict` 反復順に依存させない。
+- stable id の重複、行列次元不一致を拒否する（`ArgumentError`）。
+- 各スナップショットの行列軸が、登録簿にある sector / instrument のみを参照することを検証する（未知参照は `ArgumentError`）。
+- 金額は `Float64`。非有限値（`NaN` / `Inf` / `-Inf`）は拒否せず保持し、JSON では文字列タグ
+  （`"NaN"` / `"Inf"` / `"-Inf"`）へ符号化して round-trip で保存する。
 
-```julia
-# SimulationResult（水準系列）から SFC 構造を復元して会計検証まで行う
-sfc_result(sr::SimulationResult; atol=1e-8, rtol=1e-6) -> SFCResult
+導出量: `net_worth` / `total_assets` / `total_liabilities`（部門列から）、`holding` /
+`flow_value`（要素参照）。JSON 往復: `to_dict` / `to_json` / `sfc_result_from_dict` /
+`sfc_result_from_json` / `save_sfc_result` / `load_sfc_result`。
 
-# 会計恒等式だけを検査（補正しない・違反を構造化）
-check_accounting(r::SFCResult; atol=1e-8, rtol=1e-6) -> Vector{AccountingCheck}
-```
+### 5.3 モデル型・adapter・会計検証層（将来対応予定）
 
-`sfc_result` は `sr` に `Y, C, G, T, YD, H` 系列と `sr.metadata["parameters"]`（`θ, W` 等）が
-あることを要求し、無ければ `ArgumentError`（Minsky 診断層の契約と同じ）。
-`SIMModel` 経由の `NamedTuple` overload と内部コアを共有し、両経路で同一結果を保証する。
+次は本 Issue（#146）では実装せず、後続で追加する:
+
+- **モデル型 `SIMModel`**（`src/models/sfc_sim.jl`）: §2 の方程式を実装し、`simulate` が水準系列
+  `NamedTuple` `(Y, C, G, T, YD, H, N)` を返す。汎用 `to_simulation_result` で `SimulationResult` へ変換。
+- **adapter `sfc_result(sr::SimulationResult; …)`**: `SimulationResult` の水準系列と
+  `sr.metadata["parameters"]` から SFC 構造（部門・行列・スナップショット）を復元する。無ければ `ArgumentError`。
+- **会計検証層 `check_accounting(r::SFCResult; atol, rtol) -> Vector{AccountingCheck}`**: §4 の恒等式
+  （行和・列和・資産負債対応・部門予算制約・stock/flow）を検査し、自動補正せず違反を構造化して返す。
+  `AccountingCheck`（`name` / `period` / `residual` / `tolerance_abs` / `tolerance_rel` / `passed` /
+  `detail`）と `valid_periods` / `invalid_periods` / `divergence_time` を `SFCResult` へ加える。
 
 ---
 
