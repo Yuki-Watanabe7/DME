@@ -820,6 +820,153 @@ out2 = explain_cross_model_comparison(ctx2; provider=create_provider())
 
 ---
 
+### SFC 会計プリミティブ（Stock-Flow Consistent 標準データ構造）
+
+部門・金融商品・貸借対照表・取引フロー・期別スナップショットを型安全かつ決定的に表現する
+標準型（会計恒等式の判定・モデル方程式・可視化・LLM は扱わない。判定は会計検証エンジンが担う）。
+安定 ID（`Symbol`）と表示名（`String`）を分離し、sector・instrument・transaction は stable id
+昇順へ正準化する。金額は `Float64` で非有限値（NaN/Inf）は拒否せず保持し、JSON では文字列タグへ
+符号化して round-trip で失われないようにする。設計は [SFC 統合設計](models/sfc_integration_design.md)・
+[ADR 0007](adr/0007-sfc-integration-contract.md)。
+
+```julia
+const SFC_CONTRACT_VERSION = "sfc-primitives/1.0.0"
+const SFC_SECTOR_TYPES      # (:household,:firm,:government,:bank,:central_bank,:rest_of_world,:other)
+const SFC_SIGN_CONVENTIONS  # (:source_use, :receipt_payment)
+const SFC_TIME_CONVENTIONS  # (:end_of_period, :during_period)
+
+struct SFCSector           # 会計主体（部門）
+    id::Symbol; name::String; sector_type::Symbol; metadata::Dict{String,Any}
+end
+struct SFCInstrument       # 金融商品（issuers=負債発行部門, holders=資産保有部門。id 昇順）
+    id::Symbol; name::String; issuers::Vector{Symbol}; holders::Vector{Symbol}
+    unit::String; metadata::Dict{String,Any}
+end
+struct BalanceSheetMatrix     # 期末ストック（行=instrument, 列=sector。資産+ / 負債−）
+    instruments::Vector{Symbol}; sectors::Vector{Symbol}; holdings::Matrix{Float64}
+end
+struct TransactionFlowMatrix  # 当期フロー（行=取引, 列=sector。源泉+ / 使途−）
+    transactions::Vector{Symbol}; sectors::Vector{Symbol}; flows::Matrix{Float64}
+end
+struct SFCPeriodSnapshot      # 1 期分（valuation_adjustment は同一軸。MVP は全ゼロの独立項）
+    period::String; balance_sheet::BalanceSheetMatrix; transaction_flow::TransactionFlowMatrix
+    valuation_adjustment::BalanceSheetMatrix; warnings::Vector{String}
+end
+struct SFCMethodologyMetadata # 契約/モデル版・符号/時点規約・許容誤差・provenance
+    contract_version::String; model_version::String
+    sign_convention::Symbol; time_convention::Symbol
+    tolerance_abs::Float64; tolerance_rel::Float64; provenance::Dict{String,Any}
+end
+struct SFCResult              # 既存 SimulationResult（任意）と SFC 構造を束ねる
+    model_name::String; scenario_name::String
+    sectors::Vector{SFCSector}; instruments::Vector{SFCInstrument}
+    snapshots::Vector{SFCPeriodSnapshot}
+    simulation_result::Union{SimulationResult,Nothing}
+    methodology::SFCMethodologyMetadata; warnings::Vector{String}; metadata::Dict{String,Any}
+end
+
+# 各型はキーワードコンストラクタを持つ（例）
+SFCSector(; id, name, sector_type=:other, metadata=Dict{String,Any}())
+SFCResult(; model_name, scenario_name, sectors, instruments, snapshots=SFCPeriodSnapshot[],
+          simulation_result=nothing, methodology=SFCMethodologyMetadata(),
+          warnings=String[], metadata=Dict{String,Any}())
+
+# 導出量（未知参照は ArgumentError）
+holding(bs, instrument_id, sector_id)      # 要素参照
+flow_value(tf, transaction_id, sector_id)  # 要素参照
+net_worth(bs, sector_id)                   # 列和（非有限は伝播）
+total_assets(bs, sector_id)                # 正保有の合計（非有限は除外）
+total_liabilities(bs, sector_id)           # 負保有の絶対値合計（非有限は除外）
+zero_valuation(bs)                         # 同一軸の全ゼロ評価調整行列
+
+# JSON 往復（安定 ID をキーに決定的出力。非有限は "NaN"/"Inf"/"-Inf" タグへ符号化）
+to_dict(x); to_json(x)
+sfc_result_from_dict(d); sfc_result_from_json(s)
+save_sfc_result(path, r) -> path;  load_sfc_result(path) -> SFCResult
+```
+
+> コンストラクタは stable id 昇順への正準化・ID 重複拒否・行列次元不一致拒否・スナップショット行列軸の
+> 未知参照拒否（すべて `ArgumentError`）を保証する。**不整合の自動補正・残差の押込みは行わない。**
+
+### SFC 会計恒等式検証エンジン（`validate_sfc_accounting`）
+
+上記プリミティブを入力に、貸借対照表・取引フロー・ストック更新式の会計恒等式を各期で検証する
+**読み取り専用**の後処理層（Minsky 診断層と同じ配置方針）。プリミティブ・モデル方程式・可視化・
+LLM 層は変更しない。設計は [SFC 統合設計 §5.3](models/sfc_integration_design.md)・
+[ADR 0007 §4-5](adr/0007-sfc-integration-contract.md)。
+
+```julia
+const SFC_ACCOUNTING_METHODOLOGY_VERSION = "sfc-accounting/1.0.0"
+
+@enum AccountingCheckStatus acc_pass acc_warning acc_fail acc_invalid
+accounting_status_label(s) -> String   # "pass" / "warning" / "fail" / "invalid"
+
+struct AccountingViolation             # 非 pass の検証 1 件（残差と evidence を追跡可能に保持）
+    check::Symbol                       # :flow_row_sum / :flow_column_sum / :balance_row_sum /
+                                        # :balance_column_sum / :stock_flow /
+                                        # :duplicate_period / :period_order / :dimension_change
+    period::String
+    status::AccountingCheckStatus
+    sector::Union{Symbol,Nothing}
+    instrument::Union{Symbol,Nothing}
+    transaction::Union{Symbol,Nothing}
+    residual::Float64
+    scale::Float64                      # 許容誤差算出の代表スケール（関与項の有限絶対値の最大）
+    tolerance::Float64                  # 実効許容誤差 atol + rtol*scale
+    message::String
+    evidence::Dict{String,Any}
+end
+
+struct AccountingCheckReport
+    status::AccountingCheckStatus        # 全検証の最悪深刻度（violations 空なら acc_pass）
+    violations::Vector{AccountingViolation}
+    checks_performed::Int; checks_passed::Int
+    max_abs_residual::Float64            # 有限残差の絶対値の最大
+    valid_periods::Vector{String}; invalid_periods::Vector{String}  # 非有限を含む期を invalid
+    divergence_time::Union{String,Nothing}  # ストックが非有限になった最初の期
+    methodology::SFCMethodologyMetadata
+    tolerance_abs::Float64; tolerance_rel::Float64
+end
+
+accounting_passed(report) -> Bool        # status === acc_pass
+
+# SFCResult 版（atol/rtol 既定は methodology 由来・上書き可能）
+validate_sfc_accounting(r::SFCResult;
+    atol = r.methodology.tolerance_abs, rtol = r.methodology.tolerance_rel,
+    stock_flow_map = nothing) -> AccountingCheckReport
+
+# 単一 SFCPeriodSnapshot 版（期内検証のみ。stock_flow・構造検証は行わない）
+validate_sfc_accounting(snap::SFCPeriodSnapshot;
+    atol = 1e-8, rtol = 1e-6) -> AccountingCheckReport
+```
+
+検証項目（ADR 0007 §4）と契約:
+
+| 検証名 | 恒等式 |
+|---|---|
+| `:flow_row_sum` | 取引フロー各行の行和 = 0（すべてのフローに相手方） |
+| `:flow_column_sum` | 取引フロー各 sector 列の列和 = 0（部門予算制約） |
+| `:balance_row_sum` | 貸借対照表各 instrument 行の行和 = 0（資産＝負債対応） |
+| `:balance_column_sum` | 貸借対照表各 sector 列の列和 = 0（純資産バランス行込み） |
+| `:stock_flow` | `stock_t − stock_{t-1} = flow + valuation`（連続 2 期） |
+
+> **判定**: `abs(residual) ≤ atol + rtol·scale`。**NaN/Inf は `acc_invalid`** として別扱いにし、会計違反
+> （`acc_fail`）や Ponzi へ読み替えない。空行列・0 除算を安全に処理し、**自動補正・辻褄合わせをしない。**
+> **符号**: `:source_use`（既定）ではフローがストック変化と逆符号で記録されるため残差 =
+> `Δstock + flow − valuation`。純資産バランス行（instrument metadata `"role" ∈ ("balancing","net_worth")`）は
+> stock_flow から除外する。stock_flow の instrument→取引 対応は `stock_flow_map`（省略時は規約
+> `<instrument>_change`）。`save_sfc_result`→`load_sfc_result` 後も同一 report を得る（決定的）。
+
+```julia
+r   = SFCResult(; model_name="SIM", scenario_name="baseline", sectors, instruments, snapshots, methodology)
+rep = validate_sfc_accounting(r)
+accounting_passed(rep)              # 全恒等式が許容誤差内なら true
+rep.violations                     # 非 pass の検証（check・period・residual・evidence 付き）
+rep.invalid_periods                # NaN/Inf を含む期
+```
+
+---
+
 ### 可視化API
 
 ```julia
