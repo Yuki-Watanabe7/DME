@@ -95,6 +95,18 @@ export
     SFC_SECTOR_TYPES,
     SFC_SIGN_CONVENTIONS,
     SFC_TIME_CONVENTIONS,
+    # SFC accounting validation engine (src/analysis/sfc_accounting.jl)
+    SFC_ACCOUNTING_METHODOLOGY_VERSION,
+    AccountingCheckStatus,
+    acc_pass,
+    acc_warning,
+    acc_fail,
+    acc_invalid,
+    accounting_status_label,
+    AccountingViolation,
+    AccountingCheckReport,
+    accounting_passed,
+    validate_sfc_accounting,
     # Visualization
     plot_result,
     plot_irf,
@@ -314,6 +326,9 @@ include("./core/compare.jl")
 # SFC 会計プリミティブ（会計表現をモデル方程式から分離。depends on SimulationResult）
 include("./sfc/types.jl")
 include("./sfc/serialization.jl")
+
+# SFC 会計恒等式の検証エンジン（depends on sfc/types.jl。読み取り専用）
+include("./analysis/sfc_accounting.jl")
 
 # Minsky financing regime diagnostics (depends on KeenModel and SimulationResult)
 include("./analysis/minsky_regimes.jl")
