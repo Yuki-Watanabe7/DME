@@ -287,18 +287,43 @@ end
 `flow_value`（要素参照）。JSON 往復: `to_dict` / `to_json` / `sfc_result_from_dict` /
 `sfc_result_from_json` / `save_sfc_result` / `load_sfc_result`。
 
-### 5.3 モデル型・adapter・会計検証層（将来対応予定）
+### 5.3 会計検証層（実装済み: `src/analysis/sfc_accounting.jl`, Issue #147）
 
-次は本 Issue（#146）では実装せず、後続で追加する:
+§4 の会計恒等式を各期で検証する **読み取り専用** の後処理層（Minsky 診断層と同じ配置方針）。
+会計プリミティブ（`src/sfc/`）・モデル方程式・可視化・LLM 層を一切変更しない。
+
+```julia
+validate_sfc_accounting(r::SFCResult; atol, rtol, stock_flow_map=nothing) -> AccountingCheckReport
+validate_sfc_accounting(snap::SFCPeriodSnapshot; atol=1e-8, rtol=1e-6) -> AccountingCheckReport
+```
+
+- **検証項目**: `:flow_row_sum`（取引行の行和 = 0）・`:flow_column_sum`（sector 列の列和 = 0、部門予算制約）・
+  `:balance_row_sum`（instrument 行の行和 = 0、資産負債対応）・`:balance_column_sum`（sector 列の列和 = 0、
+  純資産バランス行込み）・`:stock_flow`（連続 2 期の `stock_t − stock_{t-1} = flow + valuation`）と、構造検証
+  `:duplicate_period` / `:period_order` / `:dimension_change`。
+- **判定**: `abs(residual) <= atol + rtol · scale`（`scale` は関与項の有限絶対値の最大）。既定 `atol` / `rtol` は
+  `r.methodology` 由来で上書き可能。`NaN` / `Inf` は `acc_invalid` として別扱い（会計違反へ読み替えない）。
+- **符号規約**: `:source_use`（既定）では取引フローがストック変化と逆符号で記録されるため残差 =
+  `Δstock + flow − valuation`（`:receipt_payment` では `flow` 符号反転）。純資産バランス行
+  （instrument metadata `"role" ∈ ("balancing","net_worth")`）は対応フローを持たないため stock_flow から除外する。
+- **stock_flow 対応取引**: instrument id → 取引 id を `stock_flow_map` で明示指定（省略時は規約 `<instrument>_change`）。
+  対応取引が無くストックが動いた instrument は `acc_warning`（検証不能）とする。
+- **状態型 `AccountingCheckStatus`**: `acc_pass` / `acc_warning` / `acc_fail` / `acc_invalid`。
+- **`AccountingViolation`**（非 pass の検証 1 件）: `check` / `period` / `status` / `sector` / `instrument` /
+  `transaction` / `residual` / `scale` / `tolerance` / `message` / `evidence`（元データを追跡可能）。
+- **`AccountingCheckReport`**: `status`（最悪深刻度）・`violations`・`checks_performed` / `checks_passed` /
+  `max_abs_residual` / `valid_periods` / `invalid_periods` / `divergence_time` / `methodology`。
+  `save_sfc_result` → `load_sfc_result` 後も同一の report を得る（決定的）。
+
+### 5.4 モデル型・adapter（将来対応予定）
+
+次は後続で追加する:
 
 - **モデル型 `SIMModel`**（`src/models/sfc_sim.jl`）: §2 の方程式を実装し、`simulate` が水準系列
   `NamedTuple` `(Y, C, G, T, YD, H, N)` を返す。汎用 `to_simulation_result` で `SimulationResult` へ変換。
 - **adapter `sfc_result(sr::SimulationResult; …)`**: `SimulationResult` の水準系列と
   `sr.metadata["parameters"]` から SFC 構造（部門・行列・スナップショット）を復元する。無ければ `ArgumentError`。
-- **会計検証層 `check_accounting(r::SFCResult; atol, rtol) -> Vector{AccountingCheck}`**: §4 の恒等式
-  （行和・列和・資産負債対応・部門予算制約・stock/flow）を検査し、自動補正せず違反を構造化して返す。
-  `AccountingCheck`（`name` / `period` / `residual` / `tolerance_abs` / `tolerance_rel` / `passed` /
-  `detail`）と `valid_periods` / `invalid_periods` / `divergence_time` を `SFCResult` へ加える。
+  復元した `SFCResult` を [`validate_sfc_accounting`](#53-会計検証層実装済み-srcanalysissfc_accountingjl-issue-147) に渡して会計整合性を検査する。
 
 ---
 
