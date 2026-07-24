@@ -53,6 +53,7 @@ export
     VARModel,
     MundellFlemingModel,
     KeenModel,
+    SIMModel,
     # Model metadata
     model_name,
     state_variables,
@@ -107,6 +108,9 @@ export
     AccountingCheckReport,
     accounting_passed,
     validate_sfc_accounting,
+    # SIM 型 SFC モデルの adapter（src/analysis/sfc_sim_adapter.jl）
+    SIM_SFC_MODEL_VERSION,
+    sfc_result,
     # Visualization
     plot_result,
     plot_irf,
@@ -318,6 +322,7 @@ include("./models/new_keynesian.jl")
 include("./models/var.jl")
 include("./models/mundell_fleming.jl")
 include("./models/keen.jl")
+include("./models/sfc_sim.jl")
 
 # Cross-model result type (depends on RamseyModel and RBCModel)
 include("./core/simulation_result.jl")
@@ -329,6 +334,10 @@ include("./sfc/serialization.jl")
 
 # SFC 会計恒等式の検証エンジン（depends on sfc/types.jl。読み取り専用）
 include("./analysis/sfc_accounting.jl")
+
+# SIM 型 SFC モデルの adapter（depends on SIMModel・sfc/types.jl・sfc_accounting.jl。
+# 水準系列 → SFCResult 構成 + 会計検証）
+include("./analysis/sfc_sim_adapter.jl")
 
 # Minsky financing regime diagnostics (depends on KeenModel and SimulationResult)
 include("./analysis/minsky_regimes.jl")

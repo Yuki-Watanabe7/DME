@@ -20,6 +20,7 @@ abstract type AbstractMacroModel end
 struct RamseyModel <: AbstractMacroModel  # RamseyModel(α, β, δ)
 struct RBCModel    <: AbstractMacroModel  # RBCModel(α, β, γ, δ, μ, ρ)
 struct KeenModel   <: AbstractMacroModel  # KeenModel(α, β, δ, ν, r, φ0, φ1, κ0, κ1, κ2)
+struct SIMModel    <: AbstractMacroModel  # SIMModel(; α1, α2, θ, G, W=1.0)  最小 SIM 型 SFC
 ```
 
 ### モデルメタ情報
@@ -54,6 +55,12 @@ impulse_response(m::RBCModel, shock_size::Float64; maxT=150) -> (â, r̂, ŵ, l�
 steady_state(m::KeenModel)                                -> (ω, λ, d, π, g)  # 良い均衡（閉形式）
 simulate(m::KeenModel, ω0, λ0, d0; T=300, options=ODESolverOptions()) -> (ω, λ, d, π, g)
 impulse_response(m::KeenModel, shock; T=300, variable=:d, options=ODESolverOptions()) -> (ω, λ, d, π, g)
+
+# SIM 型 SFC モデル（離散時間・閉形式・再帰）。系列キーは (Y, C, YD, T, G, H, N)
+steady_state(m::SIMModel)                                 -> (Y, C, YD, T, G, H, N)  # 貯蓄ゼロ均衡（閉形式）
+simulate(m::SIMModel, H0=0.0; T=100)                      -> (Y, C, YD, T, G, H, N)  # 前向き反復
+impulse_response(m::SIMModel, shock_size;                             # 財政ショック（定常状態から）
+    shock=:G, T=50, permanent=true, shock_start=1, H0=nothing) -> (Y, C, YD, T, G, H, N)
 ```
 
 ### Minsky 資金調達区分診断（Keen モデル）
@@ -963,6 +970,44 @@ rep = validate_sfc_accounting(r)
 accounting_passed(rep)              # 全恒等式が許容誤差内なら true
 rep.violations                     # 非 pass の検証（check・period・residual・evidence 付き）
 rep.invalid_periods                # NaN/Inf を含む期
+```
+
+---
+
+### SIM 型 SFC モデルの adapter（`sfc_result`）
+
+[`SIMModel`](models/sim_sfc.md) の水準系列を、部門別貸借対照表・取引フロー行列を持つ
+[`SFCResult`](#sfc-会計プリミティブstock-flow-consistent-標準データ構造) へ変換し、
+全期の会計恒等式検証まで接続する adapter。モデル方程式・会計プリミティブ・会計検証層は変更しない。
+設計は [SFC 統合設計 §5.4](models/sfc_integration_design.md)。
+
+```julia
+const SIM_SFC_MODEL_VERSION = "sfc-sim/1.0.0"
+
+# 水準系列 NamedTuple（simulate / impulse_response の返り値。必須キー Y,C,YD,T,G,H）から構成
+sfc_result(m::SIMModel, series::NamedTuple;
+    scenario_name = "baseline", periods = nothing, shock = nothing,
+    provenance = Dict(), atol = 1e-8, rtol = 1e-6, validate = true) -> SFCResult
+
+# SimulationResult（必須変数 "Y","C","YD","T","G","H"）から SFC 構造を復元する adapter（§5.4）
+sfc_result(sr::SimulationResult;
+    scenario_name = sr.scenario_name, periods = nothing, shock = nothing,
+    provenance = Dict(), atol = 1e-8, rtol = 1e-6, validate = true) -> SFCResult
+```
+
+> **部門**: `:households` / `:production` / `:government`。**金融商品**: `:money`（政府貨幣 H）と
+> 列和を 0 にする純資産バランス行 `:net_worth`（`role="net_worth"` で stock_flow から除外）。
+> **符号**: `:source_use`（源泉+ / 使途−）。`validate=true`（既定）で全期の
+> [`validate_sfc_accounting`](#sfc-会計恒等式検証エンジンvalidate_sfc_accounting) を実行し、集約結果を
+> `metadata["accounting_status"]` 等に、違反を `warnings` に構造化して保持する（自動補正なし）。
+> `shock` を渡すとショック定義を `metadata["shock"]` に保存。主要系列は `SFCResult.simulation_result`
+> に格納され、既存 `plot_result` / `summarize_result` にそのまま乗る。
+
+```julia
+m   = SIMModel(; α1=0.6, α2=0.4, θ=0.2, G=20.0)
+r   = sfc_result(m, simulate(m, 0.0; T=60))
+accounting_passed(validate_sfc_accounting(r))   # baseline は全期 pass
+summarize_result(r.simulation_result)           # 埋め込み SimulationResult で既存 API
 ```
 
 ---

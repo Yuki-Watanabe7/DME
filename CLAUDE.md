@@ -62,7 +62,7 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 
 ## 詳細ドキュメント
 
-各モデルの解説は `docs/models/<モデル名>.md`（ramsey / solow / rbc / islm / adas / new_keynesian / mundell_fleming / var / keen、テンプレートは template.md）。全ドキュメントの一覧は [README のドキュメント節](README.md#ドキュメント) を参照。
+各モデルの解説は `docs/models/<モデル名>.md`（ramsey / solow / rbc / islm / adas / new_keynesian / mundell_fleming / var / keen / sim_sfc、テンプレートは template.md）。全ドキュメントの一覧は [README のドキュメント節](README.md#ドキュメント) を参照。
 
 | ドキュメント | 内容 |
 |---|---|
@@ -90,6 +90,7 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 | [Minsky 連続診断指標・サマリー](docs/models/minsky_diagnostics_summary.md) | カバレッジ比率・マージン・regime滞在比率・peak/minimum・発散時点の指標定義とサマリー契約 |
 | [Keen モデル 実証化戦略](docs/models/keen_empirical_strategy.md) | 実データ接続の観測方程式・単位変換・共通頻度・年単位ODE↔四半期の時間軸契約・固定/推定パラメータ分離・識別戦略・検証方針 |
 | [SFC 統合設計（最小 SIM 型モデル）](docs/models/sfc_integration_design.md) | SIM 型モデルの方程式・部門・金融資産・貸借対照表/取引フロー行列・会計恒等式の検証契約・型/API スケッチ |
+| [最小 SIM 型 SFC モデル](docs/models/sim_sfc.md) | `SIMModel` の目的・方程式・会計表・変数の単位/時点・財政ショック定義・限界・`sfc_result` adapter |
 | [ADR 0001: Minsky系モデル選定](docs/adr/0001-minsky-model-selection.md) | Keen モデル採用の決定記録（`docs/adr/` は設計決定記録の置き場） |
 | [ADR 0002: Keen モデルの統合方式](docs/adr/0002-minsky-integration-design.md) | 既存インターフェース準拠・自前 RK4・LLM 層無拡張という統合方針の決定記録 |
 | [ADR 0003: Minsky 資金調達区分の診断層](docs/adr/0003-minsky-financing-regime-diagnostics.md) | 診断を Keen 本体から分離した読み取り専用層とし hysteresis を不採用とする決定記録 |
