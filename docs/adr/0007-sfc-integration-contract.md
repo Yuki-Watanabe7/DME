@@ -162,7 +162,7 @@ SFC 構造は `sfc_result(sr::SimulationResult; atol, rtol) -> SFCResult` が `s
 | `ModelMetadata` | `SIMModel` から既存 `ModelMetadata(::AbstractMacroModel)` で自動生成。 |
 | `MODEL_CONCEPT_REGISTRY`（ADR 0006） | `:sim` の `ModelConceptCoverage` 行を追加。`:private_debt_credit`（政府貨幣＝政府負債）・`:demand_and_instability`（需要決定）を主軸に登録し、`:steady_state_stability` は「大域安定・危機 regime なし」と明示。同名変数の定義差は `caveats` に記載し、ADR 0006 の非同一視・比較不能の非統合を継承。 |
 | `_XM_MODEL_LABELS` | `:sim => "SIM（SFC）"` を追加。 |
-| include 順序 | モデル型は `src/models/sfc_sim.jl`（既存 `models/` ブロック）、SFC 結果・検証層は `src/analysis/sfc_accounting.jl`（`core/simulation_result.jl` の後）。registry 追加は既存 `llm/cross_model_reasoning.jl` 内。 |
+| include 順序 | SFC 会計プリミティブ（標準データ構造）は `src/sfc/`（`core/simulation_result.jl` の後）へ集約し会計表現をモデル方程式から分離する。モデル型は `src/models/sfc_sim.jl`（既存 `models/` ブロック）、会計検証層は後続で `src/analysis/`（Minsky 診断層と同じ配置方針）。registry 追加は既存 `llm/cross_model_reasoning.jl` 内。 |
 
 ## 8. LLM 説明で必須とする情報・JSON 保存・provenance
 

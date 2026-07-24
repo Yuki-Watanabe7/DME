@@ -73,6 +73,28 @@ export
     ComparisonResult,
     compare_with_data,
     to_data_comparison_summary,
+    # SFC accounting primitives (src/sfc/)
+    SFCSector,
+    SFCInstrument,
+    BalanceSheetMatrix,
+    TransactionFlowMatrix,
+    SFCPeriodSnapshot,
+    SFCMethodologyMetadata,
+    SFCResult,
+    holding,
+    flow_value,
+    net_worth,
+    total_assets,
+    total_liabilities,
+    zero_valuation,
+    sfc_result_from_dict,
+    sfc_result_from_json,
+    save_sfc_result,
+    load_sfc_result,
+    SFC_CONTRACT_VERSION,
+    SFC_SECTOR_TYPES,
+    SFC_SIGN_CONVENTIONS,
+    SFC_TIME_CONVENTIONS,
     # Visualization
     plot_result,
     plot_irf,
@@ -288,6 +310,10 @@ include("./models/keen.jl")
 # Cross-model result type (depends on RamseyModel and RBCModel)
 include("./core/simulation_result.jl")
 include("./core/compare.jl")
+
+# SFC 会計プリミティブ（会計表現をモデル方程式から分離。depends on SimulationResult）
+include("./sfc/types.jl")
+include("./sfc/serialization.jl")
 
 # Minsky financing regime diagnostics (depends on KeenModel and SimulationResult)
 include("./analysis/minsky_regimes.jl")
