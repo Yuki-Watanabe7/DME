@@ -74,6 +74,13 @@ export
     ComparisonResult,
     compare_with_data,
     to_data_comparison_summary,
+    # Data comparison v2（日付・単位・概念対応・比較可能性を明示）
+    ComparisonSpec,
+    VariableComparisonMapping,
+    AlignmentResult,
+    ComparabilityAssessment,
+    ComparisonResultV2,
+    compare_results_v2,
     # SFC accounting primitives (src/sfc/)
     SFCSector,
     SFCInstrument,
@@ -362,6 +369,10 @@ include("./core/compare.jl")
 # モデル能力プロファイル・概念定義 metadata（#149 / Phase 5。全モデル型に依存。
 # llm 層より前に定義し cross_model_reasoning.jl から参照できるようにする）
 include("./core/model_capabilities.jl")
+
+# 比較 API v2（#150 / Phase 5。日付・単位・概念対応・比較可能性を明示。
+# model_capabilities.jl の概念定義 registry に依存。v1 compare.jl は非破壊）
+include("./core/compare_v2.jl")
 
 # SFC 会計プリミティブ（会計表現をモデル方程式から分離。depends on SimulationResult）
 include("./sfc/types.jl")
