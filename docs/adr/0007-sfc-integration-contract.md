@@ -186,9 +186,16 @@ JSON 保存キーは安定 ID（§2）を使い、表示名変更で壊れない
   SFC は水準系列（`Y,C,G,T,YD,H`）を `SimulationResult` に出すため、**このシグネチャを一切変えずに**
   既存比較へ乗る。破壊しない。
 - **v2（加算的・後方互換）**: 部門別ストック/フロー（`(sector, instrument)` キー）や会計残差を意識した
-  比較を新 API として追加する。v1 は残置し、v2 は別関数（例 `compare_sfc_with_data`）として導入して
+  比較を新 API として追加する。v1 は残置し、v2 は別関数として導入して
   既存呼び出しを壊さない。SFC 特有の「観測データ側も会計的に閉じているか」の扱いは v2 の設計事項とし、
   本 ADR では v1 非破壊と v2 加算という移行方針のみ確定する。
+- **実装状況（Issue #150）**: v2 は SFC 専用ではなく全モデル共通の一般 API `compare_results_v2(left, right; spec::ComparisonSpec)`
+  として `src/core/compare_v2.jl` に実装済み（v1 は非破壊）。日付 intersection 整列・単位/頻度/概念の
+  比較可能性検証（`ComparabilityAssessment`）・明示変換のみ適用・`equivalent/proxy/partial/incompatible`
+  の保持・比較不能理由の構造化を提供する。比較モードは `:trajectory` / `:shock_response` / `:empirical_fit`
+  と、能力 metadata（#149）の構造化差分を返す `:mechanism`。API 詳細は [API リファレンス](../api.md) の
+  「データ比較 v2」節を参照。SFC 部門別ストック/フロー（`(sector, instrument)` キー）比較は本 v2 基盤の上に
+  後続で加算する（本 ADR の非破壊/加算方針を踏襲）。
 
 ## 10. versioning
 

@@ -339,6 +339,95 @@ summary["variables"]["ŷ"].argmax          # ŷ が最大になる期
 summary["variables"]["k̂"].sign_reversal   # 資本が符号反転するか
 ```
 
+### データ比較 v1（`compare_with_data`）
+
+モデル結果と実データ（いずれも `SimulationResult`）を変数マッピングに基づいて比較し、乖離指標を返す。
+
+```julia
+compare_with_data(
+    model_result::SimulationResult,
+    data_result::SimulationResult;
+    mapping::Dict{String, String},   # モデル変数名 => データ変数名
+) -> ComparisonResult
+
+struct ComparisonResult
+    model_name::String
+    data_source::String
+    mapping::Dict{String, String}
+    comparison_period::Tuple{Int, Int}   # 比較した期間インデックス（配列位置）
+    variables::Dict{String, NamedTuple}  # 変数名 → 乖離指標
+end
+
+# LLM AnalysisContext への接続
+to_data_comparison_summary(cr::ComparisonResult; caveats=String[]) -> DataComparisonSummary
+```
+
+**制約（v1）**: 期間合わせは両系列の短い方への**配列位置**切り詰め（`min(nperiods)` の `[1:n]`）で行い、日付・頻度・単位・stock/flow を考慮しない。頻度変換・単位換算は呼び出し前に完了していること。日付・単位・概念対応を明示したい場合は v2 を使用する。
+
+### データ比較 v2（`compare_results_v2`）
+
+配列位置での暗黙切り詰めや暗黙の単位/頻度変換を行わず、日付・単位・頻度・概念定義・比較可能性を明示する比較 API（Issue #150）。v1 は非破壊で維持される（ADR 0007 §9）。
+
+```julia
+compare_results_v2(left::SimulationResult, right::SimulationResult; spec::ComparisonSpec) -> ComparisonResultV2
+
+# 変数対応（equivalent/proxy/partial/incompatible・概念 id・明示変換を保持）
+VariableComparisonMapping(;
+    model_variable::String, data_variable::String,
+    mapping_type::Symbol = :equivalent,          # :equivalent / :proxy / :partial / :incompatible
+    model_concept_id::Union{Symbol,Nothing} = nothing,  # MODEL_CONCEPT_DEFINITION_REGISTRY 参照
+    data_concept_id::Union{Symbol,Nothing} = nothing,
+    unit::Union{String,Nothing} = nothing,
+    transform::Union{Nothing,Function} = nothing,       # 宣言時のみ適用（暗黙変換なし）
+    transform_label::String = "", caveats = String[],
+)
+
+# 実行仕様
+ComparisonSpec(;
+    mode::Symbol,                                 # :trajectory / :shock_response / :empirical_fit / :mechanism
+    mappings::Vector{VariableComparisonMapping} = [],  # :mechanism 以外は 1 つ以上必須
+    period::Union{Nothing,Tuple{String,String}} = nothing,  # 整列に使う日付ラベル範囲
+    allow_period_index::Bool = false,             # 日付なし同士の配列位置比較を明示許可
+    left_model::Union{Symbol,Nothing} = nothing,  # :mechanism 用モデル識別子
+    right_model::Union{Symbol,Nothing} = nothing,
+    metadata = Dict{String,Any}(),
+)
+```
+
+**戻り値 `ComparisonResultV2`**:
+
+| フィールド | 型 | 説明 |
+|---|---|---|
+| `mode` | Symbol | 実行した比較モード |
+| `model_name` / `data_source` | String | left / right の名称 |
+| `assessment` | `ComparabilityAssessment` | 比較可能性の総合評価 |
+| `alignment` | `Dict{String,AlignmentResult}` | 変数ごとの整列結果（独立整列） |
+| `metrics` | `Dict{String,NamedTuple}` | 変数別指標（レベルが `:comparable`/`:partial` の変数のみ） |
+| `mechanism_diff` | `Union{Nothing,Dict{String,Any}}` | `:mechanism` の構造化差分（他モードは `nothing`） |
+| `warnings` | `Vector{String}` | proxy/部分対応・period index 使用・変換適用などの注意 |
+| `provenance` | `Dict{String,Any}` | 契約 version・mode・spec 要約 |
+
+`ComparabilityAssessment` は `level`（`:comparable` / `:partial` / `:insufficient` / `:incompatible`）・`reasons`・`required_transforms`（次に必要な変換/証拠）・`per_variable` を持つ。`AlignmentResult` は `common_dates` / `excluded_dates` / `model_indices` / `data_indices` / `n_missing` / `used_period_index` / `transform_history` を持つ。
+
+**契約**:
+
+- 日付 metadata があれば日付 intersection（`spec.period` 指定時はその範囲）で整列し、配列位置は使わない。
+- 日付なし同士の配列位置比較は `allow_period_index=true` の明示許可時のみ行う（既定は `:insufficient`）。
+- 単位差・頻度差は明示 `transform` が無い限り比較可能性を降格し、次に必要な変換を返す（暗黙換算をしない）。
+- stock/flow など概念種別が異なる場合は `:incompatible` とし数値比較しない。同名変数でも `concept_id`（≒ `definition_key`）が異なれば `equivalent` にしない。
+- 比較不能でも例外で終了せず、理由と必要変換を `assessment` に構造化して返す（変数の非存在のみ `ArgumentError`）。
+
+```julia
+spec = ComparisonSpec(;
+    mode = :trajectory,
+    mappings = [VariableComparisonMapping(; model_variable="Y", data_variable="GDP")],
+)
+r = compare_results_v2(model_sr, data_sr; spec)
+r.assessment.level                # :comparable / :partial / :insufficient / :incompatible
+r.metrics["Y"].rmse               # comparable/partial の変数のみ
+r.assessment.required_transforms  # 比較可能にするために次に必要な変換
+```
+
 ### 実データ型
 
 外部マクロデータを DME 内で統一的に扱う標準データ型。
