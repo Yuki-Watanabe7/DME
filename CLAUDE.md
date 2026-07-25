@@ -68,6 +68,7 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 |---|---|
 | [API リファレンス](docs/api.md) | Public/Internal API の一覧・シグネチャ・移行ガイド |
 | [モデル選択ガイド](docs/model_selection_guide.md) | 問い・現象からモデルを選ぶためのリファレンス・比較表・決定木 |
+| [モデル能力・概念定義 metadata](docs/model_capabilities.md) | 各モデルの部門・金融機構・対応API・実証能力の機械可読プロファイルと変数の概念定義・横断比較表・追加手順 |
 | [出力結果の読み方](docs/simulation_outputs.md) | 定常状態・移行経路・IRF・水準/対数偏差の概念 |
 | [モデル共通インターフェース](docs/architecture/model_interface.md) | 抽象型階層・命名方針・新規モデル追加ルール |
 | [パッケージ構成とアーキテクチャ概要](docs/architecture/package_structure.md) | ソースツリー・include 順序・Node 型階層・補間・モデル内部関数 |

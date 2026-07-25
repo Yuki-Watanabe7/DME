@@ -253,6 +253,37 @@ export
     build_cross_model_prompt,
     explain_cross_model_comparison,
     parse_cross_model_response,
+    coverage_concept_definitions,
+    # モデル能力プロファイル・概念定義 metadata（#149 / Phase 5）
+    MODEL_CAPABILITY_CONTRACT_VERSION,
+    CAPABILITY_TIME_REPRESENTATIONS,
+    CAPABILITY_APIS,
+    CAPABILITY_SECTORS,
+    CAPABILITY_INSTRUMENTS,
+    CAPABILITY_ACCOUNTING_CLOSURES,
+    CAPABILITY_TREATMENTS,
+    CAPABILITY_EXPECTATIONS,
+    CAPABILITY_OPTIMIZATION,
+    CAPABILITY_EQUILIBRIUM_CONCEPTS,
+    CONCEPT_KINDS,
+    CONCEPT_TIMINGS,
+    CONCEPT_ENDOGENEITY,
+    CONCEPT_OBSERVABILITY,
+    ModelCapabilityProfile,
+    ModelConceptDefinition,
+    supports_api,
+    has_sector,
+    has_instrument,
+    concept_definitions_equivalent,
+    model_symbol,
+    MODEL_CAPABILITY_REGISTRY,
+    MODEL_CONCEPT_DEFINITION_REGISTRY,
+    model_capabilities,
+    concept_definitions,
+    model_capability_profile_from_dict,
+    model_capability_profile_from_json,
+    model_concept_definition_from_dict,
+    model_concept_definition_from_json,
     # LLM provider abstraction
     LLMProviderError,
     LLMRequest,
@@ -327,6 +358,10 @@ include("./models/sfc_sim.jl")
 # Cross-model result type (depends on RamseyModel and RBCModel)
 include("./core/simulation_result.jl")
 include("./core/compare.jl")
+
+# モデル能力プロファイル・概念定義 metadata（#149 / Phase 5。全モデル型に依存。
+# llm 層より前に定義し cross_model_reasoning.jl から参照できるようにする）
+include("./core/model_capabilities.jl")
 
 # SFC 会計プリミティブ（会計表現をモデル方程式から分離。depends on SimulationResult）
 include("./sfc/types.jl")

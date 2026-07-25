@@ -827,6 +827,48 @@ out2 = explain_cross_model_comparison(ctx2; provider=create_provider())
 
 ---
 
+### モデル能力プロファイル・概念定義 metadata（`model_capabilities` / `concept_definitions`）
+
+各モデルが内生化する部門・金融機構・期待形成・政策変数・対応 API・実証能力を、LLM やクロスモデル
+推論が根拠にできる機械可読な repository metadata として提供する。能力を推測で過大申告せず、未対応は
+明示的に `false` / `:none` / 空とする。同名変数でも定義が異なれば `definition_key` で非等価と判定する。
+既存モデル API（`model_name` / `state_variables` …）は変更しない。設計は
+[モデル能力・概念定義 metadata](model_capabilities.md)。
+
+```julia
+const MODEL_CAPABILITY_CONTRACT_VERSION = "model-capability/1.0.0"
+
+# 能力プロファイル（モデルインスタンスまたは Symbol を受け付ける）
+model_capabilities(model) -> ModelCapabilityProfile
+supports_api(p, api)      # api ∈ CAPABILITY_APIS
+has_sector(p, sector)     # sector ∈ CAPABILITY_SECTORS
+has_instrument(p, instr)  # instr ∈ CAPABILITY_INSTRUMENTS
+
+# 概念定義（変数単位。安定 concept_id は重複しない）
+concept_definitions(model) -> Vector{ModelConceptDefinition}
+concept_definitions_equivalent(a, b) -> Bool   # definition_key・kind・unit・timing の一致
+
+# JSON round-trip（規約は SFC serialization に準拠）
+to_dict(p); to_json(p); model_capability_profile_from_dict(d); model_capability_profile_from_json(s)
+to_dict(c); to_json(c); model_concept_definition_from_dict(d); model_concept_definition_from_json(s)
+
+# Phase 4 クロスモデル registry との橋渡し
+coverage_concept_definitions(cov::ModelConceptCoverage) -> Vector{ModelConceptDefinition}
+
+p = model_capabilities(:keen)
+supports_api(p, :calibration)   # true（実証は Keen のみ）
+p.accounting_closure            # :none（SFC は SIM のみ :stock_flow_consistent）
+```
+
+> 公開型: `ModelCapabilityProfile`・`ModelConceptDefinition`。registry: `MODEL_CAPABILITY_REGISTRY`
+> （`Dict{Symbol,ModelCapabilityProfile}`）・`MODEL_CONCEPT_DEFINITION_REGISTRY`
+> （`Vector{ModelConceptDefinition}`）。固定語彙: `CAPABILITY_APIS`・`CAPABILITY_SECTORS`・
+> `CAPABILITY_INSTRUMENTS`・`CAPABILITY_ACCOUNTING_CLOSURES`・`CAPABILITY_TREATMENTS`・
+> `CAPABILITY_EXPECTATIONS`・`CAPABILITY_EQUILIBRIUM_CONCEPTS`・`CONCEPT_KINDS`・`CONCEPT_TIMINGS`
+> ほか。`model_symbol(m)` はインスタンス → 識別子。
+
+---
+
 ### SFC 会計プリミティブ（Stock-Flow Consistent 標準データ構造）
 
 部門・金融商品・貸借対照表・取引フロー・期別スナップショットを型安全かつ決定的に表現する

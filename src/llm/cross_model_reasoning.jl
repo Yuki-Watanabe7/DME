@@ -823,6 +823,27 @@ function model_concept_coverage(;
     end
 end
 
+"""
+    coverage_concept_definitions(cov::ModelConceptCoverage;
+        registry=MODEL_CONCEPT_DEFINITION_REGISTRY) -> Vector{ModelConceptDefinition}
+
+`ModelConceptCoverage`（Phase 4 のクロスモデル比較軸 metadata）が参照する変数に対応する
+Phase 5 の `ModelConceptDefinition` を返す。同一モデルかつ `cov.variables` に含まれる変数の
+定義を突き合わせる。Phase 4 の `MODEL_CONCEPT_REGISTRY` を段階的に Phase 5 の概念定義
+metadata から参照できるようにする橋渡し（Issue #149「既存層との接続」）。
+
+`cov.variables` が空、または対応する概念定義が未登録の場合は空ベクトルを返す。
+"""
+function coverage_concept_definitions(
+    cov::ModelConceptCoverage;
+    registry::Vector{ModelConceptDefinition} = MODEL_CONCEPT_DEFINITION_REGISTRY,
+)
+    isempty(cov.variables) && return ModelConceptDefinition[]
+    return filter(registry) do d
+        d.model === cov.model && String(d.variable) in cov.variables
+    end
+end
+
 # ===========================================================================
 # CrossModelComparisonContext（ADR 0006 §4）
 # ===========================================================================
