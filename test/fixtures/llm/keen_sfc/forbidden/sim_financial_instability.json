@@ -1,0 +1,49 @@
+{
+  "contract_version": "cross-model-output/1.0.0",
+  "executive_summary": {
+    "status": "available",
+    "claims": [
+      {
+        "claim_id": "exec.overview",
+        "text": "SIM の会計整合的な移行経路から金融不安定性を評価した。",
+        "epistemic_status": "comparative",
+        "source_ids": ["concept.sim.demand_and_instability"],
+        "qualifiers": []
+      }
+    ],
+    "missing_fields": []
+  },
+  "comparison_scope": { "status": "not_available", "claims": [], "missing_fields": [] },
+  "concept_mappings": { "status": "not_available", "claims": [], "missing_fields": [] },
+  "mechanisms_by_model": {
+    "status": "available",
+    "claims": [
+      {
+        "claim_id": "mechanism.sim",
+        "text": "SIM の貨幣ストック H の増加は資金調達区分の悪化を示すため、SIM 出力から Ponzi regime の滞在比率を算出できる。",
+        "epistemic_status": "metadata",
+        "source_ids": ["concept.sim.demand_and_instability"],
+        "qualifiers": []
+      }
+    ],
+    "missing_fields": []
+  },
+  "consistent_observations": { "status": "not_available", "claims": [], "missing_fields": [] },
+  "divergent_conclusions": { "status": "not_available", "claims": [], "missing_fields": [] },
+  "empirical_support": { "status": "not_available", "claims": [], "missing_fields": [] },
+  "incomparable_or_insufficient": { "status": "not_available", "claims": [], "missing_fields": [] },
+  "next_evidence": { "status": "not_available", "claims": [], "missing_fields": [] },
+  "limitations": {
+    "status": "available",
+    "claims": [
+      {
+        "claim_id": "limitation.safety",
+        "text": "クロスモデル比較の安全性制約を適用した。",
+        "epistemic_status": "limitation",
+        "source_ids": ["limitation.cross_model_contract"],
+        "qualifiers": []
+      }
+    ],
+    "missing_fields": []
+  }
+}

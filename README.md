@@ -289,6 +289,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 |---|---|
 | [モデル選択ガイド](docs/model_selection_guide.md) | 問い・現象からモデルを選ぶためのリファレンス。比較表・決定木・各モデルの限界 |
 | [モデル能力・概念定義 metadata](docs/model_capabilities.md) | 各モデルの部門・金融機構・対応API・実証能力の機械可読プロファイルと変数の概念定義・横断比較表・追加手順 |
+| [Keen–SFC 概念対応・比較レポート](docs/analysis/keen_sfc_comparison.md) | Keen と最小 SIM 型 SFC モデルの概念対応表・比較不能の理由・会計/動学機構の差・数値比較の可否・次期 Minsky-SFC のギャップ |
 | [出力結果の読み方](docs/simulation_outputs.md) | 定常状態・移行経路・IRF・水準/対数偏差の概念と出力例 |
 | [API リファレンス](docs/api.md) | Public/Internal API の一覧・シグネチャ・移行ガイド |
 | [Keen 実証 AIエコノミスト統合デモ](docs/examples/keen_empirical_ai_economist.md) | データ取得 → 実証分析 → 根拠付き LLM 説明 → クロスモデル比較 → provenance 保存の再現可能な統合デモの実行手順・成果物・設定例 |

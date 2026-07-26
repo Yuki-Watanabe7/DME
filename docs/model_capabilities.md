@@ -168,6 +168,7 @@ coverage_concept_definitions(cov)   # [:keen_debt_ratio_d]
 ## 参考
 
 - [クロスモデル推論層の設計](architecture/cross_model_reasoning.md) — Phase 4 の概念対応・mapping 導出
+- [Keen–SFC 概念対応・比較レポート](analysis/keen_sfc_comparison.md) — 能力プロファイル・概念定義 metadata を根拠にした 2 モデル比較の実例
 - [ADR 0006](adr/0006-cross-model-reasoning-contract.md) — 概念対応・同名非同一性の決定記録
 - [モデル選択ガイド](model_selection_guide.md) — モデル横断比較表（§3）
 - [モデル変数と実データ系列のマッピング表](data/variable_mapping.md) — 変数定義差・単位・変換

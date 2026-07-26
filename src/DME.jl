@@ -261,6 +261,25 @@ export
     explain_cross_model_comparison,
     parse_cross_model_response,
     coverage_concept_definitions,
+    # Keen–SFC 概念対応・非対応と比較レポート（#151 / Phase 5）
+    KEEN_SFC_COMPARISON_CONTRACT_VERSION,
+    KEEN_SFC_MODELS,
+    KEEN_SFC_CONCEPTS,
+    KEEN_SFC_CONCEPT_LABELS,
+    KEEN_SFC_SOURCE_IDS,
+    KeenSFCConceptCorrespondence,
+    KEEN_SFC_CONCEPT_CORRESPONDENCES,
+    keen_sfc_correspondences,
+    keen_sfc_concept_mapping,
+    keen_sfc_concept_mappings,
+    keen_sfc_sim_unavailable_indicators,
+    keen_sfc_mechanism_diff,
+    keen_sfc_suitable_questions,
+    keen_sfc_minsky_gaps,
+    build_keen_sfc_comparison_context,
+    KeenSFCComparisonReport,
+    compare_keen_sfc,
+    explain_keen_sfc_comparison,
     # モデル能力プロファイル・概念定義 metadata（#149 / Phase 5）
     MODEL_CAPABILITY_CONTRACT_VERSION,
     CAPABILITY_TIME_REPRESENTATIONS,
@@ -424,5 +443,10 @@ include("./llm/keen_empirical_prompts.jl")
 # keen_empirical_prompts.jl の EvidenceClaim/ExplanationSection/_KEEN_SEVERITY_RANK/_keen_fmt,
 # analysis_context.jl の ModelMetadata, provider.jl の complete_from_prompt）
 include("./llm/cross_model_reasoning.jl")
+
+# Keen–SFC 概念対応・非対応と比較レポート層（#151 / Phase 5。depends on
+# core/model_capabilities.jl（能力・概念定義 metadata）, core/compare_v2.jl（比較可能性判定）,
+# analysis/sfc_accounting.jl（会計 check）, llm/cross_model_reasoning.jl（ADR 0006 の型・context））
+include("./analysis/keen_sfc_comparison.jl")
 
 end

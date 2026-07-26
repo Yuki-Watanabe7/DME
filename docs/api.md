@@ -958,6 +958,85 @@ p.accounting_closure            # :none（SFC は SIM のみ :stock_flow_consist
 
 ---
 
+### Keen–SFC 概念対応・比較レポート（`compare_keen_sfc`）
+
+Keen（Minsky 系）モデルと最小 SIM 型 SFC モデルの概念・機構・会計範囲を比較し、同値・proxy・
+部分対応・比較不能を根拠付きで報告する。概念対応は能力プロファイル・概念定義 metadata（#149）を
+根拠にし、数値比較の可否は比較 API v2（#150）に委ねる。出力契約は ADR 0006 の
+`ModelConceptMapping` / `CrossModelComparisonContext` / `CrossModelReasoningOutput` を再利用する。
+解説は [Keen–SFC 概念対応・比較レポート](analysis/keen_sfc_comparison.md)。
+
+```julia
+const KEEN_SFC_COMPARISON_CONTRACT_VERSION = "keen-sfc-comparison/1.0.0"
+
+# 概念対応 registry（equivalent/proxy/partial/incompatible × comparable/partial/insufficient/incompatible）
+keen_sfc_correspondences(; concept=nothing, mapping_type=nothing, comparability=nothing)
+    -> Vector{KeenSFCConceptCorrespondence}
+
+# Phase 4 型（ADR 0006）への写像
+keen_sfc_concept_mapping(c::KeenSFCConceptCorrespondence) -> ModelConceptMapping
+keen_sfc_concept_mappings(; kwargs...) -> Vector{ModelConceptMapping}
+
+# 構造・問い・ギャップ（すべて決定的）
+keen_sfc_mechanism_diff() -> Dict{String,Any}            # 能力 metadata の構造化差分（v2 :mechanism と同一）
+keen_sfc_suitable_questions() -> Dict{String,Vector{String}}
+keen_sfc_minsky_gaps(; correspondences=KEEN_SFC_CONCEPT_CORRESPONDENCES) -> Vector{String}
+keen_sfc_sim_unavailable_indicators() -> Vector{String}  # SIM 出力から生成してはならない指標
+
+# 比較コンテキスト（比較軸 mapping ＋ Keen–SFC 概念対応 ＋ 根拠 source を加算）
+build_keen_sfc_comparison_context(; empirical=nothing, accounting_report=nothing,
+    model_metadata=Dict{Symbol,ModelMetadata}(),
+    correspondences=KEEN_SFC_CONCEPT_CORRESPONDENCES) -> CrossModelComparisonContext
+
+# 比較レポート（LLM は呼ばない）
+compare_keen_sfc(; keen_result=nothing, sim_result=nothing, empirical=nothing,
+    accounting_report=nothing, period=nothing, allow_period_index=false,
+    model_metadata=Dict{Symbol,ModelMetadata}(),
+    correspondences=KEEN_SFC_CONCEPT_CORRESPONDENCES) -> KeenSFCComparisonReport
+
+# 根拠付き構造化説明（provider=nothing なら決定的生成。失敗時は :fallback）
+explain_keen_sfc_comparison(report::KeenSFCComparisonReport; audience=:analyst,
+    detail=:standard, provider=nothing, max_tokens=3500, temperature=0.2)
+    -> CrossModelReasoningOutput
+
+to_dict(c::KeenSFCConceptCorrespondence) / to_json(c)
+to_dict(report::KeenSFCComparisonReport) / to_json(report)
+```
+
+`KeenSFCComparisonReport` のフィールド: `shared_concepts`（`equivalent`。現状は空）・
+`partial_concepts`（`proxy`/`partial`）・`incomparable_concepts`（`incompatible`）・
+`structural_differences`（会計閉鎖・部門・機構の差）・`numeric_comparisons`
+（`Dict{String,ComparisonResultV2}`。metric を計算した概念のみ）・`skipped_comparisons`
+（不実施の概念・理由・必要な追加証拠）・`suitable_questions`・`minsky_sfc_gaps`・
+`required_evidence`・`context`・`warnings`・`provenance`。
+
+```julia
+report = compare_keen_sfc()
+report.shared_concepts                 # 空（Keen と SIM に厳密に等価な概念は無い）
+report.incomparable_concepts           # 民間債務・資金調達区分・賃金シェア・雇用率・会計閉鎖・財政政策 …
+report.structural_differences["accounting_closure"]   # ("none" vs "stock_flow_consistent")
+
+# 系列を渡すと comparable/partial な概念だけ metric を返す
+report = compare_keen_sfc(; keen_result=keen_sr, sim_result=sim_sr, allow_period_index=true)
+keys(report.numeric_comparisons)       # ["aggregate_output"]
+report.skipped_comparisons             # 不実施理由と必要な追加モデル・系列・変換
+
+out = explain_keen_sfc_comparison(report)             # :deterministic
+out.incomparable_or_insufficient.status               # :insufficient_comparability
+```
+
+> **安全性**: `mapping_type=:incompatible` の概念に数値比較レベルを与えられない（コンストラクタが
+> `ArgumentError`）。`:equivalent` は両側の `ModelConceptDefinition` が
+> `concept_definitions_equivalent` を満たす場合のみ許可する。SIM の政府貨幣 `H`（政府負債）と
+> Keen の民間債務 `d` を同一視・集計しない（`DEBT_CONCEPTS_NOT_INTERCHANGEABLE`）。SIM 出力から
+> 金融不安定性・分配指標を生成しない（`SIM_NO_FINANCIAL_INSTABILITY`）。会計恒等式に違反がある
+> 場合は `SFC_ACCOUNTING_VIOLATION`（severity `:error`）を付す。
+> 公開型: `KeenSFCConceptCorrespondence`・`KeenSFCComparisonReport`。定数:
+> `KEEN_SFC_CONCEPTS`・`KEEN_SFC_CONCEPT_LABELS`・`KEEN_SFC_CONCEPT_CORRESPONDENCES`・
+> `KEEN_SFC_MODELS`・`KEEN_SFC_SOURCE_IDS`・`KEEN_SFC_COMPARISON_CONTRACT_VERSION`。
+
+---
+
 ### SFC 会計プリミティブ（Stock-Flow Consistent 標準データ構造）
 
 部門・金融商品・貸借対照表・取引フロー・期別スナップショットを型安全かつ決定的に表現する

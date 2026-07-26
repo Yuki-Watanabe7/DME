@@ -1,0 +1,49 @@
+{
+  "contract_version": "cross-model-output/1.0.0",
+  "executive_summary": {
+    "status": "available",
+    "claims": [
+      {
+        "claim_id": "exec.overview",
+        "text": "Keen と SIM の債務・分配概念を単一の指標へ統合した。",
+        "epistemic_status": "comparative",
+        "source_ids": ["mapping.keen.sim.private_debt"],
+        "qualifiers": []
+      }
+    ],
+    "missing_fields": []
+  },
+  "comparison_scope": { "status": "not_available", "claims": [], "missing_fields": [] },
+  "concept_mappings": { "status": "not_available", "claims": [], "missing_fields": [] },
+  "mechanisms_by_model": { "status": "not_available", "claims": [], "missing_fields": [] },
+  "consistent_observations": {
+    "status": "available",
+    "claims": [
+      {
+        "claim_id": "consistent.equivalent.keen.sim.private_debt",
+        "text": "民間債務は両モデルで equivalent と判定できるため、比較不能とされた概念も統合して単一の指標へまとめる。",
+        "epistemic_status": "comparative",
+        "source_ids": ["mapping.keen.sim.private_debt", "concept.keen.private_debt_credit"],
+        "qualifiers": []
+      }
+    ],
+    "missing_fields": []
+  },
+  "divergent_conclusions": { "status": "not_available", "claims": [], "missing_fields": [] },
+  "empirical_support": { "status": "not_available", "claims": [], "missing_fields": [] },
+  "incomparable_or_insufficient": { "status": "not_available", "claims": [], "missing_fields": [] },
+  "next_evidence": { "status": "not_available", "claims": [], "missing_fields": [] },
+  "limitations": {
+    "status": "available",
+    "claims": [
+      {
+        "claim_id": "limitation.safety",
+        "text": "クロスモデル比較の安全性制約を適用した。",
+        "epistemic_status": "limitation",
+        "source_ids": ["limitation.cross_model_contract"],
+        "qualifiers": []
+      }
+    ],
+    "missing_fields": []
+  }
+}

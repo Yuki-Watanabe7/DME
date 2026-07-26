@@ -72,6 +72,7 @@ const _XM_MODEL_LABELS = Dict{Symbol, String}(
     :mundell_fleming => "Mundell-Fleming モデル",
     :var => "簡易 VAR モデル",
     :keen => "Keen モデル",
+    :sim => "SIM（SFC）モデル",
 )
 
 # 比較軸 → 表示名
@@ -335,6 +336,73 @@ const MODEL_CONCEPT_REGISTRY = ModelConceptCoverage[
         caveats = [
             "政府部門なし=財政政策なし、金利 r は一定パラメータ=金融政策チャンネルなし、確率ショックなし。",
         ],
+    ),
+
+    # ---- SIM（最小 SFC。会計恒等式を検証するが金融資産は政府貨幣 H のみ）--------
+    ModelConceptCoverage(;
+        model = :sim,
+        concept = :private_debt_credit,
+        treatment = :out_of_scope,
+        definition_key = :none,
+        definition = "金融資産は政府貨幣 H のみ。銀行貸出・企業債務・信用創造を持たない。",
+        doc_ref = "docs/models/sim_sfc.md §限界; docs/adr/0007-sfc-integration-contract.md §1",
+        caveats = [
+            "H は家計の資産かつ政府の負債であり、企業の民間債務ではない。Keen の債務比率 d と同一視しない。",
+        ],
+    ),
+    ModelConceptCoverage(;
+        model = :sim,
+        concept = :income_distribution,
+        treatment = :out_of_scope,
+        definition_key = :none,
+        definition = "企業利潤ゼロ（賃金＝産出）を仮定し、賃金シェア・利潤シェアの動学を持たない。",
+        doc_ref = "docs/models/sim_sfc.md §限界",
+        caveats = [
+            "賃金率 W を数値基準とするため賃金シェアは定義上一定であり、分配の動学ではない。",
+        ],
+    ),
+    ModelConceptCoverage(;
+        model = :sim,
+        concept = :demand_and_instability,
+        treatment = :approximate,
+        variables = ["Y", "C"],
+        definition_key = :sim_demand_determined_output,
+        unit = "wage units",
+        frequency = "period (discrete)",
+        measure = "level",
+        definition = "産出は総需要 Y=C+G で決定され、家計の貨幣ストック H が消費関数を通じて需要へ波及する。",
+        doc_ref = "docs/models/sim_sfc.md §方程式",
+        caveats = [
+            "生産関数を持たない需要決定モデルであり、金融不安定性の伝播経路は存在しない（0<α1<1 で大域安定）。",
+        ],
+    ),
+    ModelConceptCoverage(;
+        model = :sim,
+        concept = :steady_state_stability,
+        treatment = :endogenous,
+        variables = ["H", "Y"],
+        definition_key = :sim_stock_flow_steady_state,
+        unit = "wage units",
+        frequency = "period (discrete)",
+        measure = "level",
+        definition = "貯蓄ゼロ・政府予算均衡 T=G の会計整合定常状態（Y*=G/θ, H*=(1−α1)/α2·YD*）へ大域収束。",
+        doc_ref = "docs/models/sim_sfc.md §定常状態",
+        caveats = [
+            "危機regime・双安定性を持たない。会計恒等式は全期 validate_sfc_accounting で検証される。",
+        ],
+    ),
+    ModelConceptCoverage(;
+        model = :sim,
+        concept = :shock_response,
+        treatment = :endogenous,
+        variables = ["G", "θ"],
+        definition_key = :sim_fiscal_shock_path,
+        unit = "wage units",
+        frequency = "period (discrete)",
+        measure = "level",
+        definition = "政府支出 G・税率 θ への恒久/一時ショックから新しい定常状態への移行経路を水準で返す。",
+        doc_ref = "docs/models/sim_sfc.md §財政ショック",
+        caveats = ["金融政策・確率ショックは持たない（財政ショックのみ）。"],
     ),
 
     # ---- RBC ----------------------------------------------------------------
