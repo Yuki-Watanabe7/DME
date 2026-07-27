@@ -112,6 +112,53 @@ end
 """検証が全件 pass だったかを返す。"""
 accounting_passed(r::AccountingCheckReport) = r.status === acc_pass
 
+# ---------------------------------------------------------------------------
+# JSON 化（to_dict / to_json）。非有限値は src/sfc/serialization.jl の
+# `_sfc_encode_float` / `_sfc_jsonify` と同じ文字列タグ規約で符号化する。
+# ---------------------------------------------------------------------------
+
+"""
+    to_dict(v::AccountingViolation) -> Dict{String, Any}
+
+会計検証 1 件を JSON 安全な `Dict` へ変換する。
+"""
+to_dict(v::AccountingViolation) = Dict{String, Any}(
+    "check" => String(v.check),
+    "period" => v.period,
+    "status" => accounting_status_label(v.status),
+    "sector" => v.sector === nothing ? nothing : String(v.sector),
+    "instrument" => v.instrument === nothing ? nothing : String(v.instrument),
+    "transaction" => v.transaction === nothing ? nothing : String(v.transaction),
+    "residual" => _sfc_encode_float(v.residual),
+    "scale" => _sfc_encode_float(v.scale),
+    "tolerance" => _sfc_encode_float(v.tolerance),
+    "message" => v.message,
+    "evidence" => _sfc_jsonify(v.evidence),
+)
+
+"""
+    to_dict(r::AccountingCheckReport) -> Dict{String, Any}
+
+[`validate_sfc_accounting`](@ref) の結果を JSON 安全な `Dict` へ変換する。全 check・
+最大残差・invalid 期・divergence 時点を含む。
+"""
+to_dict(r::AccountingCheckReport) = Dict{String, Any}(
+    "status" => accounting_status_label(r.status),
+    "violations" => Any[to_dict(v) for v in r.violations],
+    "checks_performed" => r.checks_performed,
+    "checks_passed" => r.checks_passed,
+    "max_abs_residual" => _sfc_encode_float(r.max_abs_residual),
+    "valid_periods" => copy(r.valid_periods),
+    "invalid_periods" => copy(r.invalid_periods),
+    "divergence_time" => r.divergence_time,
+    "methodology" => to_dict(r.methodology),
+    "tolerance_abs" => _sfc_encode_float(r.tolerance_abs),
+    "tolerance_rel" => _sfc_encode_float(r.tolerance_rel),
+)
+
+to_json(v::AccountingViolation) = JSON3.write(to_dict(v))
+to_json(r::AccountingCheckReport) = JSON3.write(to_dict(r))
+
 # NaN 安全な等価比較（round-trip 後の report 一致テスト等で使う）。
 function Base.isequal(a::AccountingViolation, b::AccountingViolation)
     return a.check == b.check &&

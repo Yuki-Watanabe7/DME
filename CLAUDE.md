@@ -103,5 +103,6 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 | [品質チェックとローカル検証手順](docs/development/quality_checks.md) | Aqua.jl・JuliaFormatter・テスト実行方法 |
 | [Keen 実証説明の LLM 回帰テストと安全性評価](docs/development/keen_llm_regression.md) | 契約/parser/シナリオ/golden/forbidden の評価レイヤー・安全性評価器・fixture 再生成/追加手順・任意 provider 評価 |
 | [Keen 実証 AIエコノミスト統合デモ](docs/examples/keen_empirical_ai_economist.md) | データ取得→実証分析→根拠付きLLM説明→クロスモデル比較→provenance保存の再現可能な統合デモの実行手順・成果物・設定例 |
+| [SFC対応 AIエコノミスト統合デモ](docs/examples/sfc_ai_economist.md) | baseline/財政ショック→SFC会計検証→比較API v2→Keen–SFC比較レポート→根拠付きLLM説明→provenance保存の再現可能な統合デモの実行手順・成果物・設定例 |
 | [依存パッケージ管理と注意点](docs/development/dependency_management.md) | JuMP・Interpolations・NLsolve の注意点・Manifest.toml 管理 |
 | [設定・環境変数管理ガイド](docs/development/configuration.md) | API キー設定・fixture/mock モード・CI 運用方針 |

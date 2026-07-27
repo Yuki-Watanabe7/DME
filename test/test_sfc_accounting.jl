@@ -419,4 +419,50 @@ end
         @test rep2.tolerance_abs == 1e-3
         @test rep2.tolerance_rel == 1e-2
     end
+
+    @testset "to_dict / to_json（Issue #152）" begin
+        f = sfc_accounting_fixture()
+        rep = validate_sfc_accounting(f.r)
+        d = to_dict(rep)
+        for k in (
+            "status",
+            "violations",
+            "checks_performed",
+            "checks_passed",
+            "max_abs_residual",
+            "valid_periods",
+            "invalid_periods",
+            "divergence_time",
+            "methodology",
+            "tolerance_abs",
+            "tolerance_rel",
+        )
+            @test haskey(d, k)
+        end
+        @test d["status"] == accounting_status_label(rep.status)
+        @test d["checks_performed"] == rep.checks_performed
+
+        j = to_json(rep)
+        parsed = DME.JSON3.read(j)
+        @test parsed["status"] == "pass"
+        @test parsed["checks_performed"] == rep.checks_performed
+
+        # 非有限な残差は "NaN" 文字列タグへ符号化される（round-trip 規約。src/sfc/serialization.jl と同じ）
+        broken_violation = AccountingViolation(
+            :stock_flow,
+            "2021",
+            acc_invalid,
+            :households,
+            :money,
+            :money_change,
+            NaN,
+            0.0,
+            1e-8,
+            "非有限な残差（テスト用）",
+            Dict{String, Any}("delta_stock" => NaN),
+        )
+        vd = to_dict(broken_violation)
+        @test vd["residual"] == "NaN"
+        @test vd["evidence"]["delta_stock"] == "NaN"
+    end
 end
