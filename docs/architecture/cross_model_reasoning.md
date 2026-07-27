@@ -70,6 +70,9 @@ treatment `CROSS_MODEL_TREATMENTS`: `endogenous`（内生化）/ `approximate`�
   （偏差）、IS-LM/AD-AS/MF は静学均衡、VAR は線形固定点、Keen は双安定（危機 regime を含む）。
 - 利子率 `r` は RBC=実質資本限界生産物、IS-LM/AD-AS/MF=名目、NK=名目 `i`/自然実質 `r_n`、
   Keen=外生一定の実質貸出金利。**同名でも定義が異なるため同一視しない**。
+- SIM（SFC）は民間債務・所得分配を `out_of_scope`、需要決定 `Y=C+G` を `approximate`、
+  会計整合定常状態と財政ショックを `endogenous` として登録する（ADR 0007 §7）。政府貨幣 `H` は
+  政府の負債であり、Keen の民間債務 `d` と同一視しない（`caveats` に明示）。
 
 ## mapping 導出（保守的）
 
@@ -121,6 +124,10 @@ category/status 整合の順で検証し、いずれか失敗で `OUTPUT_SCHEMA_
 新モデルを追加する場合は `MODEL_CONCEPT_REGISTRY` に該当 (model, concept) の
 `ModelConceptCoverage` を追記すれば、mapping 導出・context 生成・出力へ自動的に参加する。Keen 固有
 summary を共通型へ無理に一般化しない（ADR 0005 §10）。
+
+比較軸より細かい概念単位で 2 モデルを比較する場合は、`ModelConceptMapping` を自前に構成して
+`CrossModelComparisonContext` へ加算する互換拡張が使える（実例:
+[Keen–SFC 概念対応・比較レポート](../analysis/keen_sfc_comparison.md)）。
 
 ## 参考
 

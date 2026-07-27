@@ -77,6 +77,7 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 | [LLM Provider設定ガイド](docs/architecture/llm_provider.md) | provider抽象化・OpenAI設定・MockProvider・差し替え方法 |
 | [AnalysisContext 設計](docs/architecture/analysis_context.md) | LLMへ渡す構造化コンテキスト型の設計・構造・利用例 |
 | [クロスモデル推論層の設計](docs/architecture/cross_model_reasoning.md) | Keen 実証結果と既存モデルの概念対応・mapping 導出・出力 section・安全性（ADR 0006） |
+| [Keen–SFC 概念対応・比較レポート](docs/analysis/keen_sfc_comparison.md) | Keen と最小 SIM 型 SFC モデルの概念対応表・比較不能の理由・会計/動学機構の差・数値比較の可否・次期 Minsky-SFC のギャップ |
 | [LLM出力の安全性・免責・禁止表現ルール](docs/llm_safety.md) | 禁止表現・必須記載・プロンプトテンプレート・出力チェックリスト |
 | [DataSeries / MacroDataset 利用ガイド](docs/data/data_series_guide.md) | 実データ標準型の構造と操作 |
 | [モデル変数と実データ系列のマッピング表](docs/data/variable_mapping.md) | 各モデル変数と候補実データ系列の対応・単位・変換注意事項 |

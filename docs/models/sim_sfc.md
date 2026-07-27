@@ -228,5 +228,6 @@ summarize_result(r.simulation_result)
 - Godley, W. & Lavoie, M. (2007). *Monetary Economics: An Integrated Approach to Credit, Money,
   Income, Production and Wealth*, 第3章.
 - [SFC 統合設計（最小 SIM 型モデル）](sfc_integration_design.md)
+- [Keen–SFC 概念対応・比較レポート](../analysis/keen_sfc_comparison.md)（Keen との概念対応表・比較不能の理由・数値比較の可否）
 - [ADR 0007: SFC 統合契約](../adr/0007-sfc-integration-contract.md)
 - [API リファレンス](../api.md)（`SIMModel` 計算 API・`sfc_result` adapter・会計検証エンジン）
