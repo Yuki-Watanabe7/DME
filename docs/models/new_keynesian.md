@@ -159,6 +159,27 @@ i* = r_n + π_star（名目利子率 = 自然実質利子率 + インフレ目�
 | `π` | `Vector{Float64}` | インフレ率の変化（π_star からの乖離） |
 | `i` | `Vector{Float64}` | 名目利子率の変化（i* からの乖離） |
 
+## 期待インフレ率パス・level 復元
+
+`impulse_response` の `π`/`i` は定常状態からの**乖離**であり、`E_t[π_{t+1}]`（期待インフレ率）
+も直接の出力としては持たない。以下の関数で明示的に扱う（[Issue #159](https://github.com/Yuki-Watanabe7/DME/issues/159)）。
+
+- `nk_expected_inflation_path(m, shock_size, t, hs; shock=:demand) -> Vector{Float64}`：
+  t 期時点で形成される期待インフレ率の乖離 `E_t[π̃_{t+h}]`（`h ∈ hs`）を MSV 解の閉形式
+  `Ψ_π * shock_size * ρ^(t+h-1)` から計算する。決定論的 AR(1) ショックのもとでは
+  `impulse_response` の `π[t+h]` と数学的に一致するが、`π_t` や `π_star` を単純コピーする
+  実装ではなく、モデル方程式（`ρ`・`Ψ_π`）から独立に導出する。
+- `nk_inflation_level(m, π_deviation) = π_star + π_deviation`：インフレ率の乖離を level へ復元。
+- `nk_nominal_rate_level(m, i_deviation) = r_n + π_star + i_deviation`：名目利子率の乖離を
+  level へ復元。
+
+`current_inflation`（現在のインフレ）・`expected_inflation`（期待インフレ）・
+`inflation_target`（`π_star`）・`nominal_policy_rate`（`i`）・
+`model_implied_real_policy_rate`（`i - E_t[π_{t+1}]`）・`natural_real_rate`（`r_n`）を
+それぞれ別概念として明示的に扱い、再現可能な JSON artifact として構築・保存する API は
+[real-rate model artifact 生成デモ](../examples/real_rate_model_artifact.md) と
+[ADR 0008](../adr/0008-real-rate-model-artifact-export.md) を参照。
+
 ## 基本的な使い方
 
 ```julia

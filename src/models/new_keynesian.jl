@@ -108,6 +108,28 @@ function nk_msv_response(m::NewKeynesianModel, ρ::Float64, d::Vector{Float64})
 end
 
 """
+    _nk_shock_spec(m::NewKeynesianModel, shock::Symbol) -> NamedTuple{(:ρ,:d,:is_monetary)}
+
+`shock` の種類から AR(1) 持続性 `ρ`・ショック負荷ベクトル `d`・金融政策ショックか否かを
+決定する内部関数。`impulse_response` と `nk_expected_inflation_path` で共有する。
+"""
+function _nk_shock_spec(m::NewKeynesianModel, shock::Symbol)
+    if shock === :demand
+        (ρ = m.ρ_x, d = [1.0, 0.0], is_monetary = false)
+    elseif shock === :cost_push
+        (ρ = m.ρ_c, d = [0.0, 1.0], is_monetary = false)
+    elseif shock === :monetary
+        (ρ = m.ρ_m, d = [-1.0 / m.σ, 0.0], is_monetary = true)
+    else
+        throw(
+            ArgumentError(
+                "不明なショック種別: $(shock)。:demand, :cost_push, :monetary のいずれかを指定してください。",
+            ),
+        )
+    end
+end
+
+"""
     impulse_response(m::NewKeynesianModel, shock_size::Float64 = 1.0;
                      shock::Symbol = :demand, T::Int = 20) -> NamedTuple
 
@@ -139,27 +161,9 @@ function impulse_response(
     shock::Symbol = :demand,
     T::Int = 20,
 )
-    if shock === :demand
-        ρ = m.ρ_x
-        d = [1.0, 0.0]
-        is_monetary = false
-    elseif shock === :cost_push
-        ρ = m.ρ_c
-        d = [0.0, 1.0]
-        is_monetary = false
-    elseif shock === :monetary
-        ρ = m.ρ_m
-        d = [-1.0 / m.σ, 0.0]
-        is_monetary = true
-    else
-        throw(
-            ArgumentError(
-                "不明なショック種別: $(shock)。:demand, :cost_push, :monetary のいずれかを指定してください。",
-            ),
-        )
-    end
-
-    Ψ = nk_msv_response(m, ρ, d)
+    spec = _nk_shock_spec(m, shock)
+    ρ = spec.ρ
+    Ψ = nk_msv_response(m, ρ, spec.d)
 
     x_irf = Vector{Float64}(undef, T)
     π_irf = Vector{Float64}(undef, T)
@@ -170,13 +174,58 @@ function impulse_response(
         x_irf[t] = Ψ[1] * ε_t
         π_irf[t] = Ψ[2] * ε_t
         i_irf[t] = m.φ_π * π_irf[t] + m.φ_x * x_irf[t]
-        if is_monetary
+        if spec.is_monetary
             i_irf[t] += ε_t
         end
     end
 
     (x = x_irf, π = π_irf, i = i_irf)
 end
+
+"""
+    nk_expected_inflation_path(m::NewKeynesianModel, shock_size::Float64, t::Int,
+                               hs::AbstractVector{<:Integer}; shock::Symbol = :demand)
+        -> Vector{Float64}
+
+t 期時点で形成される将来インフレ率の期待値の乖離 `E_t[π̃_{t+h}]`（h ∈ `hs`）を、
+MSV 解の閉形式から計算する。
+
+決定論的 AR(1) ショック `ε_t = shock_size * ρ^(t-1)` のもとでは、確率的な新規ショックが
+将来到来しないため、t 期時点で形成される期待は実現パスと数学的に一致する:
+
+  E_t[π̃_{t+h}] = Ψ_π * ε_{t+h} = Ψ_π * shock_size * ρ^(t+h-1)
+
+`impulse_response` が返す配列の未来値を読み出すのではなく、この式を `h` について
+評価することで期待値を導出する（`π_t` や `π_star` の単純コピーではないことを保証する）。
+返り値は `π_star` からの**乖離**（level ではない）。
+"""
+function nk_expected_inflation_path(
+    m::NewKeynesianModel,
+    shock_size::Float64,
+    t::Int,
+    hs::AbstractVector{<:Integer};
+    shock::Symbol = :demand,
+)
+    spec = _nk_shock_spec(m, shock)
+    ρ = spec.ρ
+    Ψ_π = nk_msv_response(m, ρ, spec.d)[2]
+    return [Ψ_π * shock_size * ρ^(t + h - 1) for h in hs]
+end
+
+"""
+    nk_inflation_level(m::NewKeynesianModel, π_deviation::Float64) -> Float64
+
+インフレ率の定常状態 `π_star` からの乖離を level（水準）へ復元する。
+"""
+nk_inflation_level(m::NewKeynesianModel, π_deviation::Float64) = m.π_star + π_deviation
+
+"""
+    nk_nominal_rate_level(m::NewKeynesianModel, i_deviation::Float64) -> Float64
+
+名目利子率の定常状態 `i* = r_n + π_star` からの乖離を level（水準）へ復元する。
+"""
+nk_nominal_rate_level(m::NewKeynesianModel, i_deviation::Float64) =
+    m.r_n + m.π_star + i_deviation
 
 """
     nk_irf_compare(m_base, m_alt; shock, shock_size, T, scenario_names)

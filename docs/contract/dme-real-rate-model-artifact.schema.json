@@ -1,0 +1,633 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Yuki-Watanabe7/economic-data-provider/blob/develop/docs/contract/dme-real-rate-model-artifact.schema.json",
+  "title": "DME real-rate model artifact",
+  "description": "Immutable cross-repository artifact produced by DME and ingested read-only by economic-data-provider.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_type",
+    "artifact_id",
+    "model",
+    "parameter_set",
+    "calibration",
+    "input_snapshot",
+    "run",
+    "timing",
+    "observations",
+    "warnings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "artifact_type": {
+      "const": "dme.real_rate_model"
+    },
+    "artifact_id": {
+      "$ref": "#/$defs/sha256Identity"
+    },
+    "model": {
+      "$ref": "#/$defs/modelIdentity"
+    },
+    "parameter_set": {
+      "$ref": "#/$defs/parameterSet"
+    },
+    "calibration": {
+      "$ref": "#/$defs/calibration"
+    },
+    "input_snapshot": {
+      "$ref": "#/$defs/inputSnapshot"
+    },
+    "run": {
+      "$ref": "#/$defs/runIdentity"
+    },
+    "timing": {
+      "$ref": "#/$defs/timing"
+    },
+    "observations": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "$ref": "#/$defs/modelObservation"
+      },
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "required": ["metric"],
+            "properties": {
+              "metric": {
+                "const": "expected_inflation"
+              }
+            }
+          },
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["metric"],
+            "properties": {
+              "metric": {
+                "const": "nominal_policy_rate"
+              }
+            }
+          },
+          "minContains": 1
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": ["metric"],
+            "properties": {
+              "metric": {
+                "const": "model_implied_real_policy_rate"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      ]
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "sha256Identity": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "commitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "offsetDateTime": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "T.*(?:Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "country": {
+      "enum": ["US", "JP"]
+    },
+    "frequency": {
+      "enum": ["daily", "monthly", "quarterly", "annual"]
+    },
+    "modelIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_id",
+        "model_version",
+        "code_repository",
+        "code_commit_sha",
+        "solver"
+      ],
+      "properties": {
+        "model_id": {
+          "const": "dme.new_keynesian"
+        },
+        "model_version": {
+          "$ref": "#/$defs/semver"
+        },
+        "code_repository": {
+          "const": "https://github.com/Yuki-Watanabe7/DME"
+        },
+        "code_commit_sha": {
+          "$ref": "#/$defs/commitSha"
+        },
+        "solver": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["solver_id", "solver_version", "method"],
+          "properties": {
+            "solver_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "solver_version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "method": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "parameterSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parameter_set_id", "parameter_hash", "values"],
+      "properties": {
+        "parameter_set_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parameter_hash": {
+          "$ref": "#/$defs/sha256Identity"
+        },
+        "values": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "calibration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["calibration_id", "calibration_version", "calibration_kind", "calibration_hash"],
+      "properties": {
+        "calibration_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "calibration_version": {
+          "$ref": "#/$defs/semver"
+        },
+        "calibration_kind": {
+          "enum": ["fixture", "synthetic", "empirical"]
+        },
+        "calibration_hash": {
+          "$ref": "#/$defs/sha256Identity"
+        }
+      }
+    },
+    "inputSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "source_version", "content_hash"],
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content_hash": {
+          "$ref": "#/$defs/sha256Identity"
+        }
+      }
+    },
+    "inputSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshot_id", "snapshot_kind", "snapshot_hash", "sources"],
+      "properties": {
+        "snapshot_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "snapshot_kind": {
+          "enum": ["none", "provider_snapshot", "custom"]
+        },
+        "snapshot_hash": {
+          "$ref": "#/$defs/sha256Identity"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/inputSource"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "runIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "country",
+        "calendar_timezone",
+        "scenario_id",
+        "run_id",
+        "output_kind",
+        "purpose"
+      ],
+      "properties": {
+        "country": {
+          "$ref": "#/$defs/country"
+        },
+        "calendar_timezone": {
+          "type": "string",
+          "minLength": 1,
+          "description": "IANA time-zone name used for calendar-date cutoff rules."
+        },
+        "scenario_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "output_kind": {
+          "enum": ["steady_state", "trajectory", "irf"]
+        },
+        "purpose": {
+          "enum": ["comparison", "diagnostic"]
+        }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_time", "data_cutoff_at", "generated_at"],
+      "properties": {
+        "decision_time": {
+          "$ref": "#/$defs/offsetDateTime"
+        },
+        "data_cutoff_at": {
+          "$ref": "#/$defs/offsetDateTime",
+          "description": "Exclusive upper bound of information available to the model run."
+        },
+        "generated_at": {
+          "$ref": "#/$defs/offsetDateTime"
+        }
+      }
+    },
+    "modelPeriod": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "label"],
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "horizon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "duration", "model_periods", "aggregation"],
+      "properties": {
+        "kind": {
+          "enum": ["not_applicable", "expectation"]
+        },
+        "duration": {
+          "type": ["string", "null"],
+          "pattern": "^P(?=.+)(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?$"
+        },
+        "model_periods": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "aggregation": {
+          "enum": ["none", "one_step_ahead", "arithmetic_mean", "compounded_path"]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "expectation"
+              }
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "duration": {
+                "type": "string"
+              },
+              "model_periods": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "aggregation": {
+                "enum": ["one_step_ahead", "arithmetic_mean", "compounded_path"]
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "duration": {
+                "type": "null"
+              },
+              "model_periods": {
+                "type": "null"
+              },
+              "aggregation": {
+                "const": "none"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "derivation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "formula",
+        "input_observation_ids",
+        "parameter_names",
+        "solver_outputs"
+      ],
+      "properties": {
+        "method": {
+          "enum": ["model_output", "parameter", "derived"]
+        },
+        "formula": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_observation_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "parameter_names": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "solver_outputs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_kind", "source_names", "notes"],
+      "properties": {
+        "source_kind": {
+          "enum": ["model_output", "parameter", "derived"]
+        },
+        "source_names": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "notes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "modelObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observation_id",
+        "country",
+        "metric",
+        "rate_type",
+        "tenor",
+        "unit",
+        "rate_basis",
+        "frequency",
+        "model_period",
+        "calendar_date",
+        "horizon",
+        "value_type",
+        "value",
+        "status",
+        "validity_reasons",
+        "warnings",
+        "derivation",
+        "provenance"
+      ],
+      "properties": {
+        "observation_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._:-]*$"
+        },
+        "country": {
+          "$ref": "#/$defs/country"
+        },
+        "metric": {
+          "enum": [
+            "current_inflation",
+            "expected_inflation",
+            "inflation_target",
+            "nominal_policy_rate",
+            "model_implied_real_policy_rate",
+            "natural_real_rate"
+          ]
+        },
+        "rate_type": {
+          "const": "policy"
+        },
+        "tenor": {
+          "const": "overnight"
+        },
+        "unit": {
+          "const": "percent"
+        },
+        "rate_basis": {
+          "enum": ["annualized", "per_model_period"]
+        },
+        "frequency": {
+          "$ref": "#/$defs/frequency"
+        },
+        "model_period": {
+          "$ref": "#/$defs/modelPeriod"
+        },
+        "calendar_date": {
+          "type": ["string", "null"],
+          "format": "date"
+        },
+        "horizon": {
+          "$ref": "#/$defs/horizon"
+        },
+        "value_type": {
+          "enum": ["level", "deviation"]
+        },
+        "value": {
+          "type": ["number", "null"]
+        },
+        "status": {
+          "enum": ["valid", "invalid"]
+        },
+        "validity_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "derivation": {
+          "$ref": "#/$defs/derivation"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "valid"
+              }
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": "number"
+              },
+              "validity_reasons": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "value": {
+                "type": "null"
+              },
+              "validity_reasons": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "metric": {
+                "enum": ["expected_inflation", "model_implied_real_policy_rate"]
+              }
+            },
+            "required": ["metric"]
+          },
+          "then": {
+            "properties": {
+              "horizon": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/horizon"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "expectation"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "horizon": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/horizon"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "not_applicable"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

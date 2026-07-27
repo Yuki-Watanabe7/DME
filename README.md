@@ -231,6 +231,7 @@ response = complete_from_prompt(provider, build_explain_prompt(ctx))
 | [examples/keen_empirical_demo.jl](examples/keen_empirical_demo.jl) | **Keen 実証統合デモ**。米国 Keen 実証 MVP について、実データ取得 → 観測系列変換 → 限定キャリブレーション → in-sample/out-of-sample 検証 → observed proxy / model の金融不安定性 regime 比較 → 感応度分析 → 可視化 → 機械可読レポート出力までを完走する。fixture モードは API キー不要・決定的。 |
 | [examples/keen_empirical_ai_economist.jl](examples/keen_empirical_ai_economist.jl) | **Keen 実証 AIエコノミスト統合デモ**。データ取得 → 実証分析（推定・検証・regime・感応度）→ 拡張 AnalysisContext → 根拠付き LLM 説明 → クロスモデル比較 → 数値・図表・説明・provenance の run 単位保存までを再現可能に完走する。offline（fixture + deterministic）は API キー不要・決定的。詳細: [docs/examples/keen_empirical_ai_economist.md](docs/examples/keen_empirical_ai_economist.md)。 |
 | [examples/sfc_ai_economist_demo.jl](examples/sfc_ai_economist_demo.jl) | **SFC対応 AIエコノミスト統合デモ**。baseline / 財政ショックシナリオ → SFC会計表・全期の会計恒等式検証 → モデル能力metadata → 比較API v2（合成データ）→ Keen–SFC概念対応・比較レポート → 根拠付きLLM説明 → 数値・図表・説明・provenanceのrun単位保存までを再現可能に完走する。乱数を使わず完全に決定的・API キー不要。詳細: [docs/examples/sfc_ai_economist.md](docs/examples/sfc_ai_economist.md)。 |
+| [examples/real_rate_model_artifact_export.jl](examples/real_rate_model_artifact_export.jl) | **Real-rate model artifact 生成デモ**。New Keynesian モデル（fixture calibration）→ 期待インフレ率・model-implied実質政策金利のartifact構築 → RFC 8785正準JSONでatomic保存 → 読み込み・hash再検証までを完走する。乱数を使わず完全に決定的・API キー不要。詳細: [docs/examples/real_rate_model_artifact.md](docs/examples/real_rate_model_artifact.md)。 |
 
 ```bash
 julia --project=. examples/growth_models.jl
@@ -309,6 +310,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [API リファレンス](docs/api.md) | Public/Internal API の一覧・シグネチャ・移行ガイド |
 | [Keen 実証 AIエコノミスト統合デモ](docs/examples/keen_empirical_ai_economist.md) | データ取得 → 実証分析 → 根拠付き LLM 説明 → クロスモデル比較 → provenance 保存の再現可能な統合デモの実行手順・成果物・設定例 |
 | [SFC対応 AIエコノミスト統合デモ](docs/examples/sfc_ai_economist.md) | baseline/財政ショック → SFC会計検証 → 比較API v2 → Keen–SFC比較レポート → 根拠付きLLM説明 → provenance保存の再現可能な統合デモの実行手順・成果物・設定例 |
+| [Real-rate model artifact 生成デモ](docs/examples/real_rate_model_artifact.md) | New Keynesian モデル → 期待インフレ率・model-implied実質政策金利のartifact構築 → 検証 → atomic保存までの再現可能な実行手順・成果物・economic-data-providerへの受け渡し手順 |
 
 ### モデル解説
 
@@ -368,6 +370,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [ADR 0005: Keen 実証結果の AI 説明契約](docs/adr/0005-keen-ai-explanation-contract.md) | 観測・測定・推定・モデル出力・診断proxy・感応度を分離する根拠階層、source reference、禁止解釈、構造化出力・fallback 契約 |
 | [ADR 0006: クロスモデル推論契約](docs/adr/0006-cross-model-reasoning-contract.md) | 概念対応（ModelConceptMapping）の明示、repository metadata 限定、同名変数の非同一視、比較不能の非統合、fit 比較制限の決定記録 |
 | [ADR 0007: SFC 統合契約](docs/adr/0007-sfc-integration-contract.md) | SIM 型を初版 SFC とし、会計恒等式をモデル方程式と別の検証契約とする・不整合を自動補正せず構造化・SFCResult を別型で adapter 接続・compare v1 非破壊/v2 加算の決定記録 |
+| [ADR 0008: Real-rate model artifact 統合契約](docs/adr/0008-real-rate-model-artifact-export.md) | economic-data-provider ADR 006 準拠の JSON artifact 生成・RFC 8785 正準化の実装範囲・hash 自己参照排除・UTC固定・rate_basis統一とP1Y集約方式・期待インフレ率の閉形式導出・horizon限定の決定記録 |
 
 ### 開発
 
