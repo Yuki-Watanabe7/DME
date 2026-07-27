@@ -345,4 +345,46 @@
         @test r.provenance["mode"] == "trajectory"
         @test length(r.provenance["mappings"]) == 1
     end
+
+    @testset "to_dict / to_json（Issue #152）" begin
+        model = mk("Y", dts, [1.0, 2.0, 3.0, 4.0])
+        data = mk("K", dts, [1.1, 2.1, 2.9, 4.2])
+        r = compare_results_v2(
+            model,
+            data;
+            spec = ComparisonSpec(; mode = :trajectory, mappings = single("Y", "K")),
+        )
+        d = to_dict(r)
+        for k in (
+            "mode",
+            "model_name",
+            "data_source",
+            "assessment",
+            "alignment",
+            "metrics",
+            "mechanism_diff",
+            "warnings",
+            "provenance",
+        )
+            @test haskey(d, k)
+        end
+        @test d["mode"] == "trajectory"
+        @test haskey(d["metrics"], "Y")
+        @test d["alignment"]["Y"]["common_dates"] == r.alignment["Y"].common_dates
+
+        j = to_json(r)
+        parsed = DME.JSON3.read(j)
+        @test parsed["assessment"]["level"] == string(r.assessment.level)
+
+        # :mechanism モード（metrics 空・mechanism_diff あり）も round-trip する
+        rm = compare_results_v2(
+            model,
+            data;
+            spec = ComparisonSpec(; mode = :mechanism, left_model = :keen, right_model = :rbc),
+        )
+        dm = to_dict(rm)
+        @test isempty(dm["metrics"])
+        @test dm["mechanism_diff"] !== nothing
+        @test DME.JSON3.read(to_json(rm))["mode"] == "mechanism"
+    end
 end

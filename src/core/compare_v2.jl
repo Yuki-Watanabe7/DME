@@ -772,3 +772,61 @@ function compare_results_v2(
         _v2_provenance(spec),
     )
 end
+
+# ===========================================================================
+# JSON 化（to_dict / to_json）
+# ===========================================================================
+
+# 非有限値を文字列タグへ符号化する（round-trip 用途ではなく表示・保存の安全化）。
+# src/sfc/serialization.jl の `_sfc_encode_float` と同じ規約だが、compare_v2.jl は
+# SFC 層に依存しないため独立に定義する。
+_v2_json_safe(x::AbstractFloat) =
+    isfinite(x) ? Float64(x) : (isnan(x) ? "NaN" : (x > 0 ? "Inf" : "-Inf"))
+_v2_json_safe(x::AbstractVector) = Any[_v2_json_safe(v) for v in x]
+_v2_json_safe(x) = x
+
+"""
+    to_dict(a::AlignmentResult) -> Dict{String, Any}
+"""
+to_dict(a::AlignmentResult) = Dict{String, Any}(
+    "common_dates" => copy(a.common_dates),
+    "excluded_dates" => copy(a.excluded_dates),
+    "model_indices" => copy(a.model_indices),
+    "data_indices" => copy(a.data_indices),
+    "n_missing" => a.n_missing,
+    "used_period_index" => a.used_period_index,
+    "transform_history" => copy(a.transform_history),
+)
+
+"""
+    to_dict(a::ComparabilityAssessment) -> Dict{String, Any}
+"""
+to_dict(a::ComparabilityAssessment) = Dict{String, Any}(
+    "level" => String(a.level),
+    "reasons" => copy(a.reasons),
+    "required_transforms" => copy(a.required_transforms),
+    "per_variable" => Dict{String, Any}(k => String(v) for (k, v) in a.per_variable),
+)
+
+"""
+    to_dict(r::ComparisonResultV2) -> Dict{String, Any}
+
+比較 API v2 の結果を JSON 安全な `Dict` へ変換する。非有限な指標値は文字列タグへ符号化する
+（`_v2_json_safe`）。
+"""
+to_dict(r::ComparisonResultV2) = Dict{String, Any}(
+    "mode" => String(r.mode),
+    "model_name" => r.model_name,
+    "data_source" => r.data_source,
+    "assessment" => to_dict(r.assessment),
+    "alignment" => Dict{String, Any}(k => to_dict(v) for (k, v) in r.alignment),
+    "metrics" => Dict{String, Any}(
+        var => Dict{String, Any}(String(k) => _v2_json_safe(v) for (k, v) in pairs(m))
+        for (var, m) in r.metrics
+    ),
+    "mechanism_diff" => r.mechanism_diff,
+    "warnings" => copy(r.warnings),
+    "provenance" => r.provenance,
+)
+
+to_json(r::ComparisonResultV2) = JSON3.write(to_dict(r))
