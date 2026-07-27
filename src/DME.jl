@@ -64,6 +64,10 @@ export
     transition_path,
     simulate,
     impulse_response,
+    # New Keynesian: 期待インフレ率パス・level 復元（Issue #159）
+    nk_expected_inflation_path,
+    nk_inflation_level,
+    nk_nominal_rate_level,
     # Result type
     SimulationResult,
     variable_names,
@@ -81,6 +85,34 @@ export
     ComparabilityAssessment,
     ComparisonResultV2,
     compare_results_v2,
+    # JSON canonicalization (RFC 8785 JCS, src/artifacts/json_canonical.jl)
+    canonical_json_bytes,
+    canonical_json_string,
+    sha256_hex_of_canonical,
+    # Real-rate model artifact (Issue #159 / economic-data-provider ADR 006 準拠,
+    # src/artifacts/real_rate_model_artifact.jl, real_rate_model_artifact_export.jl)
+    REAL_RATE_ARTIFACT_SCHEMA_VERSION,
+    ModelIdentity,
+    ParameterSet,
+    Calibration,
+    InputSource,
+    InputSnapshot,
+    RunIdentity,
+    Timing,
+    ModelPeriod,
+    Horizon,
+    horizon_not_applicable,
+    horizon_expectation,
+    Derivation,
+    Provenance,
+    ModelObservation,
+    RealRateModelArtifact,
+    compute_artifact_id,
+    real_rate_model_artifact_from_dict,
+    real_rate_model_artifact_from_json,
+    real_rate_model_artifact,
+    save_real_rate_model_artifact,
+    load_real_rate_model_artifact,
     # SFC accounting primitives (src/sfc/)
     SFCSector,
     SFCInstrument,
@@ -353,6 +385,8 @@ using Interpolations
 using Logging
 using JSON3
 using Downloads
+using Dates
+using SHA
 
 # Data types: external data standard types
 include("./data/data_series.jl")
@@ -392,6 +426,12 @@ include("./core/model_capabilities.jl")
 # 比較 API v2（#150 / Phase 5。日付・単位・概念対応・比較可能性を明示。
 # model_capabilities.jl の概念定義 registry に依存。v1 compare.jl は非破壊）
 include("./core/compare_v2.jl")
+
+# DME real-rate model artifact（Issue #159 / economic-data-provider ADR 006 準拠。
+# depends on NewKeynesianModel, JSON3, SHA）
+include("./artifacts/json_canonical.jl")
+include("./artifacts/real_rate_model_artifact.jl")
+include("./artifacts/real_rate_model_artifact_export.jl")
 
 # SFC 会計プリミティブ（会計表現をモデル方程式から分離。depends on SimulationResult）
 include("./sfc/types.jl")

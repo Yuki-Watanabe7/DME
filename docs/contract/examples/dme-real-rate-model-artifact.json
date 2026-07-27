@@ -1,0 +1,299 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "dme.real_rate_model",
+  "artifact_id": "sha256:570a98e7a3b40e635f4ecc0a53335ab773dec525df78ae55117d926f7ff5c3f9",
+  "model": {
+    "model_id": "dme.new_keynesian",
+    "model_version": "0.1.0",
+    "code_repository": "https://github.com/Yuki-Watanabe7/DME",
+    "code_commit_sha": "2023b3fb586c0867555df066284cb46d5ae4833a",
+    "solver": {
+      "solver_id": "dme.nk_msv",
+      "solver_version": "1.0.0",
+      "method": "minimum_state_variable_linear_solution"
+    }
+  },
+  "parameter_set": {
+    "parameter_set_id": "nk-baseline-contract-example",
+    "parameter_hash": "sha256:01c593932474b7745b979edb4d9f001b53ba88de051df52cdbd7624932d31afe",
+    "values": {
+      "sigma": 1.0,
+      "r_n": 0.02,
+      "beta": 0.99,
+      "kappa": 0.1,
+      "phi_pi": 1.5,
+      "phi_x": 0.5,
+      "pi_star": 0.02,
+      "rho_x": 0.8,
+      "rho_c": 0.5,
+      "rho_m": 0.5
+    }
+  },
+  "calibration": {
+    "calibration_id": "nk-us-contract-example",
+    "calibration_version": "1.0.0",
+    "calibration_kind": "synthetic",
+    "calibration_hash": "sha256:5371a96bb797c19c9ad084788c94ae0b9e5e79072c2bbdaa5245c605c547e113"
+  },
+  "input_snapshot": {
+    "snapshot_id": "no-external-input",
+    "snapshot_kind": "none",
+    "snapshot_hash": "sha256:b39a42fe3500589f7b177f32a46ca295e4af083b45e0769c28523fb0c9c19578",
+    "sources": []
+  },
+  "run": {
+    "country": "US",
+    "calendar_timezone": "America/New_York",
+    "scenario_id": "baseline-contract-example",
+    "run_id": "nk-us-2026q2-contract-example-001",
+    "output_kind": "trajectory",
+    "purpose": "comparison"
+  },
+  "timing": {
+    "decision_time": "2026-07-02T00:00:00-04:00",
+    "data_cutoff_at": "2026-07-02T00:00:00-04:00",
+    "generated_at": "2026-07-02T00:05:00-04:00"
+  },
+  "observations": [
+    {
+      "observation_id": "us.2026q2.current_inflation",
+      "country": "US",
+      "metric": "current_inflation",
+      "rate_type": "policy",
+      "tenor": "overnight",
+      "unit": "percent",
+      "rate_basis": "annualized",
+      "frequency": "quarterly",
+      "model_period": {
+        "index": 8,
+        "label": "2026-Q2"
+      },
+      "calendar_date": "2026-07-01",
+      "horizon": {
+        "kind": "not_applicable",
+        "duration": null,
+        "model_periods": null,
+        "aggregation": "none"
+      },
+      "value_type": "level",
+      "value": 2.2,
+      "status": "valid",
+      "validity_reasons": [],
+      "warnings": [],
+      "derivation": {
+        "method": "derived",
+        "formula": "100 * (pi_star + pi_deviation_t)",
+        "input_observation_ids": [],
+        "parameter_names": ["pi_star"],
+        "solver_outputs": ["pi_deviation_t"]
+      },
+      "provenance": {
+        "source_kind": "derived",
+        "source_names": ["impulse_response.pi", "NewKeynesianModel.pi_star"],
+        "notes": ["Current inflation level; not an expected-inflation observation."]
+      }
+    },
+    {
+      "observation_id": "us.2026q2.expected_inflation.p1y",
+      "country": "US",
+      "metric": "expected_inflation",
+      "rate_type": "policy",
+      "tenor": "overnight",
+      "unit": "percent",
+      "rate_basis": "annualized",
+      "frequency": "quarterly",
+      "model_period": {
+        "index": 8,
+        "label": "2026-Q2"
+      },
+      "calendar_date": "2026-07-01",
+      "horizon": {
+        "kind": "expectation",
+        "duration": "P1Y",
+        "model_periods": 4,
+        "aggregation": "compounded_path"
+      },
+      "value_type": "level",
+      "value": 2.1,
+      "status": "valid",
+      "validity_reasons": [],
+      "warnings": [],
+      "derivation": {
+        "method": "derived",
+        "formula": "100 * (product(h=1..4, 1 + expected_pi_per_period_t_plus_h) - 1)",
+        "input_observation_ids": [],
+        "parameter_names": ["pi_star", "rho_x", "rho_c", "rho_m"],
+        "solver_outputs": [
+          "expected_pi_t_plus_1",
+          "expected_pi_t_plus_2",
+          "expected_pi_t_plus_3",
+          "expected_pi_t_plus_4"
+        ]
+      },
+      "provenance": {
+        "source_kind": "derived",
+        "source_names": ["nk_conditional_expectation_path"],
+        "notes": ["Illustrates the explicit P1Y extension required for comparison with a P1Y provider reference."]
+      }
+    },
+    {
+      "observation_id": "us.2026q2.inflation_target",
+      "country": "US",
+      "metric": "inflation_target",
+      "rate_type": "policy",
+      "tenor": "overnight",
+      "unit": "percent",
+      "rate_basis": "annualized",
+      "frequency": "quarterly",
+      "model_period": {
+        "index": 8,
+        "label": "2026-Q2"
+      },
+      "calendar_date": "2026-07-01",
+      "horizon": {
+        "kind": "not_applicable",
+        "duration": null,
+        "model_periods": null,
+        "aggregation": "none"
+      },
+      "value_type": "level",
+      "value": 2.0,
+      "status": "valid",
+      "validity_reasons": [],
+      "warnings": [],
+      "derivation": {
+        "method": "parameter",
+        "formula": "100 * pi_star",
+        "input_observation_ids": [],
+        "parameter_names": ["pi_star"],
+        "solver_outputs": []
+      },
+      "provenance": {
+        "source_kind": "parameter",
+        "source_names": ["NewKeynesianModel.pi_star"],
+        "notes": ["Inflation target; not current or expected inflation."]
+      }
+    },
+    {
+      "observation_id": "us.2026q2.nominal_policy_rate",
+      "country": "US",
+      "metric": "nominal_policy_rate",
+      "rate_type": "policy",
+      "tenor": "overnight",
+      "unit": "percent",
+      "rate_basis": "annualized",
+      "frequency": "quarterly",
+      "model_period": {
+        "index": 8,
+        "label": "2026-Q2"
+      },
+      "calendar_date": "2026-07-01",
+      "horizon": {
+        "kind": "not_applicable",
+        "duration": null,
+        "model_periods": null,
+        "aggregation": "none"
+      },
+      "value_type": "level",
+      "value": 4.5,
+      "status": "valid",
+      "validity_reasons": [],
+      "warnings": [],
+      "derivation": {
+        "method": "derived",
+        "formula": "100 * (r_n + pi_star + i_deviation_t)",
+        "input_observation_ids": [],
+        "parameter_names": ["r_n", "pi_star"],
+        "solver_outputs": ["i_deviation_t"]
+      },
+      "provenance": {
+        "source_kind": "derived",
+        "source_names": ["impulse_response.i", "NewKeynesianModel.r_n", "NewKeynesianModel.pi_star"],
+        "notes": ["Nominal policy-rate level restored from the IRF deviation."]
+      }
+    },
+    {
+      "observation_id": "us.2026q2.model_implied_real_policy_rate.p1y",
+      "country": "US",
+      "metric": "model_implied_real_policy_rate",
+      "rate_type": "policy",
+      "tenor": "overnight",
+      "unit": "percent",
+      "rate_basis": "annualized",
+      "frequency": "quarterly",
+      "model_period": {
+        "index": 8,
+        "label": "2026-Q2"
+      },
+      "calendar_date": "2026-07-01",
+      "horizon": {
+        "kind": "expectation",
+        "duration": "P1Y",
+        "model_periods": 4,
+        "aggregation": "compounded_path"
+      },
+      "value_type": "level",
+      "value": 2.4,
+      "status": "valid",
+      "validity_reasons": [],
+      "warnings": [],
+      "derivation": {
+        "method": "derived",
+        "formula": "nominal_policy_rate - expected_inflation",
+        "input_observation_ids": [
+          "us.2026q2.nominal_policy_rate",
+          "us.2026q2.expected_inflation.p1y"
+        ],
+        "parameter_names": [],
+        "solver_outputs": []
+      },
+      "provenance": {
+        "source_kind": "derived",
+        "source_names": ["us.2026q2.nominal_policy_rate", "us.2026q2.expected_inflation.p1y"],
+        "notes": ["Ex-ante model-implied real policy rate; not the natural real rate."]
+      }
+    },
+    {
+      "observation_id": "us.2026q2.natural_real_rate",
+      "country": "US",
+      "metric": "natural_real_rate",
+      "rate_type": "policy",
+      "tenor": "overnight",
+      "unit": "percent",
+      "rate_basis": "annualized",
+      "frequency": "quarterly",
+      "model_period": {
+        "index": 8,
+        "label": "2026-Q2"
+      },
+      "calendar_date": "2026-07-01",
+      "horizon": {
+        "kind": "not_applicable",
+        "duration": null,
+        "model_periods": null,
+        "aggregation": "none"
+      },
+      "value_type": "level",
+      "value": 2.0,
+      "status": "valid",
+      "validity_reasons": [],
+      "warnings": [],
+      "derivation": {
+        "method": "parameter",
+        "formula": "100 * r_n",
+        "input_observation_ids": [],
+        "parameter_names": ["r_n"],
+        "solver_outputs": []
+      },
+      "provenance": {
+        "source_kind": "parameter",
+        "source_names": ["NewKeynesianModel.r_n"],
+        "notes": ["Natural real rate diagnostic; never substituted for the model-implied real policy rate."]
+      }
+    }
+  ],
+  "warnings": [
+    "illustrative_contract_example_not_empirical_calibration",
+    "expected_inflation_p1y_requires_dme_api_extension"
+  ]
+}

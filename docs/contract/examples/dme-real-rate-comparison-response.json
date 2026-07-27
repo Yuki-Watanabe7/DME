@@ -1,0 +1,262 @@
+{
+  "contract_version": "1.0.0",
+  "comparison_id": "cmp:nk-us-2026q2-contract-example-001:2026-07-01",
+  "definition": {
+    "country": "US",
+    "rate_type": "policy",
+    "tenor": "overnight",
+    "unit": "percent",
+    "rate_basis": "annualized",
+    "requested_as_of": "2026-07-01",
+    "effective_cutoff_at": "2026-07-02T00:00:00-04:00",
+    "reference_as_of": "2026-07-01",
+    "selection_date": "2026-07-01",
+    "alignment_method": "latest_available_on_or_before",
+    "alignment_version": "1.0.0",
+    "difference_convention": "model_minus_reference"
+  },
+  "artifact": {
+    "artifact_id": "sha256:570a98e7a3b40e635f4ecc0a53335ab773dec525df78ae55117d926f7ff5c3f9",
+    "schema_version": "1.0.0",
+    "model_id": "dme.new_keynesian",
+    "model_version": "0.1.0",
+    "code_commit_sha": "2023b3fb586c0867555df066284cb46d5ae4833a",
+    "parameter_set_id": "nk-baseline-contract-example",
+    "parameter_hash": "sha256:01c593932474b7745b979edb4d9f001b53ba88de051df52cdbd7624932d31afe",
+    "calibration_id": "nk-us-contract-example",
+    "calibration_version": "1.0.0",
+    "calibration_kind": "synthetic",
+    "input_snapshot_id": "no-external-input",
+    "input_snapshot_hash": "sha256:b39a42fe3500589f7b177f32a46ca295e4af083b45e0769c28523fb0c9c19578",
+    "scenario_id": "baseline-contract-example",
+    "run_id": "nk-us-2026q2-contract-example-001",
+    "decision_time": "2026-07-02T00:00:00-04:00",
+    "data_cutoff_at": "2026-07-02T00:00:00-04:00",
+    "generated_at": "2026-07-02T00:05:00-04:00"
+  },
+  "reference_definition": {
+    "country": "US",
+    "rate_type": "policy",
+    "tenor": "overnight",
+    "inflation_expectation_type": "model",
+    "calculation_method": "nominal_minus_expected_inflation",
+    "unit": "percent",
+    "frequency": "monthly",
+    "source": "fred",
+    "source_series_ids": ["FEDFUNDS", "EXPINF1YR"],
+    "methodology_version": "3.0.0"
+  },
+  "comparisons": [
+    {
+      "metric": "expected_inflation",
+      "comparable": true,
+      "non_comparable_reason": null,
+      "model_value": 2.1,
+      "reference_value": 2.0,
+      "difference": 0.1,
+      "model_observation": {
+        "observation_id": "us.2026q2.expected_inflation.p1y",
+        "model_period": {
+          "index": 8,
+          "label": "2026-Q2"
+        },
+        "calendar_date": "2026-07-01",
+        "frequency": "quarterly",
+        "value_type": "level",
+        "horizon": {
+          "kind": "expectation",
+          "duration": "P1Y",
+          "model_periods": 4,
+          "aggregation": "compounded_path"
+        },
+        "status": "valid",
+        "provenance": {
+          "source_kind": "derived",
+          "source_names": ["nk_conditional_expectation_path"]
+        }
+      },
+      "reference_observation": {
+        "component": "expected_inflation",
+        "value": 2.0,
+        "observation_date": "2026-06-01",
+        "release_date": "2026-06-30",
+        "as_of": "2026-07-01",
+        "frequency": "monthly",
+        "horizon": {
+          "kind": "expectation",
+          "duration": "P1Y",
+          "model_periods": null,
+          "aggregation": "source_defined"
+        },
+        "source": "fred",
+        "source_series_id": "EXPINF1YR",
+        "quality_status": "ok",
+        "quality_flags": []
+      },
+      "alignment": {
+        "method": "latest_available_on_or_before",
+        "selection_date": "2026-07-01",
+        "model_calendar_date": "2026-07-01",
+        "reference_observation_date": "2026-06-01",
+        "reference_release_date": "2026-06-30",
+        "reference_age_days": 30,
+        "future_join_used": false,
+        "carry_forward_used": true
+      },
+      "horizon_compatibility": {
+        "status": "equivalent",
+        "mapping_id": "policy-expected-inflation-p1y-v1",
+        "model_duration": "P1Y",
+        "reference_duration": "P1Y",
+        "implicit_conversion_used": false
+      },
+      "quality": {
+        "status": "degraded",
+        "warnings": ["frequency_mismatch", "reference_carry_forward"]
+      }
+    },
+    {
+      "metric": "nominal_policy_rate",
+      "comparable": true,
+      "non_comparable_reason": null,
+      "model_value": 4.5,
+      "reference_value": 4.3,
+      "difference": 0.2,
+      "model_observation": {
+        "observation_id": "us.2026q2.nominal_policy_rate",
+        "model_period": {
+          "index": 8,
+          "label": "2026-Q2"
+        },
+        "calendar_date": "2026-07-01",
+        "frequency": "quarterly",
+        "value_type": "level",
+        "horizon": {
+          "kind": "not_applicable",
+          "duration": null,
+          "model_periods": null,
+          "aggregation": "none"
+        },
+        "status": "valid",
+        "provenance": {
+          "source_kind": "derived",
+          "source_names": ["impulse_response.i", "NewKeynesianModel.r_n", "NewKeynesianModel.pi_star"]
+        }
+      },
+      "reference_observation": {
+        "component": "nominal_rate",
+        "value": 4.3,
+        "observation_date": "2026-06-01",
+        "release_date": null,
+        "as_of": "2026-07-01",
+        "frequency": "monthly",
+        "source": "fred",
+        "source_series_id": "FEDFUNDS",
+        "quality_status": "ok",
+        "quality_flags": []
+      },
+      "alignment": {
+        "method": "latest_available_on_or_before",
+        "selection_date": "2026-07-01",
+        "model_calendar_date": "2026-07-01",
+        "reference_observation_date": "2026-06-01",
+        "reference_release_date": null,
+        "reference_age_days": 30,
+        "future_join_used": false,
+        "carry_forward_used": true
+      },
+      "horizon_compatibility": {
+        "status": "not_applicable",
+        "mapping_id": null,
+        "model_duration": null,
+        "reference_duration": null,
+        "implicit_conversion_used": false
+      },
+      "quality": {
+        "status": "degraded",
+        "warnings": ["frequency_mismatch", "reference_carry_forward"]
+      }
+    },
+    {
+      "metric": "model_implied_real_policy_rate",
+      "comparable": true,
+      "non_comparable_reason": null,
+      "model_value": 2.4,
+      "reference_value": 2.3,
+      "difference": 0.1,
+      "model_observation": {
+        "observation_id": "us.2026q2.model_implied_real_policy_rate.p1y",
+        "model_period": {
+          "index": 8,
+          "label": "2026-Q2"
+        },
+        "calendar_date": "2026-07-01",
+        "frequency": "quarterly",
+        "value_type": "level",
+        "horizon": {
+          "kind": "expectation",
+          "duration": "P1Y",
+          "model_periods": 4,
+          "aggregation": "compounded_path"
+        },
+        "status": "valid",
+        "provenance": {
+          "source_kind": "derived",
+          "source_names": [
+            "us.2026q2.nominal_policy_rate",
+            "us.2026q2.expected_inflation.p1y"
+          ]
+        }
+      },
+      "reference_observation": {
+        "value": 2.3,
+        "date": "2026-07-01",
+        "as_of": "2026-07-01",
+        "retrieved_at": "2026-07-02T00:10:00Z",
+        "primary_method": "nominal_minus_expected_inflation",
+        "nominal_rate": {
+          "value": 4.3,
+          "observation_date": "2026-06-01",
+          "release_date": null,
+          "source": "fred",
+          "source_series_id": "FEDFUNDS"
+        },
+        "expected_inflation": {
+          "value": 2.0,
+          "observation_date": "2026-06-01",
+          "release_date": "2026-06-30",
+          "source": "fred",
+          "source_series_id": "EXPINF1YR"
+        },
+        "quality_status": "ok",
+        "quality_flags": []
+      },
+      "alignment": {
+        "method": "latest_available_on_or_before",
+        "selection_date": "2026-07-01",
+        "model_calendar_date": "2026-07-01",
+        "reference_observation_date": "2026-06-01",
+        "reference_release_date": "2026-06-30",
+        "reference_age_days": 30,
+        "future_join_used": false,
+        "carry_forward_used": true
+      },
+      "horizon_compatibility": {
+        "status": "equivalent",
+        "mapping_id": "policy-expected-inflation-p1y-v1",
+        "model_duration": "P1Y",
+        "reference_duration": "P1Y",
+        "implicit_conversion_used": false
+      },
+      "quality": {
+        "status": "degraded",
+        "warnings": ["frequency_mismatch", "reference_carry_forward"]
+      }
+    }
+  ],
+  "status": "degraded",
+  "warnings": [
+    "illustrative_contract_example_not_empirical_calibration",
+    "comparison_is_diagnostic_not_a_model_ranking_or_investment_signal"
+  ]
+}

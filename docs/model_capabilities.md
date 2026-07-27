@@ -126,6 +126,16 @@ first(defs).concept_id             # :sim_money_stock_H
 > **実データ接続**: `data_connection` は汎用の `compare_with_data`（出力系列と実データの比較）を
 > 指し、全モデルで `true`。一方 `estimation`（推定）・`out_of_sample_validation` は Keen 専用
 > パイプライン（`calibrate_keen` / `validate_keen`）のみ `true`。
+>
+> **New Keynesian の期待インフレ率・実質政策金利**（[Issue #159](https://github.com/Yuki-Watanabe7/DME/issues/159)）:
+> `concept_definitions(:new_keynesian)` は `x`・`π`（current inflation）・`i` に加え、
+> `π_star`（`:nk_inflation_target_pi_star`）・`r_n`（`:nk_natural_real_rate_r_n`）・
+> 期待インフレ率（`:nk_expected_inflation_e_pi`）・model-implied 実質政策金利
+> （`:nk_model_implied_real_policy_rate`）を別 `concept_id`/`definition_key` として持つ。
+> `r_n`（自然実質利子率、`endogeneity=:parameter`）と model-implied 実質政策金利
+> （`i - E_t[π_{t+1}]`、`endogeneity=:endogenous`）は定常状態で数値的に一致しうるが
+> 同一概念として扱わない（`proxy_caveats` に明記）。再現可能な JSON artifact としての
+> 出力は [ADR 0008](adr/0008-real-rate-model-artifact-export.md) を参照。
 
 ---
 

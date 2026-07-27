@@ -1,5 +1,6 @@
 using DME
 using Test
+using Dates
 
 include("test_util.jl")
 include("test_data_series.jl")
@@ -23,6 +24,9 @@ include("test_minsky_diagnostics.jl")
 include("test_simulation_result.jl")
 include("test_compare_with_data.jl")
 include("test_compare_v2.jl")
+include("test_json_canonical.jl")
+include("test_real_rate_model_artifact.jl")
+include("test_real_rate_model_artifact_export.jl")
 include("test_sfc_primitives.jl")
 include("test_sfc_accounting.jl")
 include("test_sfc_sim.jl")

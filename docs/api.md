@@ -428,6 +428,73 @@ r.metrics["Y"].rmse               # comparable/partial の変数のみ
 r.assessment.required_transforms  # 比較可能にするために次に必要な変換
 ```
 
+### Real-rate model artifact（`real_rate_model_artifact`）
+
+New Keynesian モデルから、economic-data-provider ADR 006（[vendor コピー](contract/README.md)）
+準拠の再現可能 JSON artifact を構築する。期待インフレ率・model-implied 実質政策金利を
+`current_inflation`/`inflation_target`/`natural_real_rate` と区別して明示する。設計判断は
+[ADR 0008](adr/0008-real-rate-model-artifact-export.md)、実行例は
+[real-rate model artifact 生成デモ](examples/real_rate_model_artifact.md) を参照。
+
+```julia
+# New Keynesian モデルの期待値パス・level 復元（Issue #159）
+nk_expected_inflation_path(m::NewKeynesianModel, shock_size::Float64, t::Int,
+    hs::AbstractVector{<:Integer}; shock::Symbol = :demand) -> Vector{Float64}
+nk_inflation_level(m::NewKeynesianModel, π_deviation::Float64) -> Float64
+nk_nominal_rate_level(m::NewKeynesianModel, i_deviation::Float64) -> Float64
+
+# artifact 構築（adapter。sfc_result と同じ idiom）
+real_rate_model_artifact(m::NewKeynesianModel;
+    country, scenario_id, run_id,
+    decision_time::DateTime, data_cutoff_at::DateTime, generated_at::DateTime,
+    parameter_set_id, calibration_id, calibration_version, code_commit_sha,
+    shock::Symbol = :demand, shock_size::Float64 = 0.0, model_period_index::Int = 1,
+    horizons::AbstractVector{<:AbstractString} = ["P3M", "P1Y"],
+    calibration_kind::Symbol = :fixture, purpose::Symbol = :comparison,
+    model_version = "0.1.0", solver_id = "dme.new_keynesian.msv",
+    solver_version = "1.0.0", solver_method = "minimum_state_variable_linear_solution",
+    input_snapshot::InputSnapshot = InputSnapshot(; snapshot_id="no-external-input", snapshot_kind=:none),
+) -> RealRateModelArtifact
+
+# atomic 保存・読み込み（RFC 8785 正準 JSON、ADR 006 §6 のファイル名規約）
+save_real_rate_model_artifact(a::RealRateModelArtifact, base_dir::AbstractString) -> String
+load_real_rate_model_artifact(path::AbstractString) -> RealRateModelArtifact
+
+# 正準化・hash（RFC 8785 JSON Canonicalization Scheme の限定実装）
+canonical_json_bytes(value) -> Vector{UInt8}
+canonical_json_string(value) -> String
+sha256_hex_of_canonical(value) -> String
+
+# シリアライズ（既存 to_dict/to_json 慣行に準拠）
+to_dict(a::RealRateModelArtifact) -> Dict{String,Any}
+to_json(a::RealRateModelArtifact) -> String
+real_rate_model_artifact_from_dict(d::AbstractDict) -> RealRateModelArtifact
+real_rate_model_artifact_from_json(s::AbstractString) -> RealRateModelArtifact
+```
+
+> `shock_size == 0.0`（既定）のときは `output_kind=:steady_state`。`horizons` は
+> `"P3M"`（`aggregation=:one_step_ahead`）・`"P1Y"`（4四半期の年率換算値の
+> `arithmetic_mean`）のみサポートし、5Y/10Y term structure は生成しない。
+> `artifact_id`/`parameter_hash`/`calibration_hash`/`snapshot_hash` は各型が自前で計算し、
+> コンストラクタの引数として渡すことはできない。`model_implied_real_policy_rate` の値は
+> 構築時に `nominal_policy_rate - expected_inflation`（許容誤差 `1e-9`）で自己検証される。
+> `decision_time`/`data_cutoff_at`/`generated_at` は UTC 固定（MVP 制約、[ADR 0008 §3](adr/0008-real-rate-model-artifact-export.md)）。
+
+```julia
+m = NewKeynesianModel(1.0, 0.02, 0.99, 0.1, 1.5, 0.5, 0.02, 0.8, 0.5, 0.5)
+a = real_rate_model_artifact(m;
+    country = "US", scenario_id = "baseline", run_id = "nk-us-001",
+    decision_time = DateTime(2026, 7, 27, 9, 0, 0),
+    data_cutoff_at = DateTime(2026, 7, 26, 23, 0, 0),
+    generated_at = DateTime(2026, 7, 27, 9, 5, 0),
+    parameter_set_id = "p1", calibration_id = "fixture-v1", calibration_version = "1.0.0",
+    code_commit_sha = "0"^40,
+)
+path = save_real_rate_model_artifact(a, "artifacts")
+b = load_real_rate_model_artifact(path)
+b.artifact_id == a.artifact_id  # true（hash 再検証を通過）
+```
+
 ### 実データ型
 
 外部マクロデータを DME 内で統一的に扱う標準データ型。
