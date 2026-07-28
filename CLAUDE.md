@@ -95,6 +95,7 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 | [SFC 統合設計（最小 SIM 型モデル）](docs/models/sfc_integration_design.md) | SIM 型モデルの方程式・部門・金融資産・貸借対照表/取引フロー行列・会計恒等式の検証契約・型/API スケッチ |
 | [部門別CAPEX・信用循環モデル 分析契約](docs/models/capex_credit_cycle_analysis_contract.md) | AI・半導体CAPEX調整の基準ユースケース（米国・四半期・起点事象・波及先部門）・判定問題 Q1–Q5・比較シナリオ・`broad_downturn` の操作的定義・初期MVP対象外・後続設計への参照契約 |
 | [部門別CAPEX・信用循環モデル 因果グラフ](docs/models/capex_credit_cycle_causal_graph.md) | 起点事象から総産出までの有向グラフ・エッジ仕様（型/符号/時間差/関数形/観測可能性/根拠/逆因果・交絡/実装優先度）・増幅ループ R1–R4・減衰/遮断経路 B1–B7・株式評価の媒介経路限定・分岐条件候補と診断ラベル対応 |
+| [部門別CAPEX・信用循環モデル 部門境界と変数定義](docs/models/capex_credit_cycle_sectors_variables.md) | 部門区分（案A 5部門）の候補比較・採用理由・部門責務・実物/金融フロー図・二重計上を避ける集計規約・役割（state/control/exogenous/diagnostic）の判定規則・遅延/パイプライン状態・変数辞書・DME共通API適合方針（平坦キー+部門接尾辞）・因果グラフへの差し戻し事項 |
 | [最小 SIM 型 SFC モデル](docs/models/sim_sfc.md) | `SIMModel` の目的・方程式・会計表・変数の単位/時点・財政ショック定義・限界・`sfc_result` adapter |
 | [ADR 0001: Minsky系モデル選定](docs/adr/0001-minsky-model-selection.md) | Keen モデル採用の決定記録（`docs/adr/` は設計決定記録の置き場） |
 | [ADR 0002: Keen モデルの統合方式](docs/adr/0002-minsky-integration-design.md) | 既存インターフェース準拠・自前 RK4・LLM 層無拡張という統合方針の決定記録 |

@@ -335,6 +335,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [SFC 統合設計（最小 SIM 型モデル）](docs/models/sfc_integration_design.md) | SIM 型モデルの方程式・部門・金融資産・貸借対照表/取引フロー行列・会計恒等式の検証契約・型/API スケッチ |
 | [部門別CAPEX・信用循環モデル 分析契約](docs/models/capex_credit_cycle_analysis_contract.md) | AI・半導体CAPEX調整の基準ユースケース・判定問題・比較シナリオ・`broad_downturn` の操作的定義・初期MVP対象外 |
 | [部門別CAPEX・信用循環モデル 因果グラフ](docs/models/capex_credit_cycle_causal_graph.md) | ノード/エッジ仕様（符号・時間差・関数形・観測可能性・実装優先度）・増幅ループ R1–R4・減衰/遮断経路 B1–B7・株式評価の媒介経路・分岐条件候補 |
+| [部門別CAPEX・信用循環モデル 部門境界と変数定義](docs/models/capex_credit_cycle_sectors_variables.md) | 部門区分（5部門）の候補比較と採用理由・部門責務・実物/金融フロー図・二重計上を避ける集計規約・役割分類の判定規則・変数辞書・DME共通API適合方針 |
 | [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメント作成用テンプレート |
 
 ### 実データ接続
