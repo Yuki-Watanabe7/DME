@@ -334,6 +334,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [Keen モデル 実証化戦略](docs/models/keen_empirical_strategy.md) | 実データ接続の観測方程式・単位変換・共通頻度・年単位ODE↔四半期の時間軸契約・固定/推定パラメータ分離・識別戦略・検証方針 |
 | [SFC 統合設計（最小 SIM 型モデル）](docs/models/sfc_integration_design.md) | SIM 型モデルの方程式・部門・金融資産・貸借対照表/取引フロー行列・会計恒等式の検証契約・型/API スケッチ |
 | [部門別CAPEX・信用循環モデル 分析契約](docs/models/capex_credit_cycle_analysis_contract.md) | AI・半導体CAPEX調整の基準ユースケース・判定問題・比較シナリオ・`broad_downturn` の操作的定義・初期MVP対象外 |
+| [部門別CAPEX・信用循環モデル 因果グラフ](docs/models/capex_credit_cycle_causal_graph.md) | ノード/エッジ仕様（符号・時間差・関数形・観測可能性・実装優先度）・増幅ループ R1–R4・減衰/遮断経路 B1–B7・株式評価の媒介経路・分岐条件候補 |
 | [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメント作成用テンプレート |
 
 ### 実データ接続
