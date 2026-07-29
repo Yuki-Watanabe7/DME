@@ -336,6 +336,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [部門別CAPEX・信用循環モデル 分析契約](docs/models/capex_credit_cycle_analysis_contract.md) | AI・半導体CAPEX調整の基準ユースケース・判定問題・比較シナリオ・`broad_downturn` の操作的定義・初期MVP対象外 |
 | [部門別CAPEX・信用循環モデル 因果グラフ](docs/models/capex_credit_cycle_causal_graph.md) | ノード/エッジ仕様（符号・時間差・関数形・観測可能性・実装優先度）・増幅ループ R1–R4・減衰/遮断経路 B1–B7・株式評価の媒介経路・分岐条件候補 |
 | [部門別CAPEX・信用循環モデル 部門境界と変数定義](docs/models/capex_credit_cycle_sectors_variables.md) | 部門区分（5部門）の候補比較と採用理由・部門責務・実物/金融フロー図・二重計上を避ける集計規約・役割分類の判定規則・変数辞書・DME共通API適合方針 |
+| [部門別CAPEX・信用循環モデル ストック・フロー会計表](docs/models/capex_credit_cycle_stock_flow.md) | 残差部門を含む貸借対照表/取引フロー行列・残高更新式・CAPEX資金調達恒等式（キャンセル/延期を含む）・株価の作用経路・デフォルトの初期扱い・会計恒等式の検証契約 |
 | [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメント作成用テンプレート |
 
 ### 実データ接続
