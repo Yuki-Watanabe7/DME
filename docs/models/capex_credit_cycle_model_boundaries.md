@@ -3,7 +3,7 @@
 > 関連 Issue: #167（本書）・#163（分析契約）・#164（因果グラフ）・#165（部門境界と変数定義）・#166（ストック・フロー会計表）・#99（SFC ロードマップ）・#125（ロードマップ）
 > 前提: [分析契約](capex_credit_cycle_analysis_contract.md)・[因果グラフ](capex_credit_cycle_causal_graph.md)・[部門境界と変数定義](capex_credit_cycle_sectors_variables.md)・[ストック・フロー会計表](capex_credit_cycle_stock_flow.md)・[ADR 0006](../adr/0006-cross-model-reasoning-contract.md)・[ADR 0007](../adr/0007-sfc-integration-contract.md)
 > 決定記録: [ADR 0009](../adr/0009-capex-credit-cycle-model-responsibilities.md)
-> 後続設計: #168（イベント変換）・#169（動学方程式）・#170（観測・検証）・#171（統合）
+> 後続設計: #168（[イベント変換契約](../architecture/macro_event_contract.md)・[シナリオ時間軸](../architecture/scenario_time_semantics.md)）・#169（動学方程式）・#170（観測・検証）・#171（統合）
 
 ---
 

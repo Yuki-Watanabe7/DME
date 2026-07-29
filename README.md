@@ -337,6 +337,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [部門別CAPEX・信用循環モデル 因果グラフ](docs/models/capex_credit_cycle_causal_graph.md) | ノード/エッジ仕様（符号・時間差・関数形・観測可能性・実装優先度）・増幅ループ R1–R4・減衰/遮断経路 B1–B7・株式評価の媒介経路・分岐条件候補 |
 | [部門別CAPEX・信用循環モデル 部門境界と変数定義](docs/models/capex_credit_cycle_sectors_variables.md) | 部門区分（5部門）の候補比較と採用理由・部門責務・実物/金融フロー図・二重計上を避ける集計規約・役割分類の判定規則・変数辞書・DME共通API適合方針 |
 | [部門別CAPEX・信用循環モデル ストック・フロー会計表](docs/models/capex_credit_cycle_stock_flow.md) | 残差部門を含む貸借対照表/取引フロー行列・残高更新式・CAPEX資金調達恒等式（キャンセル/延期を含む）・株価の作用経路・デフォルトの初期扱い・会計恒等式の検証契約 |
+| [部門別CAPEX・信用循環モデル 責務境界とモデル間比較契約](docs/models/capex_credit_cycle_model_boundaries.md) | Keen/SIM/New Keynesian/VAR との横断比較表・含める責務と含めない責務の採否・概念対応と数値比較可否の2層分離・同名変数の非同一視・イベント翻訳可否表・SFC との重複整理 |
 | [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメント作成用テンプレート |
 
 ### 実データ接続
@@ -361,6 +362,8 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [LLM Provider 設定ガイド](docs/architecture/llm_provider.md) | provider 抽象化・OpenAI 設定・MockProvider・差し替え方法 |
 | [AnalysisContext 設計](docs/architecture/analysis_context.md) | LLM へ渡す構造化コンテキスト型の設計・構造・利用例 |
 | [クロスモデル推論層の設計](docs/architecture/cross_model_reasoning.md) | Keen 実証結果と既存モデルの概念対応・mapping 導出・出力 section・安全性（ADR 0006） |
+| [マクロイベント変換契約](docs/architecture/macro_event_contract.md) | 観測イベント/解釈シグナル/シナリオ仮定/適用モデル入力の4層分離・共通イベント属性・イベント型のモデル入力マッピング表・同時/競合/重複イベントの処理・イベントログと再現契約・API 境界 |
+| [シナリオ時間軸の意味論](docs/architecture/scenario_time_semantics.md) | 四半期の内部時刻表現・期首一括適用・公表日/経済的有効日/判明時刻の区別・適用四半期の割当規則・持続/減衰の時間形状・vintage と as-of 規則 |
 | [LLM 出力の安全性・免責・禁止表現ルール](docs/llm_safety.md) | 禁止表現・必須記載・プロンプトテンプレート・出力チェックリスト |
 
 ### 設計決定記録（ADR）
@@ -375,6 +378,8 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [ADR 0006: クロスモデル推論契約](docs/adr/0006-cross-model-reasoning-contract.md) | 概念対応（ModelConceptMapping）の明示、repository metadata 限定、同名変数の非同一視、比較不能の非統合、fit 比較制限の決定記録 |
 | [ADR 0007: SFC 統合契約](docs/adr/0007-sfc-integration-contract.md) | SIM 型を初版 SFC とし、会計恒等式をモデル方程式と別の検証契約とする・不整合を自動補正せず構造化・SFCResult を別型で adapter 接続・compare v1 非破壊/v2 加算の決定記録 |
 | [ADR 0008: Real-rate model artifact 統合契約](docs/adr/0008-real-rate-model-artifact-export.md) | economic-data-provider ADR 006 準拠の JSON artifact 生成・RFC 8785 正準化の実装範囲・hash 自己参照排除・UTC固定・rate_basis統一とP1Y集約方式・期待インフレ率の閉形式導出・horizon限定の決定記録 |
+| [ADR 0009: 部門別CAPEX・信用循環モデルの責務境界](docs/adr/0009-capex-credit-cycle-model-responsibilities.md) | Keen 拡張ではなく独立モデルとする・責務を判定問題に必要な範囲へ限定する・会計整合性を残差部門つき部分閉鎖に限定し SFC を名乗らない・横断比較で保証するもの/しないものの分離の決定記録 |
+| [ADR 0010: マクロイベント変換・シナリオ時間軸契約](docs/adr/0010-macro-event-scenario-contract.md) | イベントを4層に分離し belief を直接モデル入力へ変換しない・適用先を外生変数に限定し近似適用を行わない・期首一括適用・固定順合成による順序依存の排除・magnitude 捏造禁止・event_set_hash による再現契約の決定記録 |
 
 ### 開発
 

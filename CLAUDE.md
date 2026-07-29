@@ -78,6 +78,8 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 | [LLM Provider設定ガイド](docs/architecture/llm_provider.md) | provider抽象化・OpenAI設定・MockProvider・差し替え方法 |
 | [AnalysisContext 設計](docs/architecture/analysis_context.md) | LLMへ渡す構造化コンテキスト型の設計・構造・利用例 |
 | [クロスモデル推論層の設計](docs/architecture/cross_model_reasoning.md) | Keen 実証結果と既存モデルの概念対応・mapping 導出・出力 section・安全性（ADR 0006） |
+| [マクロイベント変換契約](docs/architecture/macro_event_contract.md) | 観測イベント/解釈シグナル/シナリオ仮定/適用モデル入力の4層分離・共通イベント属性・イベント型9種のモデル入力マッピング表・適用先を外生変数7個に限定する決定・magnitude捏造禁止・同時/競合/重複イベントの決定論的処理・イベントログと再現契約・API境界6責務 |
+| [シナリオ時間軸の意味論](docs/architecture/scenario_time_semantics.md) | 四半期の内部時刻表現（整数t+period_zero）・期首一括適用（期内処理順序ステップ1）・公表日/経済的有効日/判明時刻の区別・適用四半期の割当規則・持続/減衰の時間形状6種の離散定義・period と known_at の2軸と as-of 規則 |
 | [Keen–SFC 概念対応・比較レポート](docs/analysis/keen_sfc_comparison.md) | Keen と最小 SIM 型 SFC モデルの概念対応表・比較不能の理由・会計/動学機構の差・数値比較の可否・次期 Minsky-SFC のギャップ |
 | [LLM出力の安全性・免責・禁止表現ルール](docs/llm_safety.md) | 禁止表現・必須記載・プロンプトテンプレート・出力チェックリスト |
 | [DataSeries / MacroDataset 利用ガイド](docs/data/data_series_guide.md) | 実データ標準型の構造と操作 |
@@ -108,6 +110,7 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 | [ADR 0007: SFC 統合契約](docs/adr/0007-sfc-integration-contract.md) | SIM 型を初版 SFC とし、会計恒等式をモデル方程式と別の検証契約とする・不整合を自動補正せず構造化・SFCResult を別型で adapter 接続・compare v1 非破壊/v2 加算の決定記録 |
 | [ADR 0008: Real-rate model artifact 統合契約](docs/adr/0008-real-rate-model-artifact-export.md) | economic-data-provider ADR 006 準拠の JSON artifact 生成・RFC 8785 正準化の実装範囲・hash 自己参照排除・UTC固定・rate_basis統一とP1Y集約方式・期待インフレ率の閉形式導出・horizon限定の決定記録 |
 | [ADR 0009: 部門別CAPEX・信用循環モデルの責務境界](docs/adr/0009-capex-credit-cycle-model-responsibilities.md) | Keen拡張ではなく独立モデルとする・責務を判定問題Q1–Q5に必要な範囲へ限定する・会計整合性を残差部門つき部分閉鎖（accounting_closure=:partial）に限定しSFCを名乗らない・横断比較で保証するもの/しないものの分離・翻訳不能なイベントを適用しない・SimulationResult非変更とmetadata予約キー・Phase 0でモデル合成/連成を実施しない決定記録 |
+| [ADR 0010: マクロイベント変換・シナリオ時間軸契約](docs/adr/0010-macro-event-scenario-contract.md) | イベントを4層に分離しbeliefを直接モデル入力へ変換しない・適用先を外生変数7個に限定し適用先の無いイベントを近似で寄せない・期首一括適用で期中適用/按分を行わない・絶対→乗算→加算の固定順合成で順序依存を排除・magnitude捏造禁止と感応度併記義務・制約違反を自動クリップせず拒否・event_set_hashによる再現契約の決定記録 |
 | [DME real-rate model artifact contract（vendor）](docs/contract/README.md) | economic-data-provider ADR 006 の JSON Schema・example artifact の vendor コピーと同期方針 |
 | [品質チェックとローカル検証手順](docs/development/quality_checks.md) | Aqua.jl・JuliaFormatter・テスト実行方法 |
 | [Keen 実証説明の LLM 回帰テストと安全性評価](docs/development/keen_llm_regression.md) | 契約/parser/シナリオ/golden/forbidden の評価レイヤー・安全性評価器・fixture 再生成/追加手順・任意 provider 評価 |
