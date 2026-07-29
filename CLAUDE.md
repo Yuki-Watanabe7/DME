@@ -97,6 +97,7 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 | [部門別CAPEX・信用循環モデル 因果グラフ](docs/models/capex_credit_cycle_causal_graph.md) | 起点事象から総産出までの有向グラフ・エッジ仕様（型/符号/時間差/関数形/観測可能性/根拠/逆因果・交絡/実装優先度）・増幅ループ R1–R4・減衰/遮断経路 B1–B7・株式評価の媒介経路限定・分岐条件候補と診断ラベル対応 |
 | [部門別CAPEX・信用循環モデル 部門境界と変数定義](docs/models/capex_credit_cycle_sectors_variables.md) | 部門区分（案A 5部門）の候補比較・採用理由・部門責務・実物/金融フロー図・二重計上を避ける集計規約・役割（state/control/exogenous/diagnostic）の判定規則・遅延/パイプライン状態・変数辞書・DME共通API適合方針（平坦キー+部門接尾辞）・因果グラフへの差し戻し事項 |
 | [部門別CAPEX・信用循環モデル ストック・フロー会計表](docs/models/capex_credit_cycle_stock_flow.md) | モデル外・残差部門 `SX` を含む貸借対照表行列/取引フロー行列・資金過不足によるブロック分割・全ストックの残高更新式と純資産更新式の導出・CAPEX資金調達恒等式とキャンセル/延期の閉じ変数指定・株価の作用経路（評価損を実体支出と同一視しない）・デフォルト非内生化の決定と診断可能性・会計恒等式12項目の検証契約・#99 Phase 5 SFC との責務境界・#165 変数辞書への追加提案と差し戻し事項 |
+| [部門別CAPEX・信用循環モデル 責務境界とモデル間比較契約](docs/models/capex_credit_cycle_model_boundaries.md) | Keen/SIM/New Keynesian/VARと新規モデルの横断比較表（回答する問い・主要状態・強み・限界）・含める責務10件と含めない責務12件の採否・概念対応（mapping_type）と数値比較可否（comparability）の2層分離・`equivalent` が存在しないことの確定・同名変数の非同一視・イベント翻訳可否表と翻訳不能時の規則・`SimulationResult` を変更せず metadata 予約キーで methodology 相当を保持する決定・registry登録要件・#166の限定的会計整合性と#99 Phase 5 一般SFCの境界・移管候補 |
 | [最小 SIM 型 SFC モデル](docs/models/sim_sfc.md) | `SIMModel` の目的・方程式・会計表・変数の単位/時点・財政ショック定義・限界・`sfc_result` adapter |
 | [ADR 0001: Minsky系モデル選定](docs/adr/0001-minsky-model-selection.md) | Keen モデル採用の決定記録（`docs/adr/` は設計決定記録の置き場） |
 | [ADR 0002: Keen モデルの統合方式](docs/adr/0002-minsky-integration-design.md) | 既存インターフェース準拠・自前 RK4・LLM 層無拡張という統合方針の決定記録 |
@@ -106,6 +107,7 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 | [ADR 0006: クロスモデル推論契約](docs/adr/0006-cross-model-reasoning-contract.md) | 概念対応（ModelConceptMapping）の明示・repository metadata 限定・同名変数の非同一視・比較不能の非統合（insufficient_comparability）・fit 比較制限の決定記録 |
 | [ADR 0007: SFC 統合契約](docs/adr/0007-sfc-integration-contract.md) | SIM 型を初版 SFC とし、会計恒等式をモデル方程式と別の検証契約とする・不整合を自動補正せず構造化・SFCResult を別型で adapter 接続・compare v1 非破壊/v2 加算の決定記録 |
 | [ADR 0008: Real-rate model artifact 統合契約](docs/adr/0008-real-rate-model-artifact-export.md) | economic-data-provider ADR 006 準拠の JSON artifact 生成・RFC 8785 正準化の実装範囲・hash 自己参照排除・UTC固定・rate_basis統一とP1Y集約方式・期待インフレ率の閉形式導出・horizon限定の決定記録 |
+| [ADR 0009: 部門別CAPEX・信用循環モデルの責務境界](docs/adr/0009-capex-credit-cycle-model-responsibilities.md) | Keen拡張ではなく独立モデルとする・責務を判定問題Q1–Q5に必要な範囲へ限定する・会計整合性を残差部門つき部分閉鎖（accounting_closure=:partial）に限定しSFCを名乗らない・横断比較で保証するもの/しないものの分離・翻訳不能なイベントを適用しない・SimulationResult非変更とmetadata予約キー・Phase 0でモデル合成/連成を実施しない決定記録 |
 | [DME real-rate model artifact contract（vendor）](docs/contract/README.md) | economic-data-provider ADR 006 の JSON Schema・example artifact の vendor コピーと同期方針 |
 | [品質チェックとローカル検証手順](docs/development/quality_checks.md) | Aqua.jl・JuliaFormatter・テスト実行方法 |
 | [Keen 実証説明の LLM 回帰テストと安全性評価](docs/development/keen_llm_regression.md) | 契約/parser/シナリオ/golden/forbidden の評価レイヤー・安全性評価器・fixture 再生成/追加手順・任意 provider 評価 |
