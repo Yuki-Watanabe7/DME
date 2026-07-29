@@ -562,7 +562,7 @@ get_series(ds, "FRED_GDPC1").name  # "Real GDP"
 ```
 
 **`DataSeries` と `SimulationResult` の変換方針**については
-[`docs/data/data_series_guide.md`](../data/data_series_guide.md) を参照。
+[`docs/data/data_series_guide.md`](data/data_series_guide.md) を参照。
 
 ---
 

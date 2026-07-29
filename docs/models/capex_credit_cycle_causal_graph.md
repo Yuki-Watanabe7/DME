@@ -2,7 +2,7 @@
 
 > 関連 Issue: #164（本書）・#163（分析契約）・#125（ロードマップ）
 > 前提: [部門別CAPEX・信用循環モデル 分析契約](capex_credit_cycle_analysis_contract.md)（基準ユースケース・判定問題 Q1–Q5・シナリオ `Sc0`–`Sc4`・診断ラベル）
-> 後続設計: #165（[部門境界と変数定義](capex_credit_cycle_sectors_variables.md)）・#166（[ストック・フロー会計表](capex_credit_cycle_stock_flow.md)）・#167（責務境界）・#168（イベント変換）・#169（動学方程式）・#170（観測・検証）・#171（統合）
+> 後続設計: #165（[部門境界と変数定義](capex_credit_cycle_sectors_variables.md)）・#166（[ストック・フロー会計表](capex_credit_cycle_stock_flow.md)）・#167（[責務境界](capex_credit_cycle_model_boundaries.md)）・#168（[イベント変換契約](../architecture/macro_event_contract.md)・[シナリオ時間軸](../architecture/scenario_time_semantics.md)）・#169（動学方程式）・#170（観測・検証）・#171（統合）
 
 ---
 
