@@ -338,6 +338,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [部門別CAPEX・信用循環モデル 部門境界と変数定義](docs/models/capex_credit_cycle_sectors_variables.md) | 部門区分（5部門）の候補比較と採用理由・部門責務・実物/金融フロー図・二重計上を避ける集計規約・役割分類の判定規則・変数辞書・DME共通API適合方針 |
 | [部門別CAPEX・信用循環モデル ストック・フロー会計表](docs/models/capex_credit_cycle_stock_flow.md) | 残差部門を含む貸借対照表/取引フロー行列・残高更新式・CAPEX資金調達恒等式（キャンセル/延期を含む）・株価の作用経路・デフォルトの初期扱い・会計恒等式の検証契約 |
 | [部門別CAPEX・信用循環モデル 責務境界とモデル間比較契約](docs/models/capex_credit_cycle_model_boundaries.md) | Keen/SIM/New Keynesian/VAR との横断比較表・含める責務と含めない責務の採否・概念対応と数値比較可否の2層分離・同名変数の非同一視・イベント翻訳可否表・SFC との重複整理 |
+| [部門別CAPEX・信用循環モデル 動学方程式と数値計算契約](docs/models/capex_credit_cycle_equations.md) | 離散時間ハイブリッド方式と陽解法の選定・全循環の遅れ指定・期内処理順序に沿った全方程式・パラメータ辞書と固定/較正/推定区分・baseline と定常条件・数値ガードの3層分離と打ち切り契約・ループ利得と寄与分解の評価方式 |
 | [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメント作成用テンプレート |
 
 ### 実データ接続
@@ -380,6 +381,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [ADR 0008: Real-rate model artifact 統合契約](docs/adr/0008-real-rate-model-artifact-export.md) | economic-data-provider ADR 006 準拠の JSON artifact 生成・RFC 8785 正準化の実装範囲・hash 自己参照排除・UTC固定・rate_basis統一とP1Y集約方式・期待インフレ率の閉形式導出・horizon限定の決定記録 |
 | [ADR 0009: 部門別CAPEX・信用循環モデルの責務境界](docs/adr/0009-capex-credit-cycle-model-responsibilities.md) | Keen 拡張ではなく独立モデルとする・責務を判定問題に必要な範囲へ限定する・会計整合性を残差部門つき部分閉鎖に限定し SFC を名乗らない・横断比較で保証するもの/しないものの分離の決定記録 |
 | [ADR 0010: マクロイベント変換・シナリオ時間軸契約](docs/adr/0010-macro-event-scenario-contract.md) | イベントを4層に分離し belief を直接モデル入力へ変換しない・適用先を外生変数に限定し近似適用を行わない・期首一括適用・固定順合成による順序依存の排除・magnitude 捏造禁止・event_set_hash による再現契約の決定記録 |
+| [ADR 0011: 部門別CAPEX・信用循環モデルの動学契約](docs/adr/0011-capex-credit-cycle-dynamics-contract.md) | 動学を陽解法の離散時間系とし期内に同時方程式を置かない・全循環の遅れを列挙する・主体最適化と均衡求解を置かない・数値ガードを経済制約/制約違反/打ち切りの3層へ分離する・推定対象を行動パラメータの一部に限定する・baseline を成長率ゼロの定常状態とし逆較正で与える・ループ利得と寄与分解を反実仮想で定義する決定記録 |
 
 ### 開発
 
