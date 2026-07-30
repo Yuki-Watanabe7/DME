@@ -29,6 +29,15 @@ function control_variables end
 function parameters end
 
 """
+    exogenous_variables(m) -> Vector{Symbol}
+
+外生変数（シナリオ・イベントの適用先）の名称リストを返す。既定は空（`Symbol[]`）で、
+外生変数を持たないモデルは何もオーバーライドする必要がない。
+"""
+function exogenous_variables end
+exogenous_variables(::AbstractMacroModel) = Symbol[]
+
+"""
     steady_state(m) -> NamedTuple
 
 定常状態を計算し、変数名をキーとする NamedTuple で返す。

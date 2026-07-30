@@ -54,16 +54,29 @@ export
     MundellFlemingModel,
     KeenModel,
     SIMModel,
+    CapexCreditCycleModel,
     # Model metadata
     model_name,
     state_variables,
     control_variables,
     parameters,
+    exogenous_variables,
     # Unified computation API
     steady_state,
     transition_path,
     simulate,
     impulse_response,
+    # CCC: 構築・較正（部門別CAPEX・信用循環モデル、src/models/capex_credit_cycle.jl）
+    CAPEX_CREDIT_CYCLE_MODEL_VERSION,
+    CapexCreditCycleTargets,
+    capex_credit_cycle_default_targets,
+    capex_credit_cycle_model,
+    CapexSectorSets,
+    # CCC: 実行
+    CapexCreditCycleOptions,
+    capex_steady_state_report,
+    CapexSteadyStateReport,
+    passed,
     # New Keynesian: 期待インフレ率パス・level 復元（Issue #159）
     nk_expected_inflation_path,
     nk_inflation_level,
@@ -414,6 +427,7 @@ include("./models/var.jl")
 include("./models/mundell_fleming.jl")
 include("./models/keen.jl")
 include("./models/sfc_sim.jl")
+include("./models/capex_credit_cycle.jl")
 
 # Cross-model result type (depends on RamseyModel and RBCModel)
 include("./core/simulation_result.jl")

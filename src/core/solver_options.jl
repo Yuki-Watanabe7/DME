@@ -50,3 +50,25 @@ Base.@kwdef struct ODESolverOptions
     substeps::Int = 20
     guard_max::Float64 = 1e6
 end
+
+"""
+    CapexCreditCycleOptions
+
+`CapexCreditCycleModel` の `simulate` / `capex_run` に渡す数値解法設定。
+
+## フィールド
+- `horizon_runup::Int`  : 助走区間の長さ（四半期、デフォルト: 8、`t = -8 … -1`）
+- `horizon_eval::Int`   : 評価区間の長さ（四半期、デフォルト: 20、`t = 0 … 19`）
+- `div_eps::Float64`    : ゼロ除算判定の下限（デフォルト: 1e-8）
+- `guard_max::Float64`  : 発散判定の閾値（デフォルト: 1e6、`ODESolverOptions` の既定値を継承）
+- `runup_tol::Float64`  : 助走区間で許容する定常値からの相対乖離（デフォルト: 1e-8）
+- `stop_on_sign_violation::Bool` : 符号制約違反（T2）で打ち切るか（デフォルト: false）
+"""
+Base.@kwdef struct CapexCreditCycleOptions
+    horizon_runup::Int = 8
+    horizon_eval::Int = 20
+    div_eps::Float64 = 1e-8
+    guard_max::Float64 = 1e6
+    runup_tol::Float64 = 1e-8
+    stop_on_sign_violation::Bool = false
+end
