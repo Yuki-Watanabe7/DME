@@ -22,7 +22,7 @@
 > **排他的に**分類する。観測は役割と直交する属性として別軸で与える。役割は因果グラフのエッジ型
 > （行動 / 会計 / 定義 / 制度）から機械的に決まる判定規則（§4.2）で導出し、後続 Issue が個別に判断しない。
 > 変数辞書（§5）は記号・Julia 名・単位・stock/flow・時点基準・符号制約・恒等関係・観測候補・優先度を与える。
-> §5.7 は会計項目の変数（#166 が追加提案した 42 項目 + 既登録の再掲 1 項目 + 本書の追加 2 項目）とパラメータ 12 系統を正式に登録する。
+> §5.7 は会計項目の変数（#166 が追加提案した 43 項目 + 既登録の再掲 1 項目 + 本書の追加 2 項目 = 46）とパラメータ 11 系統を正式に登録する。
 > DME 共通 API へは **平坦キー + 部門接尾辞**の名前空間で公開する（§6）。
 > 本書は方程式・パラメータ値・実データ取得実装を定めない（§10）。`1.0.0` の差し戻し事項 `A1`・`A2` は
 > 因果グラフ `1.1.0` で解決済みである（§7）。
@@ -913,7 +913,7 @@ parameters(m::CapexCreditCycleModel) -> NamedTuple
 
 ## 11. #171 統合レビューによる改訂（`1.2.0`）
 
-本節は #171 の横断整合レビュー（[統合設計](../architecture/capex_credit_cycle_integration.md) §2）で検出された不一致のうち本書が担当する 14 件の解決を記録する。**本節は本書の正本であり、本文の該当箇所と矛盾する場合は本節が優先する。**
+本節は #171 の横断整合レビュー（[統合設計](../architecture/capex_credit_cycle_integration.md) §2）で検出された不一致のうち本書が担当する 15 件（`X-01`–`X-09`・`X-14`・`X-26`–`X-28`・`X-30`・`X-31`）の解決を記録する。**本節は本書の正本であり、本文の該当箇所と矛盾する場合は本節が優先する。**
 
 ### 11.1 部門責務と部門間フロー図（`X-04`–`X-09`）
 
@@ -1015,7 +1015,7 @@ flowchart LR
 
 | ID | 改訂 |
 |---|---|
-| `X-30` | §5.7 表 C へ **`FUNDING_PRESSURE_s` / `:funding_pressure_s`（役割 `diagnostic`、`s ∈ SF`）を追加登録する**。定義は #166 §7.4 の 5 値ラベル（`fp_invalid` / `fp_unlevered` / `fp_interest_uncovered` / `fp_rollover_dependent` / `fp_covered`）である。#166 §7.3 が必須診断量として要求しながら同書 §10.1 の追加提案表に含まれていなかった。<br>**出力の扱い**: 値が `Symbol` のラベル列であり `Vector{Float64}` で表せないため、`SimulationResult.variables` へは出力せず診断結果型（`CapexDiagnostics.funding_pressure`）で返す（[統合設計](../architecture/capex_credit_cycle_integration.md) §6.4）。<br>あわせて §5.4 の LLM 向け要約の項目数を「#166 が追加提案した 43 項目 + 本書の追加 2 項目」から**「#166 が追加提案した 42 項目 + 既登録の再掲 1 項目（`DEBT_SERVICE_s`） + 本書の追加 2 項目 = 45」**へ改める |
+| `X-30` | §5.7 表 C へ **`FUNDING_PRESSURE_s` / `:funding_pressure_s`（役割 `diagnostic`、`s ∈ SF`）を追加登録する**。定義は #166 §7.4 の 5 値ラベル（`fp_invalid` / `fp_unlevered` / `fp_interest_uncovered` / `fp_rollover_dependent` / `fp_covered`）である。#166 §7.3 が必須診断量として要求しながら同書 §10.1 の追加提案表に含まれていなかった。<br>**出力の扱い**: 値が `Symbol` のラベル列であり `Vector{Float64}` で表せないため、`SimulationResult.variables` へは出力せず診断結果型（`CapexDiagnostics.funding_pressure`）で返す（[統合設計](../architecture/capex_credit_cycle_integration.md) §6.4）。<br>あわせて冒頭の LLM 向け要約の項目数を「#166 が追加提案した 43 項目 + 本書の追加 2 項目」から**「#166 が追加提案した 43 項目（`funding_pressure_s` の追加後） + 既登録の再掲 1 項目（`DEBT_SERVICE_s`） + 本書の追加 2 項目 = 46」**へ改める |
 | `X-31` | 記号衝突の解消を §6.4 の命名規則へ**確定事項として記載する**。`DEP_s` = 固定資本減耗（`:dep_s1`–`:dep_s3`）、`DEP_S4` = `S4` の預金負債（**`:dep_stock_s4`**）。#166 §5.5 本文が用いていた `dep_s4` は使わない。§6.5 契約 1 のキー衝突検査（部門接尾辞を除いた名前が接尾辞なしの単一系列名と衝突しないこと）を実装時テストとして持つ（[統合設計](../architecture/capex_credit_cycle_integration.md) §7.1-3） |
 
 ### 11.6 参照する上流改訂

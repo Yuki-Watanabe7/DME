@@ -13,8 +13,9 @@
 |---|---|
 | **対象** | 部門別CAPEX・信用循環モデル（`CapexCreditCycleModel` 相当、未実装）と既存モデル群（`KeenModel` / `SIMModel` / `NewKeynesianModel` / `VARModel`）の責務分担 |
 | **ステータス** | 責務境界・比較契約・SFC との重複整理のみ確定。方程式・実装・registry コードは未着手 |
-| **boundaries version** | `capex-credit-cycle-boundaries/1.0.0` |
-| **上位契約** | `capex-credit-cycle-contract/1.0.0`・`capex-credit-cycle-graph/1.0.0`・`capex-credit-cycle-vars/1.0.0`・`capex-credit-cycle-accounting/1.0.0` |
+| **boundaries version** | `capex-credit-cycle-boundaries/1.0.1` |
+| **上位契約** | `capex-credit-cycle-contract/1.0.0`・`capex-credit-cycle-graph/1.1.0`・`capex-credit-cycle-vars/1.2.0`・`capex-credit-cycle-accounting/1.1.0` |
+| **改訂の優先関係** | **§12（#171 統合レビューによる改訂）が本書の正本である。メタ情報の上位契約と §5.7 の metadata 予約キーは §12 で上書きされている。** |
 | **継承する横断契約** | `cross-model-context/1.0.0`（[ADR 0006](../adr/0006-cross-model-reasoning-contract.md)）・`comparison-v2/1.0.0`（`src/core/compare_v2.jl`）・`model-capability/1.0.0`（`src/core/model_capabilities.jl`） |
 | **基準経済・頻度** | 米国・四半期（契約 §2.1 を継承。`Δt = 0.25` 年） |
 | **モデル識別子（提案）** | `:capex_credit_cycle`（`_XM_MODEL_LABELS` 表示名「部門別CAPEX・信用循環モデル」） |
@@ -550,7 +551,30 @@ LLM による説明生成時は、上記を [llm_safety.md](../llm_safety.md) �
 
 ---
 
-## 12. 改訂履歴
+## 12. #171 統合レビューによる改訂（`1.0.1`）
+
+本節は #171 の横断整合レビュー（[統合設計](../architecture/capex_credit_cycle_integration.md) §2）で検出された不一致 `X-32` の解決を記録する。**本節は本書の正本であり、本文の該当箇所と矛盾する場合は本節が優先する。**
+
+### 12.1 上位契約の版ずれ（`X-32`）
+
+本書 `1.0.0` は上位契約を `graph/1.0.0`・`vars/1.0.0`・`accounting/1.0.0` として書かれていた。これらはその後 `graph/1.1.0`・`vars/1.2.0`・`accounting/1.1.0` へ改訂されている。メタ情報を更新した。本書の内容（責務境界・比較契約・SFC との重複整理）に影響する改訂は次の 2 件であり、いずれも本書の結論を変えない。
+
+| 上流改訂 | 本書への影響 |
+|---|---|
+| `vars/1.1.0` の `cap_s` 単位変更・`ycap_s` 新設・`profit_s` の役割変更 | §2.1 横断比較表の「主要状態」欄に挙げた `cap_s` は資本ストック（10億ドル）である。`income_distribution = :approximate` の根拠（`profit_s` は会計残差）は `vars/1.1.0` の役割変更で追認された |
+| `accounting/1.1.0` の在庫の当期価格評価・閉じ変数の 1 本化 | `accounting_closure = :partial` の判定は変わらない。§2.3 の「会計プリミティブと汎用検証は再利用、登録簿とモデル固有恒等式は共有しない」も変わらない |
+
+### 12.2 metadata 予約キーの統合後の一覧
+
+§5.7 は本書が提案する 11 キー（うち `boundaries_version` は新規提案）を挙げていた。#171 が #169 §15.6 の 6 キー・#165 §6.3 の 4 キーと統合し、重複を除いた **20 キー（+ 補助 3 キー）**を確定した。**統合後の一覧は [統合設計](../architecture/capex_credit_cycle_integration.md) §6.1 が正本である**。本書 §5.7 の契約（`variables` に載せるのは `Vector{Float64}` で表せる系列のみ／予約キーを他モデルへ要求しない／比較層はバージョンキーを読む／会計表は別型）は維持される。
+
+### 12.3 §2.6 `ModelCapabilityProfile` の未確定事項の解決
+
+§2.6 が #171 へ委ねた `equilibrium_concept` の語彙拡張の要否について、**語彙を拡張せず `:none` とする**ことが確定した（[ADR 0013](../adr/0013-capex-credit-cycle-integration-contract.md) 決定 16）。新値を追加すると既存 10 モデルの分類基準を再検討する必要が生じるためである。「均衡概念を持たない逐次的な行動方程式系である」という事実は `caveats` と `behavioral_equations = true` で表現する。
+
+---
+
+## 13. 改訂履歴
 
 | version | 日付 | 変更 |
 |---|---|---|

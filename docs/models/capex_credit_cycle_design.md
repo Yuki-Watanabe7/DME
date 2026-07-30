@@ -23,7 +23,7 @@
 > (2) 分析目的から観測方程式までの 9 領域を統合仕様として要約し（§2–§10）、
 > (3) 同一概念の記号・Julia 名・単位・時点基準が全文書で一致することを確認した**横断辞書**を与える（§11）。
 > 実装配置・公開API・出力契約・テスト・作業分解は [統合設計](../architecture/capex_credit_cycle_integration.md) が正本である。
-> 文書間の不一致 31 件（`X-01`–`X-31`）とその解決は同書 §2 に登録されており、本書はその解決後の状態を記述する。
+> 文書間の不一致 32 件（`X-01`–`X-32`）とその解決は同書 §2 に登録されており、本書はその解決後の状態を記述する。
 
 ---
 
@@ -87,7 +87,7 @@
 | 52 | テスト戦略・fixture | 同 §7 |
 | 53 | 統合デモの入力・出力・注意事項 | 同 §8 |
 | 54 | 実装作業の分解 `I-1`–`I-8` | 同 §9 |
-| 55 | 文書間の不一致とその解決（`X-01`–`X-31`） | 同 §2 |
+| 55 | 文書間の不一致とその解決（`X-01`–`X-32`） | 同 §2 |
 | 56 | 名称（`Digital Twin` / `Digital Shadow`）の使用条件 | [ADR 0014](../adr/0014-digital-twin-naming-conditions.md) |
 
 ---
@@ -145,14 +145,14 @@ AI・クラウド事業者の CAPEX 見直しが、半導体・製造装置・�
 
 規則 5 は本統合で追加した（[統合設計](../architecture/capex_credit_cycle_integration.md) §2.2 `X-03`）。
 
-### 4.2 `state`（22 変数 + 遅延バッファ 42 スロット = 状態次元 64）
+### 4.2 `state`（22 変数 + 遅延バッファ 43 スロット = 状態次元 65）
 
 | 部門 | 変数 |
 |---|---|
 | `S1` | `cap_s1`・`capex_pipe_s1`・`cash_s1`・`plan_carry_s1`・`debt_s1`・`r_eff_s1` |
 | `S2`・`S3` | `cap_s`・`capex_pipe_s`・`backlog_s`・`inv_s`・`cash_s`・`debt_s`・`r_eff_s`（各 2 変数）・`advance_s`（優先度 `EXT`、MVP `≡ 0`。恒等的ゼロの独立項として保持） |
 
-**遅延バッファ**: 深さ 1 が 33 本（`capex_exec_s1`・`capex_plan_s1`・`ocf_s`×3・`profit_s`×3・`int_burden_s`×3・`tax_s`×3・`sales_s`×3・`cost_capital_s`×3・`coverage_agg`・`fin_cond`・`spread`・`equity_val`・`lend_stance`・`y_s1`・`y_s2`・`y_s3`・`y_s5`・`util_s2`・`util_s3`・`inv_ratio_s2`・`inv_ratio_s3`・`cons`）、深さ 3 が 3 本（`price_s2`・`price_s3`・`emp_tot`）= 9 スロット。#169 `1.0.0` §13.5 は `invest_s2` を含めて 34 本・状態次元 65 としていたが、`order_inv_s3` が当期 `invest_s2` を参照する改訂（#169 §21.2）により不要になった。`state_variables(m)` に含める（#165 §6.1）。
+**遅延バッファ**: 深さ 1 が 34 本（`capex_exec_s1`・`capex_plan_s1`・`ocf_s`×3・`profit_s`×3・`int_burden_s`×3・`tax_s`×3・`sales_s`×3・`cost_capital_s`×3・`coverage_agg`・`fin_cond`・`spread`・`equity_val`・`lend_stance`・`y_s1`・`y_s2`・`y_s3`・`y_s5`・`util_s2`・`util_s3`・`inv_ratio_s2`・`inv_ratio_s3`・`cons`）、深さ 3 が 3 本（`price_s2`・`price_s3`・`emp_tot`）= 9 スロット。#169 `1.0.0` §13.5 は深さ 1 を 34 本と宣言しながら列挙は `invest_s2` を含む 35 本であった。`order_inv_s3` が当期 `invest_s2` を参照する改訂（#169 §21.2）により `invest_s2` が不要になり、列挙と宣言がともに 34 本で一致する。状態次元は 65 のまま変わらない。`state_variables(m)` に含める（#165 §6.1）。
 
 ### 4.3 `exogenous`（7 変数。イベント適用先の全体）
 
@@ -559,7 +559,7 @@ bp → %pt          : spread / 100                （100bp = 1%pt）
 
 ## 参考
 
-- [統合設計](../architecture/capex_credit_cycle_integration.md) — 整合レビュー（`X-01`–`X-31`）・実装配置・公開API・出力契約・テスト・デモ・作業分解
+- [統合設計](../architecture/capex_credit_cycle_integration.md) — 整合レビュー（`X-01`–`X-32`）・実装配置・公開API・出力契約・テスト・デモ・作業分解
 - #163 [分析契約](capex_credit_cycle_analysis_contract.md)・#164 [因果グラフ](capex_credit_cycle_causal_graph.md)・#165 [部門境界と変数定義](capex_credit_cycle_sectors_variables.md)・#166 [ストック・フロー会計表](capex_credit_cycle_stock_flow.md)・#167 [責務境界](capex_credit_cycle_model_boundaries.md)
 - #168 [イベント変換契約](../architecture/macro_event_contract.md)・[シナリオ時間軸](../architecture/scenario_time_semantics.md)
 - #169 [動学方程式](capex_credit_cycle_equations.md)・#170 [観測方程式・識別戦略・検証方針](capex_credit_cycle_empirical_strategy.md)

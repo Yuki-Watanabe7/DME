@@ -13,16 +13,16 @@
 | **対象** | 部門別CAPEX・信用循環モデル（`CapexCreditCycleModel`、以下 `CCC`）の DME 内実装配置 |
 | **ステータス** | 整合レビュー・実装配置・公開API・出力契約・テスト戦略・デモ仕様・作業分解を確定。Julia 実装は未着手 |
 | **integration version** | `capex-credit-cycle-integration/1.0.0` |
-| **上位契約** | `capex-credit-cycle-contract/1.0.0`（#163）・`capex-credit-cycle-graph/1.1.0`（#164）・`capex-credit-cycle-vars/1.2.0`（#165）・`capex-credit-cycle-accounting/1.1.0`（#166）・`capex-credit-cycle-boundaries/1.0.0`（#167）・`macro-event-contract/1.0.1`・`scenario-time-semantics/1.0.0`（#168）・`capex-credit-cycle-equations/1.1.0`（#169）・`capex-credit-cycle-empirical/1.1.0`（#170） |
+| **上位契約** | `capex-credit-cycle-contract/1.0.0`（#163）・`capex-credit-cycle-graph/1.1.0`（#164）・`capex-credit-cycle-vars/1.2.0`（#165）・`capex-credit-cycle-accounting/1.1.0`（#166）・`capex-credit-cycle-boundaries/1.0.1`（#167）・`macro-event-contract/1.0.1`・`scenario-time-semantics/1.0.0`（#168）・`capex-credit-cycle-equations/1.1.0`（#169）・`capex-credit-cycle-empirical/1.1.0`（#170） |
 | **継承する横断契約** | `model-capability/1.0.0`（`src/core/model_capabilities.jl`）・`comparison-v2/1.0.0`（`src/core/compare_v2.jl`）・`cross-model-context/1.0.0`（ADR 0006）・`sfc-primitives/1.0.0`・`sfc-accounting/1.0.0`（`src/sfc/`・`src/analysis/sfc_accounting.jl`） |
 | **モデル識別子** | 型 `CapexCreditCycleModel`、registry symbol `:capex_credit_cycle`、表示名「部門別CAPEX・信用循環モデル」 |
 | **基準経済・頻度** | 米国・四半期（`Δt = 0.25` 年）。助走 8 四半期 + 評価 20 四半期 = 28 四半期 |
 
 > **LLM向け要約**: 本書は #163〜#170 の 8 設計文書を **1 つの実装可能な設計**へ統合する。
-> (1) 8 文書を横断して整合レビューを行い、検出した不一致 **31 件**を `X-01`–`X-31` として登録し、
+> (1) 8 文書を横断して整合レビューを行い、検出した不一致 **32 件**を `X-01`–`X-32` として登録し、
 > 各件を「上流文書の改訂」「本書での実装決定」「限界として保持」のいずれかへ**明示的に**割り当てる（§2）。
-> 暗黙に吸収した不一致は無い。(2) DME 既存アーキテクチャへの配置を、追加ファイル 5 本・既存ファイル修正 6 本として確定する（§3）。
-> (3) 公開 API を 14 関数・内部型 8 個として確定する（§4・§5）。`AbstractMacroModel` の共通 4 関数と
+> 暗黙に吸収した不一致は無い。(2) DME 既存アーキテクチャへの配置を、`src/` の追加 5 本・修正 6 本と、test / fixture / examples / docs の追加として確定する（§3）。
+> (3) 公開 API を 14 関数、内部型 3 個 + 結果型 1 個として確定する（§4・§5）。`AbstractMacroModel` の共通 4 関数と
 > `steady_state` / `simulate` / `impulse_response` / `to_simulation_result` を実装し、`transition_path` は実装しない。
 > (4) `SimulationResult` 型を変更せず、metadata 予約キー **20 個**で methodology 相当を保持する（§6）。
 > (5) テストを構造・契約／状態の完全性／会計／動学／数値安全性／診断の 6 分類 **57 項目**として定義する（§7）。
@@ -77,7 +77,7 @@
 
 ### 2.1 レビュー範囲と方法
 
-#163〜#170 の 8 文書（6,225 行）について、Issue #171 §1 が挙げた 9 観点を横断照合した。照合は記号名・Julia 名・単位・時点基準・節参照・ID の**逐語一致**で行い、「概ね同じ」を一致とみなしていない。
+#163〜#170 の 8 文書（#168 は 2 ファイルのため計 9 ファイル）について、Issue #171 §1 が挙げた 9 観点を横断照合した。照合は記号名・Julia 名・単位・時点基準・節参照・ID の**逐語一致**で行い、「概ね同じ」を一致とみなしていない。
 
 | # | 観点 | 判定 | 検出件数 |
 |---|---|---|---|
@@ -90,7 +90,7 @@
 | 7 | パラメータ辞書と固定・較正・推定区分の対応 | 不一致あり | 6（`X-20`–`X-25`） |
 | 8 | `SimulationResult` 出力と観測方程式の対応 | 一致（単位 3 件が不一致） | 3（`X-26`–`X-28`） |
 | 9 | 既存モデルとの比較可能・比較不能概念の対応 | 一致 | 0 |
-| — | 差し戻し事項の状態（`A1`–`A2`・`B1`–`B7`・`E1`–`E6`） | 版ずれあり | 3（`X-29`–`X-31`） |
+| — | 差し戻し事項の状態（`A1`–`A2`・`B1`–`B7`・`E1`–`E6`）・上位契約の版ずれ | 版ずれあり | 4（`X-29`–`X-32`） |
 
 **一致が確認できた主要事項**（不一致なしと判定した根拠）:
 
@@ -102,7 +102,7 @@
 - **パラメータ系統数**が #169 §13.2 の 35 行・§13.3 の 44 行 + 3 行と、#170 §7.2 の「全 35 系統」・§7.4 の「全 44 系統」・§7.3 の 3 系統で一致し、`EB-1`–`EB-7` の合計に欠落・重複がない。
 - **`equivalent` が 1 つも存在しない**という #167 §5.2 の確定が、`mapping_type` 導出規則（ADR 0006 §3.2）と矛盾しない。
 
-### 2.2 検出した不一致と解決（`X-01`–`X-31`）
+### 2.2 検出した不一致と解決（`X-01`–`X-32`）
 
 解決先の記号: **[U]** 上流文書の改訂として処理（改訂内容は §2.3 の errata 節に記録）／**[D]** 本書または [ADR 0013](../adr/0013-capex-credit-cycle-integration-contract.md) の実装決定として処理／**[L]** 限界として保持し実装で解決しない。
 
@@ -133,9 +133,9 @@
 | `X-11` | `capex_plan_eff_s1` の定義が #166 §6.1（`capex_plan_s1 + plan_carry_s1[t−1]`、繰越残高の全額）と #169 `E6-10`（`capex_plan_s1 + revive_s1`、`revive_s1 = bh_revive_s1 · plan_carry_s1[t−1]`）で異なる。#166 §6.1 は同一節内でも `plan_carry_s1` 更新式と二重に繰越残高を消費する | #169 `E6-10` を正とする（#166 §6.1 の定義では延期が翌期に必ず全額復活し、延期の意味が失われる）。#166 §6.1 を `revive_s1` ベースへ改訂する | **[U]** #166 |
 | `X-12` | 閉じ変数の指定が #166 §6.2（`capex_cancel_s1` と `capex_defer_s1` の 2 変数）と #169（`capex_defer_s1` のみ。`capex_cancel_s1` は `E6-09` で計画修正率のみの関数として資金源に依存せず先に確定）で異なる | #169 を正とする。#166 §6.2 の閉じ変数を `capex_defer_s1` の 1 本へ縮小し、`capex_cancel_s1` はステップ 3（計画）で確定する量であることを明記する。§8.4 の閉じ変数テストも `capex_defer_s1` のみを対象へ改める | **[U]** #166 |
 | `X-13` | #166 §6.2 は「資金不足を説明のつかない残差項・暗黙の外部資金で埋めない」と規律するが、#169 `E11-14` の `newdebt_s = max(0, need_s − draw_s)` には上限がなく、`st_commit_s1` が拘束する局面で `newdebt_max_s` を超える調達が生じる | #169 の扱い（`funding_forced_s > 0` として構造化記録し自動的に消さない）を正とする。#166 §6.2 の規律を「**残差項を作らず、超過を `funding_forced_s` として観測可能にする**」へ改訂する。契約確定額（`st_commit_s1`）が資金源を上回る局面は、実物側で埋めきれない構造的な状態であり、隠さず記録することが規律の目的に適合する | **[U]** #166 |
-| `X-14` | 在庫評価が不整合。#166 §4.2 は `dinv_s`（当期価格建て、`Σ_b d_{b,s} + dinv_s = sales_s`）、#166 §5.3 は `invval_s = st_invprice_s · inv_s`（固定価格・再評価しない）、#166 §5.7 は `valchg_s ≡ 0`。#169 は `E9-13`（`dinv_s = price_s · (y_s − ship_s)`）と `E12-05`（`invval_s = st_invprice_s · inv_s`）を両方引用しており、`price_s ≠ st_invprice_s` のとき `:stock_flow` と `:net_worth_update` が定常状態外で系統的に破れる | **在庫を当期価格で評価する**。`st_invprice_s2`・`st_invprice_s3` を廃止し、`invval_s = price_s · inv_s`、`valchg_s = (price_s − price_s[t−1]) · inv_s[t−1]` とする。`valchg_s ≡ 0` の仮定を撤回する。これにより `Δinvval_s = dinv_s + valchg_s` が恒等的に成立し、`:stock_flow`・`:net_worth_update`・`C-02`/`C-03` 行がすべて整合する。定常状態では `price_s` が一定であるため `valchg_s = 0` となり、`SS-1`–`SS-17` は変更を要しない。構造パラメータは 35 系統から 34 系統へ減る | **[D]** ADR 0013 決定 3・**[U]** #166・#169 |
-| `X-15` | `:no_double_count`（`R-3`・`R-4`）が価格変化時に成立しない。#169 `E8-01` は `order_cap_s = st_capex_share_s · capex_exec_s1 / price_s[t−1]`（期首価格で除算）、`E11-17` は `d_{S1,s} = price_s · order_cap_s`（当期価格で乗算） | `price_s` は `E9-15`・`E9-16` により `util_s[t−1]` と `price_s[t−1]` のみに依存する**先決変数**である。したがって `price_s` の生成を期内処理順序ステップ 5 の冒頭へ前倒しし、`order_cap_s` の除算と `d_{S1,s}` の乗算の双方で当期 `price_s` を用いる。参照する時点は変わらないため順序の変更に当たらない（#169 が `int_burden_s`・`repay_s` をステップ 2 へ前倒しした際と同一の論法） | **[D]** ADR 0013 決定 4・**[U]** #169 |
-| `X-16` | `R-4` はさらに時点差がある。#169 `E8-02` は `order_inv_s3 = st_invest_share_s3 · invest_s2[t−1] / price_s3[t−1]`（前期 `invest_s2`）、`E7-23` は `inv_sx_s2 = st_invest_share_sx · invest_s2`（当期） | `invest_s2` はステップ 4 で確定し `order_inv_s3` はステップ 5 で生成されるため、当期値を参照しても循環しない。`E8-02` を当期 `invest_s2` へ改訂する（`L19` の遅れ 1 は循環を断つためではなく「—」であり、範囲内の選択） | **[D]** ADR 0013 決定 4・**[U]** #169 |
+| `X-14` | 在庫評価が不整合。#166 §4.2 は `dinv_s`（当期価格建て、`Σ_b d_{b,s} + dinv_s = sales_s`）、#166 §5.3 は `invval_s = st_invprice_s · inv_s`（固定価格・再評価しない）、#166 §5.7 は `valchg_s ≡ 0`。#169 は `E9-13`（`dinv_s = price_s · (y_s − ship_s)`）と `E12-05`（`invval_s = st_invprice_s · inv_s`）を両方引用しており、`price_s ≠ st_invprice_s` のとき `:stock_flow` と `:net_worth_update` が定常状態外で系統的に破れる | **在庫を当期価格で評価する**。`st_invprice_s2`・`st_invprice_s3` を廃止し、`invval_s = price_s · inv_s`、`valchg_s = (price_s − price_s[t−1]) · inv_s[t−1]` とする。`valchg_s ≡ 0` の仮定を撤回する。これにより `Δinvval_s = dinv_s + valchg_s` が恒等的に成立し、`:stock_flow`・`:net_worth_update`・`C-02`/`C-03` 行がすべて整合する。定常状態では `price_s` が一定であるため `valchg_s = 0` となり、`SS-1`–`SS-17` は変更を要しない。構造パラメータは 35 系統から 34 系統へ減る | **[D]** ADR 0013 決定 4・**[U]** #166・#169 |
+| `X-15` | `:no_double_count`（`R-3`・`R-4`）が価格変化時に成立しない。#169 `E8-01` は `order_cap_s = st_capex_share_s · capex_exec_s1 / price_s[t−1]`（期首価格で除算）、`E11-17` は `d_{S1,s} = price_s · order_cap_s`（当期価格で乗算） | `price_s` は `E9-15`・`E9-16` により `util_s[t−1]` と `price_s[t−1]` のみに依存する**先決変数**である。したがって `price_s` の生成を期内処理順序ステップ 5 の冒頭へ前倒しし、`order_cap_s` の除算と `d_{S1,s}` の乗算の双方で当期 `price_s` を用いる。参照する時点は変わらないため順序の変更に当たらない（#169 が `int_burden_s`・`repay_s` をステップ 2 へ前倒しした際と同一の論法） | **[D]** ADR 0013 決定 5・**[U]** #169 |
+| `X-16` | `R-4` はさらに時点差がある。#169 `E8-02` は `order_inv_s3 = st_invest_share_s3 · invest_s2[t−1] / price_s3[t−1]`（前期 `invest_s2`）、`E7-23` は `inv_sx_s2 = st_invest_share_sx · invest_s2`（当期） | `invest_s2` はステップ 4 で確定し `order_inv_s3` はステップ 5 で生成されるため、当期値を参照しても循環しない。`E8-02` を当期 `invest_s2` へ改訂する（`L19` の遅れ 1 は循環を断つためではなく「—」であり、範囲内の選択） | **[D]** ADR 0013 決定 5・**[U]** #169 |
 | `X-17` | `s5_net_sx` の定義が #166 §4.5（`Σ_{s∈{S1,S2,S3}} wagebill_s + sales_s5 − … − im_s5 − …`）と #169 `E11-22`（`Σ_{s∈SR} wagebill_s − … + y_s5 − …`、`SR` は `S5` を含む）で `wagebill_s5 + im_s5` だけ乖離する | #166 §4.2 `C-06` の行説明「`S5` 内部の賃金支払（`wagebill_s5`）は列内で相殺され行列には計上しない」が正である。#169 `E11-22` の集約を `s ∈ SF` へ改める。`im_s5` は `st_va_share_s5 = 1` により恒等的にゼロ（#169 §11.1・差し戻し `E6`(ii)）であり、#166 §4.5 から除く | **[U]** #166・#169 |
 
 #### 観点 5: イベント入力と外生変数
@@ -151,9 +151,9 @@
 |---|---|---|---|
 | `X-20` | #169 §13.2・§13.3 の「固定/較正/推定」欄が「較正」とする 11 系統（`st_cor_s`・`st_lprod_s`・`st_va_share_s`・`st_wbase_s`・`st_cons_share_s1`・`st_spread0`・`st_pol_ref`・`st_coll_ltv`・`bh_util_tgt_s`・`bh_backlog_target_s`・`bh_inv_target_s`）は、§14.2 の逆較正で閉形式導出される（自由度なし）。#170 §7.2 は §14.2 側に従って `CAL-SS` を割り当てているが、読み替えを行った事実を記録していない | #170 §7.2 の割当（`CAL-SS`）を正とする。#169 §13.2・§13.3 の当該欄を「定常水準から導出」へ改め、#170 §7.1 の契約に「`CAL-OBS` から `CAL-SS` へ移した系統を記録する」を追加する | **[U]** #169・#170 |
 | `X-21` | #169 §13.3 末尾の区分別個数（導出 12 / 固定 18 / 較正 30 / 推定 28、合計 88）が、行数基準（82）でも部門展開後の個別数基準（149）でも一致しない | 個数を**行（系統）数基準**へ統一し、実測値へ修正する。#170 が「全 35 系統」「全 44 系統」と行数基準で参照しているため、基準を行数に揃える。部門展開後の個別数は別欄として併記する | **[U]** #169 |
-| `X-22` | #170 §7.4 の `EB-5` が「8 `EST`」とするが列挙は 9 個（部門展開後）。`EB-6` は個数を記載していない | `EB-5` を 9、`EB-6` を 11（`bh_emp_up_s1`–`_s5` 5 + `bh_emp_down_s1`–`_s5` 5 + `bh_wage_slope` 1）へ修正し、`EST` 総数を 39（部門展開後）と明記する | **[U]** #170 |
+| `X-22` | #170 §7.4 の `EB-5` が「8 `EST`」とするが列挙は 9 個（部門展開後）。`EB-6` は個数を記載していない | `EB-5` を 9、`EB-6` を 11（`bh_emp_up_s1`–`_s5` 5 + `bh_emp_down_s1`–`_s5` 5 + `bh_wage_slope` 1）へ修正し、`EST` 総数を 37（部門展開後。4+3+4+4+9+11+2）と明記する | **[U]** #170 |
 | `X-23` | #170 §7.1 は「各パラメータはちょうど 1 つの区分を持つ」と契約するが、`st_pipelag_s`（`CAL-OBS` + `SENS` 併用）・`st_dcap_s`（`CAL-OBS` + 倍率は `SENS`）・`bh_cc_lend`/`bh_cc_equity`/`bh_cc_fc`（表上 `EST` だが既定対応が `W1` 降格）が二重区分になっている | 区分を一意化する。(a) `st_pipelag_s`・`st_dcap_s` は `CAL-OBS` とし、感応度走査は「`CAL-OBS` に分類したうえで §10.4 の `alternative proxy` 感応度の必須対象とする」と表現する（区分と感応度対象は直交する概念であることを §7.1 に明記）。(b) `bh_cc_lend`・`bh_cc_equity`・`bh_cc_fc` は `W1` を**事前適用**して `CAL-OBS` とし、`EST` から外す。`W1` の適用条件（対応する観測変数が `E`）が推定前に判定できるため、推定後の移動ではない | **[U]** #170 |
-| `X-24` | #166 §11 の #170 への引き渡しは `st_maturity_s` を「較正対象」と明記しているが、#170 は `SENS` とした（理由は記載あり）。引き渡し要求を外した事実が #170 に記録されていない | #170 §7.2 に「#166 §11 が較正対象として引き渡した `st_maturity_s` を、企業開示を較正入力から除外する決定（[ADR 0012](../adr/0012-capex-credit-cycle-empirical-contract.md) 決定 9）により `SENS` へ移した」旨を追記する | **[U]** #170 |
+| `X-24` | #166 §11 の #170 への引き渡しは `st_maturity_s` を「較正対象」と明記しているが、#170 は `SENS` とした（理由は記載あり）。引き渡し要求を外した事実が #170 に記録されていない | #170 §7.2 に「#166 §11 が較正対象として引き渡した `st_maturity_s` を、企業開示を較正入力から除外する決定（[ADR 0012](../adr/0012-capex-credit-cycle-empirical-contract.md) 決定 6）により `SENS` へ移した」旨を追記する | **[U]** #170 |
 | `X-25` | #170 §7.5 が `st_commit_s` と部門一般形で記載するが、#169 §13.2 に存在するのは `st_commit_s1`（`S1` のみ） | #170 §7.5 を `st_commit_s1` へ修正する | **[U]** #170 |
 
 #### 観点 8: 出力と観測方程式（単位・時点）
@@ -171,10 +171,11 @@
 | `X-29` | #166 が `accounting/1.0.0` のまま上位契約を `graph/1.0.0`・`vars/1.0.0` として書かれており、`B1`–`B6` が上流（`graph/1.1.0`・`vars/1.1.0`）で解決された後の記述に更新されていない。特に §4.2 `C-01` の「`A1` が未解決のため `cons_s1 ≡ 0`・`xsales_s1 = sales_s1` とする暫定運用」は #165 §7 の「`cons_s1 ≡ 0` の暫定運用は不要になった」と**直接矛盾**する。他に §2.4（`L41` の旧仕様引用）・§4.4（`B3` 未解決）・§5.1（`cap_s` 単位）・§5.3（`ship_s` 未変数化）・§6.4(b)（`B5` エッジ無し）・§7.2・§10.1・§10.2・§11 が stale | #166 を `accounting/1.1.0` へ改版し、`B1`–`B7` 解決後の記述へ揃える。`C-01` の暫定運用を解除し、`st_cons_share_s1` を有効化する。上位契約を `graph/1.1.0`・`vars/1.2.0` へ更新する。§10.2 の「#169 は `B1`–`B3`・`B6` の改訂前に着手しない」という着手制限を解除する | **[U]** #166 |
 | `X-30` | #166 §7.3 の `funding_pressure_s`† が必須診断量として要求されているにもかかわらず §10.1（#165 への追加提案表）に無く、#165 にも未登録。#166 §1.2-6（本書で暗黙に変数を追加しない）に違反している。あわせて #165 §5.4 の LLM 向け要約が「#166 が追加提案した 43 項目」とするが実測は 42 項目 | #166 §10.1 表 3 へ `funding_pressure_s` を追加し、#165 §5.7 表 C へ登録する（型は診断ラベル列であり `Vector{Float64}` でないため `SimulationResult.variables` へは出力せず診断結果型で返す旨を併記）。#165 §5.4 の項目数を 42 へ修正する | **[U]** #165・#166 |
 | `X-31` | #166 §5.5 本文が `S4` の預金残高を `dep_s4` と表記し、固定資本減耗 `dep_s`（`:dep_s1`–`_s3`）と記号衝突している。#166 §10.1 表 3・#165 §5.7 表 C・#169 `E12-14` は `:dep_stock_s4` を用いている。#166 §8.1-9 の検証名 `:s4_balance_sheet` の説明も `dep_s4` のまま。#169 は改名を無言で行っている | `:dep_stock_s4` を正とする。#166 §5.5・§8.1-9 の表記を統一し、#169 §12 に改名の事実を記録する。#165 §6.4 のキー衝突検査（実装時テスト）で再発を防ぐ | **[U]** #165（検査）・#166・#169 |
+| `X-32` | #167 [責務境界](../models/capex_credit_cycle_model_boundaries.md) が `boundaries/1.0.0` のまま、上位契約を `graph/1.0.0`・`vars/1.0.0`・`accounting/1.0.0` として書かれている。`X-29` が #166 について検出したのと同種の版ずれである | #167 を `boundaries/1.0.1` へ改版し、上位契約を `graph/1.1.0`・`vars/1.2.0`・`accounting/1.1.0` へ更新する。上流改訂が本書の結論（`accounting_closure = :partial`・`income_distribution = :approximate`・比較の 2 層分離）を変えないことを改訂節で確認する。あわせて §2.6 が #171 へ委ねた `equilibrium_concept` の語彙拡張の要否（拡張しない）と、§5.7 の metadata 予約キーの統合後の一覧（本書 §6.1 が正本）を記録する | **[U]** #167 |
 
 ### 2.3 上流文書への改訂の反映方法
 
-`X-01`–`X-31` のうち **[U]** に分類した 27 件は、該当文書へ **「#171 統合レビューによる改訂」節**を追加し、メタ情報のバージョンと改訂履歴を更新する形で反映した。
+`X-01`–`X-32` のうち **[U]** を含む 31 件（`X-19` を除く全件。`X-19` は #168 への改訂と本書の実装契約の双方で処理した）は、該当文書へ **「#171 統合レビューによる改訂」節**を追加し、メタ情報のバージョンと改訂履歴を更新する形で反映した。1 件が複数の文書へ反映される場合があるため、下表の ID の延べ数は 31 を超える。
 
 | 文書 | 改訂後バージョン | 改訂節 | 反映した ID |
 |---|---|---|---|
@@ -182,6 +183,7 @@
 | #166 [ストック・フロー会計表](../models/capex_credit_cycle_stock_flow.md) | `capex-credit-cycle-accounting/1.1.0` | §14 | `X-10`・`X-11`・`X-12`・`X-13`・`X-14`・`X-15`・`X-16`・`X-17`・`X-29`・`X-30`・`X-31` |
 | #168 [イベント変換契約](macro_event_contract.md) | `macro-event-contract/1.0.1` | §12 | `X-18`・`X-19` |
 | #169 [動学方程式](../models/capex_credit_cycle_equations.md) | `capex-credit-cycle-equations/1.1.0` | §21 | `X-14`・`X-15`・`X-16`・`X-17`・`X-20`・`X-21`・`X-31` |
+| #167 [責務境界](../models/capex_credit_cycle_model_boundaries.md) | `capex-credit-cycle-boundaries/1.0.1` | §12 | `X-32` |
 | #170 [観測方程式・識別戦略・検証方針](../models/capex_credit_cycle_empirical_strategy.md) | `capex-credit-cycle-empirical/1.1.0` | §15 | `X-14`・`X-20`・`X-22`・`X-23`・`X-24`・`X-25` |
 
 **改訂節の規律**: 改訂節は当該文書の**正本**であり、本文の該当箇所と矛盾する場合は改訂節が優先する。各文書のメタ情報にこの優先関係を明記した。本文を逐語的に書き換える方式を採らなかった理由は、6,225 行にわたる 40 箇所以上の分散した修正を個別編集すると**新たな不整合を作る確率が改訂節方式より高い**ためである。改訂節は「どの記述が上書きされたか」を 1 箇所で追跡できる。
@@ -199,8 +201,8 @@
 | 資本財の納期遅延を内生化しない（仮定 A-2） | #166 §12-5 | 同上 | `unmet_cap_s > 0` を `a2_violation` 警告として記録（§6.3） |
 | デフォルト・信用損失を内生化しない | #166 §7 | 同上 | 同 `caveats` 2 件目。`funding_pressure_s` は倒産予測ではないと明記 |
 | 会計が経済全体で閉じていない（`SX` 残差部門） | #166 §12-3 | `accounting_closure = :partial`。SFC を名乗らない（[ADR 0009](../adr/0009-capex-credit-cycle-model-responsibilities.md) 決定 3） | `SX` 列の列和を検証対象外とし、`s5_net_sx` の大きさを監視する（§7.3） |
-| `S1` の収益ブロックが観測に接続されない（`R1a` を実証検証できない） | #170 §11-8 | 企業開示を較正入力から除外する決定（[ADR 0012](../adr/0012-capex-credit-cycle-empirical-contract.md) 決定 9） | `caveats` へ保持。`gain(R1a)` はモデル内診断としてのみ提示 |
-| `SH-EXP` の規模を観測から較正できない（`ai_exp` が `A` 分類） | #170 §11-9 | 同 決定 10 | 走査結果として提示し較正値として提示しない（§8.3） |
+| `S1` の収益ブロックが観測に接続されない（`R1a` を実証検証できない） | #170 §11-8 | 企業開示を較正入力から除外する決定（[ADR 0012](../adr/0012-capex-credit-cycle-empirical-contract.md) 決定 6） | `caveats` へ保持。`gain(R1a)` はモデル内診断としてのみ提示 |
+| `SH-EXP` の規模を観測から較正できない（`ai_exp` が `A` 分類） | #170 §11-9 | 同 決定 7 | 走査結果として提示し較正値として提示しない（§8.3） |
 | `breadth` の閾値を較正できない（実体部門 4 のため 0.25 刻み） | #170 §11-10 | 同 決定 19 | 離散性を診断出力に明記（§6.4） |
 
 ---
@@ -327,7 +329,7 @@ end
 
 ```julia
 model_name(::CapexCreditCycleModel)        = "Sectoral CAPEX-Credit Cycle Model"
-state_variables(m::CapexCreditCycleModel)  -> Vector{Symbol}   # 64 個
+state_variables(m::CapexCreditCycleModel)  -> Vector{Symbol}   # 65 個
 control_variables(m::CapexCreditCycleModel)-> Vector{Symbol}
 exogenous_variables(m::CapexCreditCycleModel) -> Vector{Symbol} # 7 個
 parameters(m::CapexCreditCycleModel)       -> NamedTuple        # 平坦
@@ -335,7 +337,7 @@ parameters(m::CapexCreditCycleModel)       -> NamedTuple        # 平坦
 
 | 項目 | 契約 |
 |---|---|
-| `state_variables` | 役割 `state` の 22 変数（`advance_s2`・`advance_s3` を含む）+ 遅延バッファ 42 スロット（深さ 1 が 33 本、深さ 3 が 3 本 = 9 スロット）= **64**。#169 §13.5 は 65 としていたが、`X-16` の解決により `invest_s2` の深さ 1 バッファが不要になった（#169 §21.2）。順序は #165 §5 の表の記載順、遅延バッファは基礎変数の直後に `_lag1`・`_lag2`・`_lag3` の順。**この集合から次期状態が決定論的に再現できること**を要件とし、§7.2 でテストする |
+| `state_variables` | 役割 `state` の 22 変数（`advance_s2`・`advance_s3` を含む）+ 遅延バッファ 43 スロット（深さ 1 が 34 本、深さ 3 が 3 本 = 9 スロット）= **65**。#169 `1.0.0` §13.5 は深さ 1 を 34 本と宣言しながら列挙は 35 本であった。`X-16` の解決により `invest_s2` の深さ 1 バッファが不要になり、列挙と宣言がともに 34 本で一致する（#169 §21.2）。状態次元は 65 のまま変わらない。順序は #165 §5 の表の記載順、遅延バッファは基礎変数の直後に `_lag1`・`_lag2`・`_lag3` の順。**この集合から次期状態が決定論的に再現できること**を要件とし、§7.2 でテストする |
 | `control_variables` | 役割 `control` の全変数（`X-03` の判定規則 5 適用後）。順序は #165 §5 の記載順 |
 | `exogenous_variables` | #168 §4.1 の並び（`ai_exp`・`capex_plan_shock_ex`・`spread_shock_ex`・`policy_rate`・`ext_demand_s2`・`ext_demand_s3`・`price_s1`）。`target_rank` の正本（§4.6） |
 | `parameters` | 平坦な `NamedTuple`。数値解法設定・診断閾値・初期状態・シナリオショックを**含めない**（#169 §13.1） |
@@ -372,7 +374,7 @@ capex_run(m::CapexCreditCycleModel; scenario = :Sc0, exog = nothing, state0 = no
 | `capex_run` | 系列に加えて警告・打ち切り・会計検証・診断を保持する完全な結果を返す（§5.2） |
 | `scenario` | `:Sc0`–`:Sc4`。`exog` を与えた場合は `scenario` を無視せず `scenario_name` の記録にのみ用い、外生パスは `exog` を採る（両方指定時は `exog` が優先することを警告として記録） |
 | `exog` | `Dict{Symbol,Vector{Float64}}`。キーは `exogenous_variables(m)` と一致、各ベクトル長は `horizon_runup + horizon_eval`。**合成済みの値**を受け取り、モデル層はイベントの合成・適用四半期の決定・単位の解釈を行わない（#169 §4.1） |
-| `state0` | `nothing` のとき `steady_state(m)` から 64 次元の状態ベクトルを構成する（遅延バッファも定常値で埋め、ゼロで埋めない。#169 §14.4） |
+| `state0` | `nothing` のとき `steady_state(m)` から 65 次元の状態ベクトルを構成する（遅延バッファも定常値で埋め、ゼロで埋めない。#169 §14.4） |
 | 助走区間 | `t = -8 … -1` で全変数が定常値から動かないことを検査し、相対乖離が `options.runup_tol` を超えた期を `runup_deviation` 警告として記録する |
 | 期内処理 | #169 §3.1 の 10 ステップ。ステップ 5 の冒頭で `price_s` を確定する（`X-15` の解決） |
 | 反復 | 期内に反復を持たない（陽解法・同時方程式なし。[ADR 0011](../adr/0011-capex-credit-cycle-dynamics-contract.md)） |
@@ -428,7 +430,7 @@ capex_exogenous_paths(m, sc::CapexScenario, options) -> Dict{Symbol,Vector{Float
 | 合成順序 | #168 §5.2 の固定順合成（絶対 → 乗算 → 加算）。同一 `target` に複数ショックが当たる場合は `application_mode` の種別順、同種内は `target_rank`（§4.2 の `exogenous_variables` の並び）→ `timing` → 定義順の全順序で適用する |
 | `target_rank` の正本 | `exogenous_variables(m)` の並び（= #168 §4.1）。#169 §3.1・#165 §4.4 の列挙順から導出しない（`X-19`） |
 | 期首一括適用 | 期内処理順序ステップ 1 で 1 回だけ適用する。期中適用・期内按分を行わない（#168 シナリオ時間軸 §3.2） |
-| magnitude | `capex_scenario` が返す既定値は #163 §5.3 の暫定規模である。**観測から較正した値ではない**。`CapexShockSpec` に `magnitude` を与えずに実行することはできない（捏造禁止。[ADR 0010](../adr/0010-macro-event-scenario-contract.md) 決定 6） |
+| magnitude | `capex_scenario` が返す既定値は #163 §5.3 の暫定規模である。**観測から較正した値ではない**。`CapexShockSpec` に `magnitude` を与えずに実行することはできない（捏造禁止。[ADR 0010](../adr/0010-macro-event-scenario-contract.md) 決定 4） |
 | 制約違反 | `application_mode` と `unit` の組み合わせが #168 §3.3 の許容表に無い場合、外生パスを生成せず `ArgumentError` を投げる。自動クリップしない |
 | Phase 2 との互換性 | `capex_exogenous_paths` が返す `Dict{Symbol,Vector{Float64}}` が**唯一の接続点**である。イベント実行層は同じ型を生成し、`simulate` / `capex_run` は変更しない。`CapexShockSpec` は `AbstractMacroEvent` の**前身ではなく**、シナリオ仕様の記録用型である。イベント属性（公表日・出所・解釈シグナル）を `CapexShockSpec` へ持ち込まない（#168 の 4 層分離） |
 
@@ -479,9 +481,9 @@ capex_counterfactual(m, run::CapexCreditCycleRun, kind::Symbol) -> CapexCreditCy
 
 | 型 | 責務 |
 |---|---|
-| `_CCCState` | 64 次元の期首状態。基礎 state 22 と遅延バッファを保持する可変構造。`simulate` の内部のみで用いる |
+| `_CCCState` | 65 次元の期首状態。基礎 state 22 と遅延バッファを保持する可変構造。`simulate` の内部のみで用いる |
 | `_CCCPeriod` | 1 期分の全変数（`control`・`diagnostic` を含む）。ステップ 1–10 が順に書き込む |
-| `_CCCBinding` | T1 経済制約の `binding` フラグ 23 種（#169 §15.2）。`Vector{Bool}` として期別に蓄積 |
+| `_CCCBinding` | T1 経済制約の `binding` フラグ 21 種（#169 §15.2 の 23 行のうちフラグ名が付くもの。`E9-04`・`E11-14` はフラグを持たない）。`Vector{Bool}` として期別に蓄積 |
 
 ### 5.2 結果型（export）
 
@@ -546,7 +548,7 @@ end
 | `"graph_version"` | `String` | `"capex-credit-cycle-graph/1.1.0"` | #167 §5.7 |
 | `"vars_version"` | `String` | `"capex-credit-cycle-vars/1.2.0"` | #165 §6.3・#167 §5.7 |
 | `"accounting_version"` | `String` | `"capex-credit-cycle-accounting/1.1.0"` | #167 §5.7 |
-| `"boundaries_version"` | `String` | `"capex-credit-cycle-boundaries/1.0.0"` | #167 §5.7 |
+| `"boundaries_version"` | `String` | `"capex-credit-cycle-boundaries/1.0.1"` | #167 §5.7 |
 | `"equations_version"` | `String` | `"capex-credit-cycle-equations/1.1.0"` | #169 §15.6 |
 | `"empirical_version"` | `String` | `"capex-credit-cycle-empirical/1.1.0"` | 本書 |
 | `"model_version"` | `String` | `CAPEX_CREDIT_CYCLE_MODEL_VERSION` | 本書 |
@@ -657,7 +659,7 @@ end
 | 1 | `CapexCreditCycleModel` の内部コンストラクタが §4.1 の検証 1–5 を行い、違反時に `ArgumentError` を投げる（許容条件 15 件それぞれについて 1 反例） |
 | 2 | **辞書整合検査**: `simulate` の返り値のキー集合が #165 §5 の優先度 `必須` の変数集合と一致する |
 | 3 | **キー衝突検査**: 部門接尾辞を除いた名前が接尾辞なしの単一系列名と衝突しない |
-| 4 | `state_variables(m)` が 64 要素であり、遅延バッファを含む |
+| 4 | `state_variables(m)` が 65 要素であり、遅延バッファを含む |
 | 5 | `state_variables` / `control_variables` / `exogenous_variables` の 3 集合が互いに素である |
 | 6 | `exogenous_variables(m)` が #168 §4.1 の並びと**順序を含めて**一致する |
 | 7 | `parameters(m)` が平坦な `NamedTuple` であり、キー集合が `CAPEX_CC_PARAMETER_NAMES` と一致する |
@@ -671,7 +673,7 @@ end
 
 | # | 内容 |
 |---|---|
-| 1 | `state_variables` の 64 変数のみから次期状態が決定論的に再現できる（`t` 期の状態ベクトルを取り出し 1 期進めた結果が、通し実行の `t+1` 期と一致する） |
+| 1 | `state_variables` の 65 変数のみから次期状態が決定論的に再現できる（`t` 期の状態ベクトルを取り出し 1 期進めた結果が、通し実行の `t+1` 期と一致する） |
 | 2 | 遅延バッファを定常値で初期化した場合、助走区間で全変数が定常値から動かない（`runup_deviation` が発生しない） |
 | 3 | 遅延バッファをゼロで初期化した場合、`runup_deviation` 警告が記録される（初期化方式の違いが検出できることの確認） |
 
@@ -711,6 +713,8 @@ end
 | 13 | **単調性**: `Sc0` → `Sc1` → `Sc2` → `Sc3` で `|peak(dY)|` が単調非減少（入れ子性の帰結） |
 | 14 | ループ作動フラグ（`active(R1a)`–`active(R4)`）が `Sc0` で全 `false`、`Sc3` で `R2` または `R3` が `true` |
 
+**担当**: 1 は `I-4`、2・3・5 は `I-2`、4 は `I-1`、6〜14 は `I-5`（診断層が peak・悪化開始時点・ループ作動フラグを与えるため）。
+
 **規律**: 6–12 は符号・順序・単調性のみを検査し、特定の数値（`peak(dY)` の値）を期待値として固定しない。パラメータが未較正であるため数値は意味を持たない。「期待した物語になること」を検査対象にしない。
 
 ### 7.5 数値安全性（13 項目）
@@ -719,14 +723,14 @@ end
 |---|---|
 | 1 | 許容条件 15 件それぞれに違反するパラメータセットが `ArgumentError` になる（§7.1-1 と同一だが、条件番号がメッセージに含まれることも検査） |
 | 2 | `st_capex_share_s2 + st_capex_share_s3 + st_capex_share_sx ≠ 1` が拒否される |
-| 3 | **T1**: `binding` フラグ 23 種がすべて発生しうる（各フラグを立てる fixture を持つ）。`binding` は警告ではないことを確認（`warnings` に現れない） |
+| 3 | **T1**: `binding` フラグ 21 種がすべて発生しうる（各フラグを立てる fixture を持つ）。`binding` は警告ではないことを確認（`warnings` に現れない） |
 | 4 | **T2**: 符号制約を破るパラメータセットで `sign_constraint` 警告が記録され、値が**クリップされない**（そのまま保持される） |
 | 5 | 同上で既定では打ち切られない（`termination_reason == :completed`） |
 | 6 | `stop_on_sign_violation = true` のとき `termination_reason == :sign_constraint_fatal` |
 | 7 | **T3**: `NaN` を生む入力で `termination_reason == :non_finite_state` かつ例外を投げない |
 | 8 | 発散する入力で `termination_reason == :divergence_guard` かつ `divergence_time` が記録される |
 | 9 | 打ち切り後の期が invalid として分類され、`0` で埋められない |
-| 10 | **ゼロ除算**: #169 §15.4 の 13 箇所それぞれで、分母がゼロのとき `NaN` になり `*_invalid` が記録される |
+| 10 | **ゼロ除算**: #169 §15.4 の 13 行のうち、分母がゼロになりうる 6 行（`E5-07`・`E6-05`/`E6-15`・`E11-07`・`E12-07`/`E12-08`・`E12-12`）で `NaN` になり `*_invalid` が記録される。T1 により発生しない行（`E8-01`・`E8-02`・`E10-03`・`E9-09`・`E9-19`）はゼロ除算が起きないことを確認し、`E6-08`（分母を下限で置換）・`E11-10`/`E11-12`（`fp_*` の precedence で分岐）・比較層の行は別項で扱う |
 | 11 | `NaN` の伝播を止める箇所が**ちょうど 4 箇所**である（`E5-04`・`E6-08`・`E9-07`・`E11-19`）。5 箇所目が現れたら失敗する |
 | 12 | **決定性**: 同一入力で 2 回実行し、全系列・全警告・全診断が完全一致する（fixture 非依存） |
 | 13 | `div_eps`・`guard_max`・`runup_tol` を 1 桁上下させても診断ラベルが変わらない（#170 §10.5） |
@@ -749,7 +753,7 @@ end
 | `test/fixtures/capex_credit_cycle/params_default.json` | 逆較正の結果 + `bh_`・`pl_` の既定値 |
 | `test/fixtures/capex_credit_cycle/degenerate_*.json` | 退化ケース 3 種（§7.3-3〜5） |
 | `test/fixtures/capex_credit_cycle/broken_*.json` | 反例 3 種（§7.3-6〜8） |
-| `test/fixtures/capex_credit_cycle/binding_*.json` | `binding` フラグ 23 種を立てる最小セット |
+| `test/fixtures/capex_credit_cycle/binding_*.json` | `binding` フラグ 21 種を立てる最小セット |
 | `test/fixtures/capex_credit_cycle/fp_*.json` | `funding_pressure_s` の 5 ラベル |
 
 **規律**: fixture は数値の**構造**（符号・大小関係・退化）を作るためのものであり、実データの代用ではない。`source["kind"] = "illustrative"` を全 fixture に持たせ、較正値と誤読されないようにする。
@@ -824,7 +828,16 @@ end
 
 ## 9. 後続の実装作業への分解
 
-追加の理論・会計・API 判断なしに着手できる粒度へ分解した 8 件。依存は `→` で示す。`I-1` → `I-2` → `I-3` / `I-4` / `I-5`（並行可）→ `I-6` → `I-7` → `I-8`。
+追加の理論・会計・API 判断なしに着手できる粒度へ分解した 8 件。依存関係は次のとおり。
+
+```
+I-1 ─┬─> I-2 ─┬─> I-3 ─┐
+     │        │        ├─> I-6 ─> I-7 ─> I-8
+     │        └─> I-5 ─┘        ^
+     └─> I-4 ───────────────────┘
+```
+
+`I-1` が全ての前提。`I-2` と `I-4` は `I-1` の完了後に並行して進められる。`I-3` は `I-2` に、`I-5` は `I-2` と `I-3` に依存する。`I-6` は `I-2`・`I-3`・`I-4`・`I-5` の完了後。`I-7`・`I-8` は直列。
 
 ### `I-1` モデル型・パラメータ辞書・逆較正・初期状態
 
@@ -834,17 +847,17 @@ end
 | 実施内容 | `CapexSectorSets`・`CapexCreditCycleTargets`・`CapexCreditCycleModel`・`CapexCreditCycleOptions` の定義。`CAPEX_CC_PARAMETER_NAMES`（`st_` 34 + `bh_` 44 + `pl_` 3 = 81 系統、部門展開後 147 個）の定義。許容条件 15 件の検査。#169 §14.2 の逆較正 13 ステップ。`capex_credit_cycle_default_targets`。メタ情報 4 関数 + `exogenous_variables`（既定メソッドを含む）。`steady_state` と `capex_steady_state_report`（`SS-1`–`SS-17`） |
 | 依存 | なし |
 | 対象外 | `simulate`・会計・診断・シナリオ |
-| 受け入れ条件 | §7.1 の 12 項目（9・10・11 を除く）・§7.4-4・§7.5-1・§7.5-2 が通る。`using DME` が通り `capex_credit_cycle_model(capex_credit_cycle_default_targets())` が構築できる |
+| 受け入れ条件 | §7.1 の 12 項目のうち 9 項目（9・10・11 を除く）・§7.4-4・§7.5-1・§7.5-2 が通る。`using DME` が通り `capex_credit_cycle_model(capex_credit_cycle_default_targets())` が構築できる |
 
 ### `I-2` 期内動学・数値ガード・`simulate`
 
 | 項目 | 内容 |
 |---|---|
 | 対象ファイル | `src/models/capex_credit_cycle.jl`・`test/test_capex_credit_cycle.jl` |
-| 実施内容 | 内部型 `_CCCState`・`_CCCPeriod`・`_CCCBinding`。期内処理順序 10 ステップの内部関数 9 本（§5.3）。#169 §5–§12 の全方程式。T1 経済制約 23 箇所と `binding` フラグ。T2 符号制約 15 件。T3 打ち切り 4 値。ゼロ除算規則 13 箇所（伝播停止は 4 箇所のみ）。警告 10 種の構造化記録。`simulate`・`capex_run`・`CapexCreditCycleRun` |
+| 実施内容 | 内部型 `_CCCState`・`_CCCPeriod`・`_CCCBinding`。期内処理順序 10 ステップの内部関数 9 本（§5.3）。#169 §5–§12 の全方程式。T1 経済制約 23 箇所と `binding` フラグ 21 種。T2 符号制約 15 件。T3 打ち切り 4 値。ゼロ除算規則 13 箇所（伝播停止は 4 箇所のみ）。警告 10 種の構造化記録。`simulate`・`capex_run`・`CapexCreditCycleRun` |
 | 依存 | `I-1` |
 | 対象外 | 会計表の構築・診断ラベル・シナリオ定義（`exog` を直接与えて検証する） |
-| 受け入れ条件 | §7.1-9・§7.2 の 3 項目・§7.5 の 13 項目が通る。`Sc0` 相当（外生を定常値に固定）で全 28 期にわたり定常値から `runup_tol` 以内 |
+| 受け入れ条件 | §7.1-9・§7.2 の 3 項目・§7.4 の 2・3・5・§7.5 の 13 項目が通る。`Sc0` 相当（外生を定常値に固定）で全 28 期にわたり定常値から `runup_tol` 以内 |
 
 ### `I-3` 会計表・残高更新・恒等式検証
 
@@ -874,7 +887,7 @@ end
 | 実施内容 | `CapexDiagnosticThresholds`・`CapexDiagnostics`・`capex_diagnostics`。診断ラベル 4 値の判定（`G1`–`G4`・`breadth`・持続性）。`funding_pressure_s` の 5 値と precedence。ループ作動フラグ 5 本と利得（ヤコビアン `ρ_t` + 反実仮想比）。`g_short`。`NL-1`–`NL-7` の近傍検出。`capex_counterfactual`（`credit-off`・`cons-off`・`loop-off` 6 種）。`share_C` の主方式と加法分解 |
 | 依存 | `I-2`・`I-3`（会計違反の併記のため） |
 | 対象外 | 可視化・LLM 説明 |
-| 受け入れ条件 | §7.6 の 5 項目・§7.4-9・§7.4-14 が通る。`credit-off` が #169 §16.5 の 5 パラメータのみを固定する |
+| 受け入れ条件 | §7.6 の 5 項目・**§7.4 の 6〜14**（波及順序・増幅・緩和・単調性・ループ作動）が通る。`credit-off` が #169 §16.5 の 5 パラメータのみを固定する |
 
 ### `I-6` `SimulationResult` 変換・registry 登録・比較 API 接続
 
@@ -938,7 +951,7 @@ end
 
 | version | 日付 | 変更 |
 |---|---|---|
-| `capex-credit-cycle-integration/1.0.0` | 2026-07-30 | 初版。#163〜#170 の整合レビュー（`X-01`–`X-31`）・実装配置・公開API・出力契約・テスト戦略・デモ仕様・作業分解（`I-1`–`I-8`）を確定（#171） |
+| `capex-credit-cycle-integration/1.0.0` | 2026-07-30 | 初版。#163〜#170 の整合レビュー（`X-01`–`X-32`）・実装配置・公開API・出力契約・テスト戦略・デモ仕様・作業分解（`I-1`–`I-8`）を確定（#171） |
 
 ---
 
