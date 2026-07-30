@@ -12,8 +12,9 @@
 |---|---|
 | **対象** | 部門別CAPEX・信用循環モデル（`CapexCreditCycleModel` 相当、未実装） |
 | **ステータス** | 観測方程式・識別戦略・検証契約のみ確定。データ取得コード・パラメータ推定・履歴再生の実行は未着手 |
-| **empirical version** | `capex-credit-cycle-empirical/1.0.0` |
-| **上位契約** | `capex-credit-cycle-contract/1.0.0`・`capex-credit-cycle-graph/1.1.0`・`capex-credit-cycle-vars/1.1.0`・`capex-credit-cycle-accounting/1.0.0`・`capex-credit-cycle-boundaries/1.0.0`・`capex-credit-cycle-equations/1.0.0`・`macro-event-contract/1.0.0`・`scenario-time-semantics/1.0.0` |
+| **empirical version** | `capex-credit-cycle-empirical/1.1.0` |
+| **上位契約** | `capex-credit-cycle-contract/1.0.0`・`capex-credit-cycle-graph/1.1.0`・`capex-credit-cycle-vars/1.2.0`・`capex-credit-cycle-accounting/1.1.0`・`capex-credit-cycle-boundaries/1.0.0`・`capex-credit-cycle-equations/1.1.0`・`macro-event-contract/1.0.1`・`scenario-time-semantics/1.0.0` |
+| **改訂の優先関係** | **§15（#171 統合レビューによる改訂）が本書の正本である。§5.2・§7.1・§7.2・§7.4・§7.5 の一部は §15 で上書きされている。較正・推定の前に §15 を読むこと。** |
 | **基準経済・頻度** | 米国・四半期（`Δt = 0.25` 年。契約 §2.1 を継承） |
 | **決定記録** | [ADR 0012](../adr/0012-capex-credit-cycle-empirical-contract.md) |
 
@@ -881,8 +882,67 @@ LLM による説明生成時は、上記を [llm_safety.md](../llm_safety.md) �
 
 ---
 
-## 15. 改訂履歴
+## 15. #171 統合レビューによる改訂（`1.1.0`）
+
+本節は #171 の横断整合レビュー（[統合設計](../architecture/capex_credit_cycle_integration.md) §2）で検出された不一致のうち本書が担当する 6 件の解決を記録する。**本節は本書の正本であり、本文の該当箇所と矛盾する場合は本節が優先する。**
+
+### 15.1 区分の一意性の確保（`X-23`）
+
+§7.1 は「各パラメータは**ちょうど 1 つの区分を持つ**」と契約しているが、§7.2・§7.4 に二重区分が 3 件あった。次のとおり一意化する。
+
+| パラメータ | 改訂前 | 改訂後 |
+|---|---|---|
+| `st_pipelag_s1`–`_s3` | `CAL-OBS`（観測が不十分なため `SENS` 併用） | **`CAL-OBS`**。感応度走査は §10.4 の `alternative proxy` 感応度の必須対象として扱う（区分ではない） |
+| `st_dcap_s1`–`_s3` | `CAL-OBS`（倍率は `SENS`） | **`CAL-OBS`**。倍率の走査は §10.4 の感応度対象として扱う |
+| `bh_cc_lend`・`bh_cc_equity`・`bh_cc_fc` | 表上 `EST`、既定対応が `W1`（固定へ降格） | **`CAL-OBS`**。`W1` を**事前適用**する。`W1` の適用条件（対応する観測変数が `E`（潜在））は `cost_capital_s` が `E` であることから推定前に判定できるため、推定後の移動ではない。`EST` の一覧から外す |
+
+**§7.1 への追加契約**: **区分と「感応度走査の対象であること」は直交する概念である**。`CAL-OBS` に分類したパラメータを §10.4 の感応度対象に含めることは区分の二重付与ではない。`SENS` は「推定・較正せず既定値を置く」ことを意味し、較正したうえで感応度を見る場合は `CAL-OBS` である。
+
+**§7.5 の `SENS` 一覧**（改訂後）: `st_maturity_s1`–`_s3`・`st_commit_s1`・`pl_ltv`・`bh_price_elas_s2`/`_s3`・診断閾値セット・`CapexCreditCycleOptions` の数値設定。`st_pipelag_s`・`st_dcap_s` は含まれない。
+
+### 15.2 記号名と個数の修正（`X-22`・`X-25`）
+
+| ID | 改訂 |
+|---|---|
+| `X-25` | §7.5 の `st_commit_s`（部門一般形）を **`st_commit_s1`** へ修正する。#169 §13.2 に存在するのは `S1` のみである |
+| `X-22` | §7.4 の推定ブロックの `EST` 個数を実測値へ修正する。改訂後（15.1 の `W1` 事前適用と `X-20` の `CAL-SS` 反映を含む）:<br>・`EB-1` 金融条件: **4 `EST`**（`bh_fc_pol`・`bh_spread_cov`・`bh_spread_fc`・`bh_lend_spread`）<br>・`EB-2` 資本コスト・評価・担保: **3 `EST`**（`bh_ev_elas`・`bh_coll_elas`・`bh_roll_slope`。`bh_cc_lend`・`bh_cc_equity`・`bh_cc_fc` は `W1` 事前適用により `CAL-OBS`）<br>・`EB-3` 生産・在庫・受注残: **4 `EST`**（`bh_inv_adj_s2`/`_s3`・`bh_prod_cut_s2`/`_s3`）<br>・`EB-4` 価格: **4 `EST`**（`bh_price_adj_s2`/`_s3`・`bh_price_sens_s2`/`_s3`）<br>・`EB-5` CAPEX・投資: **9 `EST`**（`bh_alpha_capex_s1`・`bh_cc_elas_s1`・`bh_alpha_inv_s2`/`_s3`・`bh_cc_elas_inv_s2`/`_s3`・`bh_lend_elas_inv_s2`/`_s3`・`bh_defer_roll`）<br>・`EB-6` 雇用・賃金: **11 `EST`**（`bh_emp_up_s1`–`_s5` 5・`bh_emp_down_s1`–`_s5` 5・`bh_wage_slope` 1）<br>・`EB-7` 消費: **2 `EST`**（`bh_mpc`・`bh_cons_adj`）<br>**`EST` 総数 = 37（部門展開後）**。改訂前の `EB-5` の「8」・`EB-6` の個数未記載・#169 §13.3 末尾の「推定 28」はいずれも実測と一致していなかった（#169 側は同書 §21.6 で行数基準へ修正済み） |
+
+### 15.3 #166 §11 の引き渡し要求の変更の記録（`X-24`）
+
+**追記**: #166 §11 の #170 への引き渡しは「§10.1 表 4 の構造パラメータの較正対象（`st_capex_share_s`・`st_cor_s`・**`st_maturity_s`**・`st_wbase_s`）」と明記していた。本書は `st_maturity_s` を較正せず `SENS` としており、引き渡し要求を外している。
+
+**理由**（§7.2 に記載済み。本節で引き渡し変更の事実として明示する）: `st_maturity_s`（部門別の平均満期）は企業開示に依拠する `A` 分類の量であり、[ADR 0012](../adr/0012-capex-credit-cycle-empirical-contract.md) 決定 9（企業開示を較正入力から除外する）に該当する。公開系列に部門別の平均満期は存在しない。したがって既定値を置き、走査範囲を定める `SENS` として扱う。#166 §11 の引き渡し要求はこの決定により**充足されない**。
+
+`st_capex_share_s`・`st_cor_s`・`st_wbase_s` の 3 系統は引き渡しどおり較正対象である（`st_cor_s`・`st_wbase_s` は `CAL-SS`、`st_capex_share_s` は `CAL-OBS` かつ §10.4 の `alternative proxy` 感応度の必須対象）。
+
+### 15.4 `ext_demand_s^{ss}` の観測ソース参照の修正（`X-20` 付随・`D-12`）
+
+§7.2 は `st_extdem_s2` / `_s3` を `CAL-SS` として「§5.2（`ext_demand_s^{ss}`、§4.3 の残差）」と参照しているが、**§5.2 の 13 行目（#169 §14.2 ステップ 13 に対応）の観測ソース欄は「上記から機械的に導出」であり、`ext_demand_s^{ss}` の観測ソースを与えていない**。
+
+**改訂**: §5.2 の 13 行目の観測ソース欄を次へ改める。
+
+> `st_profit_ref`・`st_emp_ref`・`st_coll_ltv` は上記ステップの出力から機械的に導出する。**`st_extdem_s2` / `_s3`（= `ext_demand_s^{ss}`）は §4.3 の残差構成規則により、`y_s^{ss}` から資本財需要成分（`order_cap_s^{ss}`・`order_inv_s3^{ss}`）と一般需要成分（`order_gen_s^{ss}`）を差し引いた残差として算出する**。残差であるため測定誤差・部門範囲の過大・配分比の誤りをすべて吸収する（§11-11）。残差が負になる場合は**クリップせず**、配分比（`st_capex_share_s`・`st_gen_share_s`）または部門範囲の設定を見直す（§4.3 の 3 契約）。
+
+### 15.5 上流改訂の反映（`X-14`・`X-20`）
+
+| 上流改訂 | 本書への影響 |
+|---|---|
+| 在庫の当期価格評価（[ADR 0013](../adr/0013-capex-credit-cycle-integration-contract.md) 決定 4・#166 §14.5・#169 §21.3） | §7.2 の `FIX` 一覧から **`st_invprice_s2`・`st_invprice_s3` を削除する**。構造パラメータは 35 系統から **34 系統**へ。§7.2 の「全 35 系統」という記述を「全 34 系統」へ改める。`invval_s` の観測対応（在庫の価値額）は当期価格建てとなり、Census M3 の在庫額（帳簿価額）との差を `proxy` のずれの方向として記録する（過小方向。物価上昇局面では帳簿価額が当期価格を下回る） |
+| §13.2・§13.3 の区分欄の修正（#169 §21.6） | §7.1 の契約へ追記: 「**`CAL-OBS` から `CAL-SS` へ移した系統を記録する**。#169 `1.0.0` §13.2・§13.3 が『較正』としていた 11 系統（`st_cor_s`・`st_lprod_s`・`st_va_share_s`・`st_wbase_s`・`st_cons_share_s1`・`st_spread0`・`st_pol_ref`・`st_coll_ltv`・`bh_util_tgt_s`・`bh_backlog_target_s`・`bh_inv_target_s`）は §14.2 の逆較正で閉形式導出されるため本書は `CAL-SS` を割り当てた。この読み替えは #169 §21.6 で同書側にも反映された。」既存の契約（`EST` から移した事実と移動先を記録する）は `EST` 起点の移動のみを対象としていた |
+| `price_s` の生成位置・`order_inv_s3` の参照時点（#169 §21.1・§21.2） | §10.5 の数値解法頑健性の確認項目に **「`:no_double_count` が価格変化局面・投資変化局面で `acc_pass` になること」**を追加する（改訂前の式では定常状態外で破れていたため、履歴再生で `acc_fail` が生じうる） |
+| 状態次元 65 → 64（#169 §21.2） | §10.5 のヤコビアン評価回数の見積り（`65 + 1 = 66` 回 / 期）を **`64 + 1 = 65` 回 / 期**へ改める |
+
+### 15.6 検証項目への追加（`X-14` の帰結）
+
+§10.3「会計恒等式の維持」の判定に次を追加する。
+
+> 履歴再生（外生パスが実現値）でも #166 §8.1 の 12 項目が全期 `acc_pass` であることを確認する。**特に `:stock_flow`・`:net_worth_update`・`:no_double_count` は、改訂前の在庫評価・資本財受注価格の定義では定常状態外で系統的に破れていた**（[統合設計](../architecture/capex_credit_cycle_integration.md) §2.2 `X-14`・`X-15`・`X-16`）。改訂後の定義で成立することを、価格が動く局面・投資が動く局面を含む区間で確認する。定常条件テスト（`SS-1`–`SS-17`）はこの種の不整合を検出しないため、代替にしない。
+
+---
+
+## 16. 改訂履歴
 
 | version | 日付 | 変更 |
 |---|---|---|
+| `capex-credit-cycle-empirical/1.1.0` | 2026-07-30 | #171 の統合レビューによる改訂（§15）。上位契約を `vars/1.2.0`・`accounting/1.1.0`・`equations/1.1.0`・`macro-event-contract/1.0.1` へ更新。区分の二重付与 3 件を一意化（`st_pipelag_s`・`st_dcap_s` を `CAL-OBS`、`bh_cc_lend`/`bh_cc_equity`/`bh_cc_fc` を `W1` 事前適用で `CAL-OBS`）し、区分と感応度対象が直交する概念であることを §7.1 へ追記。`st_commit_s` を `st_commit_s1` へ修正。推定ブロックの `EST` 個数を実測値へ修正（総数 37）。#166 §11 が引き渡した `st_maturity_s` の較正要求を外した事実と理由を記録。§5.2 の `ext_demand_s^{ss}` の観測ソースを §4.3 の残差構成規則として明記。在庫の当期価格評価に伴い `st_invprice_s` を `FIX` 一覧から削除（構造 35 → 34 系統）。状態次元を 64 へ。`:no_double_count` の価格・投資変化局面での検証と会計恒等式の履歴再生検証を §10 へ追加 |
 | `capex-credit-cycle-empirical/1.0.0` | 2026-07-30 | 初版（#170）。観測可能性 5 分類（`D`/`C`/`P`/`E`/`A`）と 8 群の変数割当・観測方程式の構成要素 9 項目と部門別実物量/資本能力/金融信用の観測方程式・頻度変換の既定割当（NIPA 年率の `÷ 4` を含む）・`y_s` のアンカー式と `ext_demand_s` の残差構成規則と 3 契約・`aggregation`/`allocation`/`proxy` の methodology metadata・逆較正入力 13 項目の観測対応と定常水準の算出方式・データソース境界 3 層と企業開示を較正入力に用いない決定・モデル層/データ層/較正層の境界・fixture 最小セットと metadata 保存項目・パラメータ 6 区分（`FIX`/`CAL-SS`/`CAL-OBS`/`EST`/`SCN`/`SENS`）の全パラメータ割当・推定ブロック `EB-1`–`EB-7` と固定推定順序・診断閾値を較正しない決定と `breadth` の較正不能性・識別リスク `ID-1`–`ID-7` と弱識別対応規則 `W1`–`W4`・履歴再生の必要条件 `NC-1`–`NC-7` と候補 `H1`–`H6`・履歴再生 baseline を成長率ゼロの定常状態とする決定・数値fit/動学構造/比較/数値頑健性の 4 レイヤー分離と出力契約・因果と予測上の限界 14 件を固定 |

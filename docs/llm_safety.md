@@ -1,7 +1,7 @@
 # LLM出力の安全性・免責・禁止表現ルール
 
-> 関連Issue: #76
-> 関連ドキュメント: [LLM接続層の設計](architecture/llm_layer.md)・[ADR 0005: Keen 実証結果の AI 説明契約](adr/0005-keen-ai-explanation-contract.md)
+> 関連Issue: #76・#171（2.7 節の追加）
+> 関連ドキュメント: [LLM接続層の設計](architecture/llm_layer.md)・[ADR 0005: Keen 実証結果の AI 説明契約](adr/0005-keen-ai-explanation-contract.md)・[ADR 0014: Digital Twin / Digital Shadow の名称使用条件](adr/0014-digital-twin-naming-conditions.md)
 
 ---
 
@@ -104,6 +104,20 @@ Keen の実証分析では、観測データ、測定変換、推定値、モデ
 
 推定未収束、弱識別、複数局所解、OOS 悪化、regime 不一致、感応度不安定は、不利な結果であっても
 省略してはならない。warning と矛盾する肯定的な結論を本文で生成することも禁止する。
+
+---
+
+### 2.7 モデルの位置づけを誇張する名称
+
+DME または個別モデルの位置づけを、実装が持たない能力を含意する名称で述べることを禁止する。
+名称の使用条件は [ADR 0014](adr/0014-digital-twin-naming-conditions.md) を正本とする。
+
+| 禁止する表現 | 理由・代わりに述べてよいこと |
+|---|---|
+| `Digital Twin` / `デジタルツイン` / `Digital Shadow`（DME 全体または個別モデルを指して） | 継続同期・状態推定・予測誤差更新を含意する。[ADR 0014](adr/0014-digital-twin-naming-conditions.md) の 8 条件（`DS-1`–`DS-4`・`DT-1`–`DT-4`）は現段階でいずれも未充足。代わりに「動学的マクロ経済モデルの計算・比較・説明を行うパッケージ」と述べる |
+| 「部分的な Digital Twin」「Digital Twin 的」「Digital Twin を志向した」等の緩和表現 | 名称の含意だけを実装の裏付けなしに借りる。充足した条件を個別の事実として述べる（例:「実データを取得・変換して較正・検証できる」「fixture により再現可能である」） |
+| 「経済をリアルタイムで再現する」「実体経済と同期している」 | 自動更新も乖離の継続記録も持たない。「分析者が実行したときに取得・変換・較正が走る単発のパイプラインである」と述べる |
+| モデルを「経済のシミュレーター」として無限定に述べる | 「特定の仮定下での条件付きシミュレーション」という 1 節の位置づけを維持する |
 
 ---
 
@@ -316,6 +330,8 @@ LLM が生成した出力を評価・レビューする際の確認項目。
 - [ ] 「政府は〜すべき」「中央銀行は〜べき」等の政策断定がないか
 - [ ] モデルの仮定なしに「〜が原因で〜が起きた」という因果断言がないか
 - [ ] 実データとモデル出力が同一視されていないか（「日本の GDP が〜」をモデル出力に使うなど）
+- [ ] `Digital Twin` / `デジタルツイン` / `Digital Shadow`、およびその緩和表現（「部分的な〜」「〜的」「〜を志向した」）が使われていないか（2.7 節・[ADR 0014](adr/0014-digital-twin-naming-conditions.md)）
+- [ ] 「リアルタイム」「実体経済と同期」等、自動同期を含意する表現が使われていないか
 
 ### 5.2 必須記載チェック
 
@@ -391,6 +407,7 @@ LLM が生成した出力を評価・レビューする際の確認項目。
 | [モデル変数と実データ系列のマッピング表](data/variable_mapping.md) | 実データとモデル出力を区別する際の変数対応の参照先 |
 | [ADR 0005: Keen 実証結果の AI 説明契約](adr/0005-keen-ai-explanation-contract.md) | Keen 固有の根拠 category、source reference、必須 section、warning severity、parser fallback の正本 |
 | [Keen モデル実証化戦略](models/keen_empirical_strategy.md) | 観測方程式、限定推定、in/out-of-sample 検証、regime 診断、感応度の根拠となる実証層契約 |
+| [ADR 0014: Digital Twin / Digital Shadow の名称使用条件](adr/0014-digital-twin-naming-conditions.md) | 2.7 節の禁止名称・8 条件（`DS-1`–`DS-4`・`DT-1`–`DT-4`）・緩和表現の禁止の正本 |
 
 ---
 
