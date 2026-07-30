@@ -14,8 +14,9 @@
 |---|---|
 | **対象** | 観測イベントから部門別CAPEX・信用循環モデル（`CapexCreditCycleModel` 相当、未実装。以下 `CCC`）の入力への変換契約 |
 | **ステータス** | 契約のみ確定。Julia 型・変換器・`run_scenario` の実装は未着手（#171） |
-| **event contract version** | `macro-event-contract/1.0.0` |
-| **上位契約** | `capex-credit-cycle-contract/1.0.0`・`capex-credit-cycle-graph/1.0.0`・`capex-credit-cycle-vars/1.0.0`・`capex-credit-cycle-accounting/1.0.0`・`capex-credit-cycle-boundaries/1.0.0` |
+| **event contract version** | `macro-event-contract/1.0.1` |
+| **上位契約** | `capex-credit-cycle-contract/1.0.0`・`capex-credit-cycle-graph/1.1.0`・`capex-credit-cycle-vars/1.2.0`・`capex-credit-cycle-accounting/1.1.0`・`capex-credit-cycle-boundaries/1.0.0` |
+| **改訂の優先関係** | **§12（#171 統合レビューによる改訂）が本書の正本である。§3.3 の単位 × 適用方式の許容表は §12 で上書きされている。** |
 | **基準経済・頻度** | 米国・四半期（契約 §2.1 を継承。`Δt = 0.25` 年） |
 
 > **LLM向け要約**: 本書は「現実のイベント記述」と「モデル入力」の間に **4 層の概念階層**（Observed Event /
@@ -634,8 +635,35 @@ LLM による説明生成時は、上記を [llm_safety.md](../llm_safety.md) �
 
 ---
 
-## 12. 改訂履歴
+## 12. #171 統合レビューによる改訂（`1.0.1`）
+
+本節は #171 の横断整合レビュー（[統合設計](capex_credit_cycle_integration.md) §2）で検出された本書内の不一致 1 件（`X-18`）と、`target_rank` の正本の明確化（`X-19`）を記録する。**本節は本書の正本であり、本文の該当箇所と矛盾する場合は本節が優先する。**
+
+### 12.1 単位 × 適用方式の許容表への追加（`X-18`）
+
+**検出された不一致**: §3.3 の単位語彙表は `"bn USD (2017 chained)"` に対し `application_mode` の既定を `:absolute` とし、契約文で「`unit` と `application_mode` の組み合わせは上表に限る。表に無い組み合わせを受け付けない（`invalid_unit_mode`）」と規律している。しかし §4.2 のイベント型マッピング行 3b（`:OrderCancellation`、`S2`・`S3`）は適用先 `ext_demand_s2` / `_s3`・単位 `"bn USD (2017 chained)"`・`application_mode = :additive` を指定しており、§3.3 の許容表に無い組み合わせである。本書自身の規律に従うと行 3b が `invalid_unit_mode` として拒否される。
+
+**改訂**: §3.3 の許容表へ **`"bn USD (2017 chained)" × :additive`** を追加する。追加後の `"bn USD (2017 chained)"` に対する許容 `application_mode` は `:absolute`（既定）・`:additive`・`:multiplicative` の 3 種である。
+
+**根拠**: 受注キャンセルは「モデル外需要の水準から一定額を差し引く」事象であり、`:additive` が経済的に正しい適用方式である。#169 §4.2 は `ext_demand_s2` / `_s3` について `:multiplicative` / `:additive` / `:absolute` の 3 モードを認めており、追加後は #168・#169・#165 の 3 文書が整合する。`"bp" × :multiplicative` のような**単位と方式が意味的に噛み合わない組み合わせを禁じる**という §3.3 の目的は維持される。
+
+### 12.2 `target_rank` の正本（`X-19`）
+
+**改訂**: §5.1 の `target_rank` の定義を次のとおり明確化する。
+
+> `target_rank` は **§4.1 の表の並び**（`ai_exp` = 1・`capex_plan_shock_ex` = 2・`spread_shock_ex` = 3・`policy_rate` = 4・`ext_demand_s2` = 5・`ext_demand_s3` = 6・`price_s1` = 7）で定義する。**これが唯一の正本である。** #165 §4.4 の内訳表および #169 §3.1 ステップ 1 の列挙は説明順であり、`target_rank` を定義しない。実装は §4.1 の並びを 1 箇所に定義し（`exogenous_variables(m)` の返り値。[統合設計](capex_credit_cycle_integration.md) §4.2）、他文書の列挙から導出しない。
+
+**根拠**: #165 §4.4 と #169 §3.1 の列挙順は `ai_exp`・`price_s1`・`policy_rate`・`spread_shock_ex`・`capex_plan_shock_ex`・`ext_demand_s` であり §4.1 と異なる。実装者が §4.1 以外から順位を導くと §5.2 の決定論的全順序が壊れ、同一イベント集合に対する合成結果が実装ごとに変わる。
+
+### 12.3 差し戻し事項 `D1`–`D4` の状態
+
+`D1`–`D4`（§8）は本改訂の対象外であり、状態は変わらない。イベント型・変換器・`run_scenario` の Julia 実装は #125 Phase 2 の責務であり、Phase 1 の接続点は `Dict{Symbol,Vector{Float64}}` の 1 点に限定される（[ADR 0013](../adr/0013-capex-credit-cycle-integration-contract.md) 決定 21）。
+
+---
+
+## 13. 改訂履歴
 
 | version | 日付 | 変更 |
 |---|---|---|
+| `macro-event-contract/1.0.1` | 2026-07-30 | #171 の統合レビューによる改訂（§12）。上位契約を `graph/1.1.0`・`vars/1.2.0`・`accounting/1.1.0` へ更新。§3.3 の許容表へ `"bn USD (2017 chained)" × :additive` を追加し §4.2 行 3b との内部矛盾を解消。§5.1 の `target_rank` の正本を §4.1 の並びに確定し、他文書の列挙から導出しないことを明記 |
 | `macro-event-contract/1.0.0` | 2026-07-30 | 初版（#168）。イベントの 4 層概念階層と層間変換の禁止事項・外部システム（`finance-checker` / `economic-data-provider`）との境界・共通イベント属性 27 項目と層別の必須性・`magnitude_source` による捏造禁止規則・target concept 語彙・適用先を外生変数 7 個に限定する決定・初期イベント型 9 種のマッピング表（対象/変数/方式/単位/適用時点/持続/合成/適用不能条件/必須 metadata）・適用先を持たないイベント型の拒否規則・決定論的全順序と合成規則（絶対→乗算→加算）・集約とカバレッジ・競合/矛盾/重複の検出・一括適用の原則・イベントログと再現契約・API 境界 6 責務と処理シーケンス・差し戻し事項 `D1`–`D4` を固定 |

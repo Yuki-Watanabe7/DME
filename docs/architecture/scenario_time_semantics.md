@@ -4,7 +4,7 @@
 > 前提: [分析契約](../models/capex_credit_cycle_analysis_contract.md)（四半期・分析ホライズン・ショックの `timing` / `shape` / `duration`）・[ストック・フロー会計表](../models/capex_credit_cycle_stock_flow.md)（時点規約・期内処理順序）・[部門境界と変数定義](../models/capex_credit_cycle_sectors_variables.md)（`EOP` / `SUM` / `AVG` / `BOP` の時点基準）
 > 対になる設計: [マクロイベント変換契約](macro_event_contract.md)（概念階層・属性・イベント型マッピング・競合規則）
 > 決定記録: [ADR 0010](../adr/0010-macro-event-scenario-contract.md)
-> 後続設計: #169（動学方程式）・#170（観測・検証）・#171（統合）
+> 後続設計: #169（動学方程式）・#170（[観測方程式・識別戦略・検証方針](../models/capex_credit_cycle_empirical_strategy.md)）・#171（統合）
 
 ---
 

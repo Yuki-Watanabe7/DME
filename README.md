@@ -339,6 +339,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [部門別CAPEX・信用循環モデル ストック・フロー会計表](docs/models/capex_credit_cycle_stock_flow.md) | 残差部門を含む貸借対照表/取引フロー行列・残高更新式・CAPEX資金調達恒等式（キャンセル/延期を含む）・株価の作用経路・デフォルトの初期扱い・会計恒等式の検証契約 |
 | [部門別CAPEX・信用循環モデル 責務境界とモデル間比較契約](docs/models/capex_credit_cycle_model_boundaries.md) | Keen/SIM/New Keynesian/VAR との横断比較表・含める責務と含めない責務の採否・概念対応と数値比較可否の2層分離・同名変数の非同一視・イベント翻訳可否表・SFC との重複整理 |
 | [部門別CAPEX・信用循環モデル 動学方程式と数値計算契約](docs/models/capex_credit_cycle_equations.md) | 離散時間ハイブリッド方式と陽解法の選定・全循環の遅れ指定・期内処理順序に沿った全方程式・パラメータ辞書と固定/較正/推定区分・baseline と定常条件・数値ガードの3層分離と打ち切り契約・ループ利得と寄与分解の評価方式 |
+| [部門別CAPEX・信用循環モデル 観測方程式・識別戦略・検証方針](docs/models/capex_credit_cycle_empirical_strategy.md) | 観測可能性の分類・観測方程式（単位/部門範囲/頻度集計/vintage/methodology metadata）・逆較正入力の観測対応・データソース境界と企業開示の扱い・パラメータの固定/較正/限定推定/シナリオ/感応度区分と推定ブロック・識別リスクと弱識別時の対応規則・履歴再生候補の必要条件・数値fitと構造的検証の分離・因果と予測上の限界 |
 | [モデル解説テンプレート](docs/models/template.md) | 新規モデルの解説ドキュメント作成用テンプレート |
 
 ### 実データ接続
@@ -382,6 +383,9 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [ADR 0009: 部門別CAPEX・信用循環モデルの責務境界](docs/adr/0009-capex-credit-cycle-model-responsibilities.md) | Keen 拡張ではなく独立モデルとする・責務を判定問題に必要な範囲へ限定する・会計整合性を残差部門つき部分閉鎖に限定し SFC を名乗らない・横断比較で保証するもの/しないものの分離の決定記録 |
 | [ADR 0010: マクロイベント変換・シナリオ時間軸契約](docs/adr/0010-macro-event-scenario-contract.md) | イベントを4層に分離し belief を直接モデル入力へ変換しない・適用先を外生変数に限定し近似適用を行わない・期首一括適用・固定順合成による順序依存の排除・magnitude 捏造禁止・event_set_hash による再現契約の決定記録 |
 | [ADR 0011: 部門別CAPEX・信用循環モデルの動学契約](docs/adr/0011-capex-credit-cycle-dynamics-contract.md) | 動学を陽解法の離散時間系とし期内に同時方程式を置かない・全循環の遅れを列挙する・主体最適化と均衡求解を置かない・数値ガードを経済制約/制約違反/打ち切りの3層へ分離する・推定対象を行動パラメータの一部に限定する・baseline を成長率ゼロの定常状態とし逆較正で与える・ループ利得と寄与分解を反実仮想で定義する決定記録 |
+| [ADR 0012: 部門別CAPEX・信用循環モデルの実証化契約](docs/adr/0012-capex-credit-cycle-empirical-contract.md) | 観測方程式をmetadata付き変換契約として定義する・企業開示を較正入力から除外する・起点ショック規模と診断閾値を較正しない・`:as_of` を実装せず「その時点で判断できた」と述べない・推定をブロック分割し順序を固定する・弱識別時の対応を事前に規則化する・Q4を履歴再生から外し増幅度を観測から計算しない・数値fitと構造的検証を分離し単一pass/failを課さない・実証fitを因果/危機確率/投資助言へ読み替えない決定記録 |
+| [ADR 0013: 部門別CAPEX・信用循環モデルの統合実装契約](docs/adr/0013-capex-credit-cycle-integration-contract.md) | 文書間の不一致を暗黙に吸収せず31件を登録し解決先を明示する・上流改訂を改訂節として行い改訂節を正本とする・統合の名目で経済的判断を新設せず因果グラフの欠落は差し戻しとして保持する・在庫を当期価格で評価し `valchg_s ≡ 0` を撤回する・`price_s` を先決変数としてステップ5冒頭で確定し資本財受注の価格と時点を揃える・閉じ変数を `capex_defer_s1` の1本に確定し超過を `funding_forced_s` として観測可能にする・`exogenous_variables` を既定メソッド付きで新設する・数値解法設定を共通 `SolverOptions` へ追加しない・`simulate` は系列のみ返し完全な結果を別型で返す・定常条件違反を入力エラーとして扱いT3の例外禁止と区別する・会計プリミティブを再利用するが `SFCResult` を返さない・能力語彙を拡張しない・`SimulationResult` 非変更とmetadata予約キー20個・潜在変数を出力しつつ観測可能性を保持する・NaN伝播停止を4箇所に固定する・診断閾値を外部化しループ作動からラベルを推論しない・イベント層との接続点を1点に限定しイベント基盤を先取りしない・動学テストで数値の期待値を固定せず反例テストを必須とする・実装作業を8件へ分解する決定記録 |
+| [ADR 0014: Digital Twin / Digital Shadow の名称使用条件](docs/adr/0014-digital-twin-naming-conditions.md) | 現段階でDigital Twin / Digital Shadowを名乗らない・`Digital Shadow` の最低条件4件（定期取込・乖離の継続記録・vintage・provenanceと再現）と `Digital Twin` の追加条件4件（継続同期・状態推定・予測誤差更新・予測性能の継続報告）を先に固定する・充足判定を実装Issueとテスト/デモの提示で行い自己申告しない・「部分的な」「〜的」等の緩和表現を禁じる・条件を緩める変更は本ADRの改訂としてのみ行う・LLM層の禁止表現へ追加する決定記録 |
 
 ### 開発
 
