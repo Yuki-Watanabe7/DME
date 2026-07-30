@@ -1,8 +1,8 @@
 # 部門別CAPEX・信用循環モデル 部門境界と変数定義
 
-> 関連 Issue: #165（本書）・#163（分析契約）・#164（因果グラフ）・#125（ロードマップ）
-> 前提: [分析契約](capex_credit_cycle_analysis_contract.md)（基準ユースケース・判定問題 Q1–Q5・シナリオ `Sc0`–`Sc4`・診断ラベル）・[因果グラフ](capex_credit_cycle_causal_graph.md)（ノード・エッジ・増幅ループ R1–R4・遮断経路 B1–B7）
-> 後続設計: #166（[ストック・フロー会計表](capex_credit_cycle_stock_flow.md)）・#167（[責務境界](capex_credit_cycle_model_boundaries.md)）・#168（[イベント変換契約](../architecture/macro_event_contract.md)・[シナリオ時間軸](../architecture/scenario_time_semantics.md)）・#169（動学方程式）・#170（観測・検証）・#171（統合）
+> 関連 Issue: #165（本書）・#163（分析契約）・#164（因果グラフ）・#169（`1.1.0` の改訂要求元）・#125（ロードマップ）
+> 前提: [分析契約](capex_credit_cycle_analysis_contract.md)（基準ユースケース・判定問題 Q1–Q5・シナリオ `Sc0`–`Sc4`・診断ラベル）・[因果グラフ](capex_credit_cycle_causal_graph.md)（ノード・エッジ・増幅ループ `R1a`・`R1b`・R2–R4・遮断経路 B1–B7）
+> 後続設計: #166（[ストック・フロー会計表](capex_credit_cycle_stock_flow.md)）・#167（[責務境界](capex_credit_cycle_model_boundaries.md)）・#168（[イベント変換契約](../architecture/macro_event_contract.md)・[シナリオ時間軸](../architecture/scenario_time_semantics.md)）・#169（[動学方程式](capex_credit_cycle_equations.md)）・#170（観測・検証）・#171（統合）
 
 ---
 
@@ -11,19 +11,20 @@
 | 項目 | 内容 |
 |---|---|
 | **対象** | 部門別CAPEX・信用循環モデル（`CapexCreditCycleModel` 相当、未実装） |
-| **ステータス** | 部門境界・変数定義のみ確定。会計表・方程式・パラメータ値・実装は未着手 |
-| **vars version** | `capex-credit-cycle-vars/1.0.0` |
-| **上位契約** | `capex-credit-cycle-contract/1.0.0`（[分析契約](capex_credit_cycle_analysis_contract.md)）・`capex-credit-cycle-graph/1.0.0`（[因果グラフ](capex_credit_cycle_causal_graph.md)） |
+| **ステータス** | 部門境界・変数定義のみ確定。パラメータ値・実装は未着手 |
+| **vars version** | `capex-credit-cycle-vars/1.1.0` |
+| **上位契約** | `capex-credit-cycle-contract/1.0.0`（[分析契約](capex_credit_cycle_analysis_contract.md)）・`capex-credit-cycle-graph/1.1.0`（[因果グラフ](capex_credit_cycle_causal_graph.md)） |
 | **基準経済・頻度** | 米国・四半期（契約 §2.1 を継承） |
 
-> **LLM向け要約**: 本書は初期MVPの**部門区分を 5 部門（`S1`–`S5`）に確定**し、因果グラフの 36 ノードを
+> **LLM向け要約**: 本書は初期MVPの**部門区分を 5 部門（`S1`–`S5`）に確定**し、因果グラフの 37 ノードを
 > 部門 × 変数の適用行列へ展開したうえで、各変数を **役割**（`state` / `control` / `exogenous` / `diagnostic`）へ
 > **排他的に**分類する。観測は役割と直交する属性として別軸で与える。役割は因果グラフのエッジ型
 > （行動 / 会計 / 定義 / 制度）から機械的に決まる判定規則（§4.2）で導出し、後続 Issue が個別に判断しない。
 > 変数辞書（§5）は記号・Julia 名・単位・stock/flow・時点基準・符号制約・恒等関係・観測候補・優先度を与える。
+> §5.7 は会計項目の変数（#166 が追加提案した 43 項目 + 本書の追加 2 項目）とパラメータ 12 系統を正式に登録する。
 > DME 共通 API へは **平坦キー + 部門接尾辞**の名前空間で公開する（§6）。
-> 本書は方程式・パラメータ値・実データ取得実装を定めない（§10）。因果グラフに未解決の欠落が 2 件あり、
-> 差し戻し事項 `A1`・`A2` として登録している（§7）。
+> 本書は方程式・パラメータ値・実データ取得実装を定めない（§10）。`1.0.0` の差し戻し事項 `A1`・`A2` は
+> 因果グラフ `1.1.0` で解決済みである（§7）。
 
 ---
 
@@ -40,8 +41,8 @@
 | 部門区分の採否と採用理由（§2） | 部門の追加分割（#125 後段） |
 | 各部門の生産・需要・支出・資産負債・意思決定（§3） | 部門間の取引額・係数（#166・#170） |
 | 実物/金融フローの相手部門（§3.6） | ストック・フロー会計表の残高更新式（#166） |
-| 変数の役割分類とその判定規則（§4） | 各変数を生成する方程式（#169） |
-| 変数辞書（記号・単位・時点・制約・恒等関係・観測候補・優先度）（§5） | 観測方程式・系列 ID の確定・単位変換の実装（#170） |
+| 変数の役割分類とその判定規則（§4） | 各変数を生成する方程式（[動学方程式](capex_credit_cycle_equations.md)） |
+| 変数辞書（記号・単位・時点・制約・恒等関係・観測候補・優先度）（§5・§5.7） | 観測方程式・系列 ID の確定・単位変換の実装（#170） |
 | DME 共通 API への公開範囲と命名規則（§6） | Julia `struct` の本実装・API 名（#171） |
 
 ### 1.2 規律（契約）
@@ -254,13 +255,13 @@ flowchart LR
 
 | 規約 | 内容 |
 |---|---|
-| **R-1: 総産出は付加価値の和** | `y_tot = Σ_{s ∈ {S1,S2,S3}} va_s + y_s5`。`va_s = va_share_s × y_s`（`va_share_s` は構造パラメータ）。`sales_s` の和を総産出としない |
+| **R-1: 総産出は付加価値の和** | `y_tot = Σ_{s ∈ {S1,S2,S3}} va_s + y_s5`。`va_s = st_va_share_s × sales_s`（産出額ベース。`st_va_share_s` は構造パラメータ。#166 §4.2 で確定）。`sales_s` の和を総産出としない |
 | **R-2: 受注・受注残・在庫は総額ベース** | `order_s`・`backlog_s`・`inv_s` は中間投入を含む総額であり、付加価値ベースへ変換しない。これらを部門横断で合計しない |
 | **R-3: 資本財の売り手と買い手を区別する** | `capex_exec_s1` は `S1` の支出であり、同額が `order_s2` + `order_s3` の一部として `S2`・`S3` の需要に現れる。両者を独立した需要として二重に加算しない（配分比率は #166 が定める） |
 | **R-4: `invest_s2` と `order_s3` の関係** | `L19` により `S2` の投資は `S3` の受注になる。`invest_s2` を `y_tot` の投資項として計上する際は、`S3` の産出としての計上と重複させない |
 | **R-5: `y_s5` は残差** | `y_s5 = y_tot − Σ va_s` を定義とせず、`y_s5` を独立に生成して `y_tot` を集計する（`L49`・`L52`）。残差として逆算すると `y_tot` の恒等式が自明になり検証が効かなくなる |
 
-**契約**: 上記の規約に整合する会計表の構築は #166 の責務である。本書は規約と変数の定義のみを固定し、勘定科目・行列形式は定めない。R-1 の `va_share_s` を初期MVPで定数とするか内生とするかは #169 が決める（本書では構造パラメータとして登録する）。
+**契約**: 上記の規約に整合する会計表の構築は #166 の責務である。本書は規約と変数の定義のみを固定し、勘定科目・行列形式は定めない。R-1 の `st_va_share_s` は初期MVPで**定数**とする（[動学方程式](capex_credit_cycle_equations.md) §11.1 の決定。中間投入比率を内生化すると産業連関構造の推定が必要になり、初期MVPの識別可能性を超える）。
 
 ---
 
@@ -310,10 +311,12 @@ Issue #165 は「状態・制御・外生・観測・診断へ重複なく分類
 | `cash_s2` | `L24` 会計（残高更新） | 3 | `state` |
 | `debt_s2` | `L25` 会計 / `L26` 会計（残高更新） | 3 | `state` |
 | `y_s2` | `L11` 行動 / `L15` 行動 / `L59` 制度 | 2 | `control` |
+| `y_s1` | `L60` 行動 / `L61` 制度 | 2 | `control` |
 | `util_s2` | `L13` 定義 / `L58` 定義 | 4 | `diagnostic` |
 | `sales_s2` | `L20` 定義 / `L21` 定義 | 4 | `diagnostic` |
-| `profit_s2` | `L22` 行動 | 2 | `control` |
+| `profit_s2` | `L22` **会計**（当期フローのみ） | 4 | `diagnostic` |
 | `ocf_s2` | `L23` 会計（当期フローのみ） | 4 | `diagnostic` |
+| `r_eff_s2` | 会計（自身の前期値を参照する満期加重平均） | 3 | `state` |
 | `int_burden_s2` | `L34` 会計 / `L35` 会計 / `L56` 会計（前期末 `debt` を参照するが自身の前期値は参照しない） | 4 | `diagnostic` |
 | `coverage_s2` | `L28` 定義 / `L29` 定義 | 4 | `diagnostic` |
 | `spread` | `L30` 行動 / `L54` 行動 | 2 | `control` |
@@ -321,7 +324,9 @@ Issue #165 は「状態・制御・外生・観測・診断へ重複なく分類
 | `cons` | `L48` 行動 | 2 | `control` |
 | `y_tot` | `L51` 定義 / `L52` 定義 | 4 | `diagnostic` |
 
-**注意**: `int_burden_s` は前期末 `debt_s` を参照するが、自身の前期値を参照しないため `state` ではなく `diagnostic` である（規則 3 の「自分自身の前期値」条件）。この区別は #166 の会計表で残高更新式を書く対象を決めるため重要である。
+**注意**: `int_burden_s` は前期末 `debt_s` を参照するが、自身の前期値を参照しないため `state` ではなく `diagnostic` である（規則 3 の「自分自身の前期値」条件）。この区別は #166 の会計表で残高更新式を書く対象を決めるため重要である。ただし `int_burden_s = r_eff_s · Δt · debt_s[t−1]` の `r_eff_s`（実効金利）は自身の前期値を参照するため `state` である（#166 §5.4）。実効金利を状態として分離することで `int_burden_s` の `diagnostic` 判定が維持される。
+
+**`1.1.0` での変更（#166 差し戻し `B6` の解決）**: `profit_s` の役割を `control` → `diagnostic` へ変更した。因果グラフ `1.1.0` は `L22`（`SALES_s → PROFIT_s`）の型を `行動` → `会計` へ変更しており（因果グラフ §3.4・§10.1）、判定規則 4 が適用される。`profit_s = va_s − wagebill_s − dep_s` は会計残差であり、行動方程式で独立に生成しない（#166 §4.2）。固定費レバレッジの非線形性は `wagebill_s`（労働退蔵により産出に対して固定的）と `dep_s`（完全固定費）の性質から導出される。
 
 ### 4.3 遅延・パイプラインの状態表現
 
@@ -362,7 +367,7 @@ Issue #165 が分類対象として列挙した各項目について、対応変
 | 売上 | `sales_s`（`s ∈ SF`） | `diagnostic` |
 | 価格 | `price_s2`・`price_s3` | `control` |
 | 〃 | `price_s1` | `exogenous`（初期MVP。内生化は `EXT`） |
-| 利益率 | `profit_s`（水準）・`margin_s`（比率） | `control` / `diagnostic` |
+| 利益率 | `profit_s`（水準）・`margin_s`（比率） | `diagnostic` / `diagnostic` |
 | 営業CF | `ocf_s` | `diagnostic` |
 | 現金 | `cash_s` | `state` |
 | 債務 | `debt_s` | `state` |
@@ -380,17 +385,24 @@ Issue #165 が分類対象として列挙した各項目について、対応変
 | 政策金利 | `policy_rate` | `exogenous` |
 | 金融条件 | `fin_cond` | `control` |
 | 部門別産出 | `y_s1`・`y_s2`・`y_s3`・`y_s5` | `control` |
+| 〃（生産能力・数量換算） | `ycap_s2`・`ycap_s3` | `diagnostic` |
 | 〃（付加価値） | `va_s1`・`va_s2`・`va_s3` | `diagnostic` |
+| 出荷・引渡 | `ship_s2`・`ship_s3` | `control` |
+| 〃 | `deliv_s2`・`deliv_s3` | `diagnostic` |
 | 総産出 | `y_tot` | `diagnostic` |
+| 実効金利 | `r_eff_s1`・`r_eff_s2`・`r_eff_s3` | `state` |
+| 繰越計画残高 | `plan_carry_s1` | `state` |
+
+会計項目の変数（資金調達・引渡・分配・診断の 45 項目）は §5.7 に登録する。
 
 **役割別の内訳（必須変数のみ、概算）**
 
 | 役割 | 個数 | 備考 |
 |---|---|---|
-| `state` | 16 | `cap_s`×3、`capex_pipe_s`×3、`backlog_s`×2、`inv_s`×2、`cash_s`×3、`debt_s`×3。遅延バッファは別途 |
-| `control` | 約 24 | 部門別に展開後 |
-| `exogenous` | 記号 6 種・部門展開後 7 | `ai_exp`・`price_s1`・`policy_rate`・`spread_shock_ex`・`capex_plan_shock_ex`・`ext_demand_s`（`s ∈ SP`、本モデル外の半導体・装置需要）。`ext_demand_s` のみ 2 変数へ展開される |
-| `diagnostic` | 約 22 | 恒等式・定義式のみで決まる |
+| `state` | 20 | `cap_s`×3、`capex_pipe_s`×3、`backlog_s`×2、`inv_s`×2、`cash_s`×3、`debt_s`×3、`r_eff_s`×3、`plan_carry_s1`×1。`advance_s`（MVP `≡ 0`）を含めると 22。遅延バッファは別途 |
+| `control` | 約 45 | 部門別に展開後（§5.7 の追加を含む） |
+| `exogenous` | 記号 6 種・部門展開後 7 | `ai_exp`・`price_s1`・`policy_rate`・`spread_shock_ex`・`capex_plan_shock_ex`・`ext_demand_s`（`s ∈ SP`、本モデル外の半導体・装置需要）。`ext_demand_s` のみ 2 変数へ展開される。**この 7 個がイベント適用先の全体である**（[イベント変換契約](../architecture/macro_event_contract.md) §4.1） |
+| `diagnostic` | 約 50 | 恒等式・定義式のみで決まる（§5.7 の追加を含む） |
 
 ---
 
@@ -409,6 +421,8 @@ Issue #165 が分類対象として列挙した各項目について、対応変
 | **レート・比率の時点** | 四半期平均（`AVG`）。ただし当期フロー同士の比（`coverage_s`・`margin_s`）は四半期値そのものを用いる |
 | **符号制約** | 表の「範囲・符号」欄に記す。制約違反はモデルの誤りとして検出対象にする（自動クリップしない。契約 §4.2 の「不整合を自動補正しない」方針と同型） |
 | **観測候補の確度** | 表 B の観測候補は**候補**であり、系列 ID・vintage・単位変換の確定は #170 が行う。FRED 系列 ID を明記した項目も #170 で存在・定義を再確認する |
+| **資本ストックと生産能力の区別**（`1.1.0`） | `cap_s`（`s ∈ {S1, S2, S3}`）は**資本ストック**であり単位は 10億ドルである。生産能力（数量ベース、10億ドル/四半期）は `ycap_s = cap_s / st_cor_s` として別変数で保持する。稼働率は `util_s = y_s / ycap_s[t−1]` である |
+| **数量と価値額の区別**（`1.1.0`） | `order_s`・`backlog_s`・`inv_s`・`ship_s`・`y_s` は baseline 価格で評価した**実質数量**（10億ドル基準）。価値額は `sales_s = price_s · y_s`（産出額）・`deliv_s = price_s · ship_s`（引渡額）・`invval_s = st_invprice_s · inv_s`（在庫価値額）である（#166 §2.2・§4.4） |
 
 ### 5.2 `S1` AI・クラウド需要部門
 
@@ -424,17 +438,20 @@ Issue #165 が分類対象として列挙した各項目について、対応変
 | `CAPEX_PLAN_S1` | `:capex_plan_s1` | 計画CAPEX | flow | `control` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 2（`L05`） |
 | `CAPEX_EXEC_S1` | `:capex_exec_s1` | 実行CAPEX | flow | `control` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 1（`L09`） |
 | `CANCEL_S1` | `:cancel_s1` | キャンセル・延期率 | ratio | `control` | — | 比率 | `AVG` | `0 ≤ x ≤ 1` | 0 |
-| `Y_S1` † | `:y_s1` | AI・クラウド産出 | flow | `control` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 2（`L43`） |
+| `Y_S1` | `:y_s1` | AI・クラウド産出（数量） | flow | `control` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 2（`L43`） |
+| `YCAP_S1` | `:ycap_s1` | 供給能力（数量） | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | `> 0` | 0 |
+| `UTIL_S1` | `:util_s1` | 稼働率 | ratio | `diagnostic` | — | 比率 | `AVG` | `0 ≤ x ≤ 1.2` | 0 |
 | `PRICE_S1` | `:price_s1` | AI・クラウドサービス価格 | index | `exogenous` | — | 指数 | `AVG` | `> 0` | 0 |
-| `SALES_S1` † | `:sales_s1` | 売上 | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 0 |
-| `PROFIT_S1` † | `:profit_s1` | 利益 | flow | `control` | 10億ドル/四半期 | 水準 | `SUM` | 符号制約なし | 0 |
-| `OCF_S1` † | `:ocf_s1` | 営業キャッシュフロー | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | 符号制約なし | 0 |
-| `CASH_S1` † | `:cash_s1` | 現金・自己資金 | stock | `state` | 10億ドル | 水準 | `EOP` | `≥ 0` | 0 |
-| `VA_S1` † | `:va_s1` | 付加価値 | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 0 |
+| `SALES_S1` | `:sales_s1` | 売上 | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 0 |
+| `PROFIT_S1` | `:profit_s1` | 利益 | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | 符号制約なし | 0 |
+| `OCF_S1` | `:ocf_s1` | 営業キャッシュフロー | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | 符号制約なし | 1（`L41`） |
+| `CASH_S1` | `:cash_s1` | 現金・自己資金 | stock | `state` | 10億ドル | 水準 | `EOP` | `≥ 0` | 0 |
+| `VA_S1` | `:va_s1` | 付加価値 | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 0 |
 | `EMP_S1` | `:emp_s1` | 雇用 | stock | `control` | 百万人 | 水準 | `AVG` | `≥ 0` | 0 |
+| `PLAN_CARRY_S1` | `:plan_carry_s1` | 繰越計画残高 | stock | `state` | 10億ドル | 水準 | `EOP` | `≥ 0` | 0 |
 | `CAPEX_PLAN_SHOCK_EX` | `:capex_plan_shock_ex` | 計画CAPEX外生シフト | flow | `exogenous` | baseline比 % | 比率 | `SUM` | 符号制約なし | 0 |
 
-† = 生成エッジが因果グラフ `1.0.0` に無い。§7 差し戻し `A1` の解決が必要（変数としては本書で確定）。
+**`1.1.0` での変更（§7 の差し戻し `A1` の解決）**: `1.0.0` は `y_s1`・`sales_s1`・`profit_s1`・`ocf_s1`・`cash_s1`・`va_s1` に「生成エッジが因果グラフに無い」ことを示す `†` を付していた。因果グラフ `1.1.0` がノード `Y_S1` とエッジ `L60`・`L61` を追加し、収益ブロック（`L20`–`L28`）の添字集合を `SF = {S1, S2, S3}` と明記したため、`†` を解除する。`profit_s1` の役割は `control` → `diagnostic` へ変更（`L22` の型変更、§4.2）。`ycap_s1`（供給能力）と `plan_carry_s1`（繰越計画残高）を追加した。`cap_s1` は `1.0.0` から資本ストック（10億ドル）であり単位変更はない。
 
 **表 B: 恒等関係・観測候補・優先度**
 
@@ -442,20 +459,23 @@ Issue #165 が分類対象として列挙した各項目について、対応変
 |---|---|---|---|---|---|
 | `AI_EXP` | — | `L` | 直接の系列なし。hyperscaler の設備投資ガイダンス、AI 関連受注見通しの proxy を #170 で設計 | `calibrate` | 必須 |
 | `COMPUTE_DEM` | — | `P` | クラウド事業者のセグメント売上（企業開示の集計） | `compare` | 必須 |
-| `TARGET_CAP_S1` | `target_cap_s1 = κ_s1 × compute_dem`（`κ` は資本係数、`L02`） | `L` | なし | `none` | 必須 |
+| `TARGET_CAP_S1` | `target_cap_s1 = st_cor_s1 · compute_dem / bh_util_tgt_s1`（資本産出比率 ÷ 目標稼働率、`L02`） | `L` | なし | `none` | 必須 |
 | `CAP_S1` | 資本蓄積: `cap_s1 = (1−δ_s1)·cap_s1[t−1] + 稼働開始分`（`L08`） | `P` | BEA 固定資産統計の情報処理装置・ソフトウェア資本ストック | `calibrate` | 必須 |
 | `CAPEX_PIPE_S1` | `capex_pipe_s1 = capex_pipe_s1[t−1] + capex_exec_s1 − 稼働開始分` | `L` | Census 建設支出のデータセンター区分（着工〜完工の差） | `calibrate` | 必須 |
 | `CAPEX_PLAN_S1` | — | `P` | 主要 hyperscaler の四半期 CAPEX ガイダンス（企業開示） | `compare` | 必須 |
 | `CAPEX_EXEC_S1` | `Σ_{s∈SP} (資本財配分比 × capex_exec_s1) = capex 起因の order_s`（R-3） | `O` | 主要 hyperscaler の四半期 CAPEX 実績合計（企業開示）、BEA NIPA の情報処理機器・構築物投資 | `compare` | 必須 |
 | `CANCEL_S1` | — | `L` | なし。受注取消・納期延期の報道・企業開示を定性 proxy とする | `none` | 必須 |
-| `Y_S1` † | `va_s1 = va_share_s1 × y_s1`（R-1） | `P` | BEA GDP by Industry の情報（NAICS 51）のうちデータ処理・ホスティング関連 | `compare` | 必須 |
+| `Y_S1` | `y_s1 = min(compute_dem, ycap_s1 の上限)`（`L60`・`L61`）。`va_s1 = st_va_share_s1 × sales_s1`（R-1） | `P` | BEA GDP by Industry の情報（NAICS 51）のうちデータ処理・ホスティング関連 | `compare` | 必須 |
+| `YCAP_S1` | `ycap_s1 = cap_s1 / st_cor_s1` | `L` | なし | `none` | 必須 |
+| `UTIL_S1` | `util_s1 = y_s1 / ycap_s1[t−1]`。`R1a`（`S1` の内部資金ループ）の作動判定に用いる | `L` | なし。`S1` の稼働率に対応する公表系列が無い | `none` | 必須 |
 | `PRICE_S1` | `sales_s1 = price_s1 × y_s1` | `P` | クラウドサービス価格指数（BLS PPI のデータ処理・ホスティング） | `calibrate` | 必須 |
-| `SALES_S1` † | `sales_s1 = price_s1 × y_s1`（`L20`・`L21` 相当） | `O` | 上記の企業開示セグメント売上 | `compare` | 必須 |
-| `PROFIT_S1` † | `margin_s1 = profit_s1 / sales_s1` | `O` | 企業開示の営業利益、BEA NIPA 表 6.16 の産業別法人利益 | `compare` | 必須 |
-| `OCF_S1` † | `ocf_s1 = profit_s1 + 減価償却 − 運転資本増`（`L23`） | `O` | 企業開示の営業CF | `compare` | 必須 |
-| `CASH_S1` † | `cash_s1 = cash_s1[t−1] + ocf_s1 − capex_exec_s1 − 純返済 − 配当等`（`L24`） | `P` | FRB Z.1（Financial Accounts）表 B.103 の非金融法人企業の現金・短期資産 | `calibrate` | 必須 |
-| `VA_S1` † | `y_tot = Σ va_s + y_s5`（R-1） | `P` | 上記 BEA GDP by Industry | `compare` | 必須 |
+| `SALES_S1` | `sales_s1 = price_s1 × y_s1`（`L20`・`L21`） | `O` | 上記の企業開示セグメント売上 | `compare` | 必須 |
+| `PROFIT_S1` | `profit_s1 = va_s1 − wagebill_s1 − dep_s1`（会計残差）。`margin_s1 = profit_s1 / sales_s1` | `O` | 企業開示の営業利益、BEA NIPA 表 6.16 の産業別法人利益 | `compare` | 必須 |
+| `OCF_S1` | `ocf_s1 = profit_s1 + dep_s1`（在庫を持たないため `Δwc_s1 ≡ 0`、#166 §4.4） | `O` | 企業開示の営業CF | `compare` | 必須 |
+| `CASH_S1` | `cash_s1 = cash_s1[t−1] + ocf_s1 − int_burden_s1 − tax_s1 − div_s1 − capex_exec_s1 + newdebt_s1 − repay_s1 + equity_issue_s1`（#166 §5.4） | `P` | FRB Z.1（Financial Accounts）表 B.103 の非金融法人企業の現金・短期資産 | `calibrate` | 必須 |
+| `VA_S1` | `y_tot = Σ va_s + y_s5`（R-1） | `P` | 上記 BEA GDP by Industry | `compare` | 必須 |
 | `EMP_S1` | `emp_tot = Σ_{s∈SR} emp_s` | `P` | BLS CES の情報（NAICS 51）雇用 | `compare` | 任意 |
+| `PLAN_CARRY_S1` | `plan_carry_s1 = plan_carry_s1[t−1] + capex_defer_s1 − 復活分`（#166 §6.1） | `L` | なし | `none` | 必須 |
 | `CAPEX_PLAN_SHOCK_EX` | `SH-CAPEX`（契約 §5.3）の適用先 | — | — | `none` | 必須 |
 
 ### 5.3 `S2`・`S3` 生産部門（`s ∈ SP`）
@@ -471,14 +491,17 @@ Issue #165 が分類対象として列挙した各項目について、対応変
 | `BACKLOG_RATIO_s` | `:backlog_ratio_s2` / `_s3` | 受注残比率 | ratio | `diagnostic` | 四半期 | 比率 | `EOP` | `≥ 0` | 0 |
 | `INV_s` | `:inv_s2` / `:inv_s3` | 在庫残高 | stock | `state` | 10億ドル | 水準 | `EOP` | `≥ 0` | 0 |
 | `INV_RATIO_s` | `:inv_ratio_s2` / `_s3` | 在庫比率 | ratio | `diagnostic` | 四半期 | 比率 | `EOP` | `≥ 0` | 2（`L15`） |
-| `CAP_s` | `:cap_s2` / `:cap_s3` | 生産能力 | stock | `state` | 10億ドル/四半期 | 水準 | `EOP` | `> 0` | 0 |
+| `CAP_s` | `:cap_s2` / `:cap_s3` | 資本ストック | stock | `state` | **10億ドル** | 水準 | `EOP` | `> 0` | 0 |
+| `YCAP_s` | `:ycap_s2` / `:ycap_s3` | 生産能力（数量） | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | `> 0` | 0 |
 | `CAPEX_PIPE_s` | `:capex_pipe_s2` / `_s3` | 建設中投資残高 | stock | `state` | 10億ドル | 水準 | `EOP` | `≥ 0` | 0 |
 | `UTIL_s` | `:util_s2` / `:util_s3` | 稼働率 | ratio | `diagnostic` | — | 比率 | `AVG` | `0 ≤ x ≤ 1.2` | 2（`L16`） |
 | `PRICE_s` | `:price_s2` / `:price_s3` | 産出価格 | index | `control` | — | 指数 | `AVG` | `> 0` | 4（`L17`） |
-| `Y_s` | `:y_s2` / `:y_s3` | 部門産出（総額） | flow | `control` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 2（`L18`・`L43`） |
+| `Y_s` | `:y_s2` / `:y_s3` | 部門産出（総額・数量） | flow | `control` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 2（`L18`・`L43`） |
+| `SHIP_s` | `:ship_s2` / `:ship_s3` | 出荷（需要充足量・数量） | flow | `control` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 0 |
+| `DELIV_s` | `:deliv_s2` / `:deliv_s3` | 引渡額 | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 0 |
 | `VA_s` | `:va_s2` / `:va_s3` | 付加価値 | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 0 |
-| `SALES_s` | `:sales_s2` / `:sales_s3` | 売上 | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 0 |
-| `PROFIT_s` | `:profit_s2` / `:profit_s3` | 利益 | flow | `control` | 10億ドル/四半期 | 水準 | `SUM` | 符号制約なし | 0 |
+| `SALES_s` | `:sales_s2` / `:sales_s3` | 売上（産出額） | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 0 |
+| `PROFIT_s` | `:profit_s2` / `:profit_s3` | 利益 | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | 符号制約なし | 0 |
 | `MARGIN_s` | `:margin_s2` / `:margin_s3` | 利益率 | ratio | `diagnostic` | — | 比率 | `AVG` | 符号制約なし | 0 |
 | `OCF_s` | `:ocf_s2` / `:ocf_s3` | 営業キャッシュフロー | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | 符号制約なし | 0 |
 | `CASH_s` | `:cash_s2` / `:cash_s3` | 現金・自己資金 | stock | `state` | 10億ドル | 水準 | `EOP` | `≥ 0` | 0 |
@@ -495,14 +518,17 @@ Issue #165 が分類対象として列挙した各項目について、対応変
 | `BACKLOG_RATIO_s` | `backlog_ratio_s = backlog_s / y_s` | `P` | 上記の比 | `compare` | 必須 |
 | `INV_s` | `inv_s = inv_s[t−1] + y_s − 出荷`（`L14`） | `O` | Census M3（在庫、NAICS 334 / 333） | `compare` | 必須 |
 | `INV_RATIO_s` | `inv_ratio_s = inv_s / y_s`。契約 Q1 の判定量、Q5 走査変数 (iv) | `O` | 上記の在庫/出荷比 | `compare` | 必須 |
-| `CAP_s` | `cap_s = (1−δ_s)·cap_s[t−1] + 稼働開始分`（`L57`） | `P` | FRB 産業生産・設備能力（Capacity, NAICS 3344 / 333） | `calibrate` | 必須 |
+| `CAP_s` | `cap_s = cap_s[t−1] + capstart_s − dep_s − retire_s`（`L57`、#166 §5.1） | `P` | BEA 固定資産統計の産業別資本ストック（`ycap_s` 側は FRB 設備能力） | `calibrate` | 必須 |
+| `YCAP_s` | `ycap_s = cap_s / st_cor_s`（`st_cor_s` = 資本産出比率、四半期） | `P` | FRB 産業生産・設備能力（Capacity, NAICS 3344 / 333） | `calibrate` | 必須 |
 | `CAPEX_PIPE_s` | `capex_pipe_s = capex_pipe_s[t−1] + invest_s − 稼働開始分` | `L` | なし | `none` | 必須 |
-| `UTIL_s` | `util_s = y_s / cap_s[t−1]`（`L13`・`L58` は同一定義式の分子側・分母側）。Q5 走査変数 (iii) | `O` | FRB 稼働率 `CAPUTLG3344S`（半導体・電子部品）、`CAPUTLG333S`（機械）。系列 ID は #170 で確認 | `compare` | 必須 |
+| `UTIL_s` | `util_s = y_s / ycap_s[t−1]`（`L13`・`L58` は同一定義式の分子側・分母側）。Q5 走査変数 (iii) | `O` | FRB 稼働率 `CAPUTLG3344S`（半導体・電子部品）、`CAPUTLG333S`（機械）。系列 ID は #170 で確認 | `compare` | 必須 |
 | `PRICE_s` | `sales_s = price_s × y_s`（`L20`・`L21`） | `O` | BLS PPI（NAICS 334 / 333） | `compare` | 必須 |
-| `Y_s` | `va_s = va_share_s × y_s`（R-1） | `O` | FRB 産業生産指数 `IPG3344S` / `IPG333S`（水準化は #170） | `compare` | 必須 |
+| `Y_s` | `va_s = st_va_share_s × sales_s`（R-1、産出額ベース。#166 §4.2） | `O` | FRB 産業生産指数 `IPG3344S` / `IPG333S`（水準化は #170） | `compare` | 必須 |
+| `SHIP_s` | `inv_s = inv_s[t−1] + y_s − ship_s` かつ `backlog_s = backlog_s[t−1] + order_s − ship_s`（#166 §5.3。**双方を同一の `ship_s` で減じる**） | `O` | Census M3（出荷、NAICS 334 / 333。実質化は #170） | `compare` | 必須 |
+| `DELIV_s` | `deliv_s = price_s · ship_s = Σ_b d_{b,s}`（#166 §4.2） | `O` | Census M3（出荷額） | `compare` | 任意 |
 | `VA_s` | `y_tot = Σ va_s + y_s5`（R-1） | `O` | BEA GDP by Industry（実質付加価値、四半期） | `compare` | 必須 |
-| `SALES_s` | 同上 | `O` | Census M3（出荷額）または企業開示集計 | `compare` | 必須 |
-| `PROFIT_s` | `margin_s = profit_s / sales_s` | `O` | BEA NIPA 表 6.16 の産業別法人利益 | `compare` | 必須 |
+| `SALES_s` | `sales_s = price_s · y_s` は**産出額**（在庫品増加を含む）。引渡額は `deliv_s`（#166 §4.4） | `O` | Census M3（出荷額）または企業開示集計 | `compare` | 必須 |
+| `PROFIT_s` | `profit_s = va_s − wagebill_s − dep_s`（会計残差、#166 §4.2）。`margin_s = profit_s / sales_s` | `O` | BEA NIPA 表 6.16 の産業別法人利益 | `compare` | 必須 |
 | `MARGIN_s` | 同上 | `P` | 上記の比 | `compare` | 任意 |
 | `OCF_s` | `ocf_s = profit_s + 減価償却 − 運転資本増`（`L23`） | `O` | 企業開示の営業CF 集計 | `compare` | 必須 |
 | `CASH_s` | `cash_s = cash_s[t−1] + ocf_s − invest_s − 純返済 − 配当等`（`L24`） | `P` | FRB Z.1 表 B.103 | `calibrate` | 必須 |
@@ -533,8 +559,10 @@ Issue #165 が分類対象として列挙した各項目について、対応変
 | `INT_BURDEN_s` | `:int_burden_s1` / `_s2` / `_s3` | 利払い負担 | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 0 |
 | `DEBT_SERVICE_s` | `:debt_service_s1` / `_s2` / `_s3` | 返済負担（元本＋利払い） | flow | `diagnostic` | 10億ドル/四半期 | 水準 | `SUM` | `≥ 0` | 0 |
 | `COVERAGE_s` | `:coverage_s1` / `_s2` / `_s3` | 利払いカバレッジ比率 | ratio | `diagnostic` | 倍 | 比率 | `AVG` | 符号制約なし | 0 |
-| `COST_CAPITAL_s` | `:cost_capital_s1` / `_s2` / `_s3` | 資本コスト | rate | `control` | 年率 % | 水準 | `AVG` | `≥ 0` | 1（`L39`） |
+| `COST_CAPITAL_s` | `:cost_capital_s1` / `_s2` / `_s3` | 資本コスト | rate | `control` | 年率 % | 水準 | `AVG` | `≥ 0` | 1（`L39`・`L64`） |
 | `LEVERAGE_s` | `:leverage_s1` / `_s2` / `_s3` | 債務比率 | ratio | `diagnostic` | — | 比率 | `EOP` | `≥ 0` | 0 |
+| `R_EFF_s` | `:r_eff_s1` / `_s2` / `_s3` | 実効金利 | rate | `state` | 年率 % | 水準 | `AVG` | `≥ 0` | 0 |
+| `SPREAD_ENDO` | `:spread_endo` | スプレッド内生成分 | rate | `diagnostic` | bp | 水準 | `AVG` | 符号制約なし | 0 |
 
 **表 B: 恒等関係・観測候補・優先度**
 
@@ -553,8 +581,10 @@ Issue #165 が分類対象として列挙した各項目について、対応変
 | `INT_BURDEN_s` | `int_burden_s = r_eff_s × debt_s[t−1]`。`r_eff_s` は満期構成に依存（`L34`・`L35`・`L56`） | `P` | 企業開示の支払利息、BEA NIPA の企業純利子支払 | `compare` | 必須 |
 | `DEBT_SERVICE_s` | `debt_service_s = int_burden_s + 元本返済`。元本返済の代理仮定は [Minsky 資金調達区分診断](minsky_regime_diagnostics.md) の方式を参照して #166 で確定 | `P` | 同上 | `compare` | 任意 |
 | `COVERAGE_s` | `coverage_s = ocf_s / int_burden_s`（`L28`・`L29`）。契約 Q5 走査変数 (ii) | `P` | 上記部門別の比 | `compare` | 必須 |
-| `COST_CAPITAL_s` | `cost_capital_s = g(spread, lend_stance, equity_val, fin_cond)`（`L36`–`L38`・`L55`） | `L` | なし。**単独の値を分析結果として提示しない**（因果グラフ §3.5） | `none` | 必須 |
+| `COST_CAPITAL_s` | `cost_capital_s = g(spread, lend_stance, equity_val, fin_cond)`（`L36`–`L38`・`L55`）。`L39`（`S1` の計画）・`L64`（`SP` の投資）へ作用する | `L` | なし。**単独の値を分析結果として提示しない**（因果グラフ §3.5） | `none` | 必須 |
 | `LEVERAGE_s` | `leverage_s = debt_s / sales_s`（または `debt_s / cap_s`）。契約 Q5 走査変数 (i) | `O` | 上記の比 | `compare` | 必須 |
+| `R_EFF_s` | `r_eff_s = (1 − φ_s)·r_eff_s[t−1] + φ_s · r_new_s`、`φ_s = Δt / st_maturity_s`（#166 §5.4）。`int_burden_s = r_eff_s · Δt · debt_s[t−1]` | `P` | 企業開示の支払利息 ÷ 平均債務残高 | `calibrate` | 必須 |
+| `SPREAD_ENDO` | `spread_endo = spread − spread_shock_ex`。因果グラフ §3.4 の「内生成分と外生成分を分離して出力する」要求への対応 | — | — | `none` | 必須 |
 
 **契約**: `COST_CAPITAL_s` は潜在変数（`L`）であり、`SimulationResult.variables` には出力するが、LLM 説明・可視化で**単独の水準を提示しない**（因果グラフ §2 の潜在ノード契約）。この制約は #171 の出力層へ引き渡す。
 
@@ -598,6 +628,95 @@ Issue #165 が分類対象として列挙した各項目について、対応変
 
 **契約**: `G2` の産出は付加価値ベース（`va_s`）、`breadth` の分母は `SR` の 4 部門とする。総額ベースの `y_s` を `breadth` 判定に用いない（R-1・R-2 との整合）。§2.3 のとおり `breadth` は 0.25 刻みの離散値しか取らない。
 
+### 5.7 会計項目の変数（`1.1.0` で追加）
+
+[ストック・フロー会計表](capex_credit_cycle_stock_flow.md) §10.1 は、残高更新式・取引フロー行列・資金調達恒等式を書くために必要な会計項目を**追加提案**として列挙し、正式化を本書へ差し戻した（#166 §1.2-6）。本節でそれらを正式に登録する。役割は §4.2 の判定規則を適用した結果である。単位は既定で 10億ドル（ストック）/ 10億ドル/四半期（フロー）、時点は `EOP`（ストック）/ `SUM`（フロー）/ `AVG`（レート・比率）とする。
+
+**表 A: 状態変数**
+
+| 記号 | Julia 名 | 表示名 | 役割 | 範囲 | 根拠 |
+|---|---|---|---|---|---|
+| `PLAN_CARRY_S1` | `:plan_carry_s1` | 繰越計画残高 | `state` | `≥ 0` | #166 §6.1（§5.2 に登録済み） |
+| `R_EFF_s` | `:r_eff_s1` – `_s3` | 実効金利（年率 %） | `state` | `≥ 0` | #166 §5.4（§5.4 に登録済み） |
+| `ADVANCE_s` | `:advance_s2` / `_s3` | 前受金 | `state` | `≥ 0` | #166 §3.5（MVP `≡ 0`。優先度 `EXT`） |
+
+**表 B: フロー変数**
+
+| 記号 | Julia 名 | 役割 | 定義・備考 | 優先度 |
+|---|---|---|---|---|
+| `SHIP_s` | `:ship_s2` / `_s3` | `control` | 出荷（需要充足量、数量）。§5.3 に登録済み | 必須 |
+| `DELIV_s` | `:deliv_s2` / `_s3` | `diagnostic` | `price_s · ship_s = Σ_b d_{b,s}`。§5.3 に登録済み | 任意 |
+| `DINV_s` | `:dinv_s2` / `_s3` | `diagnostic` | 在庫品増加額 `price_s · Δinv_s` | 必須 |
+| `CAPEX_SX_S1` | `:capex_sx_s1` | `control` | モデル外からの資本財購入（`S1`）。`capex_exec_s1` の一部 | 必須 |
+| `INV_SX_s` | `:inv_sx_s2` / `_s3` | `control` | モデル外からの資本財購入（`SP`）。`invest_s` の一部 | 必須 |
+| `CONS_S1` | `:cons_s1` | `diagnostic` | 家計・`S5` 企業の `S1` 向け支出 | 必須 |
+| `CONS_S5` | `:cons_s5` | `diagnostic` | `cons − cons_s1` | 必須 |
+| `XSALES_S1` | `:xsales_s1` | `diagnostic` | `sales_s1 − cons_s1`（`S1` のモデル外向け販売） | 必須 |
+| `XDEM_S5` | `:xdem_s5` | `control` | `S5` 産出のモデル外需要（政府支出・純輸出・非AI企業投資）。**残差として逆算しない**（#166 §4.5） | 必須 |
+| `IM_s` | `:im_s1` – `:im_s3`・`:im_s5` | `diagnostic` | 中間投入 `(1 − st_va_share_s) · sales_s` | 必須 |
+| `WAGEBILL_s` | `:wagebill_s1` – `:wagebill_s3`・`:wagebill_s5` | `diagnostic` | 賃金支払額 `st_wbase_s · wage · emp_s` | 必須 |
+| `DEP_s` | `:dep_s1` – `:dep_s3` | `diagnostic` | 固定資本減耗 `st_delta_s · cap_s[t−1]` | 必須 |
+| `CAPSTART_s` | `:capstart_s1` – `:capstart_s3` | `control` | 稼働開始額（`capex_pipe_s` からの流出、`L08`・`L57`） | 必須 |
+| `RETIRE_s` | `:retire_s1` – `_s3` | `control` | 除却。MVP `≡ 0` | 必須 |
+| `CAPEX_PLAN_EFF_S1` | `:capex_plan_eff_s1` | `control` | 有効計画CAPEX `capex_plan_s1 + plan_carry_s1[t−1]` | 必須 |
+| `CAPEX_CANCEL_S1` | `:capex_cancel_s1` | `diagnostic` | `cancel_s1 · capex_plan_eff_s1` | 必須 |
+| `CAPEX_DEFER_S1` | `:capex_defer_s1` | `control` | CAPEX延期額。資金調達恒等式の閉じ変数（#166 §6.2） | 必須 |
+| `PIPE_CANCEL_s` | `:pipe_cancel_s1` – `_s3` | `control` | 着工済み案件の取消。MVP `≡ 0`（`B3` 完全不可逆） | 必須 |
+| `MATUR_s` | `:matur_s1` – `_s3` | `diagnostic` | 満期到来額 `φ_s · debt_s[t−1]` | 必須 |
+| `REFIN_s` | `:refin_s1` – `_s3` | `control` | 借換実行額 `rollover · matur_s` | 必須 |
+| `NEWDEBT_s` | `:newdebt_s1` – `_s3` | `control` | 新規借入（借換を除く） | 必須 |
+| `REPAY_s` | `:repay_s1` – `_s3` | `diagnostic` | 純元本返済 `matur_s − refin_s`（`L63`） | 必須 |
+| `WRITEOFF_s` | `:writeoff_s1` – `_s3` | `control` | 貸倒償却。MVP `≡ 0`（#166 §7.1） | 必須 |
+| `EQUITY_ISSUE_s` | `:equity_issue_s1` – `_s3` | `control` | 増資・外部資本。MVP `≡ 0`（#166 §6.3） | 必須 |
+| `DIV_s` | `:div_s1` – `_s3` | `control` | 配当・株主還元 | 必須 |
+| `TAX_s` | `:tax_s1` – `_s3` | `control` | 法人税。MVP `≡ 0` | 必須 |
+| `TAX_HH` | `:tax_hh` | `diagnostic` | 家計税・移転（純）`pl_tau · Σ wagebill_s` | 必須 |
+| `S5_NET_SX` | `:s5_net_sx` | `diagnostic` | `S5` のモデル外純流出（`S5` の唯一の閉じ変数、#166 §4.5） | 必須 |
+| `NLB_s` | `:nlb_s1` – `:nlb_s5` | `diagnostic` | 資金過不足（ブロック境界、#166 §4.1） | 必須 |
+| `VALCHG_s` | `:valchg_s1` – `_s3` | `control` | 評価差額。MVP `≡ 0`（#166 §5.7） | 必須 |
+
+**表 C: 診断・導出ストック**
+
+| 記号 | Julia 名 | 役割 | 定義 |
+|---|---|---|---|
+| `INVVAL_s` | `:invval_s2` / `_s3` | `diagnostic` | 在庫価値額 `st_invprice_s · inv_s` |
+| `YCAP_s` | `:ycap_s1` – `:ycap_s3` | `diagnostic` | 生産能力（数量）`cap_s / st_cor_s`。§5.2・§5.3 に登録済み |
+| `NW_s` | `:nw_s1` – `:nw_s3` | `diagnostic` | 純資産（資産 − 負債、#166 §5.6） |
+| `LOANS_S4` | `:loans_s4` | `diagnostic` | `S4` 貸出資産 `Σ debt_s` |
+| `DEP_S4` | `:dep_stock_s4` | `diagnostic` | `S4` 預金負債 `Σ cash_s` |
+| `FUND_S4` | `:fund_s4` | `diagnostic` | `S4` モデル外調達 `loans_s4 − dep_s4` |
+| `DEBT_SERVICE_s` | `:debt_service_s1` – `_s3` | `diagnostic` | `int_burden_s + repay_s`。§5.4 に登録済み |
+| `DSC_s` | `:dsc_s1` – `_s3` | `diagnostic` | 返済負担カバレッジ `ocf_s / debt_service_s` |
+| `ROLLOVER_GAP_s` | `:rollover_gap_s1` – `_s3` | `diagnostic` | 借換ギャップ `(1 − rollover) · matur_s` |
+| `LIQUIDITY_GAP_s` | `:liquidity_gap_s1` – `_s3` | `diagnostic` | 資金調達ギャップ（#166 §7.3・[動学方程式](capex_credit_cycle_equations.md) §7.3） |
+| `FUNDING_FORCED_s` | `:funding_forced_s1` – `_s3` | `diagnostic` | 事前の債務上限を超えた調達額（[動学方程式](capex_credit_cycle_equations.md) §11.3）。契約確定額が資金源を上回った場合に正になる |
+| `UNMET_CAP_s` | `:unmet_cap_s2` / `_s3` | `diagnostic` | 当期に充足されなかった資本財需要（[動学方程式](capex_credit_cycle_equations.md) §9.3）。#166 §3.5 の仮定 A-2 の違反量 |
+
+**表 D: パラメータの追加（§6.2 の接頭辞規約に従う）**
+
+| Julia 名 | 分類 | 内容 |
+|---|---|---|
+| `:st_wbase_s1` – `:st_wbase_s5` | 構造 | 賃金換算係数（10億ドル/四半期/百万人） |
+| `:st_cor_s1` – `:st_cor_s3` | 構造 | 資本産出比率（四半期）。`ycap_s = cap_s / st_cor_s` |
+| `:st_invprice_s2` / `_s3` | 構造 | 在庫評価価格（取得時） |
+| `:st_capex_share_s2` / `_s3` / `_sx` | 構造 | `S1` の CAPEX の供給元配分比（合計 1） |
+| `:st_invest_share_s3` / `_sx` | 構造 | `S2` の投資の供給元配分比（合計 1） |
+| `:st_gen_share_s2` / `_s3` / `_sx` | 構造 | `S5` の一般需要の供給元配分比 |
+| `:st_cons_share_s1` | 構造 | `S5` の支出のうち `S1` 向けの比率 |
+| `:st_cash_min_s1` – `_s3` | 構造 | 最低現金保有比率（対 `sales_s`） |
+| `:st_irrev_s1` – `_s3` | 構造 | 着工済み案件の不可逆比率（MVP `= 1`） |
+| `:st_payout_s1` – `_s3` | 行動 | 配当性向 |
+| `:st_debt_tol` | 構造 | 無借金判定の許容値（#166 §7.4） |
+| `:pl_tau_corp` | 政策 | 実効法人税率（MVP `= 0`） |
+
+**契約**:
+
+- `:st_cor_s1` は #166 表 4 が `:st_cor_s2` / `:st_cor_s3` のみを挙げていたが、`Y_S1` の追加（因果グラフ `1.1.0`）により `S1` にも資本産出比率が必要になる。本節で `S1` を含めて登録する。
+- `:st_payout_s` は #166 表 4 が「行動」に分類しているため、§6.2 の接頭辞規約に照らすと `bh_` が整合する。しかし配当性向は取締役会の方針として観測可能であり推定対象にしないため、**`st_` を維持し、`bh_` に含めない**。この分類は §6.2 の契約（`bh_` に分類したパラメータのみが推定・較正の対象になりうる）に従った判断である。
+- `d_{b,s}`（買い手別の購入額）は取引フロー行列の要素であり、買い手側の支出変数と配分比パラメータから機械的に再構成できるため、`SimulationResult.variables` の独立系列としては公開しない（#166 §10.1 の注意を継承）。
+- 本節の変数のうち MVP `≡ 0` のもの（`advance_s`・`pipe_cancel_s`・`retire_s`・`writeoff_s`・`equity_issue_s`・`tax_s`・`valchg_s`）は、**恒等的ゼロの独立項として保持する**（#166 §1.2-4）。式から削除しない。
+- 行動方程式（各変数を生成する式）は [動学方程式](capex_credit_cycle_equations.md) が定める。本節は変数の存在・役割・単位・時点のみを固定する。
+
 ---
 
 ## 6. DME 共通 API との適合方針
@@ -633,7 +752,7 @@ parameters(m::CapexCreditCycleModel) -> NamedTuple
 
 | 分類 | 接頭辞 | 内容 | 例 |
 |---|---|---|---|
-| **構造パラメータ** | `st_` | 技術・会計上の係数。較正対象だが行動を表さない | 資本係数 `:st_kappa_s1`、減耗率 `:st_delta_s2`、付加価値率 `:st_va_share_s2`、資本財配分比 `:st_capex_share_s2`、平均満期 `:st_maturity_s2`、固定費比率 `:st_fixed_cost_s2` |
+| **構造パラメータ** | `st_` | 技術・会計上の係数。較正対象だが行動を表さない | 資本産出比率 `:st_cor_s1`、減耗率 `:st_delta_s2`、付加価値率 `:st_va_share_s2`、資本財配分比 `:st_capex_share_s2`、平均満期 `:st_maturity_s2`、賃金換算係数 `:st_wbase_s2` |
 | **行動パラメータ** | `bh_` | 主体の意思決定を表す係数。推定・較正の主対象 | 投資調整速度 `:bh_alpha_capex_s1`、目標在庫比率 `:bh_inv_target_s2`、価格弾力性 `:bh_price_elas_s2`、資本コスト弾性 `:bh_cc_elas_s1`、限界消費性向 `:bh_mpc`、雇用弾性 `:bh_emp_elas_s2`、カバレッジ閾値 `:bh_cov_threshold` |
 | **政策・制度パラメータ** | `pl_` | 制度・政策の設定値 | LTV 上限 `:pl_ltv`、実効税率 `:pl_tau`、政策金利伝達係数 `:pl_pass_through` |
 | **数値解法設定** | 含めない | [モデル共通インターフェース](../architecture/model_interface.md) §3.3 に従い `SolverOptions` で受け取る | — |
@@ -696,11 +815,20 @@ parameters(m::CapexCreditCycleModel) -> NamedTuple
 
 ---
 
-## 7. 上流ドキュメントへの差し戻し事項
+## 7. 上流ドキュメントへの差し戻し事項（`1.1.0` で解決済み）
 
-本書の作成過程で、因果グラフ `capex-credit-cycle-graph/1.0.0` に**本書だけでは解決できない欠落**を 2 件検出した。因果グラフ §1.2-7（エッジの追加・符号の変更は当該文書の改訂を伴い、後続 Issue の設計文書で暗黙に追加しない）に従い、本書では変数の存在のみを確定し、因果関係は確定しない。
+`1.0.0` の作成過程で、因果グラフ `capex-credit-cycle-graph/1.0.0` に**本書だけでは解決できない欠落**を 2 件検出し、`A1`・`A2` として登録した。
 
-### `A1`: `S1` に産出・売上ノードが無い
+**解決状況**: 両件は因果グラフ `capex-credit-cycle-graph/1.1.0`（同書 §10.1）で解決された。
+
+| ID | 解決内容 | 本書 `1.1.0` での反映 |
+|---|---|---|
+| `A1` | ノード `Y_S1` の追加、エッジ `L60`（`COMPUTE_DEM → Y_S1`）・`L61`（`CAP_S1 → Y_S1`）の追加、収益ブロックの添字集合を `SF = {S1, S2, S3}` と明記 | §5.2 の `†` を解除。`ycap_s1` を追加 |
+| `A2` | 増幅ループ `R1` を `R1a`（`S1` 内部資金）と `R1b`（`SP` の受注・内部資金）へ分割。`L41` の原因を `CASH_S1` に限定し、`L62`（`CASH_s → INVEST_s`、`s ∈ SP`）を新設 | §4.2 の適用例に `y_s1` を追加。役割分類に変更なし |
+
+以下は登録時の記述を記録として保持する。
+
+### `A1`: `S1` に産出・売上ノードが無い（解決済み）
 
 | 項目 | 内容 |
 |---|---|
@@ -711,7 +839,7 @@ parameters(m::CapexCreditCycleModel) -> NamedTuple
 | **解決しないと影響する Issue** | #169（`S1` の利益・営業CF・現金の方程式が書けない）・R1 ループの評価（`A2` と連動） |
 | **解決しなくても進められる Issue** | #166（会計表。残高更新式は変数の存在が確定していれば書ける）・#167・#168・#170 の観測方程式設計 |
 
-### `A2`: 増幅ループ R1 の閉路が部門を跨いで閉じている
+### `A2`: 増幅ループ R1 の閉路が部門を跨いで閉じている（解決済み）
 
 | 項目 | 内容 |
 |---|---|
@@ -722,7 +850,17 @@ parameters(m::CapexCreditCycleModel) -> NamedTuple
 | **必要な改訂（提案）** | R1 の閉路を上記 (i) / (ii) のいずれか、または両方を別ループとして再定義する。(ii) を採る場合、`B2`（自己資金による耐性）の作用先が R1 のどこかも併せて見直す |
 | **解決しないと影響する Issue** | #169（R1 の利得評価方式）・契約 Q1（`contained_adjustment` は「R1 のみが作動」に対応するため、R1 の定義が判定の解釈に直結する）・因果グラフ §7.2 のループ作動状態とラベルの対応 |
 
-**契約**: `A1`・`A2` は #164 の改訂として処理し、本書の改訂では行わない。#169 は `A1`・`A2` の解決前に R1 の実装・`S1` の収益方程式の実装へ着手しない。#166・#167・#168・#170 は本書の変数定義を前提に着手してよい。
+**契約**: `A1`・`A2` は #164 の改訂として処理した（因果グラフ `1.1.0` §10.1）。本書 `1.1.0` はその結果を反映しており、**`A1`・`A2` を理由とする着手制限は解除されている**。#166・#167・#168・#170 は本書の変数定義を前提に着手してよい。
+
+`1.0.0` に対して #166 が登録した差し戻し事項のうち、本書が担当するもの（`B1`・`B2`・`B6`）の解決状況は次のとおりである。
+
+| ID | 内容 | 本書 `1.1.0` での解決 |
+|---|---|---|
+| `B1` | `CAP_s`（`s ∈ SP`）の単位が「10億ドル/四半期（生産能力）」であり、貸借対照表の資産として加算できない。`util_s = y_s / cap_s[t−1]` も次元が合わない | `cap_s` を**資本ストック（10億ドル）**へ変更し（§5.3 表 A）、生産能力 `ycap_s = cap_s / st_cor_s`（`diagnostic`）を新設。`util_s = y_s / ycap_s[t−1]` へ改訂（§5.3 表 B）。`st_cor_s1` – `st_cor_s3` を登録（§5.7 表 D） |
+| `B2` | 「出荷」が在庫・受注残の更新式に現れながら変数化されていない。`SALES_s` が産出額か引渡額か不明 | `ship_s`（`control`）・`deliv_s`（`diagnostic`）・`dinv_s`（`diagnostic`）を登録。`sales_s = price_s · y_s` を**産出額**と確定（§5.1・§5.3） |
+| `B6` | `L22` が型 `行動` であるため `PROFIT_s` が `control` になるが、会計上は残差であり行動方程式で独立に生成できない | `profit_s` の役割を `diagnostic` へ変更（§4.2・§4.4）。`L22` の型変更は因果グラフ `1.1.0` §3.4 |
+
+`B3`・`B5`・`B7` は因果グラフ `1.1.0` §10.1 で解決済みである。`B4`（`C-01` の買い手確定）は `A1` に従属しており、`cons_s1`・`xsales_s1` を §5.7 表 B に登録することで解消した（`cons_s1 ≡ 0` の暫定運用は不要になった）。
 
 ---
 
@@ -733,7 +871,7 @@ parameters(m::CapexCreditCycleModel) -> NamedTuple
 | #166 会計表 | §3 の部門責務・§3.6 のフロー相手・§3.7 の集計規約（R-1〜R-5）・§4.2 で `state` と判定した 16 変数（残高更新式を書く対象）・§5 の単位と時点基準（`EOP` / `SUM`）・`debt_service_s` の元本返済代理仮定の要検討 |
 | #167 責務境界 | §2.3 の部門境界と採用理由・§3.4 の `S4` が実物産出を持たないこと・Keen の集計的信用循環と `coverage_s` / `leverage_s` が**同名概念でも同一でない**こと（[ADR 0006](../adr/0006-cross-model-reasoning-contract.md)） |
 | #168 イベント変換 | 外生変数（§4.4、記号 6 種・部門展開後 7）とショックの適用先（`ai_exp` ← `SH-EXP`、`capex_plan_shock_ex` ← `SH-CAPEX`、`spread_shock_ex` ← `SH-CREDIT`、`policy_rate` ← `SH-EASING`）・§6.4 の `_shock_ex` 命名規則 |
-| #169 動学方程式 | §4.2 の役割判定結果（`control` 変数が行動方程式の対象、`diagnostic` は定義式のみ）・§4.3 の遅延/パイプライン表現・§5 の符号制約（違反検出の対象）・§5.6 の指標群と変数の対応・§7 の `A1`・`A2` 未解決範囲 |
+| #169 動学方程式 | §4.2 の役割判定結果（`control` 変数が行動方程式の対象、`diagnostic` は定義式のみ）・§4.3 の遅延/パイプライン表現・§5 の符号制約（違反検出の対象）・§5.6 の指標群と変数の対応・§5.7 の会計項目変数とパラメータ・§7 の `A1`・`A2`・`B1`・`B2`・`B6` の解決内容 |
 | #170 観測・検証 | §5 表 B の観測候補と観測コード・`ext_demand_s` による外生需要成分の分離要件・§2.3 の **`breadth` が 0.25 刻みしか取れない粒度制約**（閾値較正の前提）・潜在変数 4 個（`ai_exp`・`target_cap_s1`・`cancel_s1`・`cost_capital_s`）の proxy 設計 |
 | #171 統合 | §6 の共通 API 適合方針・`exogenous_variables` を新設するかの判断・§6.5 の 2 つの整合検査のテスト実装・§5.4 の潜在変数の単独提示抑止 |
 
@@ -747,8 +885,9 @@ parameters(m::CapexCreditCycleModel) -> NamedTuple
 4. **役割分類は因果グラフのエッジ型に依存する**。因果グラフのエッジ型が改訂されれば役割も変わりうる。§4.2 の判定規則はその依存関係を明示するためのものであり、分類の恒久性を保証しない。
 5. **観測候補は候補であり、系列の存在・定義・vintage を確認していない**（§5.1）。FRED 系列 ID を明記した項目も #170 で再確認する。企業開示に依拠する項目（hyperscaler の CAPEX・営業CF）は集計対象企業の選定基準が再現性に直結するが、本書では定めていない。
 6. **`breadth` の粒度が粗い**（§2.3）。実体部門 4 のため 0.25 刻みとなり、契約 §4.2 の `breadth ≥ 0.60` は連続的な較正ができない。閾値感応度（契約 §4.4）の報告時にこの離散性を明示する必要がある。
-7. **因果グラフに未解決の欠落が 2 件ある**（§7）。`S1` の収益ブロックと R1 の閉路定義が確定するまで、`S1` の内部資金経路と R1 の利得は設計として閉じていない。
-8. **状態数の概算（§2.2・§4.4）は遅延バッファを含まない**。§4.3 の方式で遅れの上限値をバッファ長とすると状態数は数十まで増えうる。数値解法・計算量への影響は #169・#170 が評価する。
+7. **`S1` の内部資金ループ（`R1a`）は基準ユースケースでほぼ作動しない**（因果グラフ `1.1.0` §4 `R1a`・§9-8）。`A1` の解決により `S1` の収益ブロックは閉じたが、`y_s1 = min(compute_dem, 能力上限)` の能力側が非拘束であるため、需要主導の下方ショックでは `L61` が効かない。`S1` の CAPEX 削減が `S1` 自身の収益を通じて自己増幅する経路は能力拘束下に限られる。
+8. **状態数の概算（§2.2・§4.4）は遅延バッファを含まない**。§4.3 の方式で遅れの上限値をバッファ長とすると状態数は数十まで増えうる。数値解法・計算量への影響は [動学方程式](capex_credit_cycle_equations.md) §15 と #170 が評価する。
+9. **`ycap_s` の観測対応は近似である**（`1.1.0`）。`B1` の解決として `ycap_s = cap_s / st_cor_s` を導入したが、FRB の設備能力（Capacity）は物量・技術的能力の指数であり、資本ストックを一定の資本産出比率で割った量と概念的に一致しない。`st_cor_s` を定数とする仮定の妥当性は #170 の履歴再生で初めて評価される。
 
 ---
 
@@ -758,7 +897,7 @@ parameters(m::CapexCreditCycleModel) -> NamedTuple
 
 | 対象外 | 扱い |
 |---|---|
-| 最終的な方程式・パラメータ値 | #169（関数形）・#170（較正） |
+| 最終的な方程式・パラメータ値 | [動学方程式](capex_credit_cycle_equations.md)（関数形）・#170（較正） |
 | ストック・フロー会計表と残高更新式の確定 | #166 |
 | データ取得実装・系列 ID の確定 | #170 |
 | 個別企業の分類・集計対象企業の選定基準 | #170（再現性の要件として） |
@@ -773,4 +912,5 @@ parameters(m::CapexCreditCycleModel) -> NamedTuple
 
 | version | 日付 | 変更 |
 |---|---|---|
+| `capex-credit-cycle-vars/1.1.0` | 2026-07-30 | #169 の要求に基づく差し戻し解決（`A1`・`A2` は因果グラフ `1.1.0` 側で解決、`B1`・`B2`・`B6` は本書で解決）。`cap_s`（`s ∈ SP`）を資本ストック（10億ドル）へ変更し `ycap_s`（生産能力・数量）を新設。`util_s = y_s / ycap_s[t−1]` へ改訂。`ship_s`・`deliv_s`・`dinv_s` を追加し `sales_s` を産出額と確定。`profit_s` の役割を `control` → `diagnostic` へ変更。`y_s1`・`ycap_s1`・`util_s1`・`plan_carry_s1`・`r_eff_s`・`spread_endo` を追加し `S1` 収益ブロックの `†` を解除。§5.7 に会計項目の変数（状態 3・フロー 30・診断ストック 12）とパラメータ 12 系統を正式登録。役割別内訳を更新（`state` 20・`control` 約 45・`diagnostic` 約 50） |
 | `capex-credit-cycle-vars/1.0.0` | 2026-07-29 | 初版（#165）。部門区分（案A 5部門）の採用と理由・部門責務・実物/金融フロー図・集計規約 R-1〜R-5・役割分類の判定規則・遅延/パイプライン状態表現・変数辞書（`S1`/`S2`・`S3`/`S4`/`S5`）・契約 §4.2 指標群との対応・DME 共通 API 適合方針（平坦キー + 部門接尾辞）・因果グラフへの差し戻し事項 `A1`・`A2` を固定 |
