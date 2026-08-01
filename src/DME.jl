@@ -74,6 +74,8 @@ export
     CapexSectorSets,
     # CCC: 実行
     CapexCreditCycleOptions,
+    CapexCreditCycleRun,
+    capex_run,
     capex_steady_state_report,
     CapexSteadyStateReport,
     passed,
