@@ -1,14 +1,17 @@
 """
 部門別CAPEX・信用循環モデル（`CapexCreditCycleModel`）。
 
-`I-1`（型・パラメータ辞書・逆較正・定常状態）の実装。`simulate`・会計・診断・シナリオは
-後続 Issue（`I-2`〜`I-5`）の責務であり、本ファイルには含まれない。
+`I-1`（型・パラメータ辞書・逆較正・定常状態）と `I-2`（期内動学・数値ガード・`simulate`）の
+実装。会計表・診断ラベル・シナリオ定義は後続 Issue（`I-3`〜`I-5`）の責務であり、本ファイルには
+含まれない。
 
 正本:
 - [統合設計](../../docs/architecture/capex_credit_cycle_integration.md)
 - [統合モデル仕様 index](../../docs/models/capex_credit_cycle_design.md)
-- [動学方程式](../../docs/models/capex_credit_cycle_equations.md) §13・§14
+- [動学方程式](../../docs/models/capex_credit_cycle_equations.md) §3-§17（期内処理順序・全方程式・
+  パラメータ辞書・逆較正・数値ガード）
 - [部門境界と変数定義](../../docs/models/capex_credit_cycle_sectors_variables.md) §4-6
+- [ADR 0011](../../docs/adr/0011-capex-credit-cycle-dynamics-contract.md)
 - [ADR 0013](../../docs/adr/0013-capex-credit-cycle-integration-contract.md)
 """
 
@@ -164,6 +167,14 @@ const _CCC_STATE_BASE = (
 )
 
 # 遅延バッファ（§13.5）: 深さ1（34本）・深さ3（3本）
+#
+# `I-2`（本ファイル）で検出した §13.5 の欠落: `E10-07`（`emp_s = max(0, emp_s[t−1] + λ_s·gap_emp_s)`）
+# と `E10-09`（`wage = max(st_wage_min, wage[t−1] + …)`）はいずれも自身の前期値を参照する再帰式
+# だが、§13.5 の遅延バッファ一覧に `emp_s`（`s1`–`s5`）・`wage` が含まれていない
+# （`r_eff_s`・`price_s` 等の他の自己参照変数は state または深さ3バッファとして登録済み）。
+# 式が要求する値を式の外から独自に作らずに済ませる方法が無いため、深さ1バッファへ追加する
+# （経済的判断ではなく、指定された再帰式を評価可能にするための機械的な追加）。
+# 状態次元は 65 から 70 へ増える。上流文書（#169 §13.5）への差し戻し事項として保持する。
 const _CCC_LAG1_BASE = (
     :capex_exec_s1,
     :capex_plan_s1,
@@ -199,6 +210,11 @@ const _CCC_LAG1_BASE = (
     :inv_ratio_s2,
     :inv_ratio_s3,
     :cons,
+    :emp_s1,
+    :emp_s2,
+    :emp_s3,
+    :emp_s5,
+    :wage,
 )
 const _CCC_LAG3_BASE = (:price_s2, :price_s3, :emp_tot)
 
@@ -1859,4 +1875,1417 @@ function capex_steady_state_report(
     )
 
     return CapexSteadyStateReport(checks)
+end
+
+# ============================================================
+# I-2: 期内動学・数値ガード・simulate（動学方程式 §5–§12・§15、統合設計 §4.4・§5）
+# ============================================================
+
+"""
+    _ccc_div(a, b, eps) -> Float64
+
+ゼロ除算規則（動学方程式 §15.4）。`|b| ≤ eps` のとき `NaN` を返す。
+分母を下限で置き換えない（`E6-08`・`E11-19` の2箇所を除く。当該箇所は個別に実装する）。
+"""
+_ccc_div(a::Float64, b::Float64, eps::Float64) = abs(b) <= eps ? NaN : a / b
+
+const CAPEX_CC_WARNING_CODES = (
+    :runup_deviation,
+    :a2_violation,
+    :funding_forced,
+    :liquidity_gap,
+    :cash_below_min,
+    :threshold_proximity,
+    :extreme_shock,
+    :acc_warning,
+    :acc_fail,
+    :acc_invalid,
+    :sign_constraint,
+    :ss_inconsistent,
+)
+
+const CAPEX_CC_BINDING_FLAGS = (
+    :equity_floor_binding,
+    :spread_floor_binding,
+    :rollover_binding,
+    :cc_floor_binding,
+    :liq_binding,
+    :plan_floor_binding,
+    :cancel_binding,
+    :div_floor_binding,
+    :fundable_floor_binding,
+    :defer_cap_binding,
+    :invest_funding_binding,
+    :order_gen_floor_binding,
+    :inv_threshold_binding,
+    :capacity_binding,
+    :supply_binding,
+    :price_floor_binding,
+    :capacity_binding_s1,
+    :emp_floor_binding,
+    :wage_floor_binding,
+    :cons_floor_binding,
+    :cons_split_binding,
+)
+
+function _ccc_default_binding_keys()
+    ks = Symbol[
+        :equity_floor_binding,
+        :spread_floor_binding,
+        :rollover_binding,
+        :cancel_binding,
+        :defer_cap_binding,
+        :capacity_binding_s1,
+        :wage_floor_binding,
+        :cons_floor_binding,
+        :cons_split_binding,
+    ]
+    for s in _CCC_S13
+        push!(ks, Symbol("cc_floor_binding_$s"))
+        push!(ks, Symbol("liq_binding_$s"))
+        push!(ks, Symbol("plan_floor_binding_$s"))
+        push!(ks, Symbol("div_floor_binding_$s"))
+        push!(ks, Symbol("fundable_floor_binding_$s"))
+    end
+    for s in _CCC_S23
+        push!(ks, Symbol("order_gen_floor_binding_$s"))
+        push!(ks, Symbol("inv_threshold_binding_$s"))
+        push!(ks, Symbol("capacity_binding_$s"))
+        push!(ks, Symbol("supply_binding_$s"))
+        push!(ks, Symbol("price_floor_binding_$s"))
+        push!(ks, Symbol("invest_funding_binding_$s"))
+    end
+    for s in ("s1", "s2", "s3", "s5")
+        push!(ks, Symbol("emp_floor_binding_$s"))
+    end
+    return ks
+end
+
+function _ccc_sector_of(sym::Symbol)
+    s = string(sym)
+    for tag in ("s1", "s2", "s3", "s4", "s5")
+        if endswith(s, "_" * tag)
+            return tag
+        end
+    end
+    return "aggregate"
+end
+
+# ------------------------------------------------------------
+# 内部型（統合設計 §5.1）。65（#169）→70 次元（`_CCC_LAG1_BASE` 直上のコメント参照）の
+# 期首状態・当期全変数を Dict{Symbol,Float64} として表現する。フィールドを固定した
+# struct にすると 200 近い個別フィールドの列挙が必要になり、キー集合が
+# `_ccc_state_variables()`/変数辞書と二重管理になるため、キー集合を単一の関数から
+# 導出できる Dict 表現を採る。
+# ------------------------------------------------------------
+
+const _CCCState = Dict{Symbol, Float64}
+const _CCCPeriod = Dict{Symbol, Float64}
+const _CCCBinding = Dict{Symbol, Vector{Bool}}
+
+"""
+    _ccc_state0_from_steady(m) -> _CCCState
+
+`steady_state(m)` から70次元の初期状態（`t=-8` の期首状態）を構成する。遅延バッファも
+定常値で埋める（ゼロで埋めない、動学方程式 §14.4）。
+"""
+function _ccc_state0_from_steady(m::CapexCreditCycleModel)
+    ss = steady_state(m)
+    st = _CCCState()
+    for sym in _CCC_STATE_BASE
+        st[sym] = getproperty(ss, sym)
+    end
+    for base in _CCC_LAG1_BASE
+        st[Symbol(string(base) * "_lag1")] = getproperty(ss, base)
+    end
+    for base in _CCC_LAG3_BASE
+        v = getproperty(ss, base)
+        st[Symbol(string(base) * "_lag1")] = v
+        st[Symbol(string(base) * "_lag2")] = v
+        st[Symbol(string(base) * "_lag3")] = v
+    end
+    return st
+end
+
+function _ccc_state_dict_from_namedtuple(nt)
+    st = _CCCState()
+    for sym in _ccc_state_variables()
+        st[sym] = Float64(getproperty(nt, sym))
+    end
+    return st
+end
+
+"""
+    _ccc_shift_state!(newst, pr, st)
+
+期末の70次元状態を組み立てる。base 22 は当期値そのもの、深さ1バッファは当期値、
+深さ3バッファはシフトレジスタ（`lag3 ← lag2`・`lag2 ← lag1`・`lag1 ← 当期値`）。
+"""
+function _ccc_shift_state!(newst::_CCCState, pr::_CCCPeriod, st::_CCCState)
+    for sym in _CCC_STATE_BASE
+        newst[sym] = pr[sym]
+    end
+    for base in _CCC_LAG1_BASE
+        newst[Symbol(string(base) * "_lag1")] = pr[base]
+    end
+    for base in _CCC_LAG3_BASE
+        newst[Symbol(string(base) * "_lag3")] = st[Symbol(string(base) * "_lag2")]
+        newst[Symbol(string(base) * "_lag2")] = st[Symbol(string(base) * "_lag1")]
+        newst[Symbol(string(base) * "_lag1")] = pr[base]
+    end
+    return newst
+end
+
+# ------------------------------------------------------------
+# ステップ1: 外生入力の適用（§4）
+# ------------------------------------------------------------
+
+function _ccc_apply_exog!(pr::_CCCPeriod, exog::Dict{Symbol, Vector{Float64}}, idx::Int)
+    for v in CAPEX_CC_EXOGENOUS_VARIABLES
+        pr[v] = exog[v][idx]
+    end
+    return nothing
+end
+
+# ------------------------------------------------------------
+# ステップ2: 金融条件（§5）
+# ------------------------------------------------------------
+
+function _ccc_financial!(
+    pr::_CCCPeriod,
+    st::_CCCState,
+    p::NamedTuple,
+    opts::CapexCreditCycleOptions,
+    binding::_CCCBinding,
+    idx::Int,
+)
+    eps = opts.div_eps
+
+    fin_cond =
+        (1 - p.bh_fc_adj) * st[:fin_cond_lag1] +
+        p.bh_fc_adj * p.bh_fc_pol * (pr[:policy_rate] - p.st_pol_ref)
+    pr[:fin_cond] = fin_cond
+
+    profit_sf_lag1 = st[:profit_s1_lag1] + st[:profit_s2_lag1] + st[:profit_s3_lag1]
+    equity_val_raw =
+        (1 - p.bh_ev_adj) * st[:equity_val_lag1] +
+        p.bh_ev_adj * (1 + p.bh_ev_elas * (profit_sf_lag1 / p.st_profit_ref - 1))
+    equity_val = max(equity_val_raw, p.st_ev_min)
+    binding[:equity_floor_binding][idx] = equity_val_raw < p.st_ev_min
+    pr[:equity_val] = equity_val
+
+    # invval_s[t-1] は state/lag に持たないため price_s[t-1]・inv_s[t-1] から再構成する（E12-05）
+    invval_s2_lag1 = st[:price_s2_lag1] * st[:inv_s2]
+    invval_s3_lag1 = st[:price_s3_lag1] * st[:inv_s3]
+    physical_sf_lag1 =
+        (st[:cap_s1] + st[:capex_pipe_s1]) +
+        (st[:cap_s2] + st[:capex_pipe_s2]) +
+        (st[:cap_s3] + st[:capex_pipe_s3])
+    collateral =
+        p.st_coll_ltv *
+        (physical_sf_lag1 + invval_s2_lag1 + invval_s3_lag1) *
+        equity_val^p.bh_coll_elas
+    pr[:collateral] = collateral
+
+    coverage_agg_lag1 = st[:coverage_agg_lag1]
+    threshold_term =
+        isnan(coverage_agg_lag1) ? 0.0 :
+        p.bh_spread_cov * max(0.0, p.bh_cov_threshold - coverage_agg_lag1)^p.bh_spread_pow
+    spread_endo = p.st_spread0 + threshold_term + p.bh_spread_fc * st[:fin_cond_lag1]
+    pr[:spread_endo] = spread_endo
+    spread_raw = spread_endo + pr[:spread_shock_ex]
+    spread = max(spread_raw, 0.0)
+    binding[:spread_floor_binding][idx] = spread_raw < 0.0
+    pr[:spread] = spread
+
+    lend_stance = -p.bh_lend_spread * (st[:spread_lag1] - p.st_spread0)
+    pr[:lend_stance] = lend_stance
+
+    debt_sf_lag1 = st[:debt_s1] + st[:debt_s2] + st[:debt_s3]
+    local rollover::Float64
+    if collateral <= eps
+        rollover = NaN
+    else
+        rollover_raw = 1 - p.bh_roll_slope * max(0.0, debt_sf_lag1 / collateral - p.pl_ltv)
+        rollover = clamp(rollover_raw, 0.0, 1.0)
+        binding[:rollover_binding][idx] = rollover_raw < 0.0 || rollover_raw > 1.0
+    end
+    pr[:rollover] = rollover
+
+    for s in _CCC_S13
+        debt_lag1 = st[Symbol("debt_$s")]
+        maturity = getproperty(p, Symbol("st_maturity_$s"))
+        phi = _CCC_DT / maturity
+        matur = phi * debt_lag1
+        refin = isnan(rollover) ? NaN : rollover * matur
+        repay = isnan(rollover) ? NaN : matur - refin
+        r_new = (pr[:policy_rate] + spread / 100) / 100
+        r_eff_lag1 = st[Symbol("r_eff_$s")]
+        r_eff = (1 - phi) * r_eff_lag1 + phi * r_new
+        int_burden = r_eff * _CCC_DT * debt_lag1
+        pr[Symbol("matur_$s")] = matur
+        pr[Symbol("refin_$s")] = refin
+        pr[Symbol("repay_$s")] = repay
+        pr[Symbol("r_eff_$s")] = r_eff
+        pr[Symbol("int_burden_$s")] = int_burden
+        pr[Symbol("rollover_gap_$s")] = repay
+
+        cc_raw =
+            getproperty(p, Symbol("st_cc0_$s")) + p.bh_cc_spread * spread / 100 -
+            p.bh_cc_lend * lend_stance - p.bh_cc_equity * (equity_val - 1) +
+            p.bh_cc_fc * fin_cond
+        cc = max(cc_raw, 0.0)
+        binding[Symbol("cc_floor_binding_$s")][idx] = cc_raw < 0.0
+        pr[Symbol("cost_capital_$s")] = cc
+    end
+
+    ocf_sf_lag1 = st[:ocf_s1_lag1] + st[:ocf_s2_lag1] + st[:ocf_s3_lag1]
+    int_burden_sf_lag1 =
+        st[:int_burden_s1_lag1] + st[:int_burden_s2_lag1] + st[:int_burden_s3_lag1]
+    pr[:coverage_agg] = _ccc_div(ocf_sf_lag1, int_burden_sf_lag1, eps)
+
+    return nothing
+end
+
+# ------------------------------------------------------------
+# ステップ3: 計画（§6）
+# ------------------------------------------------------------
+
+function _ccc_plan!(
+    pr::_CCCPeriod,
+    st::_CCCState,
+    p::NamedTuple,
+    opts::CapexCreditCycleOptions,
+    binding::_CCCBinding,
+    idx::Int,
+)
+    eps = opts.div_eps
+
+    compute_dem = p.st_cd0 * pr[:ai_exp]
+    pr[:compute_dem] = compute_dem
+
+    target_cap_s1 = p.st_cor_s1 * compute_dem / p.bh_util_tgt_s1
+    pr[:target_cap_s1] = target_cap_s1
+
+    capex_gap_s1 = target_cap_s1 - st[:cap_s1] - st[:capex_pipe_s1]
+    capex_plan_raw_s1 = p.st_delta_s1 * st[:cap_s1] + p.bh_alpha_capex_s1 * capex_gap_s1
+
+    denom_liq_s1 = p.st_cash_ref_s1 * st[:sales_s1_lag1]
+    local liq_s1::Float64
+    if abs(denom_liq_s1) <= eps
+        liq_s1 = NaN
+    else
+        liq_raw = st[:cash_s1] / denom_liq_s1
+        liq_s1 = clamp(liq_raw, 0.0, 1.0)
+        binding[:liq_binding_s1][idx] = liq_raw < 0.0 || liq_raw > 1.0
+    end
+
+    cc_dev_s1 = st[:cost_capital_s1_lag1] - p.st_cc0_s1
+
+    liq_term_s1 = isnan(liq_s1) ? NaN : (1 - p.bh_cc_elas_s1 * (1 - liq_s1) * cc_dev_s1)
+    plan_raw = capex_plan_raw_s1 * liq_term_s1 * pr[:capex_plan_shock_ex]
+    capex_plan_s1 = max(plan_raw, 0.0)
+    binding[:plan_floor_binding_s1][idx] = plan_raw < 0.0
+    pr[:capex_plan_s1] = capex_plan_s1
+
+    plan_rev_s1 =
+        (capex_plan_s1 - st[:capex_plan_s1_lag1]) / max(st[:capex_plan_s1_lag1], eps)
+    cancel_raw = p.bh_cancel_slope * max(0.0, -plan_rev_s1 - p.bh_cancel_thresh)
+    cancel_s1 = clamp(cancel_raw, 0.0, p.bh_cancel_max)
+    binding[:cancel_binding][idx] = cancel_raw < 0.0 || cancel_raw > p.bh_cancel_max
+    pr[:cancel_s1] = cancel_s1
+
+    revive_s1 = p.bh_revive_s1 * st[:plan_carry_s1]
+    pr[:revive_s1] = revive_s1
+    capex_plan_eff_s1 = capex_plan_s1 + revive_s1
+    pr[:capex_plan_eff_s1] = capex_plan_eff_s1
+
+    capex_cancel_s1 = cancel_s1 * capex_plan_eff_s1
+    pr[:capex_cancel_s1] = capex_cancel_s1
+
+    # SP（s∈{S2,S3}）の投資計画。`inv_gap_s` は §6.5 の E6-14 から `capex_pipe_s[t−1]` の
+    # 減算を外している（本ファイル冒頭のコメント「I-2-inv-gap-sp」参照。上流への差し戻し事項）。
+    for s in _CCC_S23
+        y_lag1 = st[Symbol("y_$(s)_lag1")]
+        util_tgt = getproperty(p, Symbol("bh_util_tgt_$s"))
+        ycap_tgt = y_lag1 / util_tgt
+        target_cap = getproperty(p, Symbol("st_cor_$s")) * ycap_tgt
+        inv_gap = target_cap - st[Symbol("cap_$s")]
+
+        cash_ref = getproperty(p, Symbol("st_cash_ref_$s"))
+        sales_lag1 = st[Symbol("sales_$(s)_lag1")]
+        denom_liq = cash_ref * sales_lag1
+        local liq_s::Float64
+        if abs(denom_liq) <= eps
+            liq_s = NaN
+        else
+            liq_raw = st[Symbol("cash_$s")] / denom_liq
+            liq_s = clamp(liq_raw, 0.0, 1.0)
+            binding[Symbol("liq_binding_$s")][idx] = liq_raw < 0.0 || liq_raw > 1.0
+        end
+
+        delta = getproperty(p, Symbol("st_delta_$s"))
+        alpha_inv = getproperty(p, Symbol("bh_alpha_inv_$s"))
+        cc_elas_inv = getproperty(p, Symbol("bh_cc_elas_inv_$s"))
+        cc0 = getproperty(p, Symbol("st_cc0_$s"))
+        lend_elas_inv = getproperty(p, Symbol("bh_lend_elas_inv_$s"))
+        cost_capital_lag1 = st[Symbol("cost_capital_$(s)_lag1")]
+        lend_stance_lag1 = st[:lend_stance_lag1]
+
+        liq_term =
+            isnan(liq_s) ? NaN : (1 - cc_elas_inv * (1 - liq_s) * (cost_capital_lag1 - cc0))
+        plan_raw_s =
+            (delta * st[Symbol("cap_$s")] + alpha_inv * inv_gap) *
+            liq_term *
+            (1 + lend_elas_inv * lend_stance_lag1)
+        invest_plan = max(plan_raw_s, 0.0)
+        binding[Symbol("plan_floor_binding_$s")][idx] = plan_raw_s < 0.0
+        pr[Symbol("invest_plan_$s")] = invest_plan
+    end
+
+    return nothing
+end
+
+# ------------------------------------------------------------
+# ステップ4: 資金制約と実行（§7）
+# ------------------------------------------------------------
+
+function _ccc_funding!(
+    pr::_CCCPeriod,
+    st::_CCCState,
+    p::NamedTuple,
+    opts::CapexCreditCycleOptions,
+    binding::_CCCBinding,
+    idx::Int,
+)
+    for s in _CCC_S13
+        profit_lag1 = st[Symbol("profit_$(s)_lag1")]
+        int_burden_lag1 = st[Symbol("int_burden_$(s)_lag1")]
+        tax_lag1 = st[Symbol("tax_$(s)_lag1")]
+
+        tax = p.pl_tau_corp * max(0.0, profit_lag1 - int_burden_lag1)
+        pr[Symbol("tax_$s")] = tax
+
+        payout = getproperty(p, Symbol("st_payout_$s"))
+        div_raw = payout * max(0.0, profit_lag1 - int_burden_lag1 - tax_lag1)
+        div = max(div_raw, 0.0)
+        binding[Symbol("div_floor_binding_$s")][idx] = div_raw < 0.0
+        pr[Symbol("div_$s")] = div
+
+        pr[Symbol("equity_issue_$s")] = 0.0
+        pr[Symbol("writeoff_$s")] = 0.0
+        pr[Symbol("pipe_cancel_$s")] = 0.0
+        pr[Symbol("retire_$s")] = 0.0
+    end
+    pr[:advance_s2] = 0.0
+    pr[:advance_s3] = 0.0
+
+    for s in _CCC_S13
+        ocf_lag1 = st[Symbol("ocf_$(s)_lag1")]
+        int_burden = pr[Symbol("int_burden_$s")]
+        tax = pr[Symbol("tax_$s")]
+        div = pr[Symbol("div_$s")]
+        repay = pr[Symbol("repay_$s")]
+        internal = ocf_lag1 - int_burden - tax - div - repay
+        pr[Symbol("internal_$s")] = internal
+
+        cash_min = getproperty(p, Symbol("st_cash_min_$s"))
+        sales_lag1 = st[Symbol("sales_$(s)_lag1")]
+        cash_free_raw = st[Symbol("cash_$s")] - cash_min * sales_lag1
+        cash_free = max(cash_free_raw, 0.0)
+        binding[Symbol("fundable_floor_binding_$s")][idx] = cash_free_raw < 0.0
+        pr[Symbol("cash_free_$s")] = cash_free
+
+        dcap = getproperty(p, Symbol("st_dcap_$s"))
+        dcap_lend = getproperty(p, Symbol("bh_dcap_lend_$s"))
+        debt_cap_raw = (dcap + dcap_lend * pr[:lend_stance]) * sales_lag1
+        debt_cap = max(debt_cap_raw, 0.0)
+        pr[Symbol("debt_cap_$s")] = debt_cap
+
+        newdebt_max_raw = debt_cap - (st[Symbol("debt_$s")] - repay)
+        newdebt_max = max(newdebt_max_raw, 0.0)
+        pr[Symbol("newdebt_max_$s")] = newdebt_max
+
+        fundable_raw = internal + cash_free + newdebt_max
+        fundable = max(fundable_raw, 0.0)
+        binding[Symbol("fundable_floor_binding_$s")][idx] |= fundable_raw < 0.0
+        pr[Symbol("fundable_$s")] = fundable
+    end
+
+    commit_s1 = p.st_commit_s1 * st[:capex_exec_s1_lag1]
+    pr[:commit_s1] = commit_s1
+
+    defer_roll_s1 =
+        p.bh_defer_roll *
+        max(0.0, p.bh_roll_thresh - pr[:rollover]) *
+        (pr[:capex_plan_eff_s1] - pr[:capex_cancel_s1])
+    defer_max_raw = pr[:capex_plan_eff_s1] - pr[:capex_cancel_s1] - commit_s1
+    defer_max_s1 = max(defer_max_raw, 0.0)
+    defer_need_raw = (pr[:capex_plan_eff_s1] - pr[:capex_cancel_s1]) - pr[:fundable_s1]
+    defer_need_s1 = max(defer_need_raw, 0.0)
+
+    defer_candidate = defer_need_s1 + defer_roll_s1
+    capex_defer_s1 = min(defer_max_s1, defer_candidate)
+    binding[:defer_cap_binding][idx] = defer_candidate > defer_max_s1
+    pr[:capex_defer_s1] = capex_defer_s1
+
+    capex_exec_s1 = pr[:capex_plan_eff_s1] - pr[:capex_cancel_s1] - capex_defer_s1
+    pr[:capex_exec_s1] = capex_exec_s1
+
+    pr[:capex_sx_s1] = p.st_capex_share_sx * capex_exec_s1
+
+    for s in _CCC_S23
+        invest_raw = pr[Symbol("invest_plan_$s")]
+        fundable = pr[Symbol("fundable_$s")]
+        invest = min(invest_raw, fundable)
+        binding[Symbol("invest_funding_binding_$s")][idx] = invest_raw > fundable
+        pr[Symbol("invest_$s")] = invest
+    end
+
+    pr[:inv_sx_s2] = p.st_invest_share_sx * pr[:invest_s2]
+    pr[:inv_sx_s3] = pr[:invest_s3]
+
+    # §7.3 の liquidity_gap_s（E7-20）。`newdebt_s` ではなく `newdebt_max_s`（事前上限）を
+    # 用いる読み替え済みの定義（差し戻し `E5`、#166 §14.6 で解決済み）。
+    I_of = Dict("s1" => capex_exec_s1, "s2" => pr[:invest_s2], "s3" => pr[:invest_s3])
+    for s in _CCC_S13
+        I_s = I_of[s]
+        gap_raw =
+            pr[Symbol("int_burden_$s")] + pr[Symbol("repay_$s")] + I_s -
+            st[Symbol("ocf_$(s)_lag1")] - pr[Symbol("newdebt_max_$s")] -
+            pr[Symbol("cash_free_$s")]
+        pr[Symbol("liquidity_gap_$s")] = max(gap_raw, 0.0)
+    end
+
+    return nothing
+end
+
+# ------------------------------------------------------------
+# ステップ5: 価格確定と受注配分（§8・§9.4、X-15/X-16 改訂により価格生成をここへ前倒し）
+# ------------------------------------------------------------
+
+function _ccc_orders!(
+    pr::_CCCPeriod,
+    st::_CCCState,
+    p::NamedTuple,
+    opts::CapexCreditCycleOptions,
+    binding::_CCCBinding,
+    idx::Int,
+)
+    for s in _CCC_S23
+        util_lag1 = st[Symbol("util_$(s)_lag1")]
+        util_tgt = getproperty(p, Symbol("bh_util_tgt_$s"))
+        price_scale = getproperty(p, Symbol("bh_price_scale_$s"))
+        price_sens = getproperty(p, Symbol("bh_price_sens_$s"))
+        price_tgt = 1 + price_sens * tanh((util_lag1 - util_tgt) / price_scale)
+
+        price_min = getproperty(p, Symbol("st_price_min_$s"))
+        price_adj = getproperty(p, Symbol("bh_price_adj_$s"))
+        price_lag1 = st[Symbol("price_$(s)_lag1")]
+        price_raw = price_lag1 + price_adj * (price_tgt - price_lag1)
+        price = max(price_raw, price_min)
+        binding[Symbol("price_floor_binding_$s")][idx] = price_raw < price_min
+        pr[Symbol("price_$s")] = price
+    end
+
+    order_cap = Dict{String, Float64}()
+    for s in _CCC_S23
+        share = getproperty(p, Symbol("st_capex_share_$s"))
+        price_min = getproperty(p, Symbol("st_price_min_$s"))
+        price = pr[Symbol("price_$s")]
+        order_cap[s] = share * pr[:capex_exec_s1] / max(price, price_min)
+    end
+
+    pr[:order_inv_s2] = 0.0
+    order_inv_s3 =
+        p.st_invest_share_s3 * pr[:invest_s2] / max(pr[:price_s3], p.st_price_min_s3)
+    order_inv = Dict("s2" => 0.0, "s3" => order_inv_s3)
+
+    for s in _CCC_S23
+        gen_share = getproperty(p, Symbol("st_gen_share_$s"))
+        y_s5_lag1 = st[:y_s5_lag1]
+        price_elas = getproperty(p, Symbol("bh_price_elas_$s"))
+        price_lag3 = st[Symbol("price_$(s)_lag3")]
+        order_gen_raw = gen_share * y_s5_lag1 * (1 - price_elas * (price_lag3 - 1))
+        order_gen = max(order_gen_raw, 0.0)
+        binding[Symbol("order_gen_floor_binding_$s")][idx] = order_gen_raw < 0.0
+        pr[Symbol("order_gen_$s")] = order_gen
+
+        ext_demand = pr[Symbol("ext_demand_$s")]
+        pr[Symbol("order_cap_int_$s")] = order_cap[s]
+        pr[Symbol("order_inv_int_$s")] = order_inv[s]
+        pr[Symbol("order_$s")] = order_cap[s] + order_inv[s] + order_gen + ext_demand
+    end
+
+    return nothing
+end
+
+# ------------------------------------------------------------
+# ステップ6: 生産・出荷・在庫・受注残（§9）
+# ------------------------------------------------------------
+
+function _ccc_production!(
+    pr::_CCCPeriod,
+    st::_CCCState,
+    p::NamedTuple,
+    opts::CapexCreditCycleOptions,
+    binding::_CCCBinding,
+    idx::Int,
+)
+    for s in _CCC_S23
+        cor = getproperty(p, Symbol("st_cor_$s"))
+        ycap = st[Symbol("cap_$s")] / cor
+        pr[Symbol("ycap_$s")] = ycap
+
+        demand_cap = pr[Symbol("order_cap_int_$s")] + pr[Symbol("order_inv_int_$s")]
+
+        backlog_lag1 = st[Symbol("backlog_$s")]
+        order_gen = pr[Symbol("order_gen_$s")]
+        ext_demand = pr[Symbol("ext_demand_$s")]
+        demand_gen = backlog_lag1 + order_gen + ext_demand
+
+        backlog_tgt = getproperty(p, Symbol("bh_backlog_target_$s"))
+        ship_desired = demand_cap + (1 - backlog_tgt) * demand_gen
+
+        inv_tgt_ratio = getproperty(p, Symbol("bh_inv_target_$s"))
+        inv_tgt = inv_tgt_ratio * ship_desired
+        inv_lag1 = st[Symbol("inv_$s")]
+        inv_adj = getproperty(p, Symbol("bh_inv_adj_$s"))
+        y_norm = ship_desired + inv_adj * (inv_tgt - inv_lag1)
+
+        inv_ratio_lag1 = st[Symbol("inv_ratio_$(s)_lag1")]
+        inv_thresh = getproperty(p, Symbol("bh_inv_thresh_$s"))
+        prod_cut = getproperty(p, Symbol("bh_prod_cut_$s"))
+        y_cut =
+            isnan(inv_ratio_lag1) ? 0.0 :
+            prod_cut * max(0.0, inv_ratio_lag1 - inv_thresh) * ship_desired
+        binding[Symbol("inv_threshold_binding_$s")][idx] =
+            !isnan(inv_ratio_lag1) && (inv_ratio_lag1 - inv_thresh) > 0.0
+
+        util_max = getproperty(p, Symbol("bh_util_max_$s"))
+        y_pre = max(0.0, y_norm - y_cut)
+        y_cap_limit = util_max * ycap
+        y = min(y_pre, y_cap_limit)
+        binding[Symbol("capacity_binding_$s")][idx] =
+            (y_norm - y_cut < 0.0) || (y_pre > y_cap_limit)
+        pr[Symbol("y_$s")] = y
+        pr[Symbol("util_$s")] = y / ycap
+
+        ship_raw = min(ship_desired, y + inv_lag1)
+        binding[Symbol("supply_binding_$s")][idx] = ship_desired > (y + inv_lag1)
+        pr[Symbol("ship_$s")] = ship_raw
+        ship_gen = max(0.0, ship_raw - demand_cap)
+        pr[Symbol("ship_gen_$s")] = ship_gen
+
+        price = pr[Symbol("price_$s")]
+        pr[Symbol("deliv_$s")] = price * ship_raw
+        pr[Symbol("dinv_$s")] = price * (y - ship_raw)
+
+        pr[Symbol("unmet_cap_$s")] = max(0.0, demand_cap - (y + inv_lag1))
+    end
+
+    ycap_s1 = st[:cap_s1] / p.st_cor_s1
+    pr[:ycap_s1] = ycap_s1
+    y_pre_s1 = pr[:compute_dem]
+    y_cap_limit_s1 = p.bh_util_max_s1 * ycap_s1
+    y_s1 = min(y_pre_s1, y_cap_limit_s1)
+    binding[:capacity_binding_s1][idx] = y_pre_s1 > y_cap_limit_s1
+    pr[:y_s1] = y_s1
+    pr[:util_s1] = y_s1 / ycap_s1
+
+    return nothing
+end
+
+# ------------------------------------------------------------
+# ステップ7: 雇用・所得・消費（§10）
+# ------------------------------------------------------------
+
+function _ccc_income!(
+    pr::_CCCPeriod,
+    st::_CCCState,
+    p::NamedTuple,
+    opts::CapexCreditCycleOptions,
+    binding::_CCCBinding,
+    idx::Int,
+)
+    emp_req_s1 = st[:y_s1_lag1] / p.st_lprod_s1
+    emp_req_s2 = st[:y_s2_lag1] / p.st_lprod_s2
+
+    capex_act_s3 =
+        p.st_capex_share_s3 * pr[:capex_exec_s1] /
+        max(st[:price_s3_lag1], p.st_price_min_s3)
+    emp_req_s3 =
+        (
+            (1 - p.st_cshare_s3) * st[:y_s3_lag1] +
+            p.st_cshare_s3 * capex_act_s3 / p.st_capfrac_s3
+        ) / p.st_lprod_s3
+
+    emp_req_s5 = st[:y_s5_lag1] / p.st_lprod_s5
+
+    emp_req =
+        Dict("s1" => emp_req_s1, "s2" => emp_req_s2, "s3" => emp_req_s3, "s5" => emp_req_s5)
+
+    for s in ("s1", "s2", "s3", "s5")
+        emp_lag1 = st[Symbol("emp_$(s)_lag1")]
+        gap = emp_req[s] - emp_lag1
+        band = getproperty(p, Symbol("bh_emp_band_$s"))
+        up = getproperty(p, Symbol("bh_emp_up_$s"))
+        down = getproperty(p, Symbol("bh_emp_down_$s"))
+        lambda = if abs(gap) <= band * emp_lag1
+            0.0
+        elseif gap > 0
+            up
+        else
+            down
+        end
+        emp_raw = emp_lag1 + lambda * gap
+        emp = max(emp_raw, 0.0)
+        binding[Symbol("emp_floor_binding_$s")][idx] = emp_raw < 0.0
+        pr[Symbol("emp_$s")] = emp
+    end
+
+    pr[:emp_tot] = pr[:emp_s1] + pr[:emp_s2] + pr[:emp_s3] + pr[:emp_s5]
+
+    wage_raw = st[:wage_lag1] + p.bh_wage_slope * (st[:emp_tot_lag3] / p.st_emp_ref - 1)
+    wage = max(wage_raw, p.st_wage_min)
+    binding[:wage_floor_binding][idx] = wage_raw < p.st_wage_min
+    pr[:wage] = wage
+
+    for s in ("s1", "s2", "s3", "s5")
+        wbase = getproperty(p, Symbol("st_wbase_$s"))
+        pr[Symbol("wagebill_$s")] = wbase * wage * pr[Symbol("emp_$s")]
+    end
+
+    # X-21.4（動学方程式 §21.4）: tax_hh・hh_income は SF（= S1,S2,S3）のみを集約する。
+    wagebill_sf = pr[:wagebill_s1] + pr[:wagebill_s2] + pr[:wagebill_s3]
+    pr[:tax_hh] = p.pl_tau * wagebill_sf
+    pr[:hh_income] = (1 - p.pl_tau) * wagebill_sf
+
+    cons_raw =
+        st[:cons_lag1] +
+        p.bh_cons_adj * (p.bh_mpc * pr[:hh_income] + p.st_cons_auto - st[:cons_lag1])
+    cons = max(cons_raw, 0.0)
+    binding[:cons_floor_binding][idx] = cons_raw < 0.0
+    pr[:cons] = cons
+
+    cons_s1_raw = p.st_cons_share_s1 * pr[:price_s1] * pr[:y_s1]
+    cons_s1 = min(cons_s1_raw, cons)
+    binding[:cons_split_binding][idx] = cons_s1_raw > cons
+    pr[:cons_s1] = cons_s1
+    pr[:cons_s5] = cons - cons_s1
+
+    pr[:xdem_s5] = p.st_xdem0
+    pr[:y_s5] = pr[:cons_s5] + pr[:xdem_s5]
+
+    return nothing
+end
+
+# ------------------------------------------------------------
+# ステップ8: 収益・分配（§11）
+# ------------------------------------------------------------
+
+function _ccc_revenue!(
+    pr::_CCCPeriod,
+    st::_CCCState,
+    p::NamedTuple,
+    opts::CapexCreditCycleOptions,
+    binding::_CCCBinding,
+    idx::Int,
+)
+    eps = opts.div_eps
+
+    for s in _CCC_S23
+        price = pr[Symbol("price_$s")]
+        y = pr[Symbol("y_$s")]
+        sales = price * y
+        pr[Symbol("sales_$s")] = sales
+        va_share = getproperty(p, Symbol("st_va_share_$s"))
+        im = (1 - va_share) * sales
+        pr[Symbol("im_$s")] = im
+        va = sales - im
+        pr[Symbol("va_$s")] = va
+        delta = getproperty(p, Symbol("st_delta_$s"))
+        dep = delta * st[Symbol("cap_$s")]
+        pr[Symbol("dep_$s")] = dep
+        wagebill = pr[Symbol("wagebill_$s")]
+        profit = va - wagebill - dep
+        pr[Symbol("profit_$s")] = profit
+        pr[Symbol("margin_$s")] = _ccc_div(profit, sales, eps)
+        dinv = pr[Symbol("dinv_$s")]
+        pr[Symbol("ocf_$s")] = profit + dep - dinv
+    end
+
+    sales_s1 = pr[:price_s1] * pr[:y_s1]
+    pr[:sales_s1] = sales_s1
+    im_s1 = (1 - p.st_va_share_s1) * sales_s1
+    pr[:im_s1] = im_s1
+    va_s1 = sales_s1 - im_s1
+    pr[:va_s1] = va_s1
+    dep_s1 = p.st_delta_s1 * st[:cap_s1]
+    pr[:dep_s1] = dep_s1
+    profit_s1 = va_s1 - pr[:wagebill_s1] - dep_s1
+    pr[:profit_s1] = profit_s1
+    pr[:ocf_s1] = profit_s1 + dep_s1
+
+    pr[:im_s5] = 0.0
+
+    for s in _CCC_S13
+        ocf = pr[Symbol("ocf_$s")]
+        int_burden = pr[Symbol("int_burden_$s")]
+        repay = pr[Symbol("repay_$s")]
+        pr[Symbol("coverage_$s")] = _ccc_div(ocf, int_burden, eps)
+        debt_service = int_burden + repay
+        pr[Symbol("debt_service_$s")] = debt_service
+        pr[Symbol("dsc_$s")] = _ccc_div(ocf, debt_service, eps)
+    end
+
+    I_of = Dict("s1" => pr[:capex_exec_s1], "s2" => pr[:invest_s2], "s3" => pr[:invest_s3])
+    for s in _CCC_S13
+        I_s = I_of[s]
+        ocf = pr[Symbol("ocf_$s")]
+        int_burden = pr[Symbol("int_burden_$s")]
+        tax = pr[Symbol("tax_$s")]
+        div = pr[Symbol("div_$s")]
+        repay = pr[Symbol("repay_$s")]
+        need = I_s + int_burden + tax + div + repay - ocf
+        cash_free = pr[Symbol("cash_free_$s")]
+        draw = min(max(0.0, need), cash_free)
+        newdebt = max(0.0, need - draw)
+        pr[Symbol("draw_$s")] = draw
+        pr[Symbol("newdebt_$s")] = newdebt
+        newdebt_max = pr[Symbol("newdebt_max_$s")]
+        pr[Symbol("funding_forced_$s")] = max(0.0, newdebt - newdebt_max)
+        pr[Symbol("nlb_$s")] = ocf - I_s - int_burden - tax - div
+    end
+    pr[:nlb_s4] = 0.0
+    pr[:nlb_s5] = 0.0
+
+    d_s1 = Dict{String, Float64}()
+    for s in _CCC_S23
+        price = pr[Symbol("price_$s")]
+        d_s1[s] = price * pr[Symbol("order_cap_int_$s")]
+    end
+    pr[:d_s2_s3] = pr[:price_s3] * pr[:order_inv_int_s3]
+
+    d_s5 = Dict{String, Float64}()
+    for s in _CCC_S23
+        price = pr[Symbol("price_$s")]
+        ship_gen = pr[Symbol("ship_gen_$s")]
+        order_gen = pr[Symbol("order_gen_$s")]
+        ext_demand = pr[Symbol("ext_demand_$s")]
+        deliv_gen = price * ship_gen
+        denom = max(order_gen + ext_demand, eps) # E11-19 例外: 分母を eps で下限
+        gen_frac = order_gen / denom
+        d_s5[s] = deliv_gen * gen_frac
+    end
+    pr[:d_s5_s2] = d_s5["s2"]
+    pr[:d_s5_s3] = d_s5["s3"]
+
+    pr[:xsales_s1] = pr[:sales_s1] - pr[:cons_s1]
+    pr[:y_tot] = pr[:va_s1] + pr[:va_s2] + pr[:va_s3] + pr[:y_s5]
+
+    wagebill_sf = pr[:wagebill_s1] + pr[:wagebill_s2] + pr[:wagebill_s3]
+    pr[:s5_net_sx] =
+        wagebill_sf - pr[:tax_hh] - pr[:cons_s1] - pr[:cons_s5] - pr[:d_s5_s2] -
+        pr[:d_s5_s3] + pr[:y_s5] - pr[:xdem_s5]
+
+    return nothing
+end
+
+# ------------------------------------------------------------
+# ステップ9: 残高更新（§12）
+# ------------------------------------------------------------
+
+function _ccc_update!(
+    pr::_CCCPeriod,
+    st::_CCCState,
+    p::NamedTuple,
+    opts::CapexCreditCycleOptions,
+    binding::_CCCBinding,
+    idx::Int,
+)
+    eps = opts.div_eps
+
+    for s in _CCC_S13
+        pipe_lag1 = st[Symbol("capex_pipe_$s")]
+        pipelag = getproperty(p, Symbol("st_pipelag_$s"))
+        capstart = pipe_lag1 / pipelag
+        pr[Symbol("capstart_$s")] = capstart
+
+        I_s = s == "s1" ? pr[:capex_exec_s1] : pr[Symbol("invest_$s")]
+        pr[Symbol("capex_pipe_$s")] = pipe_lag1 + I_s - capstart # pipe_cancel_s ≡ 0
+
+        dep = pr[Symbol("dep_$s")]
+        pr[Symbol("cap_$s")] = st[Symbol("cap_$s")] + capstart - dep # retire_s ≡ 0
+    end
+
+    for s in _CCC_S23
+        inv_lag1 = st[Symbol("inv_$s")]
+        y = pr[Symbol("y_$s")]
+        ship = pr[Symbol("ship_$s")]
+        inv = inv_lag1 + y - ship
+        pr[Symbol("inv_$s")] = inv
+
+        price = pr[Symbol("price_$s")]
+        price_lag1 = st[Symbol("price_$(s)_lag1")]
+        pr[Symbol("invval_$s")] = price * inv # X-14 改訂: 当期価格で評価
+        pr[Symbol("valchg_$s")] = (price - price_lag1) * inv_lag1
+
+        backlog_lag1 = st[Symbol("backlog_$s")]
+        order_gen = pr[Symbol("order_gen_$s")]
+        ext_demand = pr[Symbol("ext_demand_$s")]
+        ship_gen = pr[Symbol("ship_gen_$s")]
+        pr[Symbol("backlog_$s")] = backlog_lag1 + order_gen + ext_demand - ship_gen
+
+        y_s = pr[Symbol("y_$s")]
+        pr[Symbol("inv_ratio_$s")] = _ccc_div(inv, y_s, eps)
+        pr[Symbol("backlog_ratio_$s")] = _ccc_div(pr[Symbol("backlog_$s")], y_s, eps)
+    end
+    pr[:valchg_s1] = 0.0
+
+    pr[:plan_carry_s1] = st[:plan_carry_s1] - pr[:revive_s1] + pr[:capex_defer_s1]
+
+    I_of = Dict("s1" => pr[:capex_exec_s1], "s2" => pr[:invest_s2], "s3" => pr[:invest_s3])
+    for s in _CCC_S13
+        ocf = pr[Symbol("ocf_$s")]
+        int_burden = pr[Symbol("int_burden_$s")]
+        tax = pr[Symbol("tax_$s")]
+        div = pr[Symbol("div_$s")]
+        I_s = I_of[s]
+        newdebt = pr[Symbol("newdebt_$s")]
+        repay = pr[Symbol("repay_$s")]
+        # equity_issue_s ≡ 0
+        pr[Symbol("cash_$s")] =
+            st[Symbol("cash_$s")] + ocf - int_burden - tax - div - I_s + newdebt - repay
+
+        # writeoff_s ≡ 0
+        debt = st[Symbol("debt_$s")] + newdebt - repay
+        pr[Symbol("debt_$s")] = debt
+
+        sales = pr[Symbol("sales_$s")]
+        pr[Symbol("leverage_$s")] = _ccc_div(debt, sales, eps)
+
+        invval = s == "s1" ? 0.0 : pr[Symbol("invval_$s")]
+        pr[Symbol("nw_$s")] =
+            pr[Symbol("cap_$s")] +
+            pr[Symbol("capex_pipe_$s")] +
+            invval +
+            pr[Symbol("cash_$s")] - debt
+    end
+
+    pr[:loans_s4] = pr[:debt_s1] + pr[:debt_s2] + pr[:debt_s3]
+    pr[:dep_stock_s4] = pr[:cash_s1] + pr[:cash_s2] + pr[:cash_s3]
+    pr[:fund_s4] = pr[:loans_s4] - pr[:dep_stock_s4]
+
+    return nothing
+end
+
+# ------------------------------------------------------------
+# T2（符号制約、§15.3）
+# ------------------------------------------------------------
+
+const _CCC_T2_NONNEG = (
+    :capex_pipe_s1,
+    :capex_pipe_s2,
+    :capex_pipe_s3,
+    :inv_s2,
+    :inv_s3,
+    :backlog_s2,
+    :backlog_s3,
+    :cash_s1,
+    :cash_s2,
+    :cash_s3,
+    :debt_s1,
+    :debt_s2,
+    :debt_s3,
+    :plan_carry_s1,
+    :y_s1,
+    :y_s2,
+    :y_s3,
+    :ship_s2,
+    :ship_s3,
+    :order_s2,
+    :order_s3,
+    :emp_s1,
+    :emp_s2,
+    :emp_s3,
+    :emp_s5,
+    :cons,
+    :hh_income,
+    :cons_s5,
+    :spread,
+    :cost_capital_s1,
+    :cost_capital_s2,
+    :cost_capital_s3,
+    :int_burden_s1,
+    :int_burden_s2,
+    :int_burden_s3,
+    :matur_s1,
+    :matur_s2,
+    :matur_s3,
+    :repay_s1,
+    :repay_s2,
+    :repay_s3,
+)
+const _CCC_T2_POS = (
+    :cap_s1,
+    :cap_s2,
+    :cap_s3,
+    :price_s2,
+    :price_s3,
+    :wage,
+    :equity_val,
+    :ai_exp,
+    :price_s1,
+    :y_tot,
+    :emp_tot,
+)
+const _CCC_T2_UTIL_RANGE = (:util_s1, :util_s2, :util_s3)
+
+"""
+    _ccc_check_signs!(warnings, pr, t)
+
+#165 §5 の符号制約（動学方程式 §15.3）を検査する。**クリップしない**（値はそのまま保持
+される）。違反は `sign_constraint` 警告として記録するのみで、実装が正しければ通常運用時
+は常に成立する（反例テストのみが検出する）。
+"""
+function _ccc_check_signs!(warnings::Vector{Dict{String, Any}}, pr::_CCCPeriod, t::Int)
+    for sym in _CCC_T2_NONNEG
+        v = get(pr, sym, NaN)
+        if isfinite(v) && v < 0.0
+            push!(
+                warnings,
+                Dict{String, Any}(
+                    "code" => "sign_constraint",
+                    "period" => t,
+                    "sector" => _ccc_sector_of(sym),
+                    "detail" => "$(sym) < 0（実値: $v）",
+                ),
+            )
+        end
+    end
+    for sym in _CCC_T2_POS
+        v = get(pr, sym, NaN)
+        if isfinite(v) && v <= 0.0
+            push!(
+                warnings,
+                Dict{String, Any}(
+                    "code" => "sign_constraint",
+                    "period" => t,
+                    "sector" => _ccc_sector_of(sym),
+                    "detail" => "$(sym) ≤ 0（実値: $v）",
+                ),
+            )
+        end
+    end
+    for sym in _CCC_T2_UTIL_RANGE
+        v = get(pr, sym, NaN)
+        if isfinite(v) && !(0.0 <= v <= 1.2)
+            push!(
+                warnings,
+                Dict{String, Any}(
+                    "code" => "sign_constraint",
+                    "period" => t,
+                    "sector" => _ccc_sector_of(sym),
+                    "detail" => "$(sym) は [0, 1.2] の範囲外（実値: $v）",
+                ),
+            )
+        end
+    end
+    return nothing
+end
+
+# ------------------------------------------------------------
+# 外生パス（baseline・検証・extreme_shock）
+# ------------------------------------------------------------
+
+_ccc_exog_baseline_values(p::NamedTuple) = (
+    ai_exp = 1.0,
+    capex_plan_shock_ex = 1.0,
+    spread_shock_ex = 0.0,
+    policy_rate = p.st_pol_ref,
+    ext_demand_s2 = p.st_extdem_s2,
+    ext_demand_s3 = p.st_extdem_s3,
+    price_s1 = 1.0,
+)
+
+"""
+    _ccc_baseline_exog(m, n) -> Dict{Symbol,Vector{Float64}}
+
+`Sc0`相当（外生を定常値に固定）の外生パスを構成する。`exog` が与えられなかった場合の既定値。
+"""
+function _ccc_baseline_exog(m::CapexCreditCycleModel, n::Int)
+    baseline = _ccc_exog_baseline_values(m.params)
+    return Dict{Symbol, Vector{Float64}}(
+        v => fill(getproperty(baseline, v), n) for v in CAPEX_CC_EXOGENOUS_VARIABLES
+    )
+end
+
+function _ccc_validate_exog(exog::Dict{Symbol, Vector{Float64}}, n::Int)
+    have = Set(keys(exog))
+    want = Set(CAPEX_CC_EXOGENOUS_VARIABLES)
+    have == want || throw(
+        ArgumentError(
+            "exog のキー集合が exogenous_variables(m) と一致しません（不足: $(setdiff(want, have))、余剰: $(setdiff(have, want))）",
+        ),
+    )
+    for v in CAPEX_CC_EXOGENOUS_VARIABLES
+        length(exog[v]) == n || throw(
+            ArgumentError(
+                "exog[:$v] の長さ（$(length(exog[v]))）が horizon_runup+horizon_eval=$n と一致しません",
+            ),
+        )
+    end
+    return nothing
+end
+
+function _ccc_extreme_shock_warnings!(
+    warnings::Vector{Dict{String, Any}},
+    p::NamedTuple,
+    exog::Dict{Symbol, Vector{Float64}},
+    idx::Int,
+    t::Int,
+)
+    baseline = _ccc_exog_baseline_values(p)
+    for v in CAPEX_CC_EXOGENOUS_VARIABLES
+        b = getproperty(baseline, v)
+        x = exog[v][idx]
+        rel = abs(b) > 1e-12 ? (x - b) / abs(b) : (x - b)
+        if abs(rel) > 0.5
+            push!(
+                warnings,
+                Dict{String, Any}(
+                    "code" => "extreme_shock",
+                    "period" => t,
+                    "sector" => "exogenous",
+                    "detail" => "$(v): baseline比 $(round(rel * 100; digits = 1))%",
+                ),
+            )
+        end
+    end
+    return nothing
+end
+
+"""
+    _ccc_check_runup!(warnings, ss, pr, t, tol)
+
+助走区間（`t < 0`）で当期の全変数が定常水準から `tol`（相対）以内であることを検査する
+（契約 §2.1）。逸脱した場合、最大乖離の変数名と乖離幅を1件の `runup_deviation` 警告として
+記録する。
+"""
+function _ccc_check_runup!(
+    warnings::Vector{Dict{String, Any}},
+    ss::NamedTuple,
+    pr::_CCCPeriod,
+    t::Int,
+    tol::Float64,
+)
+    worst_name = :none
+    worst_rel = 0.0
+    for nm in keys(pr)
+        hasproperty(ss, nm) || continue
+        target = getproperty(ss, nm)
+        actual = pr[nm]
+        (isfinite(target) && isfinite(actual)) || continue
+        rel = abs(actual - target) / max(abs(target), 1.0)
+        if rel > worst_rel
+            worst_rel = rel
+            worst_name = nm
+        end
+    end
+    if worst_rel > tol
+        push!(
+            warnings,
+            Dict{String, Any}(
+                "code" => "runup_deviation",
+                "period" => t,
+                "sector" => "aggregate",
+                "detail" => "最大乖離: $(worst_name)（相対乖離 $(worst_rel)）",
+            ),
+        )
+    end
+    return nothing
+end
+
+# ------------------------------------------------------------
+# 結果型（統合設計 §5.2）
+# ------------------------------------------------------------
+
+"""
+    CapexCreditCycleRun
+
+`capex_run` の完全な結果。`series` は `simulate` の返り値と同一。`accounting`・
+`diagnostics` は `I-3`・`I-5` の責務であり、本ファイル（`I-2`）では常に `nothing`。
+"""
+struct CapexCreditCycleRun
+    model_name::String
+    scenario::Symbol
+    series::NamedTuple
+    exog::Dict{Symbol, Vector{Float64}}
+    periods::Vector{Int}
+    state0::NamedTuple
+    warnings::Vector{Dict{String, Any}}
+    termination_reason::Symbol
+    termination_period::Union{Int, Nothing}
+    divergence_time::Union{Int, Nothing}
+    binding::Dict{Symbol, Vector{Bool}}
+    accounting::Any
+    diagnostics::Any
+    options::CapexCreditCycleOptions
+    metadata::Dict{String, Any}
+end
+
+# ------------------------------------------------------------
+# simulate / capex_run（統合設計 §4.4）
+# ------------------------------------------------------------
+
+const _CCC_DEVIATIONS = [
+    Dict{String, Any}(
+        "id" => "I-2-emp-wage-lag",
+        "detail" =>
+            "emp_s1–_s3/_s5・wage（E10-07・E10-09）は自身の前期値を参照する再帰式だが、" *
+            "動学方程式 §13.5 の遅延バッファ一覧に含まれていない。式を評価可能にするため深さ1" *
+            "バッファを5本追加した（状態次元 65→70）。経済的判断ではなく機械的な追加であり、" *
+            "上流文書（#169 §13.5）への差し戻し事項として保持する。",
+    ),
+    Dict{String, Any}(
+        "id" => "I-2-inv-gap-sp",
+        "detail" =>
+            "E6-14（inv_gap_s、s∈SP）から capex_pipe_s[t−1] の減算を外した。#169 §14.2 の" *
+            "逆較正（bh_util_tgt_s=util_s^ss・st_cor_s=cap_s^ss·util_s^ss/y_s^ss）の下では" *
+            "target_cap_s^ss=cap_s^ssが構造的に導かれ、pipeを減算するとinv_gap_s^ss=" *
+            "-capex_pipe_s^ss（非ゼロ）となり、bh_alpha_inv_s>0のもとでbaselineが定常に" *
+            "留まらない（§7.4-2の受け入れ条件と両立しない）。§6.2の選択肢(b)（稼働資本のみと" *
+            "比較）をSPに適用する上流への差し戻し事項として保持する。",
+    ),
+    Dict{String, Any}(
+        "id" => "E4(i)",
+        "detail" =>
+            "L27（PROFIT_s → EQUITY_VAL）を遅れ1で実装した（動学方程式 §17・§21.8、期内処理順序" *
+            "の制約による）。",
+    ),
+]
+
+"""
+    simulate(m::CapexCreditCycleModel; scenario=:Sc0, exog=nothing, state0=nothing,
+             options=CapexCreditCycleOptions()) -> NamedTuple
+
+`capex_run(...).series` を返す（統合設計 §4.4）。既存の汎用コード（`to_simulation_result`・
+比較 API）が分岐なしに使えるよう、系列のみの `NamedTuple` を返す。
+"""
+function simulate(
+    m::CapexCreditCycleModel;
+    scenario::Symbol = :Sc0,
+    exog::Union{Dict{Symbol, Vector{Float64}}, Nothing} = nothing,
+    state0 = nothing,
+    options::CapexCreditCycleOptions = CapexCreditCycleOptions(),
+)
+    run = capex_run(
+        m;
+        scenario = scenario,
+        exog = exog,
+        state0 = state0,
+        options = options,
+        validate_accounting = false,
+        diagnostics = false,
+    )
+    return run.series
+end
+
+"""
+    capex_run(m::CapexCreditCycleModel; scenario=:Sc0, exog=nothing, state0=nothing,
+              options=CapexCreditCycleOptions(), validate_accounting=true, diagnostics=true,
+              thresholds=nothing) -> CapexCreditCycleRun
+
+期内処理順序10ステップ（動学方程式 §3.1・§5–§12）に沿って `horizon_runup+horizon_eval`
+期を前向きに1回ずつ計算する（陽解法、期内に反復・非線形ソルバを用いない）。`validate_accounting`・
+`diagnostics`・`thresholds` は `I-3`・`I-5` 実装後に接続するためのキーワードであり、本ファイル
+（`I-2`）では受理するが `run.accounting` / `run.diagnostics` は常に `nothing` を返す。
+"""
+function capex_run(
+    m::CapexCreditCycleModel;
+    scenario::Symbol = :Sc0,
+    exog::Union{Dict{Symbol, Vector{Float64}}, Nothing} = nothing,
+    state0 = nothing,
+    options::CapexCreditCycleOptions = CapexCreditCycleOptions(),
+    validate_accounting::Bool = true,
+    diagnostics::Bool = true,
+    thresholds = nothing,
+)
+    report = capex_steady_state_report(m)
+    passed(report) || throw(
+        ArgumentError(
+            "モデルの定常状態が動学方程式 §14.3 の条件を満たしていません" *
+            "（simulate の入力検査、ADR 0013 決定14）: " *
+            join(
+                [
+                    "$k（residual=$(v.residual), tolerance=$(v.tolerance)）" for
+                    (k, v) in report.checks if !v.passed
+                ],
+                ", ",
+            ),
+        ),
+    )
+
+    p = m.params
+    n = options.horizon_runup + options.horizon_eval
+    periods = collect((-options.horizon_runup):(options.horizon_eval - 1))
+
+    ss = steady_state(m)
+    exog_full = exog === nothing ? _ccc_baseline_exog(m, n) : exog
+    _ccc_validate_exog(exog_full, n)
+
+    st0_dict =
+        state0 === nothing ? _ccc_state0_from_steady(m) :
+        _ccc_state_dict_from_namedtuple(state0)
+    state_vars = _ccc_state_variables()
+    state0_nt = NamedTuple{Tuple(state_vars)}(Tuple(st0_dict[s] for s in state_vars))
+
+    binding = _CCCBinding(k => falses(n) for k in _ccc_default_binding_keys())
+    warnings = Dict{String, Any}[]
+
+    unique_names = vcat(
+        collect(_CCC_STATE_BASE),
+        _ccc_control_variables(),
+        collect(CAPEX_CC_EXOGENOUS_VARIABLES),
+        _ccc_diagnostic_variables(),
+    )
+    series = Dict{Symbol, Vector{Float64}}(nm => fill(NaN, n) for nm in unique_names)
+
+    st = st0_dict
+    termination_reason = :completed
+    termination_period = nothing
+    divergence_time = nothing
+    terminated = false
+
+    for (idx, t) in enumerate(periods)
+        terminated && continue
+
+        pr = _CCCPeriod()
+        _ccc_apply_exog!(pr, exog_full, idx)
+        _ccc_financial!(pr, st, p, options, binding, idx)
+        _ccc_plan!(pr, st, p, options, binding, idx)
+        _ccc_funding!(pr, st, p, options, binding, idx)
+        _ccc_orders!(pr, st, p, options, binding, idx)
+        _ccc_production!(pr, st, p, options, binding, idx)
+        _ccc_income!(pr, st, p, options, binding, idx)
+        _ccc_revenue!(pr, st, p, options, binding, idx)
+        _ccc_update!(pr, st, p, options, binding, idx)
+
+        for s in _CCC_S23
+            if pr[Symbol("unmet_cap_$s")] > 0.0
+                push!(
+                    warnings,
+                    Dict{String, Any}(
+                        "code" => "a2_violation",
+                        "period" => t,
+                        "sector" => s,
+                        "detail" => "unmet_cap_$s = $(pr[Symbol("unmet_cap_$s")])",
+                    ),
+                )
+            end
+        end
+        for s in _CCC_S13
+            if pr[Symbol("funding_forced_$s")] > 0.0
+                push!(
+                    warnings,
+                    Dict{String, Any}(
+                        "code" => "funding_forced",
+                        "period" => t,
+                        "sector" => s,
+                        "detail" => "funding_forced_$s = $(pr[Symbol("funding_forced_$s")])",
+                    ),
+                )
+            end
+            if pr[Symbol("liquidity_gap_$s")] > 0.0
+                push!(
+                    warnings,
+                    Dict{String, Any}(
+                        "code" => "liquidity_gap",
+                        "period" => t,
+                        "sector" => s,
+                        "detail" => "liquidity_gap_$s = $(pr[Symbol("liquidity_gap_$s")])",
+                    ),
+                )
+            end
+            cash_min = getproperty(p, Symbol("st_cash_min_$s"))
+            sales_lag1 = st[Symbol("sales_$(s)_lag1")]
+            if pr[Symbol("cash_$s")] < cash_min * sales_lag1
+                push!(
+                    warnings,
+                    Dict{String, Any}(
+                        "code" => "cash_below_min",
+                        "period" => t,
+                        "sector" => s,
+                        "detail" => "cash_$s = $(pr[Symbol("cash_$s")])",
+                    ),
+                )
+            end
+        end
+        _ccc_extreme_shock_warnings!(warnings, p, exog_full, idx, t)
+        _ccc_check_signs!(warnings, pr, t)
+        sign_fatal =
+            options.stop_on_sign_violation &&
+            any(w -> w["code"] == "sign_constraint" && w["period"] == t, warnings)
+
+        newst = _CCCState()
+        _ccc_shift_state!(newst, pr, st)
+        state_finite = all(isfinite(v) for v in values(newst))
+        state_bounded =
+            state_finite && all(abs(v) <= options.guard_max for v in values(newst))
+
+        if state_finite && state_bounded
+            for nm in unique_names
+                series[nm][idx] = haskey(pr, nm) ? pr[nm] : get(newst, nm, NaN)
+            end
+            if t < 0
+                _ccc_check_runup!(warnings, ss, pr, t, options.runup_tol)
+            end
+            st = newst
+            if sign_fatal
+                termination_reason = :sign_constraint_fatal
+                termination_period = t
+                terminated = true
+            end
+        else
+            for nm in unique_names
+                series[nm][idx] = NaN
+            end
+            termination_reason = state_finite ? :divergence_guard : :non_finite_state
+            termination_period = t
+            state_finite && (divergence_time = t)
+            terminated = true
+        end
+    end
+
+    series_nt = NamedTuple{Tuple(unique_names)}(Tuple(series[nm] for nm in unique_names))
+
+    metadata = Dict{String, Any}(
+        "equations_version" => "capex-credit-cycle-equations/1.1.0",
+        "unit_conversions" => Dict{String, String}(
+            "bp_to_pct_pt" => "spread / 100",
+            "annual_to_quarter" => "r * 0.25",
+            "maturity_to_rate" => "dt / st_maturity_s",
+        ),
+        "deviations" => _CCC_DEVIATIONS,
+        "measure" => "level",
+    )
+
+    return CapexCreditCycleRun(
+        model_name(m),
+        scenario,
+        series_nt,
+        exog_full,
+        periods,
+        state0_nt,
+        warnings,
+        termination_reason,
+        termination_period,
+        divergence_time,
+        binding,
+        nothing,
+        nothing,
+        options,
+        metadata,
+    )
 end
