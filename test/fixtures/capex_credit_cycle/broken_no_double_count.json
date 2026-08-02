@@ -1,0 +1,22 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "反例テスト（統合設計 §7.3-7・Issue #181）: capex_exec_s1 の資本財受注の買い手別分解（R-3）を壊し :no_double_count が acc_fail を返すことを確認するための記録。実データではなく、プログラム的には読み込まない。"
+    },
+    "construction": {
+        "method": "baseline run の series.capex_sx_s1 を1期分だけ改変する",
+        "base": "capex_run(m)（既定シナリオ）の run",
+        "note_on_share_sum": "st_capex_share_s2 + st_capex_share_s3 + st_capex_share_sx が 1 でないパラメータセットは CapexCreditCycleModel の内部コンストラクタが ArgumentError として拒否する（動学方程式 §13.4 の許容条件・統合設計 §7.5-2）。そのため『配分比の和を1から外した fixture』を直接モデルへ与えることはできず、代わりに配分の1項（capex_sx_s1）を直接改変することで同型の不整合（capex_exec_s1 = d_{S1,S2}+d_{S1,S3}+capex_sx_s1 が成立しない状態）を作る。",
+        "corruption": {
+            "variable": "capex_sx_s1",
+            "period_index": 15,
+            "delta": 5.0
+        }
+    },
+    "expected": {
+        "accounting_status": "acc_fail",
+        "failing_check": "no_double_count",
+        "rule": "R-3",
+        "sector": "s1"
+    }
+}

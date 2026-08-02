@@ -79,6 +79,11 @@ export
     capex_steady_state_report,
     CapexSteadyStateReport,
     passed,
+    # CCC: 会計（src/analysis/capex_credit_cycle_accounting.jl）
+    CAPEX_CC_ACCOUNTING_VERSION,
+    CAPEX_CC_ACCOUNTING_CHECKS,
+    capex_accounting_snapshots,
+    validate_capex_accounting,
     # New Keynesian: 期待インフレ率パス・level 復元（Issue #159）
     nk_expected_inflation_path,
     nk_inflation_level,
@@ -459,6 +464,10 @@ include("./analysis/sfc_accounting.jl")
 # SIM 型 SFC モデルの adapter（depends on SIMModel・sfc/types.jl・sfc_accounting.jl。
 # 水準系列 → SFCResult 構成 + 会計検証）
 include("./analysis/sfc_sim_adapter.jl")
+
+# 部門別CAPEX・信用循環モデルの会計層（depends on CapexCreditCycleModel・sfc/types.jl・
+# sfc_accounting.jl。会計表構築 + 会計恒等式検証 12 項目。`SFCResult` は返さない）
+include("./analysis/capex_credit_cycle_accounting.jl")
 
 # Minsky financing regime diagnostics (depends on KeenModel and SimulationResult)
 include("./analysis/minsky_regimes.jl")

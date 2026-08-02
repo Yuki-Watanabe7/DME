@@ -1,0 +1,19 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "退化ケース（統合設計 §7.3-4・Issue #181）: 全部門無借金（debt_s1=debt_s2=debt_s3=0）の初期状態の記録。実データの較正値ではなく、プログラム的には読み込まない。"
+    },
+    "construction": {
+        "method": "capex_run に custom state0 を与える",
+        "base": "DME._ccc_state0_from_steady(m) を state_variables(m) の NamedTuple 化したもの",
+        "state0_overrides": {
+            "debt_s1": 0.0,
+            "debt_s2": 0.0,
+            "debt_s3": 0.0
+        }
+    },
+    "expected": {
+        "first_period_accounting_status": "acc_pass（12項目すべて。debt=0 でも int_burden=0・matur=0 となり NaN は生じない）",
+        "note": "int_burden の集計値がゼロになることで後続の coverage_agg（S1–S3 集計の利払い倍率、モデルの診断量であり本会計層の12項目には含まれない）が 0/0 で NaN となり、T3 数値ガードにより非有限値伝播が打ち切りにつながる場合がある。打ち切り後の期は acc_invalid として分類され、acc_fail（会計違反）とは区別される（会計仕様 §8.3）。"
+    }
+}
