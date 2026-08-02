@@ -79,6 +79,12 @@ export
     capex_steady_state_report,
     CapexSteadyStateReport,
     passed,
+    # CCC: シナリオ（src/analysis/capex_credit_cycle_scenarios.jl）
+    CAPEX_CC_SCENARIO_IDS,
+    CapexShockSpec,
+    CapexScenario,
+    capex_scenario,
+    capex_exogenous_paths,
     # CCC: 会計（src/analysis/capex_credit_cycle_accounting.jl）
     CAPEX_CC_ACCOUNTING_VERSION,
     CAPEX_CC_ACCOUNTING_CHECKS,
@@ -468,6 +474,11 @@ include("./analysis/sfc_sim_adapter.jl")
 # 部門別CAPEX・信用循環モデルの会計層（depends on CapexCreditCycleModel・sfc/types.jl・
 # sfc_accounting.jl。会計表構築 + 会計恒等式検証 12 項目。`SFCResult` は返さない）
 include("./analysis/capex_credit_cycle_accounting.jl")
+
+# 部門別CAPEX・信用循環モデルのシナリオ層（Issue #182 / `I-4`。depends on CapexCreditCycleModel
+# のみ。Sc0–Sc4 の定義と外生パス合成。イベント実行層（Phase 2）との接続点は
+# `capex_exogenous_paths` が返す `Dict{Symbol,Vector{Float64}}` の1点に限定する）
+include("./analysis/capex_credit_cycle_scenarios.jl")
 
 # Minsky financing regime diagnostics (depends on KeenModel and SimulationResult)
 include("./analysis/minsky_regimes.jl")
