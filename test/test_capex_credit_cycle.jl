@@ -450,3 +450,262 @@ end
         @test_throws ArgumentError DME.capex_run(m; exog = bad_len)
     end
 end
+
+# `I-4`（シナリオ Sc0–Sc4 の定義と外生パス合成、Issue #182）のテスト。
+#
+# カバレッジ:
+#   - 統合設計 §7.4-1 入れ子性（Sc1 ⊂ Sc2 ⊂ Sc3 ⊂ Sc4。共通ショックの target・unit・timing・
+#     shape・duration・magnitude が全シナリオで一致）
+#   - Sc0 の外生パスが全期 baseline 値と一致する（issue #182 受け入れ条件）
+#   - 許容表に無い unit × application_mode の組み合わせが ArgumentError（同上）
+#   - magnitude を与えずに外生パスを生成できない（同上、捏造禁止）
+#   - :absolute の複数衝突（conflicting_absolute）・shape_params 欠落の拒否
+#   - 4形状（:step / :ramp / :ar1_decay / :step_then_ramp）の値が離散定義（シナリオ時間軸 §5.2）
+#     どおりであることの smoke test
+#   - capex_exogenous_paths の返り値が capex_run にそのまま渡せる（Phase 2 接続点の smoke test）
+@testset "CapexCreditCycleModel のシナリオ Sc0–Sc4（I-4）" begin
+    targets = capex_credit_cycle_default_targets()
+    m = capex_credit_cycle_model(targets)
+    n = 28
+
+    @testset "smoke test（CLAUDE.md）" begin
+        sc = capex_scenario(:Sc2)
+        @test sc isa CapexScenario
+        paths = capex_exogenous_paths(m, sc)
+        @test paths isa Dict{Symbol, Vector{Float64}}
+        @test Set(keys(paths)) == Set(exogenous_variables(m))
+        run = DME.capex_run(m; scenario = :Sc2, exog = paths)
+        @test run.termination_reason == :completed
+    end
+
+    @testset "CAPEX_CC_SCENARIO_IDS" begin
+        @test CAPEX_CC_SCENARIO_IDS == (:Sc0, :Sc1, :Sc2, :Sc3, :Sc4)
+        @test_throws ArgumentError capex_scenario(:Sc5)
+    end
+
+    @testset "ショック件数とターゲットの妥当性" begin
+        expected_counts = Dict(:Sc0 => 0, :Sc1 => 1, :Sc2 => 2, :Sc3 => 3, :Sc4 => 4)
+        for id in CAPEX_CC_SCENARIO_IDS
+            sc = capex_scenario(id)
+            @test sc.id == id
+            @test length(sc.shocks) == expected_counts[id]
+            for shock in sc.shocks
+                @test shock.target in exogenous_variables(m)
+            end
+        end
+    end
+
+    @testset "§7.4-1 入れ子性（Sc1 ⊂ Sc2 ⊂ Sc3 ⊂ Sc4）" begin
+        sc1 = capex_scenario(:Sc1)
+        sc2 = capex_scenario(:Sc2)
+        sc3 = capex_scenario(:Sc3)
+        sc4 = capex_scenario(:Sc4)
+        @test sc1.shocks == sc4.shocks[1:1]
+        @test sc2.shocks == sc4.shocks[1:2]
+        @test sc3.shocks == sc4.shocks[1:3]
+        @test sc4.shocks[1:0] == capex_scenario(:Sc0).shocks
+        # 共通ショックの target・unit・timing・shape・duration・magnitude が一致すること
+        for shock in sc1.shocks
+            same = only(filter(s -> s.target == shock.target, sc4.shocks))
+            @test same.target == shock.target
+            @test same.unit == shock.unit
+            @test same.timing == shock.timing
+            @test same.shape == shock.shape
+            @test same.duration == shock.duration
+            @test same.magnitude == shock.magnitude
+        end
+    end
+
+    @testset "Sc0 の外生パスが全期 baseline 値と一致する" begin
+        baseline = DME._ccc_baseline_exog(m, n)
+        paths = capex_exogenous_paths(m, capex_scenario(:Sc0))
+        for v in exogenous_variables(m)
+            @test paths[v] == baseline[v]
+        end
+    end
+
+    @testset "unit × application_mode の許容表検査（invalid_unit_mode）" begin
+        # マクロイベント変換契約 §3.3（§12.1 改訂後）: "%" は :multiplicative のみ、
+        # "bp" は :additive のみ、未知の単位は許容されない
+        @test_throws ArgumentError DME.CapexShockSpec(;
+            target = :spread_shock_ex,
+            meaning = "invalid",
+            unit = "bp",
+            sign = 1,
+            timing = 0,
+            shape = :step,
+            magnitude = 10.0,
+            application_mode = :multiplicative,
+            duration = 4,
+        )
+        @test_throws ArgumentError DME.CapexShockSpec(;
+            target = :ai_exp,
+            meaning = "invalid",
+            unit = "%",
+            sign = -1,
+            timing = 0,
+            shape = :step,
+            magnitude = -10.0,
+            application_mode = :additive,
+            duration = 4,
+        )
+        @test_throws ArgumentError DME.CapexShockSpec(;
+            target = :ai_exp,
+            meaning = "invalid",
+            unit = "unknown_unit",
+            sign = -1,
+            timing = 0,
+            shape = :step,
+            magnitude = -10.0,
+            application_mode = :multiplicative,
+            duration = 4,
+        )
+        # 許容される組み合わせは通る
+        @test DME.CapexShockSpec(;
+            target = :ext_demand_s2,
+            meaning = "valid",
+            unit = "bn USD (2017 chained)",
+            sign = -1,
+            timing = 0,
+            shape = :step,
+            magnitude = -5.0,
+            application_mode = :additive,
+            duration = 4,
+        ) isa CapexShockSpec
+    end
+
+    @testset "magnitude を与えずに外生パスを生成できない" begin
+        @test_throws UndefKeywordError DME.CapexShockSpec(;
+            target = :ai_exp,
+            meaning = "no magnitude",
+            unit = "%",
+            sign = -1,
+            timing = 0,
+            shape = :step,
+            application_mode = :multiplicative,
+            duration = 4,
+        )
+    end
+
+    @testset "sign が magnitude の符号と矛盾すると拒否される" begin
+        @test_throws ArgumentError DME.CapexShockSpec(;
+            target = :ai_exp,
+            meaning = "sign mismatch",
+            unit = "%",
+            sign = 1,
+            timing = 0,
+            shape = :step,
+            magnitude = -10.0,
+            application_mode = :multiplicative,
+            duration = 4,
+        )
+    end
+
+    @testset "shape_params 欠落の拒否" begin
+        @test_throws ArgumentError DME.CapexShockSpec(;
+            target = :ai_exp,
+            meaning = "no half_life",
+            unit = "%",
+            sign = -1,
+            timing = 0,
+            shape = :ar1_decay,
+            magnitude = -10.0,
+            application_mode = :multiplicative,
+        )
+        @test_throws ArgumentError DME.CapexShockSpec(;
+            target = :capex_plan_shock_ex,
+            meaning = "no hold/ramp_down",
+            unit = "%",
+            sign = -1,
+            timing = 0,
+            shape = :step_then_ramp,
+            magnitude = -15.0,
+            application_mode = :multiplicative,
+        )
+        @test_throws ArgumentError DME.CapexShockSpec(;
+            target = :price_s1,
+            meaning = "no duration for ramp",
+            unit = "%",
+            sign = 1,
+            timing = 0,
+            shape = :ramp,
+            magnitude = 10.0,
+            application_mode = :multiplicative,
+        )
+    end
+
+    @testset "conflicting_absolute（同一 (t, target) に :absolute が複数）" begin
+        s1 = DME.CapexShockSpec(;
+            target = :policy_rate,
+            meaning = "a",
+            unit = "%pt",
+            sign = 1,
+            timing = 0,
+            shape = :step,
+            magnitude = 5.0,
+            application_mode = :absolute,
+        )
+        s2 = DME.CapexShockSpec(;
+            target = :policy_rate,
+            meaning = "b",
+            unit = "%pt",
+            sign = 1,
+            timing = 0,
+            shape = :step,
+            magnitude = 6.0,
+            application_mode = :absolute,
+        )
+        sc = DME.CapexScenario(:Sc1, "conflict", [s1, s2])
+        @test_throws ArgumentError capex_exogenous_paths(m, sc)
+    end
+
+    @testset "4形状の値が離散定義（シナリオ時間軸 §5.2）どおり" begin
+        p = parameters(m)
+        opts = DME.CapexCreditCycleOptions()
+        periods = collect((-opts.horizon_runup):(opts.horizon_eval - 1))
+        idx0 = findfirst(==(0), periods)
+
+        # :step_then_ramp（SH-CAPEX相当）: hold=4 の間 m、その後 ramp_down=4 で0へ線形回復
+        sc2 = capex_scenario(:Sc2)
+        paths2 = capex_exogenous_paths(m, sc2)
+        capex = paths2[:capex_plan_shock_ex]
+        @test all(capex[idx0:(idx0 + 3)] .≈ 0.85)
+        @test capex[idx0 + 7] ≈ 1.0
+        @test capex[idx0 + 4] > capex[idx0 + 3] # ramp が単調に回復する
+
+        # :ar1_decay（SH-EXP相当）: t0 で m、以降半減期6で |a_t| が単調に減衰
+        sc1 = capex_scenario(:Sc1)
+        paths1 = capex_exogenous_paths(m, sc1)
+        ai = paths1[:ai_exp]
+        @test ai[idx0] ≈ 0.9
+        @test ai[idx0 + 6] > ai[idx0] # 半減期6期で乖離が半分に縮小し1.0へ近づく
+        @test ai[end] < 1.0 # 恒久（減衰）であり評価区間内で完全には解消しない
+
+        # :step（SH-EASING相当）: duration=8 の間だけ乖離し、以降 baseline へ戻る
+        sc4 = capex_scenario(:Sc4)
+        paths4 = capex_exogenous_paths(m, sc4)
+        pr = paths4[:policy_rate]
+        t2 = findfirst(==(2), periods)
+        @test all(pr[t2:(t2 + 7)] .≈ p.st_pol_ref - 1.0)
+        @test pr[t2 + 8] ≈ p.st_pol_ref
+
+        # 自作の :ramp 形状: 立ち上がり duration の間線形、以降 magnitude で一定
+        s_ramp = DME.CapexShockSpec(;
+            target = :price_s1,
+            meaning = "ramp smoke",
+            unit = "%",
+            sign = 1,
+            timing = 0,
+            shape = :ramp,
+            magnitude = 10.0,
+            application_mode = :multiplicative,
+            duration = 4,
+        )
+        sc_ramp = DME.CapexScenario(:Sc1, "ramp_smoke", [s_ramp])
+        paths_ramp = capex_exogenous_paths(m, sc_ramp)
+        pv = paths_ramp[:price_s1]
+        @test pv[idx0] ≈ 1.025
+        @test pv[idx0 + 3] ≈ 1.1
+        @test pv[idx0 + 3] == pv[idx0 + 10] # duration 到達後は m で一定
+    end
+end
