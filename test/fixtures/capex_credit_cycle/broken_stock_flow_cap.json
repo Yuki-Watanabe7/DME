@@ -1,0 +1,22 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "反例テスト（統合設計 §7.3-6・Issue #181）: cap_s1 の更新式を意図的に壊し :stock_flow が acc_fail を返すことを確認するための記録。実データではなく、プログラム的には読み込まない。"
+    },
+    "construction": {
+        "method": "baseline run の series.cap_s1 を1期分だけ改変する",
+        "base": "capex_run(m)（既定シナリオ）の run",
+        "corruption": {
+            "variable": "cap_s1",
+            "period_index": 15,
+            "delta": 10.0
+        }
+    },
+    "expected": {
+        "accounting_status": "acc_fail",
+        "failing_check": "stock_flow",
+        "instrument": "capital",
+        "sector": "s1",
+        "note": "cap_s は貸借対照表の実物資産行であり取引フロー行列に対応する独立行を持たない（会計仕様 §4.5）ため、本会計層は cap_s = cap_s[t-1] + capstart_s - dep_s - retire_s（§5.1）を専用の :stock_flow 検証として直接突き合わせる（capex_credit_cycle_accounting.jl の _capex_check_capital_stock_flow!）。"
+    }
+}

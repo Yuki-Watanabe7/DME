@@ -1,0 +1,24 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "退化ケース（統合設計 §7.3-3・Issue #181）: capex_exec_s1 = 0 の期を発生させる構成の記録。実データの較正値ではなく、プログラム的には読み込まない（test/test_capex_credit_cycle_accounting.jl 内で直接構築する）。"
+    },
+    "construction": {
+        "method": "capex_run に custom exog を与える",
+        "base": "capex_credit_cycle_default_targets() / capex_credit_cycle_model(targets)",
+        "exog_overrides": {
+            "ai_exp": "t<0 は 1.0、t>=0 は 0.7（AI関連需要期待の急激な下方修正）",
+            "capex_plan_shock_ex": 1.0,
+            "spread_shock_ex": 0.0,
+            "policy_rate": "st_pol_ref",
+            "ext_demand_s2": "st_extdem_s2",
+            "ext_demand_s3": "st_extdem_s3",
+            "price_s1": 1.0
+        }
+    },
+    "expected": {
+        "termination_reason": "completed",
+        "degenerate_condition": "capex_exec_s1 == 0.0 が一部の期で成立する",
+        "accounting_status": "acc_pass（12項目すべて。ゼロ除算は発生しない）"
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "退化ケース（統合設計 §7.3-5・Issue #181）: 在庫ゼロ（inv_s2=inv_s3=0）の初期状態の記録。実データの較正値ではなく、プログラム的には読み込まない。"
+    },
+    "construction": {
+        "method": "capex_run に custom state0 を与える",
+        "base": "DME._ccc_state0_from_steady(m) を state_variables(m) の NamedTuple 化したもの",
+        "state0_overrides": {
+            "inv_s2": 0.0,
+            "inv_s3": 0.0
+        }
+    },
+    "expected": {
+        "termination_reason": "completed",
+        "accounting_status": "acc_pass（12項目すべて。invval_s = price_s * inv_s は inv_s=0 のとき 0 で、ゼロ除算を伴わない）"
+    }
+}

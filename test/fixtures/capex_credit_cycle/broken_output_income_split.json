@@ -1,0 +1,20 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "反例テスト（統合設計 §7.3-8・Issue #181）: va_s の分解（va_s = wagebill_s + dep_s + profit_s、va_s = sales_s - im_s）を壊し :output_income_split が acc_fail を返すことを確認するための記録。実データではなく、プログラム的には読み込まない。"
+    },
+    "construction": {
+        "method": "baseline run の series.va_s2 を1期分だけ改変する",
+        "base": "capex_run(m)（既定シナリオ）の run",
+        "corruption": {
+            "variable": "va_s2",
+            "period_index": 15,
+            "delta": 5.0
+        }
+    },
+    "expected": {
+        "accounting_status": "acc_fail",
+        "failing_check": "output_income_split",
+        "sector": "s2"
+    }
+}
