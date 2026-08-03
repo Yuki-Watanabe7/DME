@@ -1,0 +1,20 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "資金繰り診断（会計仕様 §7.4・Issue #183）: funding_pressure_s の precedence 第3位 fp_interest_uncovered（ocf_s < int_burden_s - tau）を発生させる構成の記録。実データではなく、プログラム的には読み込まない。"
+    },
+    "construction": {
+        "method": "capex_run に custom exog を与え、大きな信用スプレッドショック（spread_shock_ex）と需要ショック（ai_exp）を同時に加える",
+        "base": "capex_credit_cycle_default_targets() / capex_credit_cycle_model(targets)",
+        "exog_overrides": {
+            "ai_exp": "t<0 は 1.0、t>=0 は 0.5（急激な需要下方修正で ocf_s1 を圧縮する）",
+            "spread_shock_ex": "t<1 は 0.0、t>=1 は 400.0（急激な信用スプレッド拡大で int_burden_s1 を押し上げる）"
+        },
+        "note": "ocf_s1（利益+減価償却）が需要ショックで縮小する一方、int_burden_s1（実効金利×前期債務）がスプレッド拡大で増加するため、十分な規模のショックで ocf_s1 < int_burden_s1 - tau が成立しうる。実際にどの期で成立するかは較正パラメータに依存するため、テストでは capex_diagnostics の結果を確認して判定する（数値を事前に固定しない）。"
+    },
+    "expected": {
+        "funding_pressure": {
+            "s1": "ショック後の一部の期で fp_interest_uncovered が観測されうる（テストは precedence の分岐ロジックそのものを直接検証する）"
+        }
+    }
+}

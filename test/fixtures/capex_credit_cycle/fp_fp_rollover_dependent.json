@@ -1,0 +1,19 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "資金繰り診断（会計仕様 §7.4・Issue #183）: funding_pressure_s の precedence 第4位 fp_rollover_dependent（int_burden_s <= ocf_s < debt_service_s - tau）を発生させる構成の記録。実データではなく、プログラム的には読み込まない。"
+    },
+    "construction": {
+        "method": "capex_run に custom exog を与え、debt_service_s（= int_burden_s + repay_s）が ocf_s をわずかに上回る程度の中規模な信用スプレッドショックを加える",
+        "base": "capex_credit_cycle_default_targets() / capex_credit_cycle_model(targets)",
+        "exog_overrides": {
+            "spread_shock_ex": "t<1 は 0.0、t>=1 は 200.0（借換条件悪化により rollover<1 となり repay_s>0 が発生する規模）"
+        },
+        "note": "fp_interest_uncovered ほど深くない資金繰り悪化（利払いは賄えるが元本返済分も含めると不足）を狙う。実際の分岐点は較正パラメータに依存するため、テストは precedence の分岐ロジックそのものを直接（境界値の合成 series で）検証する。"
+    },
+    "expected": {
+        "funding_pressure": {
+            "s1": "ocf_s1 が int_burden_s1 以上・debt_service_s1 未満となる期で fp_rollover_dependent"
+        }
+    }
+}
