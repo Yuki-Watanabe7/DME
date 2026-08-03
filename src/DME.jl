@@ -260,6 +260,14 @@ export
     plot_financing_regimes,
     plot_minsky_diagnostics,
     plot_minsky_scenario_comparison,
+    # CCC: 可視化（src/analysis/capex_credit_cycle_visualization.jl、Issue #185 / `I-7`）
+    plot_capex_series,
+    CAPEX_CC_SECTOR_SERIES_CONCEPTS,
+    plot_capex_sector_series,
+    CAPEX_CC_SCENARIO_COMPARISON_VARS,
+    plot_capex_scenario_comparison,
+    plot_capex_diagnostic_label,
+    plot_capex_funding_pressure,
     # LLM context types
     ModelMetadata,
     SimulationResultSummary,
@@ -517,6 +525,10 @@ include("./analysis/minsky_visualization.jl")
 
 # Keen 実証比較可視化（depends on keen_validation.jl と minsky_visualization.jl）
 include("./analysis/keen_empirical_visualization.jl")
+
+# 部門別CAPEX・信用循環モデルの可視化（Issue #185 / `I-7`。depends on capex_credit_cycle.jl・
+# capex_credit_cycle_diagnostics.jl・core/visualization.jl の `_categorical_bands`）
+include("./analysis/capex_credit_cycle_visualization.jl")
 
 # Keen 実証コンテキスト（depends on keen_validation.jl と minsky_diagnostics.jl。
 # AnalysisContext の optional field 型を提供するため analysis_context.jl より前に include）
