@@ -3289,3 +3289,374 @@ function capex_run(
         metadata,
     )
 end
+
+# ============================================================
+# SimulationResult 変換・metadata 予約キー20個（統合設計 §6.1、`I-6`）
+# ============================================================
+
+# 変数メタデータ表: symbol => (sector, unit, timing, observability)。
+# 出所:
+#   sector・unit・timing: 部門境界と変数定義 §5.2-§5.7（`capex-credit-cycle-vars/1.2.0`）。
+#     `r_eff_s` の単位は `X-26` により「年率・小数」（`int_burden_s = r_eff_s·Δt·debt_s[t-1]`
+#     が10億ドル/四半期になるための小数表現）。
+#   observability（D/C/P/E/A）: 観測方程式・識別戦略・検証方針 §3.2-§3.3
+#     （`capex-credit-cycle-empirical/1.1.0`）。§3.2 が明示しない会計追加変数（`1.1.0` で追加、
+#     部門境界 §5.7）は、構成要素の分類のうち最も弱いもの（`A` > `E` > `P` > `C` > `D` の順に
+#     保守側）を採用する（保守的符号化の原則、#170 §3.1 契約3）。
+# state・control・exogenous・diagnostic のいずれの役割一覧（`_ccc_*_variables` 系）とも
+# 過不足なく対応することを §7.1-11 のテストで検査する。
+const _CCC_VAR_META = Dict{Symbol, NTuple{4, String}}(
+    # ---- state（22） ----
+    :cap_s1 => ("s1", "10億ドル", "EOP", "P"),
+    :capex_pipe_s1 => ("s1", "10億ドル", "EOP", "E"),
+    :cash_s1 => ("s1", "10億ドル", "EOP", "A"),
+    :plan_carry_s1 => ("s1", "10億ドル", "EOP", "A"),
+    :debt_s1 => ("s1", "10億ドル", "EOP", "P"),
+    :r_eff_s1 => ("s1", "年率・小数", "AVG", "E"),
+    :cap_s2 => ("s2", "10億ドル", "EOP", "P"),
+    :capex_pipe_s2 => ("s2", "10億ドル", "EOP", "E"),
+    :backlog_s2 => ("s2", "10億ドル", "EOP", "D"),
+    :inv_s2 => ("s2", "10億ドル", "EOP", "D"),
+    :cash_s2 => ("s2", "10億ドル", "EOP", "P"),
+    :debt_s2 => ("s2", "10億ドル", "EOP", "P"),
+    :r_eff_s2 => ("s2", "年率・小数", "AVG", "E"),
+    :advance_s2 => ("s2", "10億ドル", "EOP", "A"),
+    :cap_s3 => ("s3", "10億ドル", "EOP", "P"),
+    :capex_pipe_s3 => ("s3", "10億ドル", "EOP", "E"),
+    :backlog_s3 => ("s3", "10億ドル", "EOP", "P"),
+    :inv_s3 => ("s3", "10億ドル", "EOP", "D"),
+    :cash_s3 => ("s3", "10億ドル", "EOP", "P"),
+    :debt_s3 => ("s3", "10億ドル", "EOP", "P"),
+    :r_eff_s3 => ("s3", "年率・小数", "AVG", "E"),
+    :advance_s3 => ("s3", "10億ドル", "EOP", "A"),
+    # ---- control（33） ----
+    :compute_dem => ("s1", "10億ドル/四半期", "SUM", "P"),
+    :target_cap_s1 => ("s1", "10億ドル", "EOP", "E"),
+    :capex_plan_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :capex_exec_s1 => ("s1", "10億ドル/四半期", "SUM", "C"),
+    :cancel_s1 => ("s1", "—", "AVG", "A"),
+    :y_s1 => ("s1", "10億ドル/四半期", "SUM", "P"),
+    :emp_s1 => ("s1", "百万人", "AVG", "D"),
+    :capex_defer_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :order_s2 => ("s2", "10億ドル/四半期", "SUM", "D"),
+    :price_s2 => ("s2", "—", "AVG", "D"),
+    :y_s2 => ("s2", "10億ドル/四半期", "SUM", "C"),
+    :ship_s2 => ("s2", "10億ドル/四半期", "SUM", "D"),
+    :invest_s2 => ("s2", "10億ドル/四半期", "SUM", "P"),
+    :emp_s2 => ("s2", "百万人", "AVG", "D"),
+    :order_s3 => ("s3", "10億ドル/四半期", "SUM", "C"),
+    :price_s3 => ("s3", "—", "AVG", "D"),
+    :y_s3 => ("s3", "10億ドル/四半期", "SUM", "C"),
+    :ship_s3 => ("s3", "10億ドル/四半期", "SUM", "D"),
+    :invest_s3 => ("s3", "10億ドル/四半期", "SUM", "P"),
+    :emp_s3 => ("s3", "百万人", "AVG", "D"),
+    :equity_val => ("s4", "—", "AVG", "P"),
+    :collateral => ("s4", "10億ドル", "EOP", "E"),
+    :spread => ("s4", "bp", "AVG", "D"),
+    :rollover => ("s4", "—", "AVG", "P"),
+    :lend_stance => ("s4", "標準化", "AVG", "D"),
+    :fin_cond => ("s4", "標準化", "AVG", "D"),
+    :cost_capital_s1 => ("s1", "年率%", "AVG", "E"),
+    :cost_capital_s2 => ("s2", "年率%", "AVG", "E"),
+    :cost_capital_s3 => ("s3", "年率%", "AVG", "E"),
+    :emp_s5 => ("s5", "百万人", "AVG", "C"),
+    :wage => ("s5", "—", "AVG", "C"),
+    :cons => ("s5", "10億ドル/四半期", "SUM", "P"),
+    :y_s5 => ("s5", "10億ドル/四半期", "SUM", "C"),
+    # ---- exogenous（7） ----
+    :ai_exp => ("s1", "—", "AVG", "A"),
+    :capex_plan_shock_ex => ("s1", "baseline比%", "SUM", "A"),
+    :spread_shock_ex => ("s4", "bp", "AVG", "A"),
+    :policy_rate => ("s4", "年率%", "AVG", "D"),
+    :ext_demand_s2 => ("s2", "10億ドル/四半期", "SUM", "C"),
+    :ext_demand_s3 => ("s3", "10億ドル/四半期", "SUM", "C"),
+    :price_s1 => ("s1", "—", "AVG", "P"),
+    # ---- diagnostic: common ----
+    :ycap_s1 => ("s1", "10億ドル/四半期", "SUM", "E"),
+    :util_s1 => ("s1", "—", "AVG", "E"),
+    :sales_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :profit_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :ocf_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :va_s1 => ("s1", "10億ドル/四半期", "SUM", "P"),
+    :backlog_ratio_s2 => ("s2", "四半期", "EOP", "C"),
+    :backlog_ratio_s3 => ("s3", "四半期", "EOP", "C"),
+    :inv_ratio_s2 => ("s2", "四半期", "EOP", "D"),
+    :inv_ratio_s3 => ("s3", "四半期", "EOP", "D"),
+    :ycap_s2 => ("s2", "10億ドル/四半期", "SUM", "P"),
+    :ycap_s3 => ("s3", "10億ドル/四半期", "SUM", "P"),
+    :util_s2 => ("s2", "—", "AVG", "D"),
+    :util_s3 => ("s3", "—", "AVG", "D"),
+    :deliv_s2 => ("s2", "10億ドル/四半期", "SUM", "D"),
+    :deliv_s3 => ("s3", "10億ドル/四半期", "SUM", "D"),
+    :va_s2 => ("s2", "10億ドル/四半期", "SUM", "D"),
+    :va_s3 => ("s3", "10億ドル/四半期", "SUM", "D"),
+    :sales_s2 => ("s2", "10億ドル/四半期", "SUM", "C"),
+    :sales_s3 => ("s3", "10億ドル/四半期", "SUM", "C"),
+    :profit_s2 => ("s2", "10億ドル/四半期", "SUM", "P"),
+    :profit_s3 => ("s3", "10億ドル/四半期", "SUM", "P"),
+    :margin_s2 => ("s2", "—", "AVG", "P"),
+    :margin_s3 => ("s3", "—", "AVG", "P"),
+    :ocf_s2 => ("s2", "10億ドル/四半期", "SUM", "C"),
+    :ocf_s3 => ("s3", "10億ドル/四半期", "SUM", "C"),
+    :coverage_agg => ("s4", "倍", "AVG", "C"),
+    :int_burden_s1 => ("s1", "10億ドル/四半期", "SUM", "P"),
+    :int_burden_s2 => ("s2", "10億ドル/四半期", "SUM", "P"),
+    :int_burden_s3 => ("s3", "10億ドル/四半期", "SUM", "P"),
+    :debt_service_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :debt_service_s2 => ("s2", "10億ドル/四半期", "SUM", "A"),
+    :debt_service_s3 => ("s3", "10億ドル/四半期", "SUM", "A"),
+    :coverage_s1 => ("s1", "倍", "AVG", "C"),
+    :coverage_s2 => ("s2", "倍", "AVG", "C"),
+    :coverage_s3 => ("s3", "倍", "AVG", "C"),
+    :leverage_s1 => ("s1", "—", "EOP", "C"),
+    :leverage_s2 => ("s2", "—", "EOP", "C"),
+    :leverage_s3 => ("s3", "—", "EOP", "C"),
+    :spread_endo => ("s4", "bp", "AVG", "A"),
+    :emp_tot => ("total", "百万人", "AVG", "D"),
+    :hh_income => ("s5", "10億ドル/四半期", "SUM", "P"),
+    :y_tot => ("total", "10億ドル/四半期", "SUM", "D"),
+    :dinv_s2 => ("s2", "10億ドル/四半期", "SUM", "C"),
+    :dinv_s3 => ("s3", "10億ドル/四半期", "SUM", "C"),
+    :cons_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :cons_s5 => ("s5", "10億ドル/四半期", "SUM", "A"),
+    :xsales_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :im_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :im_s2 => ("s2", "10億ドル/四半期", "SUM", "C"),
+    :im_s3 => ("s3", "10億ドル/四半期", "SUM", "C"),
+    :im_s5 => ("s5", "10億ドル/四半期", "SUM", "C"),
+    :wagebill_s1 => ("s1", "10億ドル/四半期", "SUM", "C"),
+    :wagebill_s2 => ("s2", "10億ドル/四半期", "SUM", "C"),
+    :wagebill_s3 => ("s3", "10億ドル/四半期", "SUM", "C"),
+    :wagebill_s5 => ("s5", "10億ドル/四半期", "SUM", "C"),
+    :dep_s1 => ("s1", "10億ドル/四半期", "SUM", "P"),
+    :dep_s2 => ("s2", "10億ドル/四半期", "SUM", "P"),
+    :dep_s3 => ("s3", "10億ドル/四半期", "SUM", "P"),
+    :capex_cancel_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :matur_s1 => ("s1", "10億ドル/四半期", "SUM", "E"),
+    :matur_s2 => ("s2", "10億ドル/四半期", "SUM", "E"),
+    :matur_s3 => ("s3", "10億ドル/四半期", "SUM", "E"),
+    :repay_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :repay_s2 => ("s2", "10億ドル/四半期", "SUM", "A"),
+    :repay_s3 => ("s3", "10億ドル/四半期", "SUM", "A"),
+    :tax_hh => ("s5", "10億ドル/四半期", "SUM", "C"),
+    :s5_net_sx => ("s5", "10億ドル/四半期", "SUM", "A"),
+    :nlb_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :nlb_s2 => ("s2", "10億ドル/四半期", "SUM", "A"),
+    :nlb_s3 => ("s3", "10億ドル/四半期", "SUM", "A"),
+    :nlb_s4 => ("s4", "10億ドル/四半期", "SUM", "A"),
+    :nlb_s5 => ("s5", "10億ドル/四半期", "SUM", "A"),
+    :invval_s2 => ("s2", "10億ドル", "EOP", "P"),
+    :invval_s3 => ("s3", "10億ドル", "EOP", "P"),
+    :nw_s1 => ("s1", "10億ドル", "EOP", "A"),
+    :nw_s2 => ("s2", "10億ドル", "EOP", "P"),
+    :nw_s3 => ("s3", "10億ドル", "EOP", "P"),
+    :loans_s4 => ("s4", "10億ドル", "EOP", "P"),
+    :dep_stock_s4 => ("s4", "10億ドル", "EOP", "A"),
+    :fund_s4 => ("s4", "10億ドル", "EOP", "A"),
+    :dsc_s1 => ("s1", "倍", "AVG", "A"),
+    :dsc_s2 => ("s2", "倍", "AVG", "A"),
+    :dsc_s3 => ("s3", "倍", "AVG", "A"),
+    :rollover_gap_s1 => ("s1", "10億ドル/四半期", "SUM", "E"),
+    :rollover_gap_s2 => ("s2", "10億ドル/四半期", "SUM", "E"),
+    :rollover_gap_s3 => ("s3", "10億ドル/四半期", "SUM", "E"),
+    :liquidity_gap_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :liquidity_gap_s2 => ("s2", "10億ドル/四半期", "SUM", "A"),
+    :liquidity_gap_s3 => ("s3", "10億ドル/四半期", "SUM", "A"),
+    :funding_forced_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :funding_forced_s2 => ("s2", "10億ドル/四半期", "SUM", "A"),
+    :funding_forced_s3 => ("s3", "10億ドル/四半期", "SUM", "A"),
+    :unmet_cap_s2 => ("s2", "10億ドル/四半期", "SUM", "A"),
+    :unmet_cap_s3 => ("s3", "10億ドル/四半期", "SUM", "A"),
+    :order_gen_s2 => ("s2", "10億ドル/四半期", "SUM", "C"),
+    :order_gen_s3 => ("s3", "10億ドル/四半期", "SUM", "C"),
+    # ---- diagnostic: X-03 reclassified（control→diagnostic、34） ----
+    :capex_plan_eff_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :capex_sx_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :refin_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :refin_s2 => ("s2", "10億ドル/四半期", "SUM", "A"),
+    :refin_s3 => ("s3", "10億ドル/四半期", "SUM", "A"),
+    :capstart_s1 => ("s1", "10億ドル/四半期", "SUM", "E"),
+    :capstart_s2 => ("s2", "10億ドル/四半期", "SUM", "E"),
+    :capstart_s3 => ("s3", "10億ドル/四半期", "SUM", "E"),
+    :retire_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :retire_s2 => ("s2", "10億ドル/四半期", "SUM", "A"),
+    :retire_s3 => ("s3", "10億ドル/四半期", "SUM", "A"),
+    :pipe_cancel_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :pipe_cancel_s2 => ("s2", "10億ドル/四半期", "SUM", "A"),
+    :pipe_cancel_s3 => ("s3", "10億ドル/四半期", "SUM", "A"),
+    :newdebt_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :newdebt_s2 => ("s2", "10億ドル/四半期", "SUM", "A"),
+    :newdebt_s3 => ("s3", "10億ドル/四半期", "SUM", "A"),
+    :writeoff_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :writeoff_s2 => ("s2", "10億ドル/四半期", "SUM", "A"),
+    :writeoff_s3 => ("s3", "10億ドル/四半期", "SUM", "A"),
+    :equity_issue_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :equity_issue_s2 => ("s2", "10億ドル/四半期", "SUM", "A"),
+    :equity_issue_s3 => ("s3", "10億ドル/四半期", "SUM", "A"),
+    :div_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :div_s2 => ("s2", "10億ドル/四半期", "SUM", "A"),
+    :div_s3 => ("s3", "10億ドル/四半期", "SUM", "A"),
+    :tax_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :tax_s2 => ("s2", "10億ドル/四半期", "SUM", "A"),
+    :tax_s3 => ("s3", "10億ドル/四半期", "SUM", "A"),
+    :valchg_s1 => ("s1", "10億ドル/四半期", "SUM", "A"),
+    :valchg_s2 => ("s2", "10億ドル/四半期", "SUM", "A"),
+    :valchg_s3 => ("s3", "10億ドル/四半期", "SUM", "A"),
+    :inv_sx_s2 => ("s2", "10億ドル/四半期", "SUM", "A"),
+    :inv_sx_s3 => ("s3", "10億ドル/四半期", "SUM", "A"),
+    :xdem_s5 => ("s5", "10億ドル/四半期", "SUM", "A"),
+)
+
+# 役割 role は §4.2 の判定規則の適用結果として `_ccc_*_variables` 系がすでに保持しており、
+# ここでは再判定せず引き写す（役割の正本は各リスト、`_CCC_VAR_META` は sector/unit/timing/
+# observability のみを保持する）。
+function _ccc_variable_roles()
+    roles = Dict{String, String}()
+    for s in _CCC_STATE_BASE
+        roles[String(s)] = "state"
+    end
+    for s in _ccc_control_variables()
+        roles[String(s)] = "control"
+    end
+    for s in CAPEX_CC_EXOGENOUS_VARIABLES
+        roles[String(s)] = "exogenous"
+    end
+    for s in _ccc_diagnostic_variables()
+        roles[String(s)] = "diagnostic"
+    end
+    return roles
+end
+
+function _ccc_variable_metadata_dicts()
+    sectors = Dict{String, String}()
+    units = Dict{String, String}()
+    timing = Dict{String, String}()
+    observability = Dict{String, String}()
+    for (sym, (sector, unit, tm, obs)) in _CCC_VAR_META
+        k = String(sym)
+        sectors[k] = sector
+        units[k] = unit
+        timing[k] = tm
+        observability[k] = obs
+    end
+    return (
+        roles = _ccc_variable_roles(),
+        sectors = sectors,
+        units = units,
+        timing = timing,
+        observability = observability,
+    )
+end
+
+# ショック1件を metadata へ String 化する（分析契約 §5.2 の指定必須7項目 + magnitude +
+# application_mode）。
+function _ccc_shock_spec_dict(shock)
+    return Dict{String, Any}(
+        "target" => String(shock.target),
+        "meaning" => shock.meaning,
+        "unit" => shock.unit,
+        "sign" => shock.sign,
+        "timing" => shock.timing,
+        "shape" => String(shock.shape),
+        "duration" => shock.duration,
+        "magnitude" => shock.magnitude,
+        "application_mode" => String(shock.application_mode),
+    )
+end
+
+"""
+    _ccc_scenario_metadata(scenario_id::Symbol) -> Dict{String,Any}
+
+`metadata["scenario"]` の値を構成する。`scenario_id` が `CAPEX_CC_SCENARIO_IDS` に含まれる
+場合は `capex_scenario(scenario_id)` の正準定義（ショック仕様7項目 + magnitude +
+application_mode）を用いる。`capex_run` に独自の `exog` を与えて任意の `scenario` ラベルで
+実行した場合（カノニカルなシナリオIDでない場合）は、ショック仕様が存在しないため空配列を返す
+（統合設計 §4.4 の「`exog` を優先し `scenario` はラベルの記録にのみ用いる」契約に対応）。
+"""
+function _ccc_scenario_metadata(scenario_id::Symbol)
+    if scenario_id in CAPEX_CC_SCENARIO_IDS
+        sc = capex_scenario(scenario_id)
+        return Dict{String, Any}(
+            "id" => String(sc.id),
+            "name" => sc.name,
+            "shocks" => [_ccc_shock_spec_dict(s) for s in sc.shocks],
+        )
+    end
+    return Dict{String, Any}(
+        "id" => String(scenario_id),
+        "name" => String(scenario_id),
+        "shocks" => Any[],
+    )
+end
+
+# `CapexDiagnosticThresholds` の全フィールドを metadata へ String 化する。
+function _ccc_diagnostic_threshold_set(thresholds)
+    values = Dict{String, Any}()
+    for fname in fieldnames(typeof(thresholds))
+        fname in (:id, :version) && continue
+        values[String(fname)] = getfield(thresholds, fname)
+    end
+    return Dict{String, Any}(
+        "id" => thresholds.id,
+        "version" => thresholds.version,
+        "values" => values,
+    )
+end
+
+"""
+    to_simulation_result(m::CapexCreditCycleModel, run::CapexCreditCycleRun,
+                         scenario_name::AbstractString = String(run.scenario)) -> SimulationResult
+
+`run.series`（統合設計 §6.2 の公開系列）を `SimulationResult` へ変換し、metadata 予約キー
+20個 + 補助3キー（統合設計 §6.1）を設定する。会計表（`Vector{SFCPeriodSnapshot}`）・診断ラベル
+（`Vector{Symbol}`）・`binding` フラグ（`Vector{Bool}`）・スカラーの診断量は `Vector{Float64}`
+で表せないため `variables` に含めない（`capex_accounting_snapshots` / `capex_diagnostics` /
+`run.binding` から別途取得する）。
+
+`run.diagnostics` が `nothing`（`capex_run` の既定は診断を計算しない）の場合、
+`metadata["diagnostic_threshold_set"]` は既定の `CapexDiagnosticThresholds()` を用いる。
+"""
+function to_simulation_result(
+    m::CapexCreditCycleModel,
+    run::CapexCreditCycleRun,
+    scenario_name::AbstractString = String(run.scenario),
+)
+    variables =
+        Dict{String, Vector{Float64}}(String(k) => v for (k, v) in pairs(run.series))
+    dicts = _ccc_variable_metadata_dicts()
+
+    thresholds =
+        run.diagnostics === nothing ? CapexDiagnosticThresholds() :
+        run.diagnostics.thresholds
+    cv = m.contract_versions
+
+    metadata = Dict{String, Any}(
+        "parameters" =>
+            Dict{String, Any}(String(k) => v for (k, v) in pairs(parameters(m))),
+        "variable_roles" => dicts.roles,
+        "variable_sectors" => dicts.sectors,
+        "variable_units" => dicts.units,
+        "variable_timing" => dicts.timing,
+        "variable_observability" => dicts.observability,
+        "contract_version" => cv.contract_version,
+        "graph_version" => cv.graph_version,
+        "vars_version" => cv.vars_version,
+        "accounting_version" => cv.accounting_version,
+        "boundaries_version" => cv.boundaries_version,
+        "equations_version" => cv.equations_version,
+        "empirical_version" => cv.empirical_version,
+        "model_version" => cv.model_version,
+        "scenario" => _ccc_scenario_metadata(run.scenario),
+        "diagnostic_threshold_set" => _ccc_diagnostic_threshold_set(thresholds),
+        "termination_reason" => String(run.termination_reason),
+        "termination_period" => run.termination_period,
+        "divergence_time" => run.divergence_time,
+        "warnings" => run.warnings,
+        "unit_conversions" =>
+            get(run.metadata, "unit_conversions", Dict{String, String}()),
+        "deviations" => get(run.metadata, "deviations", Any[]),
+        "measure" => get(run.metadata, "measure", "level"),
+    )
+
+    return SimulationResult(model_name(m), String(scenario_name), variables, metadata)
+end

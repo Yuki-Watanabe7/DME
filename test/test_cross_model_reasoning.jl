@@ -131,10 +131,10 @@ using DME
             @test c.treatment in CROSS_MODEL_TREATMENTS
             @test !isempty(c.doc_ref)          # repository metadata の根拠
         end
-        # Keen だけが民間債務・信用を内生化
+        # Keen と CCC（部門別CAPEX・信用循環モデル）だけが民間債務・信用を内生化
         debt = model_concept_coverage(; concept = :private_debt_credit)
         endog = [c.model for c in debt if c.treatment === :endogenous]
-        @test endog == [:keen]
+        @test Set(endog) == Set([:keen, :capex_credit_cycle])
     end
 
     # ---- context builder ------------------------------------------------

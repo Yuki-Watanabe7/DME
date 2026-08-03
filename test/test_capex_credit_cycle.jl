@@ -709,3 +709,157 @@ end
         @test pv[idx0 + 3] == pv[idx0 + 10] # duration 到達後は m で一定
     end
 end
+
+# `I-6`（SimulationResult 変換・registry 登録・比較API接続、Issue #184）のテスト。
+#
+# カバレッジ:
+#   - §7.1-10: metadata に統合設計 §6.1 の予約キー20個がすべて存在する
+#   - §7.1-11: variable_roles/variable_sectors/variable_units/variable_timing/
+#     variable_observability の5辞書が variables の全キーを過不足なく被覆する
+#   - model_capabilities(:capex_credit_cycle) が accounting_closure == :partial を返す
+#   - cross_model_reasoning registry（_XM_MODEL_LABELS・MODEL_CONCEPT_REGISTRY）への登録
+#   - compare_results_v2 での同一モデル内シナリオ比較の動作確認
+@testset "CapexCreditCycleModel の SimulationResult 変換・registry 登録（I-6）" begin
+    targets = capex_credit_cycle_default_targets()
+    m = capex_credit_cycle_model(targets)
+
+    const_reserved_keys = (
+        "parameters",
+        "variable_roles",
+        "variable_sectors",
+        "variable_units",
+        "variable_timing",
+        "variable_observability",
+        "contract_version",
+        "graph_version",
+        "vars_version",
+        "accounting_version",
+        "boundaries_version",
+        "equations_version",
+        "empirical_version",
+        "model_version",
+        "scenario",
+        "diagnostic_threshold_set",
+        "termination_reason",
+        "termination_period",
+        "divergence_time",
+        "warnings",
+    )
+
+    @testset "smoke test（CLAUDE.md）" begin
+        run = DME.capex_run(m; scenario = :Sc0)
+        sr = to_simulation_result(m, run)
+        @test sr isa SimulationResult
+        @test sr.model_name == model_name(m)
+        @test sr.scenario_name == "Sc0"
+        @test !isempty(sr.variables)
+    end
+
+    @testset "§7.1-10 metadata に予約キー20個がすべて存在する" begin
+        @test length(const_reserved_keys) == 20
+        for scenario in (:Sc0, :Sc2, :Sc4)
+            run = DME.capex_run(m; scenario = scenario)
+            sr = to_simulation_result(m, run)
+            for k in const_reserved_keys
+                @test haskey(sr.metadata, k)
+            end
+            # 補助3キー（値が空でもよい）
+            for k in ("unit_conversions", "deviations", "measure")
+                @test haskey(sr.metadata, k)
+            end
+        end
+    end
+
+    @testset "§7.1-11 5辞書が variables の全キーを過不足なく被覆する" begin
+        run = DME.capex_run(m; scenario = :Sc3)
+        sr = to_simulation_result(m, run)
+        var_keys = Set(keys(sr.variables))
+        for dict_key in (
+            "variable_roles",
+            "variable_sectors",
+            "variable_units",
+            "variable_timing",
+            "variable_observability",
+        )
+            d = sr.metadata[dict_key]
+            @test Set(keys(d)) == var_keys
+        end
+        @test Set(values(sr.metadata["variable_roles"])) ==
+              Set(["state", "control", "exogenous", "diagnostic"])
+        @test Set(values(sr.metadata["variable_observability"])) ⊆
+              Set(["D", "C", "P", "E", "A"])
+        @test Set(values(sr.metadata["variable_timing"])) ⊆ Set(["EOP", "SUM", "AVG"])
+        # 潜在変数は単独提示抑止のため observability が E/A（#165 §6.2 の潜在変数契約）
+        for latent in ("cost_capital_s1", "cost_capital_s2", "cost_capital_s3", "ai_exp")
+            @test sr.metadata["variable_observability"][latent] in ("E", "A")
+        end
+    end
+
+    @testset "変数名に recession を含まない（§7.1-12 の再確認）" begin
+        run = DME.capex_run(m; scenario = :Sc0)
+        sr = to_simulation_result(m, run)
+        @test !any(occursin("recession", k) for k in keys(sr.variables))
+    end
+
+    @testset "diagnostic_threshold_set は run.diagnostics が nothing でも既定値を返す" begin
+        run = DME.capex_run(m; scenario = :Sc0)
+        @test run.diagnostics === nothing
+        sr = to_simulation_result(m, run)
+        dts = sr.metadata["diagnostic_threshold_set"]
+        @test dts["id"] == "default"
+        @test dts["version"] == CapexDiagnosticThresholds().version
+        @test haskey(dts["values"], "breadth")
+    end
+
+    @testset "metadata[\"scenario\"] がカノニカルシナリオのショック仕様を保持する" begin
+        run = DME.capex_run(m; scenario = :Sc2)
+        sr = to_simulation_result(m, run)
+        sc_meta = sr.metadata["scenario"]
+        @test sc_meta["id"] == "Sc2"
+        @test !isempty(sc_meta["shocks"])
+        @test all(haskey(s, "magnitude") for s in sc_meta["shocks"])
+    end
+
+    @testset "registry 登録: model_capabilities" begin
+        p = model_capabilities(:capex_credit_cycle)
+        @test p.accounting_closure == :partial
+        @test p.model_type == :CapexCreditCycleModel
+        @test p.endogenous_credit
+        @test model_capabilities(m) === p
+        @test model_symbol(m) === :capex_credit_cycle
+        @test !isempty(concept_definitions(m))
+        @test all(d -> startswith(String(d.concept_id), "ccc_"), concept_definitions(m))
+    end
+
+    @testset "registry 登録: cross_model_reasoning" begin
+        @test DME._XM_MODEL_LABELS[:capex_credit_cycle] == "部門別CAPEX・信用循環モデル"
+        cov = model_concept_coverage(; model = :capex_credit_cycle)
+        @test Set(c.concept for c in cov) == Set(CROSS_MODEL_CONCEPTS)
+        for c in cov
+            @test !isempty(c.doc_ref)
+            @test !isempty(c.caveats)
+        end
+    end
+
+    @testset "compare_results_v2: 同一モデル内シナリオ比較（既存 test_compare_v2.jl 非破壊の確認）" begin
+        run0 = DME.capex_run(m; scenario = :Sc0)
+        run3 = DME.capex_run(m; scenario = :Sc3)
+        sr0 = to_simulation_result(m, run0, "Sc0")
+        sr3 = to_simulation_result(m, run3, "Sc3")
+        spec = ComparisonSpec(;
+            mode = :trajectory,
+            mappings = [
+                VariableComparisonMapping(;
+                    model_variable = "y_tot",
+                    data_variable = "y_tot",
+                    mapping_type = :equivalent,
+                ),
+            ],
+            allow_period_index = true,
+        )
+        result = compare_results_v2(sr0, sr3; spec = spec)
+        @test result isa ComparisonResultV2
+        @test result.assessment.level in (:comparable, :partial)
+        @test haskey(result.metrics, "y_tot")
+    end
+end

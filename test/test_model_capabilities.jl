@@ -15,6 +15,7 @@ const _ALL_MODEL_SYMBOLS = (
     :mundell_fleming,
     :keen,
     :sim,
+    :capex_credit_cycle,
 )
 
 # 各識別子に対応するインスタンス（インスタンス dispatch の検証用）
@@ -68,6 +69,8 @@ _capability_test_instances() = Dict{Symbol, AbstractMacroModel}(
         20.0,
     ),
     :sim => SIMModel(; α1 = 0.6, α2 = 0.4, θ = 0.2, G = 20.0),
+    :capex_credit_cycle =>
+        capex_credit_cycle_model(capex_credit_cycle_default_targets()),
 )
 
 @testset "モデル能力・概念定義 metadata（#149 / Phase 5）" begin
@@ -87,7 +90,7 @@ _capability_test_instances() = Dict{Symbol, AbstractMacroModel}(
             @test p.accounting_closure in CAPABILITY_ACCOUNTING_CLOSURES
             @test p.equilibrium_concept in CAPABILITY_EQUILIBRIUM_CONCEPTS
         end
-        # registry には過不足なく 10 モデル
+        # registry には過不足なく 11 モデル
         @test Set(keys(MODEL_CAPABILITY_REGISTRY)) == Set(_ALL_MODEL_SYMBOLS)
     end
 
@@ -139,24 +142,42 @@ _capability_test_instances() = Dict{Symbol, AbstractMacroModel}(
 
     # ---- 部門・金融・会計の保守的符号化 ------------------------------------
     @testset "部門・金融・会計の符号化" begin
-        # SIM のみ stock-flow-consistent
+        # SIM のみ stock-flow-consistent、CCC のみ partial、他は none
         for s in _ALL_MODEL_SYMBOLS
-            expected = s === :sim ? :stock_flow_consistent : :none
+            expected = if s === :sim
+                :stock_flow_consistent
+            elseif s === :capex_credit_cycle
+                :partial
+            else
+                :none
+            end
             @test model_capabilities(s).accounting_closure == expected
         end
-        # 内生信用は Keen のみ
+        # 内生信用は Keen と CCC（借り手側のみ内生）
         for s in _ALL_MODEL_SYMBOLS
-            @test model_capabilities(s).endogenous_credit == (s === :keen)
+            @test model_capabilities(s).endogenous_credit ==
+                  (s in (:keen, :capex_credit_cycle))
         end
         # 対外部門を内生化するのは Mundell-Fleming のみ
         @test has_sector(model_capabilities(:mundell_fleming), :external)
         @test model_capabilities(:mundell_fleming).external_sector === :endogenous
-        for s in (:ramsey, :rbc, :solow, :islm, :adas, :new_keynesian, :keen, :sim)
+        for s in (
+            :ramsey,
+            :rbc,
+            :solow,
+            :islm,
+            :adas,
+            :new_keynesian,
+            :keen,
+            :sim,
+            :capex_credit_cycle,
+        )
             @test !has_sector(model_capabilities(s), :external)
         end
-        # 銀行部門は Keen のみ
+        # 銀行部門は Keen と CCC（S4 金融・信用部門）
         for s in _ALL_MODEL_SYMBOLS
-            @test has_sector(model_capabilities(s), :bank) == (s === :keen)
+            @test has_sector(model_capabilities(s), :bank) ==
+                  (s in (:keen, :capex_credit_cycle))
         end
     end
 
