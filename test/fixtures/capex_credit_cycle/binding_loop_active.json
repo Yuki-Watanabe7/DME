@@ -1,0 +1,17 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "ループ作動フラグ（動学方程式 §16.2 `E16-04`・Issue #183）を発生させる構成の記録。実データではなく、プログラム的には読み込まない。診断層はモデル本体が既に記録している `binding` フラグ（`capacity_binding_s1`・`supply_binding_s`・`inv_threshold_binding_s`）と、`coverage_agg`・`rollover`・雇用デッドバンドの再判定から `active(R1a)`–`active(R4)` を導出する（capex_credit_cycle_diagnostics.jl の `_capex_loop_active`）。"
+    },
+    "construction": {
+        "R1a": "capacity_binding_s1（S1が需要ではなく能力側で拘束される期）を立てるには、AI需要期待を正方向へ大きくショックし compute_dem > bh_util_max_s1 * ycap_s1 とする（基準ユースケースの負方向ショックでは作動しない、動学方程式 §9.5 の注記）。",
+        "R1b": "supply_binding_s2/s3 または inv_threshold_binding_s2/s3 を立てるには、S2/S3 への外生需要（ext_demand_s2/s3）を正方向へ大きくショックし在庫・供給余力を超えさせる。",
+        "R2": "coverage_agg[t-1] が bh_cov_threshold を下回るまで信用スプレッド・需要の複合ショックを与える（Sc3 相当）。",
+        "R3": "rollover が 1 を下回るまで担保比率を悪化させる（S4信用スプレッド・株式評価下落の複合ショック）。",
+        "R4": "雇用デッドバンド（bh_emp_band_s）を超える雇用調整が生じるまで需要ショックを継続する（Sc2/Sc3 で通常発生する）。"
+    },
+    "expected": {
+        "Sc0": "5フラグすべて false（ショックなし、baseline は定常状態）",
+        "Sc3": "R2 または R3 の少なくとも一方が true（統合設計 §7.4-14）"
+    }
+}

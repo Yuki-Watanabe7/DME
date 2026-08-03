@@ -1,0 +1,18 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "資金繰り診断（会計仕様 §7.4・動学方程式 §16.8・Issue #183）: funding_pressure_s の precedence 最下位 fp_covered（ocf_s >= debt_service_s - tau）を発生させる構成の記録。実データの較正値ではなく、プログラム的には読み込まない（test/test_capex_credit_cycle_diagnostics.jl 内で直接構築する）。"
+    },
+    "construction": {
+        "method": "capex_run(m)（既定シナリオ Sc0、外生ショックなし）",
+        "base": "capex_credit_cycle_default_targets() / capex_credit_cycle_model(targets)",
+        "note": "baseline は成長率ゼロの定常状態であり、逆較正の許容条件15（coverage_agg^ss >= bh_cov_threshold）により全期で ocf_s >= int_burden_s が成立する。定常状態では元本返済 repay_s = 0 のため debt_service_s = int_burden_s であり、fp_covered が全期・全部門（s1-s3）で成立する。"
+    },
+    "expected": {
+        "funding_pressure": {
+            "s1": "fp_covered（全期）",
+            "s2": "fp_covered（全期）",
+            "s3": "fp_covered（全期）"
+        }
+    }
+}

@@ -1,0 +1,18 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "資金繰り診断（会計仕様 §7.4・Issue #183）: funding_pressure_s の precedence 第2位 fp_unlevered（debt_s[t-1] <= st_debt_tol）を発生させる構成の記録。実データではなく、プログラム的には読み込まない（test/test_capex_credit_cycle_accounting.jl の degenerate_debt_zero.json と同じ構成を再利用する）。"
+    },
+    "construction": {
+        "method": "state0（初期状態）の debt_s1/debt_s2/debt_s3 をすべて0へ書き換えた capex_run",
+        "base": "capex_credit_cycle_default_targets() / capex_credit_cycle_model(targets) の state0 を上書き",
+        "note": "debt_s[t-1] = 0 <= st_debt_tol（既定 0.01）が全期で成立する限り fp_unlevered が続く。coverage_agg は 0/0 で NaN になりうるが、fp_unlevered は precedence 上 fp_invalid の直後（第2位）でありこの NaN より優先して判定される（会計仕様 §7.4 の precedence）。"
+    },
+    "expected": {
+        "funding_pressure": {
+            "s1": "fp_unlevered（debt_s1[t-1]=0の期）",
+            "s2": "fp_unlevered（debt_s2[t-1]=0の期）",
+            "s3": "fp_unlevered（debt_s3[t-1]=0の期）"
+        }
+    }
+}

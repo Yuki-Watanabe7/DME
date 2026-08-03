@@ -90,6 +90,17 @@ export
     CAPEX_CC_ACCOUNTING_CHECKS,
     capex_accounting_snapshots,
     validate_capex_accounting,
+    # CCC: 診断層（src/analysis/capex_credit_cycle_diagnostics.jl、Issue #183 / `I-5`）
+    CapexDiagnosticThresholds,
+    CapexDiagnostics,
+    CAPEX_CC_FUNDING_PRESSURE_LABELS,
+    CAPEX_CC_NL_IDS,
+    CAPEX_CC_LOOP_IDS,
+    CAPEX_CC_LOOP_GAIN_IDS,
+    CAPEX_CC_COUNTERFACTUAL_KINDS,
+    capex_diagnostics,
+    capex_counterfactual,
+    capex_label_sensitivity,
     # New Keynesian: 期待インフレ率パス・level 復元（Issue #159）
     nk_expected_inflation_path,
     nk_inflation_level,
@@ -479,6 +490,12 @@ include("./analysis/capex_credit_cycle_accounting.jl")
 # のみ。Sc0–Sc4 の定義と外生パス合成。イベント実行層（Phase 2）との接続点は
 # `capex_exogenous_paths` が返す `Dict{Symbol,Vector{Float64}}` の1点に限定する）
 include("./analysis/capex_credit_cycle_scenarios.jl")
+
+# 部門別CAPEX・信用循環モデルの診断層（Issue #183 / `I-5`。depends on CapexCreditCycleModel・
+# capex_credit_cycle_accounting.jl（会計違反の併記）・capex_credit_cycle_scenarios.jl
+# （delayed_containment の延長再実行）。診断ラベル・funding_pressure_s・ループ利得・非線形性近傍・
+# 反実仮想。読み取り専用でモデル本体の動学に影響しない）
+include("./analysis/capex_credit_cycle_diagnostics.jl")
 
 # Minsky financing regime diagnostics (depends on KeenModel and SimulationResult)
 include("./analysis/minsky_regimes.jl")

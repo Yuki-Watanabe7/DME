@@ -1,0 +1,16 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "資金繰り診断（会計仕様 §7.4・Issue #183）: funding_pressure_s の precedence 最上位 fp_invalid（NaN/Inf、または打ち切り後）を発生させる構成の記録。実データではなく、プログラム的には読み込まない。"
+    },
+    "construction": {
+        "method": "T3打ち切りを発生させる入力（例: 発散する外生ショック）で capex_run を実行し、termination_period 以降の期を対象にする",
+        "base": "test_capex_credit_cycle.jl の §7.5-7/8（non_finite_state・divergence_guard）と同じ構成",
+        "note": "打ち切り後の期は run.series の当該変数が NaN で埋められるため（capex_run のT3契約）、_capex_funding_pressure はこれを isfinite 判定で捕捉し fp_invalid を返す。precedence 上 fp_unlevered 等より優先される（会計仕様 §7.4 の precedence 第1位）。"
+    },
+    "expected": {
+        "funding_pressure": {
+            "s1": "termination_period 以降の期はすべて fp_invalid"
+        }
+    }
+}
