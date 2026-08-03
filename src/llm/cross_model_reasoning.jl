@@ -73,6 +73,7 @@ const _XM_MODEL_LABELS = Dict{Symbol, String}(
     :var => "簡易 VAR モデル",
     :keen => "Keen モデル",
     :sim => "SIM（SFC）モデル",
+    :capex_credit_cycle => "部門別CAPEX・信用循環モデル",
 )
 
 # 比較軸 → 表示名
@@ -267,6 +268,15 @@ end
 # 共通 caveat 断片
 const _XM_PARAM_SHARE_CAVEAT = "Cobb-Douglas 資本弾力性 α を固定パラメータとして扱う静的分配であり、賃金シェアの動学ではない。"
 
+# CCC の caveats 5件（責務境界 §2.6・§5.8 要件2。5軸すべての coverage 行へ含める）
+const _CCC_XM_CAVEATS = [
+    "残差部門 SX を持つため会計は経済全体で閉じていない（#166 §9.2 が要求）。",
+    "デフォルト・信用損失を内生化していない。資金繰り診断は倒産・信用イベントの予測ではない（#166 §7）。",
+    "信用の内生性は借り手側のみ。銀行の自己資本・調達コスト・貸出数量制約を持たない（#166 §12-1）。",
+    "一般物価・インフレ・金融政策の内生反応を持たない。policy_rate は外生パスである。",
+    "出力はすべて baseline 比の乖離であり、水準の絶対値は較正済みの実額を意味しない（契約 §2.4）。",
+]
+
 const MODEL_CONCEPT_REGISTRY = ModelConceptCoverage[
     # ---- Keen（Minsky 系。信用・分配・不安定性・危機regime を内生化）------------
     ModelConceptCoverage(;
@@ -403,6 +413,72 @@ const MODEL_CONCEPT_REGISTRY = ModelConceptCoverage[
         definition = "政府支出 G・税率 θ への恒久/一時ショックから新しい定常状態への移行経路を水準で返す。",
         doc_ref = "docs/models/sim_sfc.md §財政ショック",
         caveats = ["金融政策・確率ショックは持たない（財政ショックのみ）。"],
+    ),
+
+    # ---- CCC（部門別CAPEX・信用循環モデル。部門別 CAPEX・受注残・在庫・稼働率・信用条件を持つ）----
+    ModelConceptCoverage(;
+        model = :capex_credit_cycle,
+        concept = :private_debt_credit,
+        treatment = :endogenous,
+        variables = ["debt_s", "leverage_s", "spread", "rollover", "lend_stance"],
+        definition_key = :ccc_sector_debt_credit_conditions,
+        unit = "level (bn USD, 2017 chained); bp",
+        frequency = "quarterly",
+        measure = "level",
+        definition = "部門別債務残高・レバレッジ・社債スプレッド・借換条件・貸出態度を内生化する（借り手側のみ内生、銀行の自己資本・貸出数量制約は持たない）。",
+        doc_ref = "docs/models/capex_credit_cycle_model_boundaries.md §2.6,§5.2",
+        caveats = _CCC_XM_CAVEATS,
+    ),
+    ModelConceptCoverage(;
+        model = :capex_credit_cycle,
+        concept = :income_distribution,
+        treatment = :approximate,
+        variables = ["wagebill_s", "profit_s", "va_s"],
+        definition_key = :ccc_accounting_factor_shares,
+        unit = "level (bn USD, 2017 chained)",
+        frequency = "quarterly",
+        measure = "level",
+        definition = "賃金支払額・利益・付加価値はいずれも会計残差として決まり、集計賃金シェアを状態変数として持たない。",
+        doc_ref = "docs/models/capex_credit_cycle_model_boundaries.md §2.6,§5.2",
+        caveats = _CCC_XM_CAVEATS,
+    ),
+    ModelConceptCoverage(;
+        model = :capex_credit_cycle,
+        concept = :demand_and_instability,
+        treatment = :endogenous,
+        variables = ["capex_exec_s1", "order_s", "y_s", "cons", "y_tot"],
+        definition_key = :ccc_sectoral_capex_credit_propagation,
+        unit = "level (bn USD, 2017 chained)",
+        frequency = "quarterly",
+        measure = "level",
+        definition = "部門別 CAPEX ショックが受注・在庫・信用条件・雇用・消費を通じて他部門・家計へ波及する経路を内生化する。",
+        doc_ref = "docs/models/capex_credit_cycle_model_boundaries.md §2.6,§5.2",
+        caveats = _CCC_XM_CAVEATS,
+    ),
+    ModelConceptCoverage(;
+        model = :capex_credit_cycle,
+        concept = :steady_state_stability,
+        treatment = :approximate,
+        definition_key = :ccc_baseline_path,
+        unit = "level (bn USD, 2017 chained)",
+        frequency = "quarterly",
+        measure = "level",
+        definition = "baseline（`t = -8 … -1`）を成長率ゼロの定常状態として逆較正で与える。均衡の解析解・局所安定性の判定は持たない（`equilibrium_concept = :none`）。",
+        doc_ref = "docs/models/capex_credit_cycle_model_boundaries.md §2.6,§5.2",
+        caveats = _CCC_XM_CAVEATS,
+    ),
+    ModelConceptCoverage(;
+        model = :capex_credit_cycle,
+        concept = :shock_response,
+        treatment = :endogenous,
+        variables = ["dY_t", "dI_t", "dC_t"],
+        definition_key = :ccc_baseline_relative_deviation,
+        unit = "relative deviation; %pt; bp",
+        frequency = "quarterly",
+        measure = "deviation",
+        definition = "CAPEX・信用ショックへの反応は baseline 比の乖離としてのみ判定・比較する（水準の絶対値は較正済みの実額を意味しない）。",
+        doc_ref = "docs/models/capex_credit_cycle_model_boundaries.md §2.6,§5.2",
+        caveats = _CCC_XM_CAVEATS,
     ),
 
     # ---- RBC ----------------------------------------------------------------

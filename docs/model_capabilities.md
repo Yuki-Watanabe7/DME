@@ -88,6 +88,7 @@ first(defs).concept_id             # :sim_money_stock_H
 | Mundell-Fleming | static | ○ | | ○ | | | |
 | Keen | continuous | ○ | | ○ | ○ | ○ | ○ |
 | SIM (SFC) | discrete | ○ | | ○ | ○ | | |
+| CCC（部門別CAPEX・信用循環） | discrete | ○ | | ○ | ○ | | |
 
 部門・金融・会計・実証:
 
@@ -103,6 +104,7 @@ first(defs).concept_id             # :sim_money_stock_H
 | Mundell-Fleming | household, firm, government, central_bank, external | money | | none | static_equilibrium | | |
 | Keen | household, firm, bank | debt, loan | ○ | none | bistable_with_crisis | ○ | ○ |
 | SIM (SFC) | household, firm, government | money | | stock_flow_consistent | stock_flow_steady_state | | |
+| CCC（部門別CAPEX・信用循環） | household, firm, bank | loan, deposit | ○ | partial | none | | |
 
 経済メカニズムの扱い（`:endogenous` / `:approximate` / `:exogenous` / `:none`）:
 
@@ -118,6 +120,7 @@ first(defs).concept_id             # :sim_money_stock_H
 | Mundell-Fleming | approximate | none | none | none | endogenous | endogenous | endogenous | none |
 | Keen | endogenous | endogenous | endogenous | none | none | none | none | none |
 | SIM (SFC) | approximate | endogenous | none | none | none | endogenous | none | none |
+| CCC（部門別CAPEX・信用循環） | endogenous | endogenous | approximate | approximate | exogenous | none | none | static |
 
 > **同名変数の非同一性**: 利子率 `r` は RBC=実質資本限界生産物、IS-LM=名目貨幣市場金利、
 > New Keynesian `i`=名目政策金利で、`concept_id`・`definition_key` がそれぞれ異なる。
@@ -136,6 +139,14 @@ first(defs).concept_id             # :sim_money_stock_H
 > （`i - E_t[π_{t+1}]`、`endogeneity=:endogenous`）は定常状態で数値的に一致しうるが
 > 同一概念として扱わない（`proxy_caveats` に明記）。再現可能な JSON artifact としての
 > 出力は [ADR 0008](adr/0008-real-rate-model-artifact-export.md) を参照。
+>
+> **CCC（部門別CAPEX・信用循環モデル）の `equilibrium_concept = :none`**: 均衡の解析解を持たない
+> 逐次的な行動方程式系であるため、既存語彙（`bistable_with_crisis` 等）のいずれにも該当しない。
+> [ADR 0013](adr/0013-capex-credit-cycle-integration-contract.md) 決定16により語彙を拡張せず
+> `:none` とし、この性質は `caveats` と `behavioral_equations = true` で表現する。会計閉鎖は
+> 残差部門 `SX` を置いた `:partial` であり `SIM` の `:stock_flow_consistent` と同一視しない
+> （[責務境界](models/capex_credit_cycle_model_boundaries.md) §6.1）。内生信用は借り手側のみ
+> （銀行の自己資本・貸出数量制約は非対象）。
 
 ---
 
