@@ -243,6 +243,33 @@ function plot_irf(
     return p
 end
 
+"""
+    _categorical_bands(times::Vector{Int}, values::Vector{T}) where {T} -> Vector{Tuple{Int,Int,T}}
+
+`times`（昇順・重複なしを仮定）・`values`（同じ長さ）から、連続する同一値の区間
+`(start, stop, value)` を抽出する共通ヘルパー。時系列のカテゴリ値（regime・label 等）を
+帯（band）として描画するモデル固有可視化層（例: `capex_credit_cycle_visualization.jl` の
+`funding_pressure_s` 帯グラフ）が利用する。値の再計算は行わない（読み取り専用）。
+"""
+function _categorical_bands(times::Vector{Int}, values::Vector{T}) where {T}
+    bands = Tuple{Int, Int, T}[]
+    isempty(times) && return bands
+
+    run_start = times[1]
+    run_value = values[1]
+    prev_time = times[1]
+    for i in 2:length(times)
+        if values[i] != run_value || times[i] != prev_time + 1
+            push!(bands, (run_start, prev_time, run_value))
+            run_start = times[i]
+            run_value = values[i]
+        end
+        prev_time = times[i]
+    end
+    push!(bands, (run_start, prev_time, run_value))
+    return bands
+end
+
 function _resolve_plot_vars(result::SimulationResult, vars)
     if isnothing(vars)
         return sort(variable_names(result))
