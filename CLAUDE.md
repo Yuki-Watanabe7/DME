@@ -95,6 +95,7 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 | [Minsky 連続診断指標・サマリー](docs/models/minsky_diagnostics_summary.md) | カバレッジ比率・マージン・regime滞在比率・peak/minimum・発散時点の指標定義とサマリー契約 |
 | [Keen モデル 実証化戦略](docs/models/keen_empirical_strategy.md) | 実データ接続の観測方程式・単位変換・共通頻度・年単位ODE↔四半期の時間軸契約・固定/推定パラメータ分離・識別戦略・検証方針 |
 | [SFC 統合設計（最小 SIM 型モデル）](docs/models/sfc_integration_design.md) | SIM 型モデルの方程式・部門・金融資産・貸借対照表/取引フロー行列・会計恒等式の検証契約・型/API スケッチ |
+| [部門別CAPEX・信用循環モデル](docs/models/capex_credit_cycle.md) | `CapexCreditCycleModel` の目的・部門/変数・パラメータ・期内処理順序10ステップ・定常状態・シナリオSc0–Sc4・診断層（ラベル・資金繰り・ループ・A/share_C）・出力の読み方・AIエコノミスト向け利用ガイド・限界 |
 | [部門別CAPEX・信用循環モデル 分析契約](docs/models/capex_credit_cycle_analysis_contract.md) | AI・半導体CAPEX調整の基準ユースケース（米国・四半期・起点事象・波及先部門）・判定問題 Q1–Q5・比較シナリオ・`broad_downturn` の操作的定義・初期MVP対象外・後続設計への参照契約 |
 | [部門別CAPEX・信用循環モデル 因果グラフ](docs/models/capex_credit_cycle_causal_graph.md) | 起点事象から総産出までの有向グラフ・エッジ仕様（型/符号/時間差/関数形/観測可能性/根拠/逆因果・交絡/実装優先度）・増幅ループ R1–R4・減衰/遮断経路 B1–B7・株式評価の媒介経路限定・分岐条件候補と診断ラベル対応 |
 | [部門別CAPEX・信用循環モデル 部門境界と変数定義](docs/models/capex_credit_cycle_sectors_variables.md) | 部門区分（案A 5部門）の候補比較・採用理由・部門責務・実物/金融フロー図・二重計上を避ける集計規約・役割（state/control/exogenous/diagnostic）の判定規則・遅延/パイプライン状態・変数辞書・DME共通API適合方針（平坦キー+部門接尾辞）・因果グラフへの差し戻し事項 |
@@ -124,6 +125,7 @@ gh issue view <issue-number> --comments でIssue本文とコメントを確認�
 | [Keen 実証説明の LLM 回帰テストと安全性評価](docs/development/keen_llm_regression.md) | 契約/parser/シナリオ/golden/forbidden の評価レイヤー・安全性評価器・fixture 再生成/追加手順・任意 provider 評価 |
 | [Keen 実証 AIエコノミスト統合デモ](docs/examples/keen_empirical_ai_economist.md) | データ取得→実証分析→根拠付きLLM説明→クロスモデル比較→provenance保存の再現可能な統合デモの実行手順・成果物・設定例 |
 | [SFC対応 AIエコノミスト統合デモ](docs/examples/sfc_ai_economist.md) | baseline/財政ショック→SFC会計検証→比較API v2→Keen–SFC比較レポート→根拠付きLLM説明→provenance保存の再現可能な統合デモの実行手順・成果物・設定例 |
+| [部門別CAPEX・信用循環モデル統合デモ](docs/examples/capex_credit_cycle_demo.md) | Sc0–Sc4シナリオ実行→会計恒等式検証（12項目）→診断・閾値感応度→判定問題Q2–Q4の回答→比較API v2（mechanismモード）→可視化→provenance保存の再現可能な統合デモの実行手順・成果物・設定例（APIキー不要・ネットワークアクセスなし・決定的） |
 | [Real-rate model artifact 生成デモ](docs/examples/real_rate_model_artifact.md) | New Keynesian モデル→期待インフレ率・model-implied実質政策金利のartifact構築→検証→atomic保存までの再現可能な実行手順・成果物・economic-data-providerへの受け渡し手順 |
 | [依存パッケージ管理と注意点](docs/development/dependency_management.md) | JuMP・Interpolations・NLsolve の注意点・Manifest.toml 管理 |
 | [設定・環境変数管理ガイド](docs/development/configuration.md) | API キー設定・fixture/mock モード・CI 運用方針 |
