@@ -4,7 +4,7 @@
 > 前提: [分析契約](../models/capex_credit_cycle_analysis_contract.md)（四半期・分析ホライズン・ショックの `timing` / `shape` / `duration`）・[ストック・フロー会計表](../models/capex_credit_cycle_stock_flow.md)（時点規約・期内処理順序）・[部門境界と変数定義](../models/capex_credit_cycle_sectors_variables.md)（`EOP` / `SUM` / `AVG` / `BOP` の時点基準）
 > 対になる設計: [マクロイベント変換契約](macro_event_contract.md)（概念階層・属性・イベント型マッピング・競合規則）
 > 決定記録: [ADR 0010](../adr/0010-macro-event-scenario-contract.md)
-> 後続設計: #169（動学方程式）・#170（[観測方程式・識別戦略・検証方針](../models/capex_credit_cycle_empirical_strategy.md)）・#171（統合）
+> 後続設計: #169（動学方程式）・#170（[観測方程式・識別戦略・検証方針](../models/capex_credit_cycle_empirical_strategy.md)）・#171（統合）・#196（[イベント・シナリオ実行層 統合設計](macro_event_runtime_integration.md)）
 
 ---
 
@@ -14,7 +14,8 @@
 |---|---|
 | **対象** | 四半期モデル（`CapexCreditCycleModel` 相当、未実装。以下 `CCC`）におけるシナリオ・イベントの時間軸 |
 | **ステータス** | 意味論のみ確定。Julia 型・時刻ユーティリティの実装は未着手（#171） |
-| **time semantics version** | `scenario-time-semantics/1.0.0` |
+| **time semantics version** | `scenario-time-semantics/1.1.0` |
+| **改訂の優先関係** | **§11（#196 統合設計による改訂）が本書の正本である。§4.1・§4.3 の時点指定とホライズン境界・§6.2 の実行モードは §11 で上書きされている。** |
 | **上位契約** | `capex-credit-cycle-contract/1.0.0`・`capex-credit-cycle-accounting/1.0.0`・`capex-credit-cycle-vars/1.0.0`・`macro-event-contract/1.0.0` |
 | **基準経済・頻度** | 米国・四半期（`Δt = 0.25` 年） |
 
@@ -388,8 +389,63 @@ LLM による説明生成時は、上記を [llm_safety.md](../llm_safety.md) �
 
 ---
 
-## 11. 改訂履歴
+## 11. #196 統合設計による改訂（`1.1.0`）
+
+本節は #196 の統合設計（[イベント・シナリオ実行層 統合設計](macro_event_runtime_integration.md) §2）で検出された本書と実装可能性の差異 3 件（`Y-02`・`Y-08`・`Y-09`）を記録する。**本節は本書の正本であり、本文の該当箇所と矛盾する場合は本節が優先する。**
+
+### 11.1 時点指定の 2 基準と `:explicit_period` の追加（`Y-02`）
+
+**検出された差異**: §4.1 は適用四半期の決定に `effective_from`（暦日）のみを用いると定め、[イベント変換契約](macro_event_contract.md) §3.1 は `L3` で `effective_from` を必須とする。一方 §9-4 は「`period_zero` を持たないシナリオでは日付付きイベントを扱えない。理論シナリオと履歴再生で扱いが分かれることを実装が明示する必要がある」と限界を記録していた。実装済みの理論シナリオ（`Sc0`–`Sc4`）は `t = 0` 起点の整数時点のみを持つため、暦日必須のままでは表現できない。
+
+**改訂**: 時点指定を 2 基準とし、割当規則へ `:explicit_period` を追加する。
+
+| `basis` | 必須の指定 | `rule` | 用途 | 必ず伴う警告 |
+|---|---|---|---|---|
+| `:calendar` | `effective_from`（暦日） | `:same_quarter` / `:next_quarter` / `:cutoff`（§4.3） | 日付付きイベント | なし（導出時は `timing_derived`） |
+| `:period` | `t_apply`（モデル期の整数） | `:explicit_period` | 暦を持たない理論シナリオ | `timing_basis_period` |
+
+**契約**:
+
+1. 1 つのシナリオ内で 2 基準を混在させない（`mixed_timing_basis` として拒否）。混在を許すと、[イベント変換契約](macro_event_contract.md) §5.1 のソートキー第 4 要素（`effective_from`）が比較不能になり、`period_zero` の要否も定まらない。
+2. `:period` 基準は `timing_basis_period` を必ず記録する。理論シナリオの結果を暦日付きの主張として提示させないためである（§6.4 の禁止事項と同型の規律）。
+3. `:period` 基準のシナリオに `period_zero` を与えてもよいが、表示ラベルの生成にのみ用い、`t_apply` の決定には用いない。
+4. §4.3 の割当規則は `:calendar` 基準にのみ適用する。§1 の規律 3（形状・規則を後続 Issue が再定義しない）は維持され、`:explicit_period` は**規則の追加であって既存 3 規則の変更ではない**。
+
+**根拠**: §4.1 が `effective_from` のみを用いると定めた趣旨は「公表日と経済的有効日を同一視しない」ことであり、暦日という表現形式を必須にすることではない。`t_apply` の直接指定は「経済的効力の開始時点を確定させる」という要求を、暦を経由せずに満たす。
+
+### 11.2 `:as_of` を実装しない（`Y-08`）
+
+**検出された差異**: §6.2 は実行モードを `:as_of` / `:latest` に分け、`metadata["data_as_of"]` / `metadata["data_vintage"]` の記録を要求する。しかし [ADR 0012](../adr/0012-capex-credit-cycle-empirical-contract.md) は `:as_of` を実装しないことを既に決定しており、§6.3 が述べるとおり `DataSeries` は vintage 軸を型として持たない。
+
+**改訂**: §6.2 の実装状態を明示する。
+
+> **`:as_of` モードを実装しない。** 実行モードの区別を設けず、`metadata["data_as_of"]` / `metadata["data_vintage"]` を予約キーとしない。`known_at` は `L1`・`L2` の**監査属性としてのみ**保持し、イベントの取捨選択（`known_at > as_of_date` のイベントを除外する処理）を行う API を提供しない。
+>
+> §6.2 の 2 モードは、vintage を型として扱えるようになった時点で初めて実装対象となる。それまでは **`:latest` 相当の実行のみが存在する**。§6.4 の禁止事項（最新 vintage の結果を「その時点で判断できた」と述べない）は、モードが 1 つしかない現状ではいっそう厳格に適用する。
+
+**根拠**: 部分的な `:as_of` 実装は「その時点で判断できた」という主張を可能にしてしまう。§6.3 の契約「vintage を扱えないまま `:as_of` モードを実装したと申告しない」を、モード自体を設けないことで構造的に保証する。
+
+### 11.3 ホライズン境界を設定値から求める（`Y-09`）
+
+**検出された差異**: §4.3 契約 3 は `t_apply` が `t < -8` または `t > 19` のとき `out_of_horizon` とするが、境界を固定値で書いている。実装のホライズンは助走・評価の期数として可変である（既定は 8 + 20 = 28 期）。
+
+**改訂**: 判定を設定値に対して行う。
+
+> `out_of_horizon` の判定は、当該シナリオのホライズン設定に対して行う。
+>
+> ```
+> out_of_horizon ⟺ t_apply < −horizon_runup  または  t_apply > horizon_eval − 1
+> ```
+>
+> `-8`・`19` を定数として実装へ持たない。既定値（`horizon_runup = 8`・`horizon_eval = 20`）における境界が `-8` と `19` になることは帰結であって定義ではない。シナリオのホライズン設定と実行時の数値解法オプションが一致しない場合は、実行前に拒否する（`horizon_mismatch`）。
+
+**根拠**: §2.1 の助走 8 期・評価 20 期は[分析契約](../models/capex_credit_cycle_analysis_contract.md) §2.1 の既定であり、ホライズンを変えた実行を禁じていない。境界を定数化すると、ホライズンを変えた瞬間に判定が無記録で誤る。
+
+---
+
+## 12. 改訂履歴
 
 | version | 日付 | 変更 |
 |---|---|---|
+| `scenario-time-semantics/1.1.0` | 2026-08-05 | #196 の統合設計による改訂（§11）。時点指定を暦日基準とモデル期基準の 2 基準とし割当規則へ `:explicit_period` を追加、混在を拒否する。`:as_of` モードを実装しないことと `data_as_of` / `data_vintage` を予約しないことを明示する。`out_of_horizon` の境界を固定値からホライズン設定値へ改める |
 | `scenario-time-semantics/1.0.0` | 2026-07-30 | 初版（#168）。内部時刻表現（整数 `t` + `period_zero`）と暦四半期の対応・イベント適用を期首（期内処理順序ステップ 1）へ統一し期中適用/按分を行わない決定・`announced_at` / `effective_from` / `known_at` の区別と導出規則・適用四半期の割当規則 3 種と `:cutoff` の既定境界・イベント型別の既定・割当の感応度併記義務・持続/減衰の時間形状 6 種の離散定義と反映式・`period` と `known_at` の 2 軸と as-of 規則・`DataSeries` に vintage 軸が無いことの明示・履歴再生の時間軸契約・再現キーへの追加要素を固定 |

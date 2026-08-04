@@ -121,6 +121,28 @@ DME または個別モデルの位置づけを、実装が持たない能力を�
 
 ---
 
+### 2.8 イベント駆動シナリオ固有の禁止解釈
+
+イベントを入力とするシナリオ分析では、観測事実・解釈・シナリオ仮定・モデルへの適用を異なる根拠として扱う。
+詳細は [ADR 0010](adr/0010-macro-event-scenario-contract.md)・[ADR 0015](adr/0015-macro-event-runtime-contract.md)・
+[イベント・シナリオ実行層 統合設計](architecture/macro_event_runtime_integration.md) §12.3 を正本とする。
+
+| 禁止する解釈 | 必要な限定 |
+|---|---|
+| シナリオ仮定のショック規模を観測された事実として述べる | `magnitude_source`（`:observed` / `:disclosed` / `:derived` / `:assumed_default` / `:external_belief`）を必ず区別する |
+| `:assumed_default` の規模を単一の結果として提示する | magnitude ±50% の感応度（`scenario_magnitude_sensitivity`）を併記する |
+| 適用先を持たないイベント（`unmapped_target`）・mapping 未実装（`unsupported_model`）・翻訳不能（`untranslatable`）を「影響が無い」と述べる | モデルが構造上その事象を表現しないことを述べる。3 者を同一視しない |
+| 一部のイベントが適用されなかった実行を「シナリオに含めたイベントがすべて適用された」と述べる | `event_rejections` が非空の場合、適用されなかったイベントと理由を必ず併記する |
+| 相殺（`offsetting_events`）が生じた結果について net 値のみを提示する | net 値と両側の粗値の双方を示す |
+| 適用四半期の割当が境界近傍（`timing_sensitive`）である結果を単一の割当として提示する | ±1 期ずらした結果（`scenario_timing_sensitivity`）を併記する |
+| 暦を持たない理論シナリオ（`timing_basis_period`）の結果を暦日付きの主張として述べる | モデル期基準の相対時点であり、特定の暦四半期の予測ではないと述べる |
+| 最新の確定値による分析を「その時点で判断できた」「当時のデータで予測できた」と述べる | vintage 参照（`:as_of`）は実装されていない。確定値による事後的な分析であると述べる（[ADR 0012](adr/0012-capex-credit-cycle-empirical-contract.md)・[ADR 0015](adr/0015-macro-event-runtime-contract.md) 決定 15） |
+| 打ち切りで終了した実行（`event_execution_status = "terminated"`）を完走した結果として提示する | 有効区間と打ち切り理由を明示し、欠損後を 0 として扱わない |
+| 外部システムの belief の確信度（`confidence`）をショックの大きさとして述べる | 確信度は規模に作用しない。確信度が低い事象はシナリオに含める / 含めないの両方を実行して差を示す |
+| シナリオ比較診断の波及順序（`propagation_order`）を統計的因果効果・寄与率と述べる | モデル内の系列順序であり、因果推定ではないと述べる |
+
+---
+
 ## 3. 必須表現・必須記載事項
 
 LLM 出力には以下の情報を必ず含める。プロンプトテンプレートに組み込むことで確実に反映する。
@@ -360,6 +382,20 @@ LLM が生成した出力を評価・レビューする際の確認項目。
 - [ ] 未収束・弱識別・OOS 悪化・発散・regime 不一致・感応度不安定が本文の結論へ反映されているか
 - [ ] 全必須 section があり、情報不足が `not_available` / `insufficient_evidence` で明示されているか
 - [ ] context にない知識を補完していないか
+
+### 5.5 イベント駆動シナリオ説明チェック
+
+- [ ] 観測由来のイベントとシナリオ仮定が `magnitude_source` に基づいて区別されているか
+- [ ] `:assumed_default` を含む結果に magnitude ±50% の感応度が併記されているか
+- [ ] `unmapped_target` / `unsupported_model` / `untranslatable` が「影響が無い」と述べられていないか、かつ 3 者が区別されているか
+- [ ] 適用されなかったイベントがある場合、その一覧と理由が併記されているか
+- [ ] 相殺（`offsetting_events`）が生じた場合、net 値だけを提示していないか
+- [ ] `timing_sensitive` の場合、±1 期ずらした結果が併記されているか
+- [ ] 理論シナリオ（`timing_basis_period`）の結果を暦日付きの主張として述べていないか
+- [ ] 「その時点で判断できた」「当時のデータで予測できた」旨の記述がないか（`:as_of` は未実装）
+- [ ] 打ち切り実行（`terminated`）を完走結果として提示していないか
+- [ ] `confidence` がショック規模の説明へ流用されていないか
+- [ ] 波及順序を統計的因果効果・寄与率と呼んでいないか
 
 ---
 
