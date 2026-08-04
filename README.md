@@ -231,6 +231,7 @@ response = complete_from_prompt(provider, build_explain_prompt(ctx))
 | [examples/keen_empirical_demo.jl](examples/keen_empirical_demo.jl) | **Keen 実証統合デモ**。米国 Keen 実証 MVP について、実データ取得 → 観測系列変換 → 限定キャリブレーション → in-sample/out-of-sample 検証 → observed proxy / model の金融不安定性 regime 比較 → 感応度分析 → 可視化 → 機械可読レポート出力までを完走する。fixture モードは API キー不要・決定的。 |
 | [examples/keen_empirical_ai_economist.jl](examples/keen_empirical_ai_economist.jl) | **Keen 実証 AIエコノミスト統合デモ**。データ取得 → 実証分析（推定・検証・regime・感応度）→ 拡張 AnalysisContext → 根拠付き LLM 説明 → クロスモデル比較 → 数値・図表・説明・provenance の run 単位保存までを再現可能に完走する。offline（fixture + deterministic）は API キー不要・決定的。詳細: [docs/examples/keen_empirical_ai_economist.md](docs/examples/keen_empirical_ai_economist.md)。 |
 | [examples/sfc_ai_economist_demo.jl](examples/sfc_ai_economist_demo.jl) | **SFC対応 AIエコノミスト統合デモ**。baseline / 財政ショックシナリオ → SFC会計表・全期の会計恒等式検証 → モデル能力metadata → 比較API v2（合成データ）→ Keen–SFC概念対応・比較レポート → 根拠付きLLM説明 → 数値・図表・説明・provenanceのrun単位保存までを再現可能に完走する。乱数を使わず完全に決定的・API キー不要。詳細: [docs/examples/sfc_ai_economist.md](docs/examples/sfc_ai_economist.md)。 |
+| [examples/capex_credit_cycle_demo.jl](examples/capex_credit_cycle_demo.jl) | **部門別CAPEX・信用循環モデル統合デモ**。Sc0（baseline）〜Sc4（需要期待下方修正+CAPEX削減+信用ショック+金融緩和）の5シナリオ実行 → 会計恒等式検証（12項目）→ 診断（ラベル・資金繰り・ループ利得・非線形性近傍・反実仮想寄与）→ 閾値感応度 → 判定問題Q2–Q4の回答 → 比較API v2（mechanismモード）→ 可視化 → provenanceのrun単位保存までを再現可能に完走する。乱数を使わず完全に決定的・API キー不要・ネットワークアクセスなし。詳細: [docs/examples/capex_credit_cycle_demo.md](docs/examples/capex_credit_cycle_demo.md)。 |
 | [examples/real_rate_model_artifact_export.jl](examples/real_rate_model_artifact_export.jl) | **Real-rate model artifact 生成デモ**。New Keynesian モデル（fixture calibration）→ 期待インフレ率・model-implied実質政策金利のartifact構築 → RFC 8785正準JSONでatomic保存 → 読み込み・hash再検証までを完走する。乱数を使わず完全に決定的・API キー不要。詳細: [docs/examples/real_rate_model_artifact.md](docs/examples/real_rate_model_artifact.md)。 |
 
 ```bash
@@ -243,6 +244,7 @@ julia --project=. examples/minsky_diagnostics_demo.jl
 julia --project=. examples/keen_empirical_demo.jl
 julia --project=. examples/keen_empirical_ai_economist.jl
 julia --project=. examples/sfc_ai_economist_demo.jl
+julia --project=. examples/capex_credit_cycle_demo.jl
 ```
 
 実データ・実 LLM で実行する場合は環境変数を設定します。
@@ -291,6 +293,18 @@ OPENAI_API_KEY=sk-... SFC_AI_DEMO_OUTDIR=./out \
 
 > SFC の限界: SIM は金融不安定性・企業債務・分配動学・危機regime を持たない大域安定な需要決定モデル。比較 API v2 の「実データ」は本デモ用の合成 proxy であり観測データではない。Keen–SFC の比較不能概念に数値 metric を生成しない。本デモは投資助言・危機確率・政策最適性の自動化を目的としない。
 
+部門別CAPEX・信用循環モデル統合デモは、外部データ取得・LLM呼び出し・乱数を一切使わず完全に決定的です（切り替え可能な設定は出力先のみ）。
+
+```bash
+# 唯一の経路（API キー不要・ネットワークアクセスなし・決定的）。成果物は artifacts/capex_credit_cycle_demo/ へ
+julia --project=. examples/capex_credit_cycle_demo.jl
+
+# 出力先を指定
+CAPEX_CC_DEMO_OUTDIR=./out julia --project=. examples/capex_credit_cycle_demo.jl
+```
+
+> 部門別CAPEX・信用循環モデルの限界: パラメータは例示値であり実データ較正を経ていない。会計は残差部門 `SX` を置いて閉じており経済全体で閉じていない（`accounting_closure = :partial`）。`A`・`share_C` は反実仮想寄与であり因果推定ではない。`funding_pressure_s` はデフォルトを内生化しない診断ラベルであり信用イベントの予測ではない。本デモは投資判断・政策立案の根拠として使用することを意図しない。
+
 ## テスト
 
 ```bash
@@ -310,6 +324,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [API リファレンス](docs/api.md) | Public/Internal API の一覧・シグネチャ・移行ガイド |
 | [Keen 実証 AIエコノミスト統合デモ](docs/examples/keen_empirical_ai_economist.md) | データ取得 → 実証分析 → 根拠付き LLM 説明 → クロスモデル比較 → provenance 保存の再現可能な統合デモの実行手順・成果物・設定例 |
 | [SFC対応 AIエコノミスト統合デモ](docs/examples/sfc_ai_economist.md) | baseline/財政ショック → SFC会計検証 → 比較API v2 → Keen–SFC比較レポート → 根拠付きLLM説明 → provenance保存の再現可能な統合デモの実行手順・成果物・設定例 |
+| [部門別CAPEX・信用循環モデル統合デモ](docs/examples/capex_credit_cycle_demo.md) | Sc0–Sc4シナリオ実行 → 会計検証 → 診断・閾値感応度 → 判定問題Q2–Q4の回答 → 比較API v2（mechanismモード）→ 可視化 → provenance保存の再現可能な統合デモの実行手順・成果物・設定例 |
 | [Real-rate model artifact 生成デモ](docs/examples/real_rate_model_artifact.md) | New Keynesian モデル → 期待インフレ率・model-implied実質政策金利のartifact構築 → 検証 → atomic保存までの再現可能な実行手順・成果物・economic-data-providerへの受け渡し手順 |
 
 ### モデル解説
@@ -333,6 +348,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [Minsky 連続診断指標・サマリー](docs/models/minsky_diagnostics_summary.md) | カバレッジ比率・マージン・regime滞在比率・peak/minimum・発散時点の指標定義とサマリー契約 |
 | [Keen モデル 実証化戦略](docs/models/keen_empirical_strategy.md) | 実データ接続の観測方程式・単位変換・共通頻度・年単位ODE↔四半期の時間軸契約・固定/推定パラメータ分離・識別戦略・検証方針 |
 | [SFC 統合設計（最小 SIM 型モデル）](docs/models/sfc_integration_design.md) | SIM 型モデルの方程式・部門・金融資産・貸借対照表/取引フロー行列・会計恒等式の検証契約・型/API スケッチ |
+| [部門別CAPEX・信用循環モデル](docs/models/capex_credit_cycle.md) | `CapexCreditCycleModel` の目的・部門/変数・パラメータ・期内処理順序・定常状態・シナリオSc0–Sc4・診断層・出力の読み方・限界 |
 | [部門別CAPEX・信用循環モデル 分析契約](docs/models/capex_credit_cycle_analysis_contract.md) | AI・半導体CAPEX調整の基準ユースケース・判定問題・比較シナリオ・`broad_downturn` の操作的定義・初期MVP対象外 |
 | [部門別CAPEX・信用循環モデル 因果グラフ](docs/models/capex_credit_cycle_causal_graph.md) | ノード/エッジ仕様（符号・時間差・関数形・観測可能性・実装優先度）・増幅ループ R1–R4・減衰/遮断経路 B1–B7・株式評価の媒介経路・分岐条件候補 |
 | [部門別CAPEX・信用循環モデル 部門境界と変数定義](docs/models/capex_credit_cycle_sectors_variables.md) | 部門区分（5部門）の候補比較と採用理由・部門責務・実物/金融フロー図・二重計上を避ける集計規約・役割分類の判定規則・変数辞書・DME共通API適合方針 |
