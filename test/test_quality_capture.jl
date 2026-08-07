@@ -1,0 +1,177 @@
+# src/quality/quality_capture.jl（Issue #208）のテスト。
+# Pkg.test/Aqua.jl/JuliaFormatter.jl の result 組み立て（純粋関数、Test.jl オブジェクトを
+# 扱わない）と、test/quality_capture_runner.jl が依存する Test.jl の挙動の前提（本ファイル末尾）
+# を検証する。`run_quality_capture` 自体（実際に Pkg.test() 全体を再帰的に走らせる必要がある）
+# はここでは検証しない — DME_QUALITY_EXPORT_ENABLED=1 での実 `Pkg.test()` 実行（手動/CI）が
+# その役割を担う（docs/contract/julia-quality-export-v1.md §8）。
+
+@testset "quality_tool_pkgtest_result" begin
+    r = quality_tool_pkgtest_result(;
+        assertions_total = 10,
+        assertions_passed = 9,
+        failures = 1,
+        errors = 0,
+        broken = 0,
+    )
+    @test r["assertions_total"] == 10
+    @test r["assertions_passed"] == 9
+    @test r["failures"] == 1
+    @test r["suite_passed"] == false
+
+    r0 = quality_tool_pkgtest_result(;
+        assertions_total = 5,
+        assertions_passed = 5,
+        failures = 0,
+        errors = 0,
+        broken = 0,
+    )
+    @test r0["suite_passed"] == true
+
+    # assertions_total は内訳の合計と一致しなければならない
+    @test_throws ArgumentError quality_tool_pkgtest_result(;
+        assertions_total = 5,
+        assertions_passed = 1,
+        failures = 1,
+        errors = 1,
+        broken = 1,
+    )
+    # 負の値は拒否する
+    @test_throws ArgumentError quality_tool_pkgtest_result(;
+        assertions_total = -1,
+        assertions_passed = 0,
+        failures = 0,
+        errors = 0,
+        broken = 0,
+    )
+end
+
+@testset "QualityAquaCheck" begin
+    c = QualityAquaCheck(;
+        name = "Piracy",
+        passed = false,
+        message = "leaked FRED_API_KEY=abcd1234efgh5678",
+    )
+    @test c.name == "Piracy"
+    @test c.passed == false
+    @test c.message !== nothing
+    @test_throws ArgumentError QualityAquaCheck(; name = "", passed = true)
+end
+
+@testset "quality_tool_aqua_result" begin
+    checks = [
+        QualityAquaCheck(; name = "Method ambiguity", passed = true),
+        QualityAquaCheck(; name = "Piracy", passed = false, message = "some piracy detail"),
+    ]
+    r = quality_tool_aqua_result(;
+        checks = checks,
+        settings = Dict(
+            "ambiguities" => Dict("recursive" => false),
+            "persistent_tasks" => false,
+        ),
+    )
+    @test r["checks_run"] == ["Method ambiguity", "Piracy"]
+    @test r["failed_checks"] == ["Piracy"]
+    @test r["checks"]["Method ambiguity"]["passed"] == true
+    @test !haskey(r["checks"]["Method ambiguity"], "message")
+    @test r["checks"]["Piracy"]["passed"] == false
+    @test r["checks"]["Piracy"]["message"] == "some piracy detail"
+    @test r["settings"]["persistent_tasks"] == false
+
+    # 空 checks は拒否
+    @test_throws ArgumentError quality_tool_aqua_result(; checks = QualityAquaCheck[])
+
+    # 重複した check name は拒否
+    dup = [
+        QualityAquaCheck(; name = "Piracy", passed = true),
+        QualityAquaCheck(; name = "Piracy", passed = false, message = "x"),
+    ]
+    @test_throws ArgumentError quality_tool_aqua_result(; checks = dup)
+
+    # message 中の秘匿情報らしき文字列は redact される
+    secret_checks = [
+        QualityAquaCheck(;
+            name = "Piracy",
+            passed = false,
+            message = "token=abcdefghijklmnopqrstuvwxyz0123",
+        ),
+    ]
+    r2 = quality_tool_aqua_result(; checks = secret_checks)
+    @test occursin("[REDACTED]", r2["checks"]["Piracy"]["message"])
+    @test !occursin("abcdefghijklmnopqrstuvwxyz0123", r2["checks"]["Piracy"]["message"])
+
+    # settings に秘匿情報らしき文字列が含まれる場合は拒否する（構造化データは redact でなく reject）
+    @test_throws ArgumentError quality_tool_aqua_result(;
+        checks = [QualityAquaCheck(; name = "Piracy", passed = true)],
+        settings = Dict("note" => "token=abcdefghijklmnopqrstuvwxyz0123"),
+    )
+end
+
+@testset "quality_tool_formatter_result" begin
+    r_ok = quality_tool_formatter_result(; formatted = true, unformatted_files = String[])
+    @test r_ok["formatted"] == true
+    @test r_ok["unformatted_files"] == String[]
+
+    r_bad = quality_tool_formatter_result(;
+        formatted = false,
+        unformatted_files = ["models/ramsey.jl", "core/simulation_result.jl"],
+    )
+    @test r_bad["formatted"] == false
+    @test r_bad["unformatted_files"] == ["core/simulation_result.jl", "models/ramsey.jl"]  # sorted
+
+    # 矛盾した入力は拒否する
+    @test_throws ArgumentError quality_tool_formatter_result(;
+        formatted = true,
+        unformatted_files = ["a.jl"],
+    )
+    @test_throws ArgumentError quality_tool_formatter_result(;
+        formatted = false,
+        unformatted_files = String[],
+    )
+end
+
+# test/quality_capture_runner.jl が依存する Test.jl 自身の挙動の前提（Julia の Test stdlib の
+# マイナーバージョン更新で壊れうる、準内部 API への依存の回帰テスト。
+# src/quality/quality_capture.jl 冒頭コメント・test/quality_capture_runner.jl 冒頭コメント参照）。
+#
+# 検証のため意図的に失敗する @test を1件実行するが、`Test.push_testset`/`pop_testset` で
+# 現在のテストセットスタックから完全に隔離した使い捨てルート（`fresh_root`）の中で実行する
+# ため、この意図的な失敗はこのファイル自身のテスト結果には一切影響しない（下の
+# "isolated harness root" 配下の Pass/Total には現れるが、それを包む
+# "Test.jl assumptions..." 自体は影響を受けない。このブロックだけで独立に検証済み:
+# 隔離しない場合、深さ0まで伝播してこのテストファイル自体を失敗させてしまう）。
+# 下に1行、赤い "Test Failed" が印字されるのは意図的なもの（Test.jl は `record` 時に
+# 即座に印字するため。`Test.finish(fresh_root)` は呼ばないので集計・throw には影響しない）。
+@info "以下の1件の Test Failed は意図的（isolated harness root の検証用）: このテストセット自体は成功する"
+@testset "Test.jl assumptions used by quality_capture_runner.jl" begin
+    fresh_root = Test.DefaultTestSet("isolated harness root")
+    Test.push_testset(fresh_root)
+    try
+        @testset "synthetic check A" begin
+            @test 1 == 1
+        end
+        @testset "synthetic check B (deliberately fails; isolated from the real suite)" begin
+            @test 1 == 2
+        end
+    finally
+        Test.pop_testset()
+    end
+
+    # 1) 親テストセットを持つ（深さ>0の）テストセットは、子が失敗しても例外を投げず、
+    #    親へ record されるだけで @testset 式の戻り値として得られる
+    #    （run_quality_capture が "DME (quality capture)" の下で各テストファイルを実行し、
+    #    test_quality.jl 内の "Aqua.jl package quality" テストセットの戻り値を捕捉するための前提）。
+    @test fresh_root isa Test.DefaultTestSet
+    @test length(fresh_root.results) == 2
+
+    # 2) Test.get_test_counts が再帰的な集計（cumulative_*）を提供する
+    #    （_qc_pkgtest_tool/_qc_aqua_tool が assertions_total 等を導出するための前提）。
+    tc = Test.get_test_counts(fresh_root)
+    @test tc.cumulative_passes + tc.passes == 1
+    @test tc.cumulative_fails + tc.fails == 1
+    @test tc.cumulative_errors + tc.errors == 0
+
+    # 3) Test.TestSetException が pass/fail/error/broken/errors_and_fails フィールドを持つ
+    #    （_qc_pkgtest_tool が深さ0で失敗した場合のフォールバックとして依存する前提）。
+    @test fieldnames(Test.TestSetException) ==
+          (:pass, :fail, :error, :broken, :errors_and_fails)
+end
