@@ -169,6 +169,11 @@ export
     save_quality_export,
     load_quality_export,
     redact_secrets,
+    # Pkg.test/Aqua.jl/JuliaFormatter.jl 実測結果の構造化（Issue #208、src/quality/quality_capture.jl）
+    quality_tool_pkgtest_result,
+    QualityAquaCheck,
+    quality_tool_aqua_result,
+    quality_tool_formatter_result,
     # SFC accounting primitives (src/sfc/)
     SFCSector,
     SFCInstrument,
@@ -502,6 +507,11 @@ include("./artifacts/real_rate_model_artifact_export.jl")
 # depends on canonical_json_bytes（json_canonical.jl）と _detect_git_commit_sha
 # （real_rate_model_artifact_export.jl）。他のモデル層とは独立した CI/tooling メタデータ）
 include("./quality/quality_export.jl")
+
+# Pkg.test/Aqua.jl/JuliaFormatter.jl の実測結果を quality export の result へ組み立てる
+# 純粋関数群（Issue #208）。Test.jl オブジェクトへの依存は test/ 側に限定する設計
+# （quality_capture.jl 冒頭コメント参照）。depends on quality_export.jl（redact_secrets 等）
+include("./quality/quality_capture.jl")
 
 # SFC 会計プリミティブ（会計表現をモデル方程式から分離。depends on SimulationResult）
 include("./sfc/types.jl")

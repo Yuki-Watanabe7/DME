@@ -5,9 +5,16 @@
 # DME 自身の package identity（`Project.toml` 由来）・git commit/branch・実行時刻から
 # `QualityExport` を構築し、`schemas/julia-quality-export-v1.schema.json` に準拠した
 # 正準 JSON を atomic 保存する。予約 7 ツール（`QUALITY_EXPORT_RESERVED_TOOL_NAMES`）は
-# すべて `status=:skipped` のプレースホルダとして埋める。実際のツール実行・結果構造化は
-# 本 Issue の対象外（後続 Issue が個別に置き換える）:
-#   - #208: Pkg.test / Aqua.jl / JuliaFormatter.jl
+# すべて `status=:skipped` のプレースホルダとして埋める（本スクリプトはテストを一切
+# 実行しないため、常にこの状態— `quality_export_package_identity()`・git commit/branch
+# 検出・atomic 保存の配線を単体で確認する用途）。
+#
+# Pkg.test/Aqua.jl/JuliaFormatter.jl の実測は #208 で実装済みだが、本スクリプトからではなく
+# `Pkg.test()` の単一実行に統合する形で提供する（`test/quality_capture_runner.jl`。
+# `DME_QUALITY_EXPORT_ENABLED=1 julia --project=. -e "using Pkg; Pkg.test()"`。理由:
+# Aqua.jl はサブプロセスを spawn する重い処理で、本スクリプトが単独でもう一度呼ぶと
+# 「既存テストを重複実行しない」という Issue #208 の制約に反する）。残り4ツールは
+# 引き続き本 Issue の対象外（後続 Issue が個別に置き換える）:
 #   - #209: Coverage.jl
 #   - #211: JET.jl
 #   - #212: BenchmarkTools.jl
@@ -111,7 +118,13 @@ function print_summary(e::QualityExport, path::AbstractString)
     end
     println("  saved to: ", path)
     println()
-    println("すべて status=skipped（実測は #208/#209/#211/#212/#213 が個別に置き換える）。")
+    println(
+        "すべて status=skipped（本スクリプトはテストを実行しない骨格。Pkg.test/Aqua.jl/",
+    )
+    println(
+        "JuliaFormatter.jl の実測は `DME_QUALITY_EXPORT_ENABLED=1 julia --project=. -e " *
+        "\"using Pkg; Pkg.test()\"`。残り4ツールは #209/#211/#212/#213 が個別に置き換える）。",
+    )
     println("契約: schemas/julia-quality-export-v1.schema.json")
     println("詳細: docs/contract/julia-quality-export-v1.md")
     return nothing

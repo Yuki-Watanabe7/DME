@@ -2,53 +2,70 @@ using DME
 using Test
 using Dates
 
-include("test_util.jl")
-include("test_data_series.jl")
-include("test_fred.jl")
-include("test_estat.jl")
-include("test_preprocess.jl")
-include("test_keen_empirical_data.jl")
-include("test_keen_calibration.jl")
-include("test_keen_validation.jl")
-include("test_ramsey.jl")
-include("test_rbc.jl")
-include("test_solow.jl")
-include("test_islm.jl")
-include("test_adas.jl")
-include("test_new_keynesian.jl")
-include("test_var.jl")
-include("test_mundell_fleming.jl")
-include("test_keen.jl")
-include("test_minsky_regimes.jl")
-include("test_minsky_diagnostics.jl")
-include("test_simulation_result.jl")
-include("test_compare_with_data.jl")
-include("test_compare_v2.jl")
-include("test_json_canonical.jl")
-include("test_real_rate_model_artifact.jl")
-include("test_real_rate_model_artifact_export.jl")
-include("test_quality_export.jl")
-include("test_sfc_primitives.jl")
-include("test_sfc_accounting.jl")
-include("test_sfc_sim.jl")
-include("test_capex_credit_cycle.jl")
-include("test_capex_credit_cycle_accounting.jl")
-include("test_capex_credit_cycle_diagnostics.jl")
-include("test_capex_credit_cycle_visualization.jl")
-include("test_analysis_context.jl")
-include("test_keen_empirical_context.jl")
-include("test_doc_context.jl")
-include("test_prompts.jl")
-include("test_keen_empirical_prompts.jl")
-include("test_keen_empirical_safety.jl")
-include("test_cross_model_reasoning.jl")
-include("test_model_capabilities.jl")
-include("test_keen_sfc_comparison.jl")
-include("test_provider.jl")
-include("test_visualization.jl")
-include("test_minsky_visualization.jl")
-include("test_keen_empirical_demo.jl")
-include("test_keen_empirical_ai_economist_demo.jl")
-include("test_sfc_ai_economist_demo.jl")
-include("test_capex_credit_cycle_demo.jl")
-include("test_quality.jl")
+const DME_TEST_FILES = [
+    "test_util.jl",
+    "test_data_series.jl",
+    "test_fred.jl",
+    "test_estat.jl",
+    "test_preprocess.jl",
+    "test_keen_empirical_data.jl",
+    "test_keen_calibration.jl",
+    "test_keen_validation.jl",
+    "test_ramsey.jl",
+    "test_rbc.jl",
+    "test_solow.jl",
+    "test_islm.jl",
+    "test_adas.jl",
+    "test_new_keynesian.jl",
+    "test_var.jl",
+    "test_mundell_fleming.jl",
+    "test_keen.jl",
+    "test_minsky_regimes.jl",
+    "test_minsky_diagnostics.jl",
+    "test_simulation_result.jl",
+    "test_compare_with_data.jl",
+    "test_compare_v2.jl",
+    "test_json_canonical.jl",
+    "test_real_rate_model_artifact.jl",
+    "test_real_rate_model_artifact_export.jl",
+    "test_quality_export.jl",
+    "test_sfc_primitives.jl",
+    "test_sfc_accounting.jl",
+    "test_sfc_sim.jl",
+    "test_capex_credit_cycle.jl",
+    "test_capex_credit_cycle_accounting.jl",
+    "test_capex_credit_cycle_diagnostics.jl",
+    "test_capex_credit_cycle_visualization.jl",
+    "test_analysis_context.jl",
+    "test_keen_empirical_context.jl",
+    "test_doc_context.jl",
+    "test_prompts.jl",
+    "test_keen_empirical_prompts.jl",
+    "test_keen_empirical_safety.jl",
+    "test_cross_model_reasoning.jl",
+    "test_model_capabilities.jl",
+    "test_keen_sfc_comparison.jl",
+    "test_provider.jl",
+    "test_visualization.jl",
+    "test_minsky_visualization.jl",
+    "test_keen_empirical_demo.jl",
+    "test_keen_empirical_ai_economist_demo.jl",
+    "test_sfc_ai_economist_demo.jl",
+    "test_capex_credit_cycle_demo.jl",
+    "test_quality_capture.jl",
+    "test_quality.jl",
+]
+
+# Julia品質Export Contract v1（Issue #208）: `DME_QUALITY_EXPORT_ENABLED` が設定されている
+# ときだけ、Pkg.test/Aqua.jl/JuliaFormatter.jl の構造化結果を捕捉する opt-in の実行経路を使う
+# （test/quality_capture_runner.jl 冒頭コメント参照）。未設定時（既定）は今までどおり
+# 逐次 `include` するだけで、挙動は一切変わらない
+# （Issue #208「Export disabled時は通常の Pkg.test() 動作を変更しない」）。
+if get(ENV, "DME_QUALITY_EXPORT_ENABLED", "") in ("1", "true")
+    include("quality_capture_runner.jl")
+    run_quality_capture(DME_TEST_FILES)
+else
+    for f in DME_TEST_FILES
+        include(f)
+    end
+end

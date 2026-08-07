@@ -102,3 +102,19 @@ julia --project=. -e '
 - `docs/` 配下のみの変更（docs-only）
 
 docs-only の変更をする場合は、PR 本文または最終コメントに「docs-only のため Julia test は未実行」と明記すること。
+
+---
+
+## 5. `software-quality-dashboard` 向け構造化Export（任意）
+
+`Pkg.test()`（Aqua.jl・JuliaFormatter を含む）1回の実行結果を、`software-quality-dashboard` が
+読み取る `julia-quality-export/v1` として機械可読な JSON へ書き出せる（既定では無効。CI の
+通常の合否判定には影響しない）。
+
+```bash
+DME_QUALITY_EXPORT_ENABLED=1 julia --project=. -e "using Pkg; Pkg.test()"
+# 既定出力先: artifacts/quality/quality-export.json（DME_QUALITY_EXPORT_OUTPUT で変更可能）
+```
+
+詳細（result 構造・Test.jl 依存の設計判断・限界）は
+[Julia品質Export Contract](../contract/julia-quality-export-v1.md) を参照。

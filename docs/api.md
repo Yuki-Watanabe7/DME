@@ -550,9 +550,38 @@ QUALITY_EXPORT_RESERVED_TOOL_NAMES  # ("Pkg.test", "Aqua.jl", "JuliaFormatter.jl
 ```
 
 > `tools` は open な辞書（`Dict{String,QualityToolExecution}`）で、`result` フィールドの内部構造は
-> この Issue #207 の対象外（後続 Issue #208/#209/#211/#212/#213 がツールごとに定義する）。
+> Issue #207 の対象外だった（ツールごとに後続 Issue が定義する。Pkg.test/Aqua.jl/
+> JuliaFormatter.jl は #208、残り3ツールは #209/#211/#212/#213）。
 > `duration_seconds` は `completed_at - started_at` から自動導出され、呼び出し側の入力にはできない。
 > タイムゾーンは UTC 固定（`"...Z"` 接尾辞のみ、real-rate model artifact と同じ MVP 制約）。
+
+#### Pkg.test/Aqua.jl/JuliaFormatter.jl の `result` 組み立て（Issue #208、`quality_capture`）
+
+`Pkg.test()` 単一実行から3ツールの構造化結果を捕捉する経路の詳細は
+[Julia品質Export Contract §4.1](contract/julia-quality-export-v1.md#41-pkgtestaquajljuliaformatterjl-の-result)
+を参照。以下は `src/quality/quality_capture.jl` が提供する純粋関数（`QualityToolExecution.result`
+を組み立てるだけで、`Test.jl` オブジェクトは扱わない。それらへの依存は `test/quality_capture_runner.jl`
+に限定する設計判断は同ファイル冒頭コメント参照）:
+
+```julia
+quality_tool_pkgtest_result(;
+    assertions_total::Integer, assertions_passed::Integer,
+    failures::Integer, errors::Integer, broken::Integer,
+) -> Dict{String,Any}   # assertions_total は内訳の合計と一致する必要がある
+
+QualityAquaCheck(; name::AbstractString, passed::Bool, message::Union{AbstractString,Nothing} = nothing) -> QualityAquaCheck
+quality_tool_aqua_result(;
+    checks::AbstractVector{QualityAquaCheck}, settings::AbstractDict = Dict{String,Any}(),
+) -> Dict{String,Any}   # 実行しなかった check（例: persistent_tasks=false）は checks に含めない
+
+quality_tool_formatter_result(;
+    formatted::Bool, unformatted_files::AbstractVector{<:AbstractString},
+) -> Dict{String,Any}   # formatted と unformatted_files の空/非空は矛盾を許さない
+```
+
+これらは `status=:success`（測定に成功した。テスト失敗・check失敗・未フォーマットも「0件」と
+同じ意味で成功測定に含む）の `result` を作るための builder であり、`status` の決定・
+`QualityToolExecution` の構築自体は呼び出し側（`test/quality_capture_runner.jl`）が行う。
 
 ```julia
 e = QualityExport(;
