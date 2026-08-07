@@ -15,8 +15,10 @@ software-quality-dashboard が満たす側。
 - Schema: [`schemas/julia-quality-export-v1.schema.json`](../../schemas/julia-quality-export-v1.schema.json)（JSON Schema 2020-12）
 - Julia 実装: [`src/quality/quality_export.jl`](../../src/quality/quality_export.jl)（型・バリデーション・シリアライズ・redaction。schema に対する汎用 JSON Schema バリデータは持たず、この実装自体が validator を兼ねる — `src/artifacts/real_rate_model_artifact.jl` と同じ doctrine）
 - Exporter骨格: [`scripts/quality_export.jl`](../../scripts/quality_export.jl)
+- 実測捕捉（Issue #208）: [`src/quality/quality_capture.jl`](../../src/quality/quality_capture.jl)（result 組み立ての純粋関数）・[`test/quality_capture_runner.jl`](../../test/quality_capture_runner.jl)（`Pkg.test()` 統合の実行経路）
+- 検証ヘルパー: [`scripts/validate_quality_export.jl`](../../scripts/validate_quality_export.jl)（生成済み export の round-trip・schema 検証・サマリー表示。`julia --project=. scripts/validate_quality_export.jl [path]`。#209/#211/#212/#213 が result を追加していく際も変更なしで再利用できる）
 - fixture: [`test/fixtures/quality_export/`](../../test/fixtures/quality_export/)（`valid/`・`invalid/`）
-- テスト: [`test/test_quality_export.jl`](../../test/test_quality_export.jl)
+- テスト: [`test/test_quality_export.jl`](../../test/test_quality_export.jl)・[`test/test_quality_capture.jl`](../../test/test_quality_capture.jl)
 
 1ファイル = **1コミットに対する1回の実行**を表す（複数コミットの履歴を1ファイルへまとめない）。
 `software-quality-dashboard` 側の `fixtures/providers/julia/*.json` のように複数コミットを

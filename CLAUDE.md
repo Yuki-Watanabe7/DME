@@ -57,12 +57,14 @@ gh issue list --state open
 
 Issue対応時の標準フロー:
 
-gh issue view <issue-number> --comments でIssue本文とコメントを確認する
-関連コード・関連テスト・関連docsを読む
-作業方針を短く説明する
-実装・docs更新を行う
-軽量検証を実行する
+1. `gh issue view <issue-number> --comments` でIssue本文とコメントを確認する
+2. 関連コード・関連テスト・関連docsを読む
+3. 作業方針を短く説明する
+4. 実装・docs更新を行う
+5. 軽量検証を実行する（`bash scripts/test.sh` がフル `Pkg.test()` のラッパー、`bash scripts/format.sh` が `src/` の JuliaFormatter 適用ラッパー。個別に `julia --project=. -e '...'` を書く前にまずこれらの既存スクリプトで足りないか確認する）
+6. コミット・push した上で、develop→main の PR を作成する（本文に対応する `Closes #<issue番号>` を含めること。develop へ直接コミットする運用の場合は、develop→main の PR にこの issue を閉じる旨を記載すればよく、develop への push 単体では close 記載は不要）
 
+**Issue の close は PR マージ時の自動 close（`Closes #<N>`）に委ねる。`gh issue close` で直接 close しないこと。** 作業完了の報告は issue へのコメントで行い、close 自体は行わない（誤って直接 close してしまった場合は `gh issue reopen` で戻し、対応する PR の本文に `Closes #<N>` があることを確認する）。
 
 ## 詳細ドキュメント
 
