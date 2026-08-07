@@ -1,0 +1,108 @@
+{
+  "export_schema": "julia-quality-export/v1",
+  "producer": {
+    "name": "dme-quality-export",
+    "version": "0.1.0"
+  },
+  "package": {
+    "name": "DME",
+    "uuid": "32de5cd0-ad60-11e9-36bc-9b7c9b1e2078",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "owner": "Yuki-Watanabe7",
+    "name": "DME"
+  },
+  "branch": "main",
+  "commit": "cafe0001cafe0001cafe0001cafe0001cafe0001",
+  "measured_at": "2026-07-28T09:12:00Z",
+  "generated_at": "2026-07-28T09:24:40Z",
+  "julia_version": "1.12.6",
+  "tools": {
+    "Pkg.test": {
+      "status": "success",
+      "version": "1.12.6",
+      "started_at": "2026-07-28T09:12:00Z",
+      "completed_at": "2026-07-28T09:17:31Z",
+      "duration_seconds": 331,
+      "result": {
+        "assertions_total": 401,
+        "assertions_passed": 399,
+        "failures": 2,
+        "errors": 0,
+        "broken": 3
+      },
+      "error": null,
+      "reason": null
+    },
+    "Coverage.jl": {
+      "status": "success",
+      "version": "1.6.1",
+      "started_at": "2026-07-28T09:17:31Z",
+      "completed_at": "2026-07-28T09:18:04Z",
+      "duration_seconds": 33,
+      "result": {
+        "covered_lines": 1145,
+        "coverable_lines": 1630
+      },
+      "error": null,
+      "reason": null
+    },
+    "JET.jl": {
+      "status": "failure",
+      "version": "0.9.18",
+      "started_at": "2026-07-28T09:18:04Z",
+      "completed_at": "2026-07-28T09:20:11Z",
+      "duration_seconds": 127,
+      "result": null,
+      "error": {
+        "type": "OutOfMemoryError",
+        "message": "JET.jl aborted: OutOfMemoryError while abstract-interpreting DME.Calibration [fixture]"
+      },
+      "reason": null
+    },
+    "Aqua.jl": {
+      "status": "success",
+      "version": "0.8.9",
+      "started_at": "2026-07-28T09:20:11Z",
+      "completed_at": "2026-07-28T09:21:02Z",
+      "duration_seconds": 51,
+      "result": {
+        "checks_run": 9,
+        "failed_checks": [
+          { "check": "stale_deps", "message": "Plots is declared in Project.toml but never loaded by the package [fixture]" },
+          { "check": "ambiguities", "message": "2 method ambiguities detected between DME and Base [fixture]" }
+        ]
+      },
+      "error": null,
+      "reason": null
+    },
+    "JuliaFormatter.jl": {
+      "status": "success",
+      "version": "2.1.0",
+      "started_at": "2026-07-28T09:21:02Z",
+      "completed_at": "2026-07-28T09:21:35Z",
+      "duration_seconds": 33,
+      "result": {
+        "formatted": true,
+        "unformatted_files": []
+      },
+      "error": null,
+      "reason": null
+    },
+    "Documenter.jl": {
+      "status": "success",
+      "version": "1.8.0",
+      "started_at": "2026-07-28T09:21:35Z",
+      "completed_at": "2026-07-28T09:24:40Z",
+      "duration_seconds": 185,
+      "result": {
+        "build_status": "warnings",
+        "warnings": 11,
+        "strict": false
+      },
+      "error": null,
+      "reason": null
+    }
+  }
+}

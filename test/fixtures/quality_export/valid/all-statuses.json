@@ -1,0 +1,73 @@
+{
+  "export_schema": "julia-quality-export/v1",
+  "producer": {
+    "name": "dme-quality-export",
+    "version": "0.1.0"
+  },
+  "package": {
+    "name": "DME",
+    "uuid": "32de5cd0-ad60-11e9-36bc-9b7c9b1e2078",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "owner": "Yuki-Watanabe7",
+    "name": "DME"
+  },
+  "branch": "feature/quality-export",
+  "commit": "beef0003beef0003beef0003beef0003beef0003",
+  "measured_at": "2026-08-05T00:00:00Z",
+  "generated_at": "2026-08-05T00:10:00Z",
+  "julia_version": "1.12.6",
+  "tools": {
+    "Pkg.test": {
+      "status": "success",
+      "version": "1.12.6",
+      "started_at": "2026-08-05T00:00:00Z",
+      "completed_at": "2026-08-05T00:04:00Z",
+      "duration_seconds": 240,
+      "result": { "assertions_total": 10, "assertions_passed": 10, "failures": 0, "errors": 0 },
+      "error": null,
+      "reason": null
+    },
+    "JET.jl": {
+      "status": "failure",
+      "version": "0.9.18",
+      "started_at": "2026-08-05T00:04:00Z",
+      "completed_at": "2026-08-05T00:05:00Z",
+      "duration_seconds": 60,
+      "result": null,
+      "error": { "type": "ErrorException", "message": "JET.jl crashed while analysing src/models [fixture]" },
+      "reason": null
+    },
+    "BenchmarkTools.jl": {
+      "status": "timeout",
+      "version": "1.6.0",
+      "started_at": "2026-08-05T00:05:00Z",
+      "completed_at": "2026-08-05T00:35:00Z",
+      "duration_seconds": 1800,
+      "result": null,
+      "error": { "type": "TimeoutError", "message": "BenchmarkTools.jl exceeded the 30 minute slow-lane budget [fixture]" },
+      "reason": null
+    },
+    "Documenter.jl": {
+      "status": "skipped",
+      "version": null,
+      "started_at": null,
+      "completed_at": null,
+      "duration_seconds": null,
+      "result": null,
+      "error": null,
+      "reason": "documentation build is not part of the fast lane for this run [fixture]"
+    },
+    "Aqua.jl": {
+      "status": "not_installed",
+      "version": null,
+      "started_at": null,
+      "completed_at": null,
+      "duration_seconds": null,
+      "result": null,
+      "error": null,
+      "reason": "Aqua is a test-only dependency and was not resolved in this environment [fixture]"
+    }
+  }
+}

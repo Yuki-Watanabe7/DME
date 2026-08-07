@@ -150,6 +150,25 @@ export
     real_rate_model_artifact,
     save_real_rate_model_artifact,
     load_real_rate_model_artifact,
+    # Julia品質Export Contract v1（Issue #207、src/quality/quality_export.jl）
+    QUALITY_EXPORT_SCHEMA,
+    QUALITY_EXPORT_DEFAULT_PRODUCER_NAME,
+    QUALITY_EXPORT_DEFAULT_PRODUCER_VERSION,
+    QUALITY_EXPORT_TOOL_STATUSES,
+    QUALITY_EXPORT_RESERVED_TOOL_NAMES,
+    QualityExportProducer,
+    QualityExportPackage,
+    QualityExportRepository,
+    QualityToolError,
+    QualityToolExecution,
+    QualityExport,
+    quality_tool_not_run,
+    quality_export_package_identity,
+    quality_export_from_dict,
+    quality_export_from_json,
+    save_quality_export,
+    load_quality_export,
+    redact_secrets,
     # SFC accounting primitives (src/sfc/)
     SFCSector,
     SFCInstrument,
@@ -478,6 +497,11 @@ include("./core/compare_v2.jl")
 include("./artifacts/json_canonical.jl")
 include("./artifacts/real_rate_model_artifact.jl")
 include("./artifacts/real_rate_model_artifact_export.jl")
+
+# Julia品質Export Contract v1（Issue #207 / software-quality-dashboard 連携。
+# depends on canonical_json_bytes（json_canonical.jl）と _detect_git_commit_sha
+# （real_rate_model_artifact_export.jl）。他のモデル層とは独立した CI/tooling メタデータ）
+include("./quality/quality_export.jl")
 
 # SFC 会計プリミティブ（会計表現をモデル方程式から分離。depends on SimulationResult）
 include("./sfc/types.jl")
