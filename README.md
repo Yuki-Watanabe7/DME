@@ -311,6 +311,14 @@ CAPEX_CC_DEMO_OUTDIR=./out julia --project=. examples/capex_credit_cycle_demo.jl
 julia --project=. -e "using Pkg; Pkg.test()"
 ```
 
+`software-quality-dashboard` 連携用の Julia品質Export（`julia-quality-export/v1`、API キー・
+ネットワーク不要・決定的）は `scripts/quality_export.jl` で生成できます。詳細は
+[Julia品質Export Contract](docs/contract/julia-quality-export-v1.md) を参照してください。
+
+```bash
+julia --project=. scripts/quality_export.jl   # 既定出力先: artifacts/quality/quality-export.json
+```
+
 ## ドキュメント
 
 ### ガイド
@@ -383,6 +391,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [マクロイベント変換契約](docs/architecture/macro_event_contract.md) | 観測イベント/解釈シグナル/シナリオ仮定/適用モデル入力の4層分離・共通イベント属性・イベント型のモデル入力マッピング表・同時/競合/重複イベントの処理・イベントログと再現契約・API 境界 |
 | [シナリオ時間軸の意味論](docs/architecture/scenario_time_semantics.md) | 四半期の内部時刻表現・期首一括適用・公表日/経済的有効日/判明時刻の区別・適用四半期の割当規則・持続/減衰の時間形状・vintage と as-of 規則 |
 | [イベント・シナリオ実行層 統合設計](docs/architecture/macro_event_runtime_integration.md) | 契約と実装の整合レビュー（差異30件と解決先）・共通イベント層/シナリオ層/モデル固有mapping層/実行層の責務分離・`src/scenarios/` の配置とinclude順序・4層レコード型とイベント型レジストリ・`Scenario`/`run_scenario`/比較診断/シリアライズの公開API・失敗契約の3層分離と実行ステータス・時点指定2基準と時間形状6種・既存シナリオAPIの並置維持と共通化範囲・イベントログ/hash/metadata予約キー/replay契約・テスト戦略・実装作業の分解 |
+| [Julia品質Export Contract](docs/contract/julia-quality-export-v1.md) | `software-quality-dashboard` 連携用に DME が所有する versioned contract（`julia-quality-export/v1`）。トップレベル構造・予約ツール名・status別必須/禁止フィールド・redaction方針・versioning方針・Julia API・実行方法 |
 | [LLM 出力の安全性・免責・禁止表現ルール](docs/llm_safety.md) | 禁止表現・必須記載・プロンプトテンプレート・出力チェックリスト |
 
 ### 設計決定記録（ADR）
@@ -404,6 +413,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 | [ADR 0013: 部門別CAPEX・信用循環モデルの統合実装契約](docs/adr/0013-capex-credit-cycle-integration-contract.md) | 文書間の不一致を暗黙に吸収せず31件を登録し解決先を明示する・上流改訂を改訂節として行い改訂節を正本とする・統合の名目で経済的判断を新設せず因果グラフの欠落は差し戻しとして保持する・在庫を当期価格で評価し `valchg_s ≡ 0` を撤回する・`price_s` を先決変数としてステップ5冒頭で確定し資本財受注の価格と時点を揃える・閉じ変数を `capex_defer_s1` の1本に確定し超過を `funding_forced_s` として観測可能にする・`exogenous_variables` を既定メソッド付きで新設する・数値解法設定を共通 `SolverOptions` へ追加しない・`simulate` は系列のみ返し完全な結果を別型で返す・定常条件違反を入力エラーとして扱いT3の例外禁止と区別する・会計プリミティブを再利用するが `SFCResult` を返さない・能力語彙を拡張しない・`SimulationResult` 非変更とmetadata予約キー20個・潜在変数を出力しつつ観測可能性を保持する・NaN伝播停止を4箇所に固定する・診断閾値を外部化しループ作動からラベルを推論しない・イベント層との接続点を1点に限定しイベント基盤を先取りしない・動学テストで数値の期待値を固定せず反例テストを必須とする・実装作業を8件へ分解する決定記録 |
 | [ADR 0014: Digital Twin / Digital Shadow の名称使用条件](docs/adr/0014-digital-twin-naming-conditions.md) | 現段階でDigital Twin / Digital Shadowを名乗らない・`Digital Shadow` の最低条件4件（定期取込・乖離の継続記録・vintage・provenanceと再現）と `Digital Twin` の追加条件4件（継続同期・状態推定・予測誤差更新・予測性能の継続報告）を先に固定する・充足判定を実装Issueとテスト/デモの提示で行い自己申告しない・「部分的な」「〜的」等の緩和表現を禁じる・条件を緩める変更は本ADRの改訂としてのみ行う・LLM層の禁止表現へ追加する決定記録 |
 | [ADR 0015: イベント・シナリオ実行層の統合実装契約](docs/adr/0015-macro-event-runtime-contract.md) | 契約と既存実装の差異30件を登録し解決先を明示する・4層をレコード型としイベント型9種を宣言的レジストリで持つ・層飛ばしを型で禁じる・時点指定を暦日基準とモデル期基準の2基準とし混在を拒否する・失敗を例外/構造化拒否/警告の3層へ分け実行ステータスを4値に固定する・適用先を持たないイベントを既定でfail closedとする・既存シナリオAPIを非推奨にせず並置維持し時間形状と合成のみ共通化する・外生パスをモデル実行前に全期確定させる・`SimulationResult` 非変更とイベント層metadata予約キー・replay入力をScenario artifactに限定する・hash対象を明示しvolatile fieldを除外する・部門集約と `:as_of` を実装しない決定記録 |
+| [ADR 0016: Julia品質Export Contract v1](docs/adr/0016-julia-quality-export-contract.md) | `software-quality-dashboard` 連携用に DME が契約を所有する初のケース（real-rate model artifact とは逆方向）・`tools` を open な辞書とし各ツールの `result` 構造を本Issueで確定しない・`status` 5値ごとに必須/禁止フィールドを構造的に強制し `0`/未計測/未導入/実行失敗を混同しない・自由記述フィールドは自動redact、構造化データは秘匿情報らしき文字列を検出したら reject する2層防御・real-rate model artifact のUTC固定/正準JSON/atomic write/汎用バリデータ不使用のdoctrineを踏襲・上書き可能なephemeral artifactとしhash自己参照フィールドを持たない決定記録 |
 
 ### 開発
 

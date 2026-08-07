@@ -1,0 +1,14 @@
+{
+  "export_schema": "julia-quality-export/v2",
+  "producer": { "name": "dme-quality-export", "version": "0.1.0" },
+  "package": { "name": "DME", "uuid": "32de5cd0-ad60-11e9-36bc-9b7c9b1e2078", "version": "0.1.0" },
+  "repository": { "owner": "Yuki-Watanabe7", "name": "DME" },
+  "branch": "main",
+  "commit": "cafe0002cafe0002cafe0002cafe0002cafe0002",
+  "measured_at": "2026-08-03T08:05:00Z",
+  "generated_at": "2026-08-03T08:05:01Z",
+  "julia_version": "1.12.6",
+  "tools": {
+    "Pkg.test": { "status": "skipped", "reason": "invalid fixture: unsupported export_schema" }
+  }
+}

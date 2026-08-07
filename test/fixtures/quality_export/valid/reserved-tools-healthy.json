@@ -1,0 +1,119 @@
+{
+  "export_schema": "julia-quality-export/v1",
+  "producer": {
+    "name": "dme-quality-export",
+    "version": "0.1.0"
+  },
+  "package": {
+    "name": "DME",
+    "uuid": "32de5cd0-ad60-11e9-36bc-9b7c9b1e2078",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "owner": "Yuki-Watanabe7",
+    "name": "DME"
+  },
+  "branch": "main",
+  "commit": "cafe0002cafe0002cafe0002cafe0002cafe0002",
+  "measured_at": "2026-08-03T08:05:00Z",
+  "generated_at": "2026-08-03T08:19:12Z",
+  "julia_version": "1.12.6",
+  "tools": {
+    "Pkg.test": {
+      "status": "success",
+      "version": "1.12.6",
+      "started_at": "2026-08-03T08:05:00Z",
+      "completed_at": "2026-08-03T08:09:47Z",
+      "duration_seconds": 287,
+      "result": {
+        "assertions_total": 412,
+        "assertions_passed": 412,
+        "failures": 0,
+        "errors": 0,
+        "broken": 3
+      },
+      "error": null,
+      "reason": null
+    },
+    "Coverage.jl": {
+      "status": "success",
+      "version": "1.6.1",
+      "started_at": "2026-08-03T08:09:47Z",
+      "completed_at": "2026-08-03T08:10:22Z",
+      "duration_seconds": 35,
+      "result": {
+        "covered_lines": 1224,
+        "coverable_lines": 1642
+      },
+      "error": null,
+      "reason": null
+    },
+    "JET.jl": {
+      "status": "success",
+      "version": "0.9.18",
+      "started_at": "2026-08-03T08:10:22Z",
+      "completed_at": "2026-08-03T08:13:05Z",
+      "duration_seconds": 163,
+      "result": {
+        "analysis_mode": "report_package",
+        "error_count": 0
+      },
+      "error": null,
+      "reason": null
+    },
+    "Aqua.jl": {
+      "status": "success",
+      "version": "0.8.9",
+      "started_at": "2026-08-03T08:13:05Z",
+      "completed_at": "2026-08-03T08:14:01Z",
+      "duration_seconds": 56,
+      "result": {
+        "checks_run": 9,
+        "failed_checks": []
+      },
+      "error": null,
+      "reason": null
+    },
+    "JuliaFormatter.jl": {
+      "status": "success",
+      "version": "2.1.0",
+      "started_at": "2026-08-03T08:14:01Z",
+      "completed_at": "2026-08-03T08:14:33Z",
+      "duration_seconds": 32,
+      "result": {
+        "formatted": true,
+        "unformatted_files": []
+      },
+      "error": null,
+      "reason": null
+    },
+    "Documenter.jl": {
+      "status": "success",
+      "version": "1.8.0",
+      "started_at": "2026-08-03T08:14:33Z",
+      "completed_at": "2026-08-03T08:17:50Z",
+      "duration_seconds": 197,
+      "result": {
+        "build_status": "success",
+        "warnings": 0,
+        "strict": false
+      },
+      "error": null,
+      "reason": null
+    },
+    "BenchmarkTools.jl": {
+      "status": "success",
+      "version": "1.6.0",
+      "started_at": "2026-08-03T08:17:50Z",
+      "completed_at": "2026-08-03T08:19:12Z",
+      "duration_seconds": 82,
+      "result": {
+        "median_time_ms": 128.4,
+        "baseline_median_time_ms": 125.9,
+        "regression_status": "stable"
+      },
+      "error": null,
+      "reason": null
+    }
+  }
+}

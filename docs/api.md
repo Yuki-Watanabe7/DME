@@ -495,6 +495,86 @@ b = load_real_rate_model_artifact(path)
 b.artifact_id == a.artifact_id  # true（hash 再検証を通過）
 ```
 
+### Julia品質Export Contract v1（`quality_export`）
+
+`software-quality-dashboard` の Julia Native Provider が読み取る、DME が所有する versioned
+contract（`julia-quality-export/v1`）。real-rate model artifact とは逆方向（DME が契約を
+所有する側）。詳細は [Julia品質Export Contract](contract/julia-quality-export-v1.md)、設計判断は
+[ADR 0016](adr/0016-julia-quality-export-contract.md) を参照。
+
+```julia
+# Producer/Package/Repository の識別
+QualityExportProducer(; name = QUALITY_EXPORT_DEFAULT_PRODUCER_NAME,
+                         version = QUALITY_EXPORT_DEFAULT_PRODUCER_VERSION) -> QualityExportProducer
+QualityExportPackage(; name, uuid, version) -> QualityExportPackage
+quality_export_package_identity() -> QualityExportPackage  # Project.toml から自動導出（Base.PkgId/pkgversion）
+QualityExportRepository(; owner, name) -> QualityExportRepository
+
+# ツール実行1件（status ごとに必須/禁止フィールドが変わる。詳細は contract doc の表）
+QualityToolError(; type::AbstractString, message::AbstractString) -> QualityToolError
+QualityToolExecution(;
+    tool_name::AbstractString, status::Symbol,
+    version = nothing, started_at::Union{DateTime,Nothing} = nothing,
+    completed_at::Union{DateTime,Nothing} = nothing,
+    result::Union{AbstractDict,Nothing} = nothing,
+    error::Union{QualityToolError,Nothing} = nothing,
+    reason::Union{AbstractString,Nothing} = nothing,
+) -> QualityToolExecution
+quality_tool_not_run(tool_name, reason; status::Symbol = :skipped) -> QualityToolExecution  # :skipped/:not_installed の糖衣関数
+
+# トップレベル envelope（1コミット1回の実行=1件）
+QualityExport(;
+    producer::QualityExportProducer = QualityExportProducer(),
+    package::QualityExportPackage, repository::QualityExportRepository,
+    branch::AbstractString, commit::AbstractString,
+    measured_at::DateTime, generated_at::DateTime,
+    julia_version::AbstractString = string(VERSION),
+    tools::AbstractVector{QualityToolExecution},
+) -> QualityExport
+
+# シリアライズ・保存（正準 JSON、real-rate model artifact と同じ canonical_json_bytes 経路）
+to_dict(e::QualityExport) -> Dict{String,Any}
+to_json(e::QualityExport) -> String
+quality_export_from_dict(d::AbstractDict) -> QualityExport   # DME はこの schema に対する汎用バリデータを持たないため、この関数自体が validator を兼ねる
+quality_export_from_json(s::AbstractString) -> QualityExport
+save_quality_export(e::QualityExport, path::AbstractString; overwrite::Bool = true) -> String
+load_quality_export(path::AbstractString) -> QualityExport
+
+# Secret/環境変数/API credential の redaction（ベストエフォート、詳細は contract doc §5）
+redact_secrets(s::AbstractString) -> String
+
+# 予約ツール名・定数
+QUALITY_EXPORT_SCHEMA           # "julia-quality-export/v1"
+QUALITY_EXPORT_TOOL_STATUSES    # (:success, :failure, :timeout, :skipped, :not_installed)
+QUALITY_EXPORT_RESERVED_TOOL_NAMES  # ("Pkg.test", "Aqua.jl", "JuliaFormatter.jl", "Coverage.jl", "JET.jl", "BenchmarkTools.jl", "Documenter.jl")
+```
+
+> `tools` は open な辞書（`Dict{String,QualityToolExecution}`）で、`result` フィールドの内部構造は
+> この Issue #207 の対象外（後続 Issue #208/#209/#211/#212/#213 がツールごとに定義する）。
+> `duration_seconds` は `completed_at - started_at` から自動導出され、呼び出し側の入力にはできない。
+> タイムゾーンは UTC 固定（`"...Z"` 接尾辞のみ、real-rate model artifact と同じ MVP 制約）。
+
+```julia
+e = QualityExport(;
+    package = quality_export_package_identity(),
+    repository = QualityExportRepository(; owner = "Yuki-Watanabe7", name = "DME"),
+    branch = "main", commit = "a"^40,
+    measured_at = DateTime(2026, 8, 3, 8, 0, 0),
+    generated_at = DateTime(2026, 8, 3, 8, 6, 0),
+    tools = [
+        QualityToolExecution(;
+            tool_name = "Pkg.test", status = :success,
+            started_at = DateTime(2026, 8, 3, 8, 0, 0),
+            completed_at = DateTime(2026, 8, 3, 8, 5, 0),
+            result = Dict("assertions_total" => 10, "failures" => 0),
+        ),
+        quality_tool_not_run("JET.jl", "not wired up yet"),
+    ],
+)
+path = save_quality_export(e, "artifacts/quality/quality-export.json")
+load_quality_export(path).commit == e.commit  # true
+```
+
 ### 実データ型
 
 外部マクロデータを DME 内で統一的に扱う標準データ型。
