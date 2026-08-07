@@ -136,7 +136,13 @@ function _qc_pkgtest_tool(
 end
 
 function _qc_aqua_tool(started_at::DateTime, completed_at::DateTime)::QualityToolExecution
-    captured = QUALITY_CAPTURE_AQUA[]
+    # test_quality.jl が include されなかった場合（例: それより前のファイルで
+    # @testset マクロ自体が対処しない例外が発生し、"DME (quality capture)" の外側まで
+    # 伝播した場合）は QUALITY_CAPTURE_AQUA という global 自体が存在しない。
+    # `isdefined` で確認してから読む（存在しない場合に UndefVarError で
+    # run_quality_capture 全体を巻き込んで export を書き出せなくすることを避ける）。
+    captured =
+        isdefined(Main, :QUALITY_CAPTURE_AQUA) ? Main.QUALITY_CAPTURE_AQUA[] : nothing
     if captured === nothing
         return quality_tool_not_run(
             "Aqua.jl",
@@ -199,7 +205,10 @@ function _qc_formatter_tool(
     started_at::DateTime,
     completed_at::DateTime,
 )::QualityToolExecution
-    captured = QUALITY_CAPTURE_FORMATTER[]
+    # _qc_aqua_tool と同じ理由（コメント参照）で isdefined チェックを行う。
+    captured =
+        isdefined(Main, :QUALITY_CAPTURE_FORMATTER) ? Main.QUALITY_CAPTURE_FORMATTER[] :
+        nothing
     if captured === nothing
         return quality_tool_not_run(
             "JuliaFormatter.jl",
