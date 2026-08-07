@@ -65,7 +65,7 @@ jobs:
                - 成功/失敗の結果
                - 失敗した場合は失敗内容の要約
                - 環境都合で実行できなかった場合は、その理由
-            5. 実装だけで終了せず、可能であれば必ずコミット・プッシュし、PR作成リンクまたはPRを提示すること。
+            5. 実装だけで終了せず、可能であれば必ずコミット・プッシュし、PR作成リンクまたはPRを提示すること。PR本文には対応する `Closes #<issue番号>` を含め、Issueのcloseはこのマージ時の自動closeに委ねること（Issueを直接closeしないこと）。
             6. 設計・ドメインモデル・アーキテクチャに影響する変更を行う場合は、関連ドキュメント更新の要否を確認すること。
             7. Issue本文の受け入れ条件を満たしているか、最後に自己確認すること。"
             --allowedTools "Glob,Grep,LS,Read,Edit,Write,MultiEdit,Bash(git status),Bash(git status *),Bash(git diff),Bash(git diff *),Bash(git add *),Bash(git commit *),Bash(git rm *),Bash(/home/runner/work/_actions/anthropics/claude-code-action/v1/scripts/git-push.sh *),Bash(julia --version),Bash(julia --project=. *)"
