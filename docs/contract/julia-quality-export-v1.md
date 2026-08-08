@@ -18,6 +18,7 @@ software-quality-dashboard が満たす側。
 - 実測捕捉（Issue #208）: [`src/quality/quality_capture.jl`](../../src/quality/quality_capture.jl)（result 組み立ての純粋関数）・[`test/quality_capture_runner.jl`](../../test/quality_capture_runner.jl)（`Pkg.test()` 統合の実行経路）
 - Coverage.jl 実測（Issue #209）: [`scripts/quality_export_coverage.jl`](../../scripts/quality_export_coverage.jl)（`Pkg.test(coverage=true)` を呼ぶ driver。§8 方法C）
 - 検証ヘルパー: [`scripts/validate_quality_export.jl`](../../scripts/validate_quality_export.jl)（生成済み export の round-trip・schema 検証・サマリー表示。`julia --project=. scripts/validate_quality_export.jl [path]`。#211/#212/#213 が result を追加していく際も変更なしで再利用できる）
+- GitHub Actions Artifact 公開（Issue #210）: [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)（§8.1）
 - fixture: [`test/fixtures/quality_export/`](../../test/fixtures/quality_export/)（`valid/`・`invalid/`）
 - テスト: [`test/test_quality_export.jl`](../../test/test_quality_export.jl)・[`test/test_quality_capture.jl`](../../test/test_quality_capture.jl)
 
@@ -382,6 +383,69 @@ julia --project=. scripts/quality_export_coverage.jl
 `status=:failure` にするのみで、方法C自体の終了コードには影響させない（Issue #209
 「初期導入では Quality Gate で merge を阻止せず、baseline 収集を優先する」という決定）。
 
+## 8.1 GitHub Actions Artifact 公開（Issue #210）
+
+CI の fast lane（[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)）は方法C
+（`scripts/quality_export_coverage.jl`）が書き出した `quality-export.json` を、job の成否に
+関わらず（`if: always()`）検証した上で GitHub Actions Artifact として公開する。job 成功時だけ
+upload する設計にはしない（テスト失敗・coverage 失敗の run ほど診断情報が必要なため）。
+
+**手順（Test ステップの後）**:
+
+1. `python3 -m pip install jsonschema`（scripts/validate_quality_export.jl の schema 検証を
+   ベストエフォート skip ではなく必ず実行させるため。ローカル開発では未インストールでも
+   skip されるだけで許容するが、CI では検証自体を無効化しない）
+2. `julia --project=. scripts/validate_quality_export.jl` を実行し、
+   `load_quality_export`/round-trip/JSON Schema の3種の検証すべてを通すことを確認する
+   （§7 の Julia API 早見表がそのまま validator を兼ねる。`quality-export.json` が存在しない
+   場合＝ Test ステップが致命的に失敗して export 自体を書き出せなかった場合も、この時点で
+   「invalid」として扱う）
+3. 検証結果に応じて公開する Artifact 名を分ける:
+   - **valid**: `dme-julia-quality-v1-${{ github.sha }}`（schema major + full commit SHA。
+     retention 90日）
+   - **invalid/missing**: `dme-julia-quality-v1-invalid-${{ github.sha }}`
+     （検証ログ `quality-export-validate.log` を同梱。retention 14日）
+
+   invalid な export を正規Artifact名の下で公開しない（consumer 側が名前だけを見て
+   valid だと誤認しないための構造的な区別）。
+
+**Artifact 内容の最小化**: 公開する Artifact は `quality-export.json`（と invalid 時のみ
+検証ログ）に限定する。coverage raw summary（`.cov` トレースファイル）は集計後に
+`Coverage.clean_folder` で削除済みであり、そもそも artifact 化しない（§4.2 の
+`covered_lines`/`coverable_lines` が quality export 自身に含まれるため、raw summary を
+別途保持する必要がない）。
+
+**rerun 時の識別・置換方針**: 同一 job を rerun した場合、Artifact 名（`${{ github.sha }}`
+込み）は変わらない。`actions/upload-artifact@v4` の `overwrite: true` により、rerun の結果で
+既存 Artifact を置き換える（複数 run の結果を同名で共存させず、常に「その commit の最新の
+実行結果」を指す1つの Artifact にする。過去の run 結果を履歴として保持する用途は本 contract の
+対象外 — §1「1ファイル=1コミットに対する1回の実行」）。
+
+**Artifact と workflow run/job の対応**: Artifact 自体は GitHub Actions の
+Artifacts API（`GET /repos/{owner}/{repo}/actions/artifacts`）を通じて、それを生成した
+workflow run（`workflow_run.id`）と構造的に紐づく。quality export の JSON 内に
+`run_id`/`job_id` を重複して持たせない（Artifact 内容の最小化を優先し、GitHub 側が既に
+提供する対応関係を DME 側で再実装しない）。
+
+**commit SHA の整合性**: `pull_request` イベントでは `github.sha` は PR head と base の
+synthetic merge commit（`refs/pull/<N>/merge`）を指すが、`actions/checkout` は同じ
+merge commit をデフォルトで checkout するため、export 内の `commit`（`git rev-parse HEAD`
+由来、§8 の `_qe_detect_branch`/`_detect_git_commit_sha`）は常に `github.sha` と一致する
+（`push` イベントでは両者とも実際に push された commit を指す）。
+
+**権限・fork PR 安全性**: workflow の `permissions` は `contents: read` のみ（`actions: write`
+は付与しない — `actions/upload-artifact`・`julia-actions/cache` はいずれも
+`ACTIONS_RUNTIME_TOKEN` 経由の専用エンドポイントを使い `GITHUB_TOKEN` の `actions` scope に
+依存しないため、artifact upload・cache save/restore の両方とも権限を必要としない）。
+トリガーは `pull_request`（`pull_request_target` ではない）のままなので、fork からの PR でも
+`GITHUB_TOKEN` は GitHub 側の既定で自動的に read-only になり、secrets へのアクセスも生じない。
+
+**action 参照の固定方針**: `actions/checkout@v4`・`julia-actions/setup-julia@v2`・
+`julia-actions/cache@v3`・`actions/upload-artifact@v4` はいずれもメジャーバージョンタグで
+固定する（SHA pin へは変更しない）。DME の既存 workflow（`claude.yml`・`claude-code-review.yml`
+含む）がすべて同じメジャーバージョンタグ方式であり、本 Issue 単体で異なる固定方式を混在させない
+ことを優先した（SHA pin へ統一する場合はリポジトリ全体を対象にした別 Issue で扱う）。
+
 ## 9. 限界
 
 - 本 contract は「DME 側が何を測定したか」という事実のみを保持する。品質スコア・合否判定は
@@ -402,8 +466,10 @@ julia --project=. scripts/quality_export_coverage.jl
   （branch coverage）・diff coverage・coverage threshold による merge 阻止は対象外（Issue #209の
   「対象外」）。複数コミットにまたがる履歴・トレンドの保持は本 contract の範囲外（1ファイル=
   1コミットの1回の実行、§1）。
-- GitHub Actions Artifact としての quality export の**恒久的な**公開・バージョニングされた
-  取得手順の設計は #210 が担う。本 Issue（#209）の CI 変更は `artifacts/quality/quality-export.json`
-  を短期保持の Actions artifact としてアップロードするところまでに留め（実施内容の「必要に応じて
-  coverage raw artifact も短期保存するが、正本は quality export とする」に対応）、正式な
-  cross-repository 契約（取得 API・保持ポリシー等）の確定は #210/#8 に委ねる。
+- GitHub Actions Artifact としての公開（Artifact 名規約・schema validation gate・
+  retention・rerun 時の置換方針）は Issue #210 で確定した（§8.1）。ただし Dashboard 側からの
+  Artifact 取得（一覧・ダウンロード・vintage 管理）は対象外のまま（#8 に委ねる）。
+- Artifact の schema validation gate（§8.1）は「DME 側の export 生成自体が壊れている」ことを
+  検出する目的に限る。個々の品質ツールの測定結果自体（テスト失敗・coverage 未達等）を理由に
+  gate で CI を止めることはしない（Issue #209 の「baseline 収集を優先する」方針を踏襲。
+  両者は独立に扱う — §8.1・§8「失敗の扱い」）。
