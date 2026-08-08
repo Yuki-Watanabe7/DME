@@ -1,0 +1,5 @@
+#!/usr/bin/env julia
+
+using DME
+
+exit(DME.dme_main())
