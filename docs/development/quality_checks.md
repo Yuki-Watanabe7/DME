@@ -164,3 +164,15 @@ Line coverage の結果（実測値。`src/**` 全体）: `covered_lines=7416`�
 テストの成否や CI の終了コードには影響しない。テストスイート自体の失敗（`Pkg.test()` が
 検出する失敗）は従来どおり CI を失敗させる。両者は独立に扱う
 （詳細: [Julia品質Export Contract §8](../contract/julia-quality-export-v1.md#8-実行方法)）。
+
+### 5.4 CI での Artifact 公開
+
+CI（`.github/workflows/ci.yml`）は `quality-export.json` を検証した上で GitHub Actions
+Artifact として公開する（job の成否に関わらず `if: always()`）。Artifact 名は
+`dme-julia-quality-v1-${{ github.sha }}`（schema validation を通った場合）。schema に反する
+export（および Test ステップの致命的失敗で export 自体が生成されなかった場合）は
+`dme-julia-quality-v1-invalid-${{ github.sha }}` という別名の診断用 Artifact としてのみ
+公開し、正規 Artifact 名の下では公開しない。Artifact 名規約・retention・rerun 時の置換方針・
+権限最小化の詳細は
+[Julia品質Export Contract §8.1](../contract/julia-quality-export-v1.md#81-github-actions-artifact-公開issue-210)
+を参照（Issue #210）。

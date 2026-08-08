@@ -15,7 +15,6 @@ on:
       - 'LICENSE'
       
 permissions:
-  actions: write
   contents: read
 
 jobs:
@@ -41,11 +40,63 @@ jobs:
       - name: Test (with quality export + Coverage.jl)
         run: julia --project=. scripts/quality_export_coverage.jl
 
-      - name: Upload quality export (short-term; Issue #209)
+      # --- 品質Export Artifact 公開（Issue #210） --------------------------------------
+      # quality-export.json は scripts/quality_export_coverage.jl が Test ステップの成否に
+      # 関わらず（テスト失敗時も throw の前に）書き出し済みのため、以降は if: always() で
+      # 実行する。ただし本セクション自体の成否（schema validation の成否）は CI の
+      # 成功/失敗判定を上書きしない他ステップとは独立に扱う（Test ステップの exit code は
+      # そのまま維持される。「CI失敗判定をArtifact upload成功によって上書きしない」の実装）。
+
+      - name: Install jsonschema (JSON Schema検証用; scripts/validate_quality_export.jl が使う)
         if: always()
+        run: python3 -m pip install --quiet jsonschema
+
+      - name: Validate quality export
+        id: quality_export_validate
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -f artifacts/quality/quality-export.json ]; then
+            julia --project=. scripts/validate_quality_export.jl \
+              2>&1 | tee artifacts/quality/quality-export-validate.log
+            status="${PIPESTATUS[0]}"
+          else
+            echo "quality-export.json が見つかりません（Test ステップが致命的に失敗した可能性があります）" \
+              | tee artifacts/quality/quality-export-validate.log
+            status=1
+          fi
+          if [ "$status" -eq 0 ]; then
+            echo "valid=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+          fi
+          exit "$status"
+
+      # 検証に通った export のみ正規Artifactとして公開する（schema major + commit SHA を
+      # Artifact名に含める）。rerun時は同名Artifactを最新の実行結果で置き換える
+      # （overwrite: true。過去の失敗runの結果と共存させて誤って古い方を取得させない）。
+      - name: Upload quality export
+        if: always() && steps.quality_export_validate.outputs.valid == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: quality-export
+          name: dme-julia-quality-v1-${{ github.sha }}
           path: artifacts/quality/quality-export.json
+          retention-days: 90
+          if-no-files-found: error
+          overwrite: true
+
+      # 検証に失敗した（invalid / 生成されなかった）場合は、正規Artifact名とは明確に区別した
+      # 診断専用Artifactとしてのみ公開する（invalid JSONをそのまま正規Artifactとして
+      # 公開しない）。
+      - name: Upload quality export diagnostics (invalid or missing only)
+        if: always() && steps.quality_export_validate.outputs.valid != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dme-julia-quality-v1-invalid-${{ github.sha }}
+          path: |
+            artifacts/quality/quality-export.json
+            artifacts/quality/quality-export-validate.log
           retention-days: 14
           if-no-files-found: warn
+          overwrite: true
