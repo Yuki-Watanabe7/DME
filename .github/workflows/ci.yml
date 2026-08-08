@@ -28,7 +28,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: julia-actions/setup-julia@v2
+      - uses: julia-actions/setup-julia@v3
         with:
           version: '1.12.6'
 
@@ -78,7 +78,7 @@ jobs:
       # （overwrite: true。過去の失敗runの結果と共存させて誤って古い方を取得させない）。
       - name: Upload quality export
         if: always() && steps.quality_export_validate.outputs.valid == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dme-julia-quality-v1-${{ github.sha }}
           path: artifacts/quality/quality-export.json
@@ -91,7 +91,7 @@ jobs:
       # 公開しない）。
       - name: Upload quality export diagnostics (invalid or missing only)
         if: always() && steps.quality_export_validate.outputs.valid != 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dme-julia-quality-v1-invalid-${{ github.sha }}
           path: |

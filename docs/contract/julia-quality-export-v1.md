@@ -416,7 +416,7 @@ upload する設計にはしない（テスト失敗・coverage 失敗の run �
 別途保持する必要がない）。
 
 **rerun 時の識別・置換方針**: 同一 job を rerun した場合、Artifact 名（`${{ github.sha }}`
-込み）は変わらない。`actions/upload-artifact@v4` の `overwrite: true` により、rerun の結果で
+込み）は変わらない。`actions/upload-artifact@v7` の `overwrite: true` により、rerun の結果で
 既存 Artifact を置き換える（複数 run の結果を同名で共存させず、常に「その commit の最新の
 実行結果」を指す1つの Artifact にする。過去の run 結果を履歴として保持する用途は本 contract の
 対象外 — §1「1ファイル=1コミットに対する1回の実行」）。
@@ -440,15 +440,20 @@ merge commit をデフォルトで checkout するため、export 内の `commit
 トリガーは `pull_request`（`pull_request_target` ではない）のままなので、fork からの PR でも
 `GITHUB_TOKEN` は GitHub 側の既定で自動的に read-only になり、secrets へのアクセスも生じない。
 
-**action 参照の固定方針**: `actions/checkout@v7`・`julia-actions/setup-julia@v2`・
-`julia-actions/cache@v3`・`actions/upload-artifact@v4` はいずれもメジャーバージョンタグで
+**action 参照の固定方針**: `actions/checkout@v7`・`julia-actions/setup-julia@v3`・
+`julia-actions/cache@v3`・`actions/upload-artifact@v7` はいずれもメジャーバージョンタグで
 固定する（SHA pin へは変更しない）。DME の既存 workflow（`claude.yml`・`claude-code-review.yml`
 含む）がすべて同じメジャーバージョンタグ方式であり、本 Issue 単体で異なる固定方式を混在させない
 ことを優先した（SHA pin へ統一する場合はリポジトリ全体を対象にした別 Issue で扱う）。
-`actions/checkout` は Node.js 20 ランタイムの deprecation（v4 は Node20 固定のため実行時に
-Node24 へ強制フォールバックする旨の警告が CI ログに出る）を解消するため、後日 v7
-（Node24 ネイティブ対応）へ更新した。`claude.yml`/`claude-code-review.yml` は本更新の対象外
-（別途の更新が必要であれば別 Issue/PR で扱う）。
+`actions/checkout`・`actions/upload-artifact`・`julia-actions/setup-julia` はいずれも
+Node.js 20 ランタイムの deprecation（旧バージョンは Node20 固定のため実行時に Node24 へ
+強制フォールバックする旨の警告が CI ログに出る）を解消するため、後日 Node24 ネイティブ対応の
+メジャーバージョン（`actions/checkout@v7`・`actions/upload-artifact@v7`・
+`julia-actions/setup-julia@v3`）へ更新した。`julia-actions/setup-julia` の v2→v3 は
+`version: min`/`min-minor`/`min-patch` の解決結果変更と Apple Silicon macOS 上での
+`x86_64` バイナリ要求時の挙動（警告→エラー）が breaking change だが、本 workflow は
+`version: '1.12.6'`（厳密指定）かつ `runs-on: ubuntu-latest` のため非該当。
+`claude.yml`/`claude-code-review.yml` は本更新の対象外（別途の更新が必要であれば別 Issue/PR で扱う）。
 
 ## 9. 限界
 
