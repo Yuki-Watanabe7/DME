@@ -168,12 +168,17 @@ export
     quality_export_from_json,
     save_quality_export,
     load_quality_export,
+    quality_export_with_tool,
     redact_secrets,
     # Pkg.test/Aqua.jl/JuliaFormatter.jl 実測結果の構造化（Issue #208、src/quality/quality_capture.jl）
     quality_tool_pkgtest_result,
     QualityAquaCheck,
     quality_tool_aqua_result,
     quality_tool_formatter_result,
+    # Coverage.jl 実測結果の構造化（Issue #209、src/quality/quality_capture.jl）
+    QUALITY_COVERAGE_TARGET_PATHS,
+    QUALITY_COVERAGE_EXCLUDED_PATHS,
+    quality_tool_coverage_result,
     # SFC accounting primitives (src/sfc/)
     SFCSector,
     SFCInstrument,

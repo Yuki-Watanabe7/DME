@@ -539,6 +539,7 @@ quality_export_from_dict(d::AbstractDict) -> QualityExport   # DME はこの sch
 quality_export_from_json(s::AbstractString) -> QualityExport
 save_quality_export(e::QualityExport, path::AbstractString; overwrite::Bool = true) -> String
 load_quality_export(path::AbstractString) -> QualityExport
+quality_export_with_tool(e::QualityExport, tool::QualityToolExecution; generated_at::DateTime = e.generated_at) -> QualityExport  # tool.tool_name と同名のエントリを置き換えた（無ければ追加した）新しい QualityExport を返す（Issue #209、Coverage.jl の後段差し込みに使う）
 
 # Secret/環境変数/API credential の redaction（ベストエフォート、詳細は contract doc §5）
 redact_secrets(s::AbstractString) -> String
@@ -551,7 +552,7 @@ QUALITY_EXPORT_RESERVED_TOOL_NAMES  # ("Pkg.test", "Aqua.jl", "JuliaFormatter.jl
 
 > `tools` は open な辞書（`Dict{String,QualityToolExecution}`）で、`result` フィールドの内部構造は
 > Issue #207 の対象外だった（ツールごとに後続 Issue が定義する。Pkg.test/Aqua.jl/
-> JuliaFormatter.jl は #208、残り3ツールは #209/#211/#212/#213）。
+> JuliaFormatter.jl は #208、Coverage.jl は #209、残り3ツールは #211/#212/#213）。
 > `duration_seconds` は `completed_at - started_at` から自動導出され、呼び出し側の入力にはできない。
 > タイムゾーンは UTC 固定（`"...Z"` 接尾辞のみ、real-rate model artifact と同じ MVP 制約）。
 
@@ -602,6 +603,27 @@ e = QualityExport(;
 )
 path = save_quality_export(e, "artifacts/quality/quality-export.json")
 load_quality_export(path).commit == e.commit  # true
+```
+
+#### Coverage.jl の `result` 組み立て（Issue #209、`quality_capture`）
+
+`Pkg.test()` のテストサブプロセス自身は `.cov` トレースファイルを読めない（プロセスが
+終了するまでディスクへ確定しないため）。実測は `Pkg.test()` を呼び出す**外側**の driver
+スクリプト [`scripts/quality_export_coverage.jl`](../../scripts/quality_export_coverage.jl) が
+担う。詳細は
+[Julia品質Export Contract §4.2](contract/julia-quality-export-v1.md#42-coveragejl-の-result) を参照。
+
+```julia
+QUALITY_COVERAGE_TARGET_PATHS    # = ["src"]（Coverage.process_folder に渡す唯一の対象ディレクトリ）
+QUALITY_COVERAGE_EXCLUDED_PATHS  # = ["examples", "scripts", "test"]（ドキュメント目的の除外一覧）
+
+quality_tool_coverage_result(;
+    covered_lines::Integer, coverable_lines::Integer,
+    target_paths::AbstractVector{<:AbstractString} = QUALITY_COVERAGE_TARGET_PATHS,
+    excluded_paths::AbstractVector{<:AbstractString} = QUALITY_COVERAGE_EXCLUDED_PATHS,
+) -> Dict{String,Any}
+# coverable_lines <= 0 は ArgumentError（「0%」ではなく計測不能。呼び出し側は status=:failure で報告する）。
+# percent（julia.line_coverage 相当）は計算しない — Consumer（software-quality-dashboard）側の責務。
 ```
 
 ### 実データ型

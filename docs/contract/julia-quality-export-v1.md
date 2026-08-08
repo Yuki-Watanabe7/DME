@@ -16,7 +16,8 @@ software-quality-dashboard が満たす側。
 - Julia 実装: [`src/quality/quality_export.jl`](../../src/quality/quality_export.jl)（型・バリデーション・シリアライズ・redaction。schema に対する汎用 JSON Schema バリデータは持たず、この実装自体が validator を兼ねる — `src/artifacts/real_rate_model_artifact.jl` と同じ doctrine）
 - Exporter骨格: [`scripts/quality_export.jl`](../../scripts/quality_export.jl)
 - 実測捕捉（Issue #208）: [`src/quality/quality_capture.jl`](../../src/quality/quality_capture.jl)（result 組み立ての純粋関数）・[`test/quality_capture_runner.jl`](../../test/quality_capture_runner.jl)（`Pkg.test()` 統合の実行経路）
-- 検証ヘルパー: [`scripts/validate_quality_export.jl`](../../scripts/validate_quality_export.jl)（生成済み export の round-trip・schema 検証・サマリー表示。`julia --project=. scripts/validate_quality_export.jl [path]`。#209/#211/#212/#213 が result を追加していく際も変更なしで再利用できる）
+- Coverage.jl 実測（Issue #209）: [`scripts/quality_export_coverage.jl`](../../scripts/quality_export_coverage.jl)（`Pkg.test(coverage=true)` を呼ぶ driver。§8 方法C）
+- 検証ヘルパー: [`scripts/validate_quality_export.jl`](../../scripts/validate_quality_export.jl)（生成済み export の round-trip・schema 検証・サマリー表示。`julia --project=. scripts/validate_quality_export.jl [path]`。#211/#212/#213 が result を追加していく際も変更なしで再利用できる）
 - fixture: [`test/fixtures/quality_export/`](../../test/fixtures/quality_export/)（`valid/`・`invalid/`）
 - テスト: [`test/test_quality_export.jl`](../../test/test_quality_export.jl)・[`test/test_quality_capture.jl`](../../test/test_quality_capture.jl)
 
@@ -203,6 +204,57 @@ Julia オブジェクト（`Test.AbstractTestSet`・`Test.TestSetException`）�
 }
 ```
 
+## 4.2 Coverage.jl の result
+
+Issue #209。line coverage を `Coverage.jl`（[JuliaCI/Coverage.jl](https://github.com/JuliaCI/Coverage.jl)）で
+測定する。実測は `test/quality_capture_runner.jl` ではなく、`Pkg.test()` を呼び出す**外側**の
+driver スクリプト [`scripts/quality_export_coverage.jl`](../../scripts/quality_export_coverage.jl)
+が担う（理由は §8 の「なぜ Coverage.jl だけ2段階か」参照）。`result` の組み立て自体は
+`quality_tool_coverage_result`（`src/quality/quality_capture.jl`）が担う。
+
+| フィールド | 型 | 内容 |
+|---|---|---|
+| `covered_lines` | integer | 実行されたコード行数 |
+| `coverable_lines` | integer | 実行可能（coverable）なコード行数の総数。**1以上**（0は§4の表と同じ「計測不能」に該当し、`status=:failure` で報告する。§9） |
+| `target_paths` | `Vector<string>` | 集計対象にしたディレクトリ（リポジトリルートからの相対パス）。既定 `["src"]` |
+| `excluded_paths` | `Vector<string>` | 集計対象から除外したトップレベルディレクトリの一覧（ドキュメント目的。`test`/`examples`/`scripts` を含む） |
+
+`covered_lines`/`coverable_lines` は `Coverage.process_folder("src") |> Coverage.get_summary` の
+戻り値をそのまま使う。**percent（`julia.line_coverage` 相当の割合）は DME 側では計算しない**。
+`software-quality-dashboard` の Julia Native Provider（`providers/julia/mapper.py` の
+`"Coverage.jl"` ケース）が `covered_lines / coverable_lines * 100` を Consumer 側で計算する契約に
+既になっており（`coverable_lines <= 0` は `MetricStatus.COLLECTION_ERROR` として扱う実装も
+既存）、Producer 側で重複して percent を持つと丸め方式の食い違いで2つの数字が矛盾しうるため
+（Issue #209 の「line_coverage percent は Producer/Consumer どちらで計算するか」を、Consumer 側の
+既存実装に合わせて確定した）。
+
+```json
+"Coverage.jl": {
+  "status": "success",
+  "version": "1.8.1",
+  "started_at": "2026-08-08T08:09:47Z", "completed_at": "2026-08-08T08:10:22Z",
+  "duration_seconds": 35.0,
+  "result": {
+    "covered_lines": 1224,
+    "coverable_lines": 1642,
+    "target_paths": ["src"],
+    "excluded_paths": ["examples", "scripts", "test"]
+  }
+}
+```
+
+**測定対象の範囲**: `src/**/*.jl` のみ（`examples/`・`scripts/`・`test/` は対象外）。
+`--code-coverage=user` は JuMP・Ipopt・Plots 等の依存パッケージ本体
+（`~/.julia/packages/...` 配下）にも `.cov` を生成するが、それらは `src/` の外にあるため
+`Coverage.process_folder("src")` はそもそも読みに行かない（対象への混入は構造的に起きない）。
+DME 自身はサブプロセスを spawn しない（`Distributed`/`` `julia ...` `` 呼び出しは無し）ため、
+`Pkg.test()` が spawn する唯一のテスト実行サブプロセス以外の coverage 欠落も発生しない。
+
+`status=failure` になるケース: `Coverage.process_folder`/`Coverage.get_summary` が例外を投げた
+場合、および `coverable_lines <= 0`（`.cov` トレースファイルが1件も生成されなかった等）の場合。
+後者は「0%」ではなく計測不能であることを明示するための決定であり、`quality_tool_coverage_result`
+自身が `coverable_lines <= 0` を `ArgumentError` で拒否することで構造的に強制する（§9）。
+
 ## 5. Secret/環境変数/API credential の redaction 方針
 
 DME が実際に使う秘匿環境変数（[設定・環境変数管理ガイド](../development/configuration.md)）は
@@ -260,6 +312,12 @@ load_quality_export(path) -> QualityExport
 
 # redaction
 redact_secrets(s::AbstractString) -> String
+
+# Coverage.jl（Issue #209）
+QUALITY_COVERAGE_TARGET_PATHS    # = ["src"]
+QUALITY_COVERAGE_EXCLUDED_PATHS  # = ["examples", "scripts", "test"]
+quality_tool_coverage_result(; covered_lines, coverable_lines, target_paths=QUALITY_COVERAGE_TARGET_PATHS, excluded_paths=QUALITY_COVERAGE_EXCLUDED_PATHS) -> Dict{String,Any}
+quality_export_with_tool(e::QualityExport, tool::QualityToolExecution; generated_at=e.generated_at) -> QualityExport  # 1 tool だけ置き換えた新しい QualityExport を返す
 ```
 
 ## 8. 実行方法
@@ -281,12 +339,13 @@ DME_QUALITY_EXPORT_OUTPUT=./out/quality.json julia --project=. scripts/quality_e
 
 ```bash
 DME_QUALITY_EXPORT_ENABLED=1 julia --project=. -e "using Pkg; Pkg.test()"
-# 出力先の指定（優先順）: DME_QUALITY_EXPORT_OUTPUT > 既定 artifacts/quality/quality-export.json
+# 出力先の指定(優先順): DME_QUALITY_EXPORT_OUTPUT > 既定 artifacts/quality/quality-export.json
 ```
 
-`Pkg.test/Aqua.jl/JuliaFormatter.jl` の3ツールを実測（§4.1）、残り4ツール
-（Coverage.jl/JET.jl/BenchmarkTools.jl/Documenter.jl。#209/#211/#212/#213）は方法Aと同じ
-`skipped` プレースホルダで埋める。`DME_QUALITY_EXPORT_ENABLED` 未設定時（既定）は
+`Pkg.test/Aqua.jl/JuliaFormatter.jl` の3ツールを実測（§4.1）、`Coverage.jl` は「driver プロセス
+側で後段計測する」という reason 付きの `skipped` プレースホルダで埋める（実測は方法Cが行う。
+理由は §4.2・下記参照）。残り3ツール（JET.jl/BenchmarkTools.jl/Documenter.jl。#211/#212/#213）は
+方法Aと同じ `skipped` プレースホルダのまま。`DME_QUALITY_EXPORT_ENABLED` 未設定時（既定）は
 `test/runtests.jl` の挙動を一切変えない（この経路自体が有効化されない）。
 
 有効化したときだけの意図的な副作用: 通常（未設定時）は `test/runtests.jl` の各テストファイルが
@@ -296,22 +355,55 @@ DME_QUALITY_EXPORT_ENABLED=1 julia --project=. -e "using Pkg; Pkg.test()"
 他のテストファイルの成否に関わらず必ず実行され捕捉される。詳細な設計判断・Test.jl 依存の範囲は
 `test/quality_capture_runner.jl` 冒頭コメントを参照。
 
+**方法C: `Coverage.jl` を含めた実測（`scripts/quality_export_coverage.jl`。Issue #209、推奨）**
+
+```bash
+julia --project=. scripts/quality_export_coverage.jl
+# 出力先の指定（優先順）: DME_QUALITY_EXPORT_OUTPUT > 既定 artifacts/quality/quality-export.json
+```
+
+方法Bを内部で1回だけ実行し（`DME_QUALITY_EXPORT_ENABLED=1` を自動設定、`Pkg.test(coverage=true)`。
+テストスイートを2回実行しない）、そのサブプロセスが終了した後に `Coverage.jl`（line coverage）を
+実測して同じファイルへ差し込む（§4.2）。CI の fast lane はこの方法Cを使う
+（`.github/workflows/ci.yml`）。
+
+**なぜ Coverage.jl だけ2段階か**: `.cov` トレースファイルは計測対象を実行した julia プロセス自身
+が**終了したとき**にのみディスクへ書き出される（Coverage.jl 自体の制約）。`Pkg.test()` は常に
+`test/runtests.jl` を別のサブプロセスとして spawn するため、そのサブプロセスの内側で動く
+`test/quality_capture_runner.jl` は自分自身の coverage を読めない。`Pkg.test()` を呼び出す
+**外側**のプロセス（サブプロセスが終了した後に制御が戻ってくる）でなければ `.cov` を集計できない
+——これが `scripts/quality_export_coverage.jl` が別ファイル・別実行ステップとして存在する理由
+（`quality_export_with_tool`（`src/quality/quality_export.jl`）が、方法Bが書き出したファイルへ
+`Coverage.jl` のエントリだけを後から差し込む）。詳細は `scripts/quality_export_coverage.jl`
+冒頭コメント参照。
+
+**失敗の扱い**: `Pkg.test()` 自体の失敗（テスト失敗）は従来どおり CI を失敗させる。coverage の
+集計だけが失敗した場合（`coverable_lines <= 0` を含む）は `Coverage.jl` のエントリを
+`status=:failure` にするのみで、方法C自体の終了コードには影響させない（Issue #209
+「初期導入では Quality Gate で merge を阻止せず、baseline 収集を優先する」という決定）。
+
 ## 9. 限界
 
 - 本 contract は「DME 側が何を測定したか」という事実のみを保持する。品質スコア・合否判定は
   `software-quality-dashboard` 側の責務であり、本 contract には存在しない（ADR 0009/0012 の
   「事実と評価の分離」を踏襲）。
-- `result` の構造は `Pkg.test`/`Aqua.jl`/`JuliaFormatter.jl` の3ツールで確定した（§4.1、Issue
-  #208）。残り4ツールは対応 Issue（#209/#211/#212/#213）が実装した時点で、`result` フィールド
-  一覧をこのドキュメントへ追記する（envelope 自体のスキーマ変更は伴わない想定）。
+- `result` の構造は `Pkg.test`/`Aqua.jl`/`JuliaFormatter.jl`/`Coverage.jl` の4ツールで確定した
+  （§4.1・§4.2、Issue #208/#209）。残り3ツールは対応 Issue（#211/#212/#213）が実装した時点で、
+  `result` フィールド一覧をこのドキュメントへ追記する（envelope 自体のスキーマ変更は伴わない想定）。
 - redaction は既知パターンベースのベストエフォートであり、機密情報の漏洩を構造的に防げる保証では
   ない（§5）。
 - `Test.get_test_counts`・`Test.TestSetException` の各フィールドは Julia の Test stdlib が
   意味を明記して公開している準内部 API であり、将来のマイナーバージョンで構造が変わりうる
   （`test/quality_capture_runner.jl` 冒頭コメント）。取得できない場合は `status=:failure`
   として報告し、黙って `0` 件や `skipped` に丸めない。
-- 方法Bは `DME_QUALITY_EXPORT_ENABLED` が有効なときに限り、テストファイル1件の失敗で以降が
+- 方法B/Cは `DME_QUALITY_EXPORT_ENABLED` が有効なときに限り、テストファイル1件の失敗で以降が
   未実行になる挙動を「全ファイル実行しきってから最後に1回失敗を報告する」へ変える（上記§8）。
-  CI の既定経路（GitHub Actions Artifact としての upload・アップロード先 CI 設定は #210）へ
-  この方法Bを配線するかどうかは #210 が決める。本 Issue（#208）はローカル/CI いずれからも
-  手動で有効化できる状態を作るところまでを対象とする。
+- `Coverage.jl` の line coverage は `src/**` のみを対象とする（§4.2）。分岐カバレッジ
+  （branch coverage）・diff coverage・coverage threshold による merge 阻止は対象外（Issue #209の
+  「対象外」）。複数コミットにまたがる履歴・トレンドの保持は本 contract の範囲外（1ファイル=
+  1コミットの1回の実行、§1）。
+- GitHub Actions Artifact としての quality export の**恒久的な**公開・バージョニングされた
+  取得手順の設計は #210 が担う。本 Issue（#209）の CI 変更は `artifacts/quality/quality-export.json`
+  を短期保持の Actions artifact としてアップロードするところまでに留め（実施内容の「必要に応じて
+  coverage raw artifact も短期保存するが、正本は quality export とする」に対応）、正式な
+  cross-repository 契約（取得 API・保持ポリシー等）の確定は #210/#8 に委ねる。

@@ -38,5 +38,14 @@ jobs:
       - name: Install dependencies
         run: julia --project=. -e "using Pkg; Pkg.instantiate()"
 
-      - name: Test
-        run: julia --project=. -e "using Pkg; Pkg.test()"
+      - name: Test (with quality export + Coverage.jl)
+        run: julia --project=. scripts/quality_export_coverage.jl
+
+      - name: Upload quality export (short-term; Issue #209)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-export
+          path: artifacts/quality/quality-export.json
+          retention-days: 14
+          if-no-files-found: warn

@@ -423,6 +423,42 @@ function QualityExport(;
     )
 end
 
+"""
+    quality_export_with_tool(e::QualityExport, tool::QualityToolExecution;
+                              generated_at::DateTime = e.generated_at) -> QualityExport
+
+`e` の `tools` のうち `tool.tool_name` と同名のエントリを `tool` で置き換えた（無ければ追加した）
+新しい `QualityExport` を返す（`e` 自体は変更しない。`QualityExport`/`QualityToolExecution` は
+どちらもイミュータブルという既存の設計を維持する）。
+
+Coverage.jl（Issue #209）のように、コード coverage の `.cov` トレースファイルはそれを生成した
+julia プロセスが**終了した後**でなければディスクへ確定しない（Coverage.jl 自体の制約であり
+DME 側の実装選択ではない）。そのため `test/quality_capture_runner.jl`（`Pkg.test()` のテスト
+サブプロセス内で実行される）は Coverage.jl を実測できず、`status=:skipped` のプレースホルダで
+埋めた export を書き出すところまでしかできない。この関数は、テストサブプロセスが終了した**後**
+（`Pkg.test()` を呼び出した外側のプロセス）で Coverage.jl の実測結果を後から差し込むために使う
+（`scripts/quality_export_coverage.jl`）。`generated_at` は既定では元の値を保持するが、ファイルを
+実際に再保存する呼び出し側は「書き出した時刻」の意味を保つため新しい時刻を渡すこと。
+"""
+function quality_export_with_tool(
+    e::QualityExport,
+    tool::QualityToolExecution;
+    generated_at::DateTime = e.generated_at,
+)::QualityExport
+    others = QualityToolExecution[t for (name, t) in e.tools if name != tool.tool_name]
+    return QualityExport(;
+        producer = e.producer,
+        package = e.package,
+        repository = e.repository,
+        branch = e.branch,
+        commit = e.commit,
+        measured_at = e.measured_at,
+        generated_at = generated_at,
+        julia_version = e.julia_version,
+        tools = push!(others, tool),
+    )
+end
+
 # ---------------------------------------------------------------------------
 # シリアライズ（正準 JSON。既存 to_dict/to_json 慣行に準拠。改行方針は real-rate model
 # artifact と同じ: canonical_json_bytes のみ、末尾改行は付与しない）

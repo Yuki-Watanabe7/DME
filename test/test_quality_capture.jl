@@ -1,9 +1,12 @@
-# src/quality/quality_capture.jl（Issue #208）のテスト。
-# Pkg.test/Aqua.jl/JuliaFormatter.jl の result 組み立て（純粋関数、Test.jl オブジェクトを
-# 扱わない）と、test/quality_capture_runner.jl が依存する Test.jl の挙動の前提（本ファイル末尾）
-# を検証する。`run_quality_capture` 自体（実際に Pkg.test() 全体を再帰的に走らせる必要がある）
-# はここでは検証しない — DME_QUALITY_EXPORT_ENABLED=1 での実 `Pkg.test()` 実行（手動/CI）が
-# その役割を担う（docs/contract/julia-quality-export-v1.md §8）。
+# src/quality/quality_capture.jl（Issue #208/#209）のテスト。
+# Pkg.test/Aqua.jl/JuliaFormatter.jl/Coverage.jl の result 組み立て（純粋関数、Test.jl
+# オブジェクトを扱わない）と、test/quality_capture_runner.jl が依存する Test.jl の挙動の前提
+# （本ファイル末尾）を検証する。`run_quality_capture` 自体（実際に Pkg.test() 全体を再帰的に
+# 走らせる必要がある）・`scripts/quality_export_coverage.jl` 自体（`Pkg.test(coverage=true)` を
+# 再帰的に呼ぶ）はここでは検証しない — 実行（手動/CI）がその役割を担う
+# （docs/contract/julia-quality-export-v1.md §8）。
+
+using Coverage  # Coverage.jl 統合テスト用（Issue #209、test/Project.toml の依存）
 
 @testset "quality_tool_pkgtest_result" begin
     r = quality_tool_pkgtest_result(;
@@ -127,6 +130,107 @@ end
         formatted = false,
         unformatted_files = String[],
     )
+end
+
+@testset "quality_tool_coverage_result" begin
+    r = quality_tool_coverage_result(; covered_lines = 1224, coverable_lines = 1642)
+    @test r["covered_lines"] == 1224
+    @test r["coverable_lines"] == 1642
+    @test r["target_paths"] == QUALITY_COVERAGE_TARGET_PATHS
+    @test r["excluded_paths"] == sort(QUALITY_COVERAGE_EXCLUDED_PATHS)
+
+    r2 = quality_tool_coverage_result(;
+        covered_lines = 3,
+        coverable_lines = 4,
+        target_paths = ["src"],
+        excluded_paths = ["test", "examples"],
+    )
+    @test r2["target_paths"] == ["src"]
+    @test r2["excluded_paths"] == ["examples", "test"]  # sorted
+
+    # covered_lines == coverable_lines（100%）は許容される
+    full = quality_tool_coverage_result(; covered_lines = 10, coverable_lines = 10)
+    @test full["covered_lines"] == full["coverable_lines"] == 10
+
+    # coverable_lines <= 0 は「0%」ではなく計測不能であり拒否する（§4.2）
+    @test_throws ArgumentError quality_tool_coverage_result(;
+        covered_lines = 0,
+        coverable_lines = 0,
+    )
+    @test_throws ArgumentError quality_tool_coverage_result(;
+        covered_lines = 0,
+        coverable_lines = -1,
+    )
+    # covered_lines は負にできない
+    @test_throws ArgumentError quality_tool_coverage_result(;
+        covered_lines = -1,
+        coverable_lines = 10,
+    )
+    # covered_lines は coverable_lines を超えられない
+    @test_throws ArgumentError quality_tool_coverage_result(;
+        covered_lines = 11,
+        coverable_lines = 10,
+    )
+    # target_paths は最低1件必要
+    @test_throws ArgumentError quality_tool_coverage_result(;
+        covered_lines = 1,
+        coverable_lines = 1,
+        target_paths = String[],
+    )
+end
+
+@testset "Coverage.jl: process_folder/get_summary against a known fixture" begin
+    # DME 本体の src/ は行数が変わりうるため決定的な期待値を置けない。既知の
+    # covered/coverable 行数になる小規模 fixture module を実際にサブプロセスで
+    # `--code-coverage=user` 付きで実行し、Coverage.process_folder/get_summary の戻り値が
+    # scripts/quality_export_coverage.jl（driver プロセス側）が期待する形と一致することを
+    # 検証する。`.cov` はそれを生成したプロセスが終了したときにのみディスクへ書かれるため
+    # （scripts/quality_export_coverage.jl 冒頭コメント参照）、サブプロセスの終了を
+    # `run(...)` で待ってから読む。
+    mktempdir() do dir
+        fixture_path = joinpath(dir, "coverage_fixture.jl")
+        write(
+            fixture_path,
+            """
+            module CoverageFixture
+
+            function classify(x)
+                if x > 0
+                    return :positive
+                else
+                    return :nonpositive
+                end
+            end
+
+            end # module
+            """,
+        )
+        driver_path = joinpath(dir, "run_fixture.jl")
+        write(
+            driver_path,
+            """
+            include("coverage_fixture.jl")
+            using .CoverageFixture
+            CoverageFixture.classify(5)
+            """,
+        )
+        run(`$(Base.julia_cmd()) --startup-file=no --code-coverage=user $driver_path`)
+
+        file_coverages = process_folder(dir)
+        covered, coverable = get_summary(file_coverages)
+        # classify(5) だけ呼んでいるため: function 行・if 行・:positive 行の3行が実行され、
+        # :nonpositive 行（else 節）は coverable だが未実行の4行目として残る（本 Issue の
+        # 作業中に実測して固定した既知値。coverage_fixture.jl の内容を変えたら要更新）。
+        @test covered == 3
+        @test coverable == 4
+
+        result = quality_tool_coverage_result(; covered_lines = covered, coverable_lines = coverable)
+        @test result["covered_lines"] == 3
+        @test result["coverable_lines"] == 4
+
+        clean_folder(dir)
+        @test isempty(filter(f -> endswith(f, ".cov"), readdir(dir; join = true)))
+    end
 end
 
 # test/quality_capture_runner.jl が依存する Test.jl 自身の挙動の前提（Julia の Test stdlib の

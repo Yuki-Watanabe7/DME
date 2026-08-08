@@ -37,13 +37,15 @@
     },
     "Coverage.jl": {
       "status": "success",
-      "version": "1.6.1",
+      "version": "1.8.1",
       "started_at": "2026-08-03T08:09:47Z",
       "completed_at": "2026-08-03T08:10:22Z",
       "duration_seconds": 35,
       "result": {
         "covered_lines": 1224,
-        "coverable_lines": 1642
+        "coverable_lines": 1642,
+        "target_paths": ["src"],
+        "excluded_paths": ["examples", "scripts", "test"]
       },
       "error": null,
       "reason": null
