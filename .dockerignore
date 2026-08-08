@@ -1,0 +1,21 @@
+# Credentials and local configuration must never be sent to the Docker build
+# context. The container obtains data only through runtime configuration and
+# the platform's approved economic-data-provider path.
+.env
+.env.*
+*.key
+*.pem
+secrets/
+
+# Source control, local artifacts, and test/coverage output are not part of the
+# runnable DME batch image.
+.git/
+.github/
+artifacts/
+*.cov
+*.mem
+test/
+examples/
+docs/
+config/
+CLAUDE.md

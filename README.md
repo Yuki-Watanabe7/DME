@@ -60,6 +60,8 @@ dme quality-export --out /var/lib/dme/artifacts
 
 `--out`（または `DME_ARTIFACT_OUTDIR`）で runtime ごとの出力先を注入できます。command・
 exit code・生成 artifact の詳細は [CLI と artifact output contract](docs/cli.md) を参照してください。
+ECS RunTask で実行するための image build・volume mount・non-root runtime の要件は
+[batch container guide](docs/deployment/batch_container.md) に記載しています。
 
 ### Ramsey モデル
 
