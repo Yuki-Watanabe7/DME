@@ -440,11 +440,15 @@ merge commit をデフォルトで checkout するため、export 内の `commit
 トリガーは `pull_request`（`pull_request_target` ではない）のままなので、fork からの PR でも
 `GITHUB_TOKEN` は GitHub 側の既定で自動的に read-only になり、secrets へのアクセスも生じない。
 
-**action 参照の固定方針**: `actions/checkout@v4`・`julia-actions/setup-julia@v2`・
+**action 参照の固定方針**: `actions/checkout@v7`・`julia-actions/setup-julia@v2`・
 `julia-actions/cache@v3`・`actions/upload-artifact@v4` はいずれもメジャーバージョンタグで
 固定する（SHA pin へは変更しない）。DME の既存 workflow（`claude.yml`・`claude-code-review.yml`
 含む）がすべて同じメジャーバージョンタグ方式であり、本 Issue 単体で異なる固定方式を混在させない
 ことを優先した（SHA pin へ統一する場合はリポジトリ全体を対象にした別 Issue で扱う）。
+`actions/checkout` は Node.js 20 ランタイムの deprecation（v4 は Node20 固定のため実行時に
+Node24 へ強制フォールバックする旨の警告が CI ログに出る）を解消するため、後日 v7
+（Node24 ネイティブ対応）へ更新した。`claude.yml`/`claude-code-review.yml` は本更新の対象外
+（別途の更新が必要であれば別 Issue/PR で扱う）。
 
 ## 9. 限界
 
