@@ -68,18 +68,18 @@ that an invalid model preserves the CLI's exit code `2`.
 
 ## Representative resource profile
 
-Measurements are recorded after running the verification command on the build
-host. They are indicative deployment-sizing inputs, not throughput guarantees;
-runtime architecture, CPU allocation, and mounted-volume latency affect the
-result.
+The following measurements were taken on 2026-08-09 with Docker Desktop's Linux
+ARM64 runtime (8 vCPU, 7.75 GiB memory). They are indicative deployment-sizing
+inputs, not throughput guarantees; Fargate CPU allocation, image pull time, and
+mounted-volume latency affect the result.
 
 | Metric | Measurement |
 |---|---|
 | Scenario | `dme simulate solow --periods 100` |
-| Image size | To be measured by `docker image inspect dme-batch:local --format '{{.Size}}'` after the reproducible build. |
-| Cold start / precompile impact | To be measured as the first and second `docker run` wall-clock durations; the image performs build-time precompilation. |
-| Peak memory | To be measured with `/usr/bin/time -v` in the final image or equivalent ECS task telemetry. |
-| Wall-clock duration | To be measured on the target-equivalent Docker/ECS runtime. |
+| Image size | 705,690,854 bytes (673.0 MiB). |
+| Cold start / precompile impact | First local `docker run`: 3.10 s; second run: 3.06 s (0.04 s difference). Image pull and ECS task provisioning are excluded. |
+| Peak memory | 436,879,360 bytes (416.6 MiB), from the container cgroup's `memory.peak` after the run. |
+| Wall-clock duration | 3.10 s for the first local container run. |
 
 For initial Fargate task-definition sizing, use the measured peak with headroom
 and validate it under the actual task CPU/memory setting before enabling a
