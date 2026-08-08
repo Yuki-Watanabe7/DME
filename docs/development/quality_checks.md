@@ -137,24 +137,25 @@ julia --project=. scripts/validate_quality_export.jl
 が唯一の定義箇所）。JuMP・Ipopt・Plots 等の依存パッケージ本体のコードは `src/` の外
 （`~/.julia/packages/...`）にあるため、この対象範囲だけで自動的に除外される。
 
-### 5.2 CI 時間への影響（Issue #209 導入前後の実測。ローカル計測・目安）
+### 5.2 CI 時間への影響（Issue #209 導入前後の実測）
 
 `--code-coverage=user` によるコード coverage の instrumentation はテスト実行そのものを
-遅くする。導入前後の `Pkg.test()` 系のローカル実行時間（Apple Silicon・依存パッケージ
-プリコンパイル済み、テストスイート本体のみの比較。CI ランナー（Linux, GitHub Actions）の
-絶対時間はこれと異なるが、相対的な増分の目安として記録する）:
+遅くする。導入前後の実測値（`ci`/`Pkg.test()` ジョブの `Test` ステップのみを比較。
+`Install dependencies` はキャッシュ状態で変動するため除外）:
 
-| 実行 | 総所要時間（wall clock） |
-|---|---|
-| 導入前: `julia --project=. -e "using Pkg; Pkg.test()"` | 約2分59秒 |
-| 導入後: `julia --project=. scripts/quality_export_coverage.jl`（`Pkg.test(coverage=true)` + Coverage.jl 集計） | 約4分07秒（coverage instrumentation により約+68秒・約+38%） |
+| 実行環境 | 導入前 | 導入後 | 増分 |
+|---|---|---|---|
+| ローカル（Apple Silicon、依存パッケージプリコンパイル済み、総所要時間 wall clock） | `julia --project=. -e "using Pkg; Pkg.test()"`: 約2分59秒 | `julia --project=. scripts/quality_export_coverage.jl`: 約4分07秒 | 約+68秒（約+38%） |
+| CI（GitHub Actions、Linux ランナー、`Test` ステップのみ） | 3分31秒（[#208 PR の run](https://github.com/Yuki-Watanabe7/DME/actions/runs/31201475889)） | 5分17秒（[#209 PR の run](https://github.com/Yuki-Watanabe7/DME/actions/runs/31232109840)） | 約+106秒（約+50%） |
 
-Line coverage の結果（参考値。ローカル実行・`src/**` 全体）: `covered_lines=7416`・
-`coverable_lines=7747`（約95.7%）。実際の CI（Linux ランナー）での増分は
-`.github/workflows/ci.yml` の実行時間履歴（GitHub Actions）で継続的に確認すること。
+Line coverage の結果（実測値。`src/**` 全体）: `covered_lines=7416`・`coverable_lines=7747`
+（約95.7%）。今後の増分は `.github/workflows/ci.yml` の実行時間履歴（GitHub Actions）で
+継続的に確認すること。
 
 初期導入では coverage 計測失敗や増分そのもので CI・merge を止めない（Issue #209
-「初期導入では Quality Gate で merge を阻止せず、baseline 収集を優先する」）。
+「初期導入では Quality Gate で merge を阻止せず、baseline 収集を優先する」）。50%程度の
+増分は許容範囲と判断したが、将来さらに増加する場合は fast lane からの分離（slow lane 化）を
+検討する。
 
 ### 5.3 Coverage.jl 自体が失敗した場合
 
