@@ -12,6 +12,10 @@
 #   # 出力先の指定（優先順）: 環境変数 DME_QUALITY_EXPORT_OUTPUT >
 #   #   既定 artifacts/quality/quality-export.json（scripts/quality_export.jl と同じ既定値）
 #
+#   Coverage.jl（Issue #209）も含めて実測したい場合は、上記を直接呼ぶのではなく
+#   `julia --project=. scripts/quality_export_coverage.jl` を使うこと（本ファイルは
+#   Pkg.test() のテストサブプロセス内で実行されるため、coverage の `.cov` トレースを
+#   自分では読めない。scripts/quality_export_coverage.jl 冒頭コメント参照）。
 # 設計判断・Test internals依存の制約:
 #   - すべての `include(...)` 呼び出しを1つの外側の `@testset "DME (quality capture)" begin
 #     ... end` で包む。標準の `@testset` マクロは「深さ0（親テストセットが無い）でなければ、
@@ -235,7 +239,7 @@ end
 
 #: まだ配線されていない予約ツール（後続 Issue が個別に置き換える。scripts/quality_export.jl の
 #: 骨格と同じプレースホルダ文言）。
-const _QC_NOT_YET_WIRED = ("Coverage.jl", "JET.jl", "BenchmarkTools.jl", "Documenter.jl")
+const _QC_NOT_YET_WIRED = ("JET.jl", "BenchmarkTools.jl", "Documenter.jl")
 
 """
     run_quality_capture(test_files::Vector{String}) -> Nothing
@@ -286,6 +290,18 @@ function _qc_finish(
         _qc_pkgtest_tool(started_at, completed_at, result_ts, caught_exc),
         _qc_aqua_tool(started_at, completed_at),
         _qc_formatter_tool(started_at, completed_at),
+        # Coverage.jl（Issue #209）はここでは実測できない: .cov トレースファイルはこの
+        # テストサブプロセス自身が終了するまでディスクへ確定しないため（Coverage.jl 自体の
+        # 制約、src/quality/quality_export.jl の quality_export_with_tool docstring 参照）。
+        # Pkg.test() を呼び出した外側のプロセスが scripts/quality_export_coverage.jl を通じて
+        # このプレースホルダを実測値へ後から置き換える。
+        quality_tool_not_run(
+            "Coverage.jl",
+            "not measured in-process: coverage .cov tracefiles are only flushed to disk " *
+            "once this test subprocess exits, so this placeholder is always written here. " *
+            "scripts/quality_export_coverage.jl replaces it with the real result after " *
+            "Pkg.test(coverage=true) returns (Issue #209)",
+        ),
     ]
     for name in _QC_NOT_YET_WIRED
         push!(

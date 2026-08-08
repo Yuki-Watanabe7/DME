@@ -18,6 +18,7 @@ SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 
 [compat]
 Aqua = "0.8"
+Coverage = "1"
 Dates = "1"
 Downloads = "1"
 Interpolations = "0.13, 0.14, 0.15"
@@ -35,8 +36,9 @@ julia = "1"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+Coverage = "a2441757-f6aa-5fb2-8edb-039e3f45d037"
 JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Aqua", "JuliaFormatter", "Test"]
+test = ["Aqua", "Coverage", "JuliaFormatter", "Test"]

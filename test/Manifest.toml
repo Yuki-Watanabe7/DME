@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "3079928892e98cffb8f7aec4d6814bfb1d26e950"
+project_hash = "a2cab01ceffb0d55d9dc3e57a8321b9f3a2a28de"
 
 [[deps.AliasTables]]
 deps = ["PtrArrays", "Random"]
@@ -15,6 +15,12 @@ deps = ["Compat", "Pkg", "Test"]
 git-tree-sha1 = "4537cc8ed3fba5d88b844a18f7e9bb93f07d2742"
 uuid = "4c88cf16-eb10-579e-8560-4a9242c79595"
 version = "0.8.16"
+
+[[deps.ArgParse]]
+deps = ["Logging", "TextWrap"]
+git-tree-sha1 = "22cf435ac22956a7b45b0168abbc871176e7eecc"
+uuid = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
+version = "1.2.0"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -124,6 +130,18 @@ version = "2.5.1"
 git-tree-sha1 = "439e35b0b36e2e5881738abc8857bd92ad6ff9a8"
 uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
 version = "0.6.3"
+
+[[deps.Coverage]]
+deps = ["ArgParse", "Artifacts", "CoverageTools", "Downloads", "HTTP", "JSON", "LibGit2", "MbedTLS", "SHA", "Scratch"]
+git-tree-sha1 = "f09a3d13f030caa4c2cc1f80aa2b1e66ee6cc491"
+uuid = "a2441757-f6aa-5fb2-8edb-039e3f45d037"
+version = "1.8.1"
+
+[[deps.CoverageTools]]
+deps = ["JuliaSyntax", "TOML"]
+git-tree-sha1 = "59e6cf93c468aa21bd22578c41b69b5784e34955"
+uuid = "c36e975a-824b-4404-a568-ef97ca766997"
+version = "1.4.1"
 
 [[deps.DataAPI]]
 git-tree-sha1 = "abe83f3a2f1b857aac70ef8b269080af17764bbe"
@@ -846,6 +864,11 @@ version = "0.1.1"
 deps = ["InteractiveUtils", "Logging", "Random", "Serialization"]
 uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 version = "1.11.0"
+
+[[deps.TextWrap]]
+git-tree-sha1 = "43044b737fa70bc12f6105061d3da38f881a3e3c"
+uuid = "b718987f-49a8-5099-9789-dcd902bef87d"
+version = "1.0.2"
 
 [[deps.TranscodingStreams]]
 git-tree-sha1 = "0c45878dcfdcfa8480052b6ab162cdd138781742"

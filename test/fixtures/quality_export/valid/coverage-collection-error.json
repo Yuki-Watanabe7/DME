@@ -1,0 +1,52 @@
+{
+  "export_schema": "julia-quality-export/v1",
+  "producer": {
+    "name": "dme-quality-export",
+    "version": "0.1.0"
+  },
+  "package": {
+    "name": "DME",
+    "uuid": "32de5cd0-ad60-11e9-36bc-9b7c9b1e2078",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "owner": "Yuki-Watanabe7",
+    "name": "DME"
+  },
+  "branch": "main",
+  "commit": "cafe0003cafe0003cafe0003cafe0003cafe0003",
+  "measured_at": "2026-08-08T08:05:00Z",
+  "generated_at": "2026-08-08T08:10:30Z",
+  "julia_version": "1.12.6",
+  "tools": {
+    "Pkg.test": {
+      "status": "success",
+      "version": "1.12.6",
+      "started_at": "2026-08-08T08:05:00Z",
+      "completed_at": "2026-08-08T08:09:47Z",
+      "duration_seconds": 287,
+      "result": {
+        "assertions_total": 412,
+        "assertions_passed": 412,
+        "failures": 0,
+        "errors": 0,
+        "broken": 0
+      },
+      "error": null,
+      "reason": null
+    },
+    "Coverage.jl": {
+      "status": "failure",
+      "version": "1.8.1",
+      "started_at": "2026-08-08T08:09:47Z",
+      "completed_at": "2026-08-08T08:09:52Z",
+      "duration_seconds": 5,
+      "result": null,
+      "error": {
+        "type": "NoCoverableLines",
+        "message": "Coverage.process_folder(\"src\") reported 0 coverable lines (no .cov tracefiles were found under src/). This means coverage was not actually collected -- it is not the same as 0% coverage. [fixture]"
+      },
+      "reason": null
+    }
+  }
+}

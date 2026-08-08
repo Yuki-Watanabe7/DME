@@ -6,6 +6,13 @@
 # デモ生成物（ローカル出力・再現可能なためコミットしない）
 /artifacts/
 
+# Coverage.jl のトレースファイル（Issue #209。scripts/quality_export_coverage.jl が
+# Coverage.clean_folder で都度削除するが、異常終了時の取り残し対策として無視する）
+*.jl.cov
+*.jl.[0-9]*.cov
+*.jl.mem
+*.jl.[0-9]*.mem
+
 # 秘密情報・環境変数ファイル（絶対にコミットしないこと）
 .env
 .env.local
