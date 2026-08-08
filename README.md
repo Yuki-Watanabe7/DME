@@ -49,6 +49,18 @@ cp .env.example .env
 
 ## 使い方
 
+### Orchestrator 向け CLI
+
+非対話の Job として実行する場合は、例示スクリプトではなく stable CLI を使います。
+
+```bash
+dme simulate solow --periods 120 --out /var/lib/dme/artifacts
+dme quality-export --out /var/lib/dme/artifacts
+```
+
+`--out`（または `DME_ARTIFACT_OUTDIR`）で runtime ごとの出力先を注入できます。command・
+exit code・生成 artifact の詳細は [CLI と artifact output contract](docs/cli.md) を参照してください。
+
 ### Ramsey モデル
 
 ```julia

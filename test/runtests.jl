@@ -14,6 +14,7 @@ const DME_TEST_FILES = [
     "test_ramsey.jl",
     "test_rbc.jl",
     "test_solow.jl",
+    "test_cli.jl",
     "test_islm.jl",
     "test_adas.jl",
     "test_new_keynesian.jl",

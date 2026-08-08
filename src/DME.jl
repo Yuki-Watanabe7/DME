@@ -179,6 +179,8 @@ export
     QUALITY_COVERAGE_TARGET_PATHS,
     QUALITY_COVERAGE_EXCLUDED_PATHS,
     quality_tool_coverage_result,
+    # Stable orchestration CLI (Issue #220, src/cli.jl)
+    dme_main,
     # SFC accounting primitives (src/sfc/)
     SFCSector,
     SFCInstrument,
@@ -517,6 +519,10 @@ include("./quality/quality_export.jl")
 # 純粋関数群（Issue #208）。Test.jl オブジェクトへの依存は test/ 側に限定する設計
 # （quality_capture.jl 冒頭コメント参照）。depends on quality_export.jl（redact_secrets 等）
 include("./quality/quality_capture.jl")
+
+# Stable non-interactive CLI for orchestrators.  It is included after the quality
+# export API because `dme quality-export` delegates persistence to that API.
+include("./cli.jl")
 
 # SFC 会計プリミティブ（会計表現をモデル方程式から分離。depends on SimulationResult）
 include("./sfc/types.jl")
