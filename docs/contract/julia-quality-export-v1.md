@@ -105,9 +105,10 @@ software-quality-dashboard が満たす側。
 
 `result` の中身（フィールド構造）はツールごとに §3 の対応 Issue が定義する。現時点では
 `Dict`/`Vector`/`String`/`Bool`/`Integer`/有限 `AbstractFloat`/`Nothing` の入れ子であることのみを
-Julia 側が強制する（`canonical_json_bytes` の値域制約）。`Pkg.test`/`Aqua.jl`/`JuliaFormatter.jl`
-の3ツールは §4.1 で定義済み（Issue #208）。残り4ツールは対応 Issue（#209/#211/#212/#213）が
-実装した時点でこのドキュメントへ追記する。
+Julia 側が強制する（`canonical_json_bytes` の値域制約）。定義済みは
+`Pkg.test`/`Aqua.jl`/`JuliaFormatter.jl`（§4.1、Issue #208）・`Coverage.jl`（§4.2、#209）・
+`JET.jl`（§4.3、#211）・`BenchmarkTools.jl`（§4.4、#212）の6ツール。残る `Documenter.jl` は
+対応 Issue（#213）が実装した時点でこのドキュメントへ追記する。
 
 ## 4.1 Pkg.test/Aqua.jl/JuliaFormatter.jl の result
 
@@ -367,6 +368,235 @@ finding をどう不可視化せずに追跡するかを含めて別 Issue で�
 `status=:timeout`（worker subprocess が期限内に終了しなかった）・`status=:failure`
 （worker が異常終了した、または出力の解析に失敗した）になるケースの詳細は §8 方法D。
 
+## 4.4 BenchmarkTools.jl の result
+
+Issue #212。代表的な計算経路の実行時間を [BenchmarkTools.jl](https://github.com/JuliaCI/BenchmarkTools.jl)
+で測定し、repository 内 baseline との比較結果を構造化する。JET.jl（§4.3）と同じく
+**slow lane 専用**（schedule/workflow_dispatch のみ）で、JET.jl とも独立した job・独立した
+export ファイル・独立した Artifact として運用する（§8 方法E・§8.3）。
+
+### 対象の選定
+
+「入力規模・乱数 seed・solver 条件・外部 I/O の有無を固定できる」ものだけを選び、
+Issue #212 の候補すべてを必須にはしていない。初期 suite は6件:
+
+| `id` | `group` | 内容 | median（参考実測） |
+|---|---|---|---|
+| `solow_transition_path` | `model_simulate` | Solow の収束経路 T=200 | 12 µs |
+| `rbc_impulse_response` | `model_simulate` | RBC の技術ショック IRF | 80 µs |
+| `sfc_sim_simulate` | `model_core` | SIM 型 SFC の baseline シミュレーション T=200 | 3.5 µs |
+| `keen_simulate_rk4` | `model_core` | Keen の固定刻み RK4 T=300（年） | 0.84 ms |
+| `capex_credit_cycle_run` | `scenario_run` | 部門別CAPEX・信用循環モデル Sc3（期内10ステップ） | 4.4 ms |
+| `real_rate_artifact_export` | `artifact_export` | real-rate model artifact の構築 + 正準 JSON | 0.35 ms |
+
+参考実測は 2026-08 時点・ローカル Apple Silicon（`local|darwin|aarch64|julia1.12`）の値であり、
+CI runner の値ではない（絶対値は環境で変わる。だからこそ baseline は環境ごとに持つ — 下記）。
+
+**除外した候補と理由**（Issue #212「network/API依存処理を対象から除外またはstub化する」）:
+
+| 除外対象 | 理由 |
+|---|---|
+| Ramsey モデル | 内部で NLsolve・Ipopt（外部ソルバー）を呼ぶ。実行時間がソルバー内部のヒューリスティクス・BLAS スレッド数・Ipopt のビルド差に依存し、DME 側のコード変更への感度より環境差の方が大きい |
+| データ層（FRED/e-Stat） | ネットワーク I/O。fixture モードでもファイル読み込みが支配的になり、測定対象が DME の計算ではなくディスク/OS キャッシュになる |
+| LLM 層 | 外部 API。MockProvider でも測っているのは mock 自身 |
+| 可視化（Plots/GR） | バックエンド初期化・フォント解決が支配的で環境依存が大きい |
+| model comparison / cross-model reasoning | 上記モデル実行の薄いラッパーであり、現状は独立した性能特性を持たない |
+
+suite 定義の正本は [`scripts/benchmark_suite.jl`](../../scripts/benchmark_suite.jl)
+（`dme_benchmark_cases()`）。
+
+### compile time と steady-state runtime の分離
+
+Issue #212「compile timeとsteady-state runtimeを混同しない」への対応:
+
+- モデル・初期値の構築（setup）は計測対象クロージャの**外**で1回だけ行う。
+- 計測前に workload を `warmup_evals`（既定3）回呼んで JIT コンパイルを済ませ、さらに
+  `BenchmarkTools.warmup` を呼ぶ（`@benchmarkable` + `run` を手動で組む場合、`run` は
+  warmup を自動では行わない — `@benchmark` マクロだけが内部で呼ぶ）。
+- `tune!` は呼ばず `evals = 1` に固定する（`tune!` が選ぶ evals は実行時の負荷状況に依存し、
+  実行ごとに変わると median の意味が変わるため）。固定値は `config.evals_per_sample` として
+  export に残る。
+- 代表値は median（mean は外れ値に、minimum は「最良ケース」に寄りすぎる）。
+- CI では `Pkg.instantiate()` 後に `using DME` を1回実行し、precompile キャッシュを
+  benchmark 実行の前に確定させる（§8.3）。
+
+### baseline の保存方式
+
+**repository 内 versioned baseline（[`benchmarks/baseline.json`](../../benchmarks/baseline.json)）
+のみを採用する。** Issue #212 が挙げるもう一方の候補「GitHub Artifact 上の直近 main baseline」
+は導入しない。理由:
+
+- Artifact からの取得は「どの run を直近 main とみなすか」の解決・ダウンロード・retention
+  切れ時のフォールバックという運用が増え、baseline の由来がコードレビューに現れない。
+- repository 内に置けば baseline の変更が PR 差分としてレビューされ、更新理由・対象コミットが
+  git 履歴に残る（Issue #212「baseline更新を自動で常に受理せず、更新理由と対象commitを
+  記録する」を、専用の仕組みではなく通常のレビュー経路で満たせる）。
+
+baseline ファイルは**環境ごとの表**である（形式は
+[`benchmarks/README.md`](../../benchmarks/README.md)）。更新は
+[`scripts/update_benchmark_baseline.jl`](../../scripts/update_benchmark_baseline.jl) による
+**手動操作のみ**で、`--reason` が空なら拒否する。CI はこのスクリプトを呼ばない。
+
+### environment_key（どの baseline と比較してよいか）
+
+`environment_key = "<runner_label>|<os>|<arch>|julia<major>.<minor>"`。
+一致するキーの baseline とだけ比較し、それ以外は比較しない（`baseline_environment_mismatch`）。
+
+- `runner_label`: `DME_BENCHMARK_RUNNER_LABEL` > GitHub Actions なら
+  `github-<RUNNER_OS>-<RUNNER_ARCH>` > `local`。
+- Julia の patch は key に含めない（patch 更新で baseline を捨てない）。マイナーは含める
+  （最適化・インライン化方針が変わりうるため別環境として扱う）。
+- **CPU モデル・スレッド数・`manifest_digest` は key に含めない**。GitHub Actions の runner は
+  同一ラベルでも CPU モデルが変動するため、key に含めると比較が恒常的に unavailable になり
+  回帰検出が成立しない。これらは `environment` の付随情報として保持する（Issue #212
+  「runner差・Julia version差・dependency更新差をprovenanceへ保持する」）。
+
+### margin の根拠
+
+`margin_percent` は benchmark ごとに設定できる（Issue #212「回帰判定marginをbenchmarkごとに
+設定可能にする」）。同一コミット・同一環境（ローカル、他の負荷なし）で suite を**4回連続実行**
+したときの median の最大乖離を実測し、それより広い値を採った:
+
+| `id` | median | 実測乖離（4回） | `margin_percent` |
+|---|---|---|---|
+| `capex_credit_cycle_run` | 4.4 ms | 5.4% | 25% |
+| `keen_simulate_rk4` | 0.84 ms | 4.5% | 25% |
+| `real_rate_artifact_export` | 0.35 ms | 16.2% | 30% |
+| `rbc_impulse_response` | 80 µs | 36.2% | 40% |
+| `solow_transition_path` | 12 µs | 8.3% | 50% |
+| `sfc_sim_simulate` | 3.5 µs | 34.3% | 50% |
+
+100µs 未満の case は実測乖離よりさらに広く取っている（共有 vCPU の CI runner はローカルより
+変動が大きいという前提。狭い threshold で不安定な `regressed` を出すより、大きな回帰だけを
+拾う方を優先する — Issue #212「CIのノイズを考慮し、過度に狭いthresholdを設定しない」）。
+**裏返しとして、軽い case が検出できるのは 40–50% 以上の回帰だけである。**
+
+なお同じマシンでも**他プロセスが動いている状態**では suite 全体が 1.3〜2 倍遅くなることを
+実測で確認している。margin を超えた `regressed` は「回帰の疑いがあるので人が見る」という
+signal であり、それ自体が回帰の証明ではない（下記「advisory」）。
+
+### `result` フィールド
+
+| フィールド | 型 | 内容 |
+|---|---|---|
+| `benchmark_count` | integer | `benchmarks` の件数 |
+| `benchmarks` | `Vector<benchmark>` | 個別結果（下表）。**headline へ集約せず必ず全件保持する** |
+| `regression_summary` | object | `{"improved": n, "stable": n, "regressed": n, "unavailable": n}` |
+| `headline` | object | 共通 headline 用の代表値 `{"benchmark_id", "median_time_ms", "regression_status"}`。現状は `capex_credit_cycle_run`（suite 中で最も重く、DME 固有の計算量を最もよく代表する） |
+| `baseline` | object | `{"available", "source", "path", "environment_key", "commit", "recorded_at", "reason"}`。`available=false` のとき後半4項目は `null` |
+| `environment` | object | `key`/`runner_label`/`os`/`arch`/`julia_version`（必須）＋ `cpu_model`/`cpu_threads`/`julia_threads`/`manifest_digest` |
+| `config` | object | 測定条件の provenance（`seconds_per_benchmark`・`samples_max`・`evals_per_sample`・`warmup_evals`・`seed`・`estimator`・`tuned`・`headline_id`） |
+
+benchmark 1件の構造（`QualityBenchmarkResult`、`src/quality/quality_capture.jl`）:
+
+| フィールド | 型 | 内容 |
+|---|---|---|
+| `id` | string | benchmark 識別子（suite 内で一意。baseline の突き合わせキー） |
+| `group` | string | 分類（`model_simulate`/`model_core`/`scenario_run`/`artifact_export`） |
+| `description` | string | 人間向けの説明 |
+| `median_time_ns` | integer | median 実行時間（ns、`evals` で割り済み）。`<= 0` は測定不能として構築時に拒否する |
+| `memory_bytes` | integer | 1評価あたりの割り当てバイト数 |
+| `allocs` | integer | 1評価あたりの割り当て回数 |
+| `samples` | integer | 採取したサンプル数 |
+| `evals_per_sample` | integer | 1サンプルあたりの評価回数（現状すべて1） |
+| `margin_percent` | number | この benchmark の回帰判定の許容幅（%） |
+| `baseline_median_time_ns` | `integer \| null` | 比較した baseline の median（比較しなかった場合 `null`） |
+| `delta_percent` | `number \| null` | `(median - baseline) / baseline * 100`（小数第4位で丸め）。比較しなかった場合 `null` |
+| `regression_status` | string | `"improved"`/`"stable"`/`"regressed"`/`"unavailable"` |
+| `unavailable_reason` | `string \| null` | `unavailable` のときのみ非 `null`（下表） |
+
+`regression_status` の判定:
+
+| 条件 | status |
+|---|---|
+| `delta_percent > margin_percent` | `regressed` |
+| `delta_percent < -margin_percent` | `improved` |
+| `-margin_percent <= delta_percent <= margin_percent` | `stable` |
+| baseline と比較しなかった | `unavailable` |
+
+`unavailable_reason` の3値（Issue #212「baseline不存在時はpassにせずcomparison unavailable
+として扱う」— どれも「回帰が無かった」を意味しない。`stable` とは構造的に別物である）:
+
+| 値 | 意味 |
+|---|---|
+| `baseline_missing` | baseline ファイルが無い・壊れている・環境エントリが1件も無い（初期状態） |
+| `baseline_environment_mismatch` | 他環境の baseline はあるが、現在の `environment_key` のエントリが無い |
+| `baseline_benchmark_missing` | 環境一致の baseline はあるが、この benchmark id が未収録（新規追加した benchmark） |
+
+矛盾した入力は構築時に拒否する（既存の `result` 組み立て関数と同じ方針）: baseline があるのに
+`unavailable_reason` を渡す／baseline が無いのに `unavailable_reason` を省く／
+`baseline.environment_key` が `environment.key` と違う／`headline_id` が `benchmarks` に無い、
+はいずれも `ArgumentError`。
+
+### advisory（CI gate には使わない）
+
+`regression_status` は事実の記録であり、合否判定には使わない（Issue #212「性能回帰をコード
+品質failと即時同一視せず、初期はadvisory/unratedで運用する」）。
+`scripts/quality_export_benchmark.jl` の終了コードは `regressed` の有無に依存せず、
+slow lane workflow も回帰では失敗しない。`software-quality-dashboard` 側でも同様に扱うことを
+想定する。
+
+```json
+"BenchmarkTools.jl": {
+  "status": "success",
+  "version": "1.8.0",
+  "started_at": "2026-08-11T07:20:00Z", "completed_at": "2026-08-11T07:20:37Z",
+  "duration_seconds": 37.0,
+  "result": {
+    "benchmark_count": 6,
+    "benchmarks": [
+      {
+        "id": "capex_credit_cycle_run",
+        "group": "scenario_run",
+        "description": "部門別CAPEX・信用循環モデルのシナリオ Sc3 実行（期内10ステップ）",
+        "median_time_ns": 4384200,
+        "memory_bytes": 2094400,
+        "allocs": 12043,
+        "samples": 1083,
+        "evals_per_sample": 1,
+        "margin_percent": 25.0,
+        "baseline_median_time_ns": 4300000,
+        "delta_percent": 1.9581,
+        "regression_status": "stable",
+        "unavailable_reason": null
+      }
+    ],
+    "regression_summary": { "improved": 0, "stable": 6, "regressed": 0, "unavailable": 0 },
+    "headline": {
+      "benchmark_id": "capex_credit_cycle_run",
+      "median_time_ms": 4.3842,
+      "regression_status": "stable"
+    },
+    "baseline": {
+      "available": true,
+      "source": "repository",
+      "path": "benchmarks/baseline.json",
+      "environment_key": "github-linux-x64|linux|x86_64|julia1.12",
+      "commit": "c4e9ea583934ad52f7e01d855be3ff02b0f4eeac",
+      "recorded_at": "2026-08-11T07:21:51Z",
+      "reason": "Issue #212 初回 baseline 収集"
+    },
+    "environment": {
+      "key": "github-linux-x64|linux|x86_64|julia1.12",
+      "runner_label": "github-linux-x64",
+      "os": "linux", "arch": "x86_64", "julia_version": "1.12.6",
+      "cpu_model": "AMD EPYC 7763", "cpu_threads": 4, "julia_threads": 1,
+      "manifest_digest": "0123456789ab"
+    },
+    "config": {
+      "seconds_per_benchmark": 5.0, "samples_max": 10000, "evals_per_sample": 1,
+      "warmup_evals": 3, "seed": 20260812, "estimator": "median", "tuned": false,
+      "headline_id": "capex_credit_cycle_run"
+    }
+  }
+}
+```
+
+`status=:timeout`（worker subprocess が期限内に終了しなかった）・`status=:failure`
+（worker が異常終了した、または出力の解析に失敗した）になるケースの詳細は §8 方法E。
+benchmark 自体の失敗・timeout を「遅い結果」として `median_time_ns` に反映することはしない
+（Issue #212「benchmark自体の失敗/timeoutを遅い結果として扱わない」）。
+
 ## 5. Secret/環境変数/API credential の redaction 方針
 
 DME が実際に使う秘匿環境変数（[設定・環境変数管理ガイド](../development/configuration.md)）は
@@ -440,6 +670,21 @@ quality_jet_finding_severity(report_type::AbstractString) -> String   # マッ�
 QualityJetFinding(; id, report_type, message, severity=quality_jet_finding_severity(report_type), file=nothing, line=nothing)
 quality_jet_stable_finding_ids(entries::AbstractVector{<:Tuple}) -> Vector{String}  # (report_type,file,line,message) から安定id生成
 quality_tool_jet_result(; findings, target_modules, analysis_mode="report_package", ignore_missing_comparison=true, ignore_throws=true) -> Dict{String,Any}
+
+# BenchmarkTools.jl（Issue #212。BenchmarkTools.jl の型そのものは src/ から参照しない —
+# scripts/benchmark_suite.jl が Trial から測定値を取り出す。§4.4）
+QUALITY_BENCHMARK_REGRESSION_STATUSES     # = ("improved", "stable", "regressed", "unavailable")
+QUALITY_BENCHMARK_UNAVAILABLE_REASONS     # = ("baseline_missing", "baseline_environment_mismatch", "baseline_benchmark_missing")
+QUALITY_BENCHMARK_DEFAULT_MARGIN_PERCENT  # = 25.0
+QUALITY_BENCHMARK_BASELINE_SOURCES        # = ("repository",)
+quality_benchmark_environment_key(; runner_label, os, arch, julia_version) -> String
+quality_benchmark_delta_percent(median_time_ns, baseline_median_time_ns) -> Float64
+quality_benchmark_regression_status(delta_percent, margin_percent) -> String
+QualityBenchmarkResult(; id, group, description, median_time_ns, memory_bytes, allocs, samples, evals_per_sample,
+                          margin_percent=QUALITY_BENCHMARK_DEFAULT_MARGIN_PERCENT,
+                          baseline_median_time_ns=nothing, unavailable_reason="baseline_missing")
+QualityBenchmarkBaselineRef(; available, source="repository", path, environment_key=nothing, commit=nothing, recorded_at=nothing, reason=nothing)
+quality_tool_benchmark_result(; results, environment, baseline, config, headline_id) -> Dict{String,Any}
 ```
 
 ## 8. 実行方法
@@ -562,6 +807,78 @@ timeout/crash は `JET.jl` エントリの `status` に反映されるのみで�
 `QualityJetFinding` を組み立てる純粋な抽出ロジック（`scripts/jet_report_extract.jl`）は
 `test/test_quality_jet.jl`（opt-in、`DME_QUALITY_EXPORT_JET_ENABLED=1`）で自動テストする。
 
+**方法E: BenchmarkTools.jl slow lane（`scripts/quality_export_benchmark.jl`。Issue #212、方法B/C/Dとは独立）**
+
+```bash
+julia --project=. scripts/quality_export_benchmark.jl
+# 出力先の指定（優先順）: DME_QUALITY_EXPORT_OUTPUT > 既定 artifacts/quality/quality-export-benchmark.json
+#   （方法B/Cの quality-export.json・方法Dの quality-export-jet.json とは別ファイル）
+# timeout秒数: DME_QUALITY_EXPORT_BENCHMARK_TIMEOUT_SECONDS（既定 1800 = 30分）
+# baselineパス: DME_BENCHMARK_BASELINE_PATH（既定 benchmarks/baseline.json）
+# runner識別子: DME_BENCHMARK_RUNNER_LABEL（既定は自動検出。§4.4 environment_key）
+```
+
+他の方法とはマージしない**独立した自己完結型 export** を生成する: `BenchmarkTools.jl` のみ
+実測し、他6予約ツールは「どの経路が実測するか（`Documenter.jl` はまだどこにも接続されて
+いないこと）」を reason に書いた `skipped` プレースホルダで埋める。CI の slow lane
+（[`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml) の
+`benchmark` job）がこの方法Eを使う（§8.3）。
+
+**2プロセス構成（driver + worker）**: 方法Dと同じく `scripts/quality_export_benchmark.jl`
+（driver）が `scripts/benchmark_worker.jl`（worker）を subprocess として起動し、
+`DME_QUALITY_EXPORT_BENCHMARK_TIMEOUT_SECONDS` を期限として poll する（期限超過時は
+SIGTERM → 猶予後 SIGKILL、`status=:timeout`）。benchmark 特有の理由として、driver 側で
+既に走らせた処理（baseline の読み込み・JSON パース）が残したヒープ状態・GC 圧を測定へ
+持ち込まない、という目的もある。
+
+**環境の組み合わせ方が方法Dと異なる**: worker は `--project=.`（root）を active にしたまま
+`push!(LOAD_PATH, "test/")` で BenchmarkTools.jl だけを追加で可視にする（方法Dの
+`Pkg.activate("test/")` とは別方式）。JuMP 経由で読み込まれる MathOptInterface が
+BenchmarkTools.jl への weak dependency 拡張を持つため、active 環境を切り替えると拡張の
+解決に失敗して毎回エラーログが出ること、および切り替え後に初めて読み込まれる共有依存が
+test/ 側の manifest バージョンで解決されうることを避ける（詳細は
+`scripts/benchmark_worker.jl` 冒頭コメント）。
+
+**status の対応**:
+
+| worker の状態 | `BenchmarkTools.jl` の `status` |
+|---|---|
+| 期限内に正常終了し、全 benchmark の測定値を書き出した | `success` |
+| `DME_QUALITY_EXPORT_BENCHMARK_TIMEOUT_SECONDS` を超過し kill された | `timeout` |
+| 異常終了した（出力ファイル無し、または測定処理自体が例外を投げた） | `failure` |
+| 出力ファイルが JSON として壊れている／`result` の組み立てが契約違反で失敗した | `failure` |
+
+baseline が無い・環境が違う・その benchmark だけ未収録、はいずれも `status=:success` の中の
+`regression_status = "unavailable"` であり、`status` レベルの失敗ではない（測定自体は
+成功しているため）。
+
+**失敗の扱い**: 方法Eは `Pkg.test()` を呼ばない。timeout/crash は `BenchmarkTools.jl`
+エントリの `status` に反映されるのみで、方法E自体の終了コードは常に0（export の書き出し
+自体が失敗しない限り）。回帰（`regressed`）も終了コードに影響しない（§4.4「advisory」）。
+
+**baseline の更新**（`scripts/update_benchmark_baseline.jl`。手動専用）:
+
+```bash
+# 1. 差分の確認だけ（書き込みなし）
+julia --project=. scripts/update_benchmark_baseline.jl artifacts/quality/quality-export-benchmark.json --dry-run
+# 2. 理由を付けて書き込む（--reason が空なら拒否される）
+julia --project=. scripts/update_benchmark_baseline.jl artifacts/quality/quality-export-benchmark.json \
+    --reason "Issue #212 初回 baseline 収集（ubuntu-latest / Julia 1.12）"
+```
+
+`status != success` の export を baseline にはできない（拒否する）。書き込まれるのは
+`environment.key` に対応するエントリのみで、`commit`・`recorded_at`（＝export の
+`measured_at`）・`reason` が併せて記録される。CI はこのスクリプトを呼ばない。
+
+**driver 自体のテスト方針**: `scripts/benchmark_worker.jl`/`scripts/quality_export_benchmark.jl`
+自体（subprocess・timeout制御・baseline 突き合わせを含む driver 経路）は自動テストの対象に
+しない（方法C/Dと同じ方針）。実行（手動/CI slow lane）で検証する（本 Issue の作業中に
+success（baseline なし／あり）・`stable`/`regressed` の判定・timeout の3経路を実際に実行して
+確認済み）。一方、suite 定義と1 case の実測ロジック（`scripts/benchmark_suite.jl`）は
+`test/test_quality_benchmark.jl`（opt-in、`DME_QUALITY_EXPORT_BENCHMARK_ENABLED=1`）で
+自動テストし、`result` の組み立て（純粋関数）は `test/test_quality_capture.jl` で
+4つの `regression_status` すべてを含めて検証する。
+
 ## 8.1 GitHub Actions Artifact 公開（Issue #210）
 
 CI の fast lane（[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)）は方法C
@@ -659,15 +976,46 @@ fast lane 実装をそのまま踏襲するが、以下の点が異なる:
   による rerun 時の置換・`contents: read` のみの権限・action 参照のメジャーバージョン固定）は
   §8.1 と同じ方針。
 
+## 8.3 BenchmarkTools.jl slow lane の GitHub Actions Artifact 公開（Issue #212）
+
+[`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml) の
+`benchmark` job は §8.2（JET slow lane）をそのまま踏襲するが、以下の点が異なる:
+
+- **トリガー**: `schedule`（weekly、毎週日曜 UTC 19:30 = 月曜 JST 04:30）と
+  `workflow_dispatch`。同一 workflow 内に nightly（JET）と weekly（benchmark）の2つの cron を
+  置き、`github.event.schedule` を見る job 条件でどちらの job を動かすか分岐する
+  （`on.schedule` は workflow 単位のトリガーであり、cron ごとに job を選ぶ仕組みが無いため）。
+  `workflow_dispatch` では両方の job が動く。
+- **実行頻度が nightly ではなく weekly である理由**: (a) 性能測定は静的解析と違って
+  「毎日の差分」ではなくトレンドを見るもの、(b) baseline は手動更新であり日次の細かい変動を
+  追う運用ではない、(c) CI runner のノイズ（§4.4 の margin）に対して日次の点は情報量が小さい
+  （Issue #212「低頻度scheduleで実行する」）。
+- **Artifact名**: `dme-julia-quality-v1-benchmark-${{ github.sha }}`（valid）・
+  `dme-julia-quality-v1-benchmark-invalid-${{ github.sha }}`（invalid/missing）。
+  fast lane（`dme-julia-quality-v1-…`）とも JET slow lane（`…-jet-…`）とも区別する。
+  retention は同じ（valid 90日・invalid 14日）。
+- **precompile の事前確定**: `Pkg.instantiate()` の後に `julia --project=. -e "using DME"` を
+  1ステップ挟み、DME のロード・precompile を benchmark 実行の前に済ませる（§4.4
+  「compile time と steady-state runtime の分離」）。
+- それ以外（`if: always()` による検証・valid/invalid の Artifact 名分離・`overwrite: true`・
+  `contents: read` のみの権限・action 参照のメジャーバージョン固定）は §8.1 と同じ方針。
+
+**初回実行時の挙動**: `benchmarks/baseline.json` には初期状態で環境エントリが1件も無いため、
+最初の slow lane 実行では全 benchmark が `regression_status = "unavailable"`
+（`baseline_missing`）になる。これは設計どおりの挙動であり `pass` ではない（§4.4）。
+CI 環境の baseline は、この実行の Artifact をダウンロードして
+`scripts/update_benchmark_baseline.jl` を手動実行し、PR としてレビュー・マージすることで
+確立する（§8 方法E）。
+
 ## 9. 限界
 
 - 本 contract は「DME 側が何を測定したか」という事実のみを保持する。品質スコア・合否判定は
   `software-quality-dashboard` 側の責務であり、本 contract には存在しない（ADR 0009/0012 の
   「事実と評価の分離」を踏襲）。
-- `result` の構造は `Pkg.test`/`Aqua.jl`/`JuliaFormatter.jl`/`Coverage.jl`/`JET.jl` の5ツールで
-  確定した（§4.1・§4.2・§4.3、Issue #208/#209/#211）。残り2ツール（BenchmarkTools.jl/
-  Documenter.jl）は対応 Issue（#212/#213）が実装した時点で、`result` フィールド一覧をこの
-  ドキュメントへ追記する（envelope 自体のスキーマ変更は伴わない想定）。
+- `result` の構造は `Pkg.test`/`Aqua.jl`/`JuliaFormatter.jl`/`Coverage.jl`/`JET.jl`/
+  `BenchmarkTools.jl` の6ツールで確定した（§4.1・§4.2・§4.3・§4.4、Issue
+  #208/#209/#211/#212）。残り1ツール（Documenter.jl）は対応 Issue（#213）が実装した時点で、
+  `result` フィールド一覧をこのドキュメントへ追記する（envelope 自体のスキーマ変更は伴わない想定）。
 - redaction は既知パターンベースのベストエフォートであり、機密情報の漏洩を構造的に防げる保証では
   ない（§5）。
 - `Test.get_test_counts`・`Test.TestSetException` の各フィールドは Julia の Test stdlib が
@@ -700,3 +1048,20 @@ fast lane 実装をそのまま踏襲するが、以下の点が異なる:
   制御）は自動テストの対象にせず、実行（手動/CI）で検証する方針を取る（既存の
   `scripts/quality_export_coverage.jl` と同じ方針）。timeout 判定の精度は poll 間隔
   （既定1秒）・SIGTERM後の猶予（既定10秒）に依存し、厳密な即時停止は保証しない。
+  BenchmarkTools.jl slow lane（§8 方法E・§8.3）の driver/worker も同じ方針・同じ制約。
+- BenchmarkTools.jl（§4.4）の `regression_status` は advisory であり、CI gate・PR 必須の
+  performance gate には使わない（Issue #212 の「対象外」）。`regressed` は「人が見るべき
+  signal」であって回帰の証明ではない — 共有 CI runner のノイズ、同一マシン上の他プロセスの
+  負荷でも margin を超えうる（§4.4「margin の根拠」）。
+- benchmark の対象は代表6経路のみで、全関数の microbenchmark・本番環境と同一性能の保証は
+  対象外（Issue #212 の「対象外」）。100µs 未満の case は margin が広く、40–50% 未満の回帰は
+  検出できない（§4.4）。
+- benchmark の baseline は `environment_key` が一致する環境とだけ比較する（§4.4）。
+  `runner_label` を明示しないローカル実行はすべて `local` に集約されるため、複数の異なる
+  ローカルマシンで測った値を1つの baseline として混ぜてしまいうる（`DME_BENCHMARK_RUNNER_LABEL`
+  でマシンを区別すること）。同一 `environment_key` の中では CPU モデルの違いは吸収されない
+  （provenance として記録するだけ）。
+- benchmark baseline の更新は手動であり、自動追随しない（§8 方法E）。baseline を更新しない
+  限り、意図的な性能変更（アルゴリズム変更等）は `regressed`/`improved` として残り続ける。
+  複数コミットにまたがる性能トレンドの保持は本 contract の範囲外（1ファイル=1コミットの
+  1回の実行、§1）。

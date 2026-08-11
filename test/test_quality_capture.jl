@@ -1,10 +1,12 @@
-# src/quality/quality_capture.jl（Issue #208/#209）のテスト。
-# Pkg.test/Aqua.jl/JuliaFormatter.jl/Coverage.jl の result 組み立て（純粋関数、Test.jl
-# オブジェクトを扱わない）と、test/quality_capture_runner.jl が依存する Test.jl の挙動の前提
-# （本ファイル末尾）を検証する。`run_quality_capture` 自体（実際に Pkg.test() 全体を再帰的に
-# 走らせる必要がある）・`scripts/quality_export_coverage.jl` 自体（`Pkg.test(coverage=true)` を
-# 再帰的に呼ぶ）はここでは検証しない — 実行（手動/CI）がその役割を担う
-# （docs/contract/julia-quality-export-v1.md §8）。
+# src/quality/quality_capture.jl（Issue #208/#209/#211/#212）のテスト。
+# Pkg.test/Aqua.jl/JuliaFormatter.jl/Coverage.jl/JET.jl/BenchmarkTools.jl の result 組み立て
+# （純粋関数。Test.jl・JET.jl・BenchmarkTools.jl のオブジェクトは扱わない）と、
+# test/quality_capture_runner.jl が依存する Test.jl の挙動の前提（本ファイル末尾）を検証する。
+# `run_quality_capture` 自体（実際に Pkg.test() 全体を再帰的に走らせる必要がある）・
+# `scripts/quality_export_coverage.jl` 自体（`Pkg.test(coverage=true)` を再帰的に呼ぶ）・
+# 各 slow lane の driver/worker はここでは検証しない — 実行（手動/CI）がその役割を担う
+# （docs/contract/julia-quality-export-v1.md §8）。ツール固有オブジェクトを実際に動かす
+# 検証は opt-in の test_quality_jet.jl・test_quality_benchmark.jl にある。
 
 using Coverage  # Coverage.jl 統合テスト用（Issue #209、test/Project.toml の依存）
 
@@ -391,6 +393,432 @@ end
         clean_folder(dir)
         @test isempty(filter(f -> endswith(f, ".cov"), readdir(dir; join = true)))
     end
+end
+
+@testset "quality_benchmark_environment_key" begin
+    k = quality_benchmark_environment_key(;
+        runner_label = "github-linux-x64",
+        os = "linux",
+        arch = "x86_64",
+        julia_version = "1.12.6",
+    )
+    @test k == "github-linux-x64|linux|x86_64|julia1.12"
+
+    # patch は key に含めない（patch 更新で baseline を捨てない）
+    @test quality_benchmark_environment_key(;
+        runner_label = "local",
+        os = "darwin",
+        arch = "aarch64",
+        julia_version = "1.12.0",
+    ) == quality_benchmark_environment_key(;
+        runner_label = "local",
+        os = "darwin",
+        arch = "aarch64",
+        julia_version = "1.12.9",
+    )
+
+    # マイナーが違えば別環境
+    @test quality_benchmark_environment_key(;
+        runner_label = "local",
+        os = "linux",
+        arch = "x86_64",
+        julia_version = "1.11.5",
+    ) != quality_benchmark_environment_key(;
+        runner_label = "local",
+        os = "linux",
+        arch = "x86_64",
+        julia_version = "1.12.5",
+    )
+
+    # 区切り文字 '|' は要素に使えない（キーの分解が曖昧になるため）
+    @test_throws ArgumentError quality_benchmark_environment_key(;
+        runner_label = "a|b",
+        os = "linux",
+        arch = "x86_64",
+        julia_version = "1.12.6",
+    )
+    @test_throws ArgumentError quality_benchmark_environment_key(;
+        runner_label = "local",
+        os = "",
+        arch = "x86_64",
+        julia_version = "1.12.6",
+    )
+    @test_throws ArgumentError quality_benchmark_environment_key(;
+        runner_label = "local",
+        os = "linux",
+        arch = "x86_64",
+        julia_version = "not-a-version",
+    )
+end
+
+@testset "quality_benchmark_delta_percent / regression_status" begin
+    @test quality_benchmark_delta_percent(1200, 1000) == 20.0
+    @test quality_benchmark_delta_percent(800, 1000) == -20.0
+    @test quality_benchmark_delta_percent(1000, 1000) == 0.0
+    @test_throws ArgumentError quality_benchmark_delta_percent(1000, 0)
+
+    @test quality_benchmark_regression_status(30.0, 25.0) == "regressed"
+    @test quality_benchmark_regression_status(-30.0, 25.0) == "improved"
+    @test quality_benchmark_regression_status(10.0, 25.0) == "stable"
+    # 境界（ちょうど ±margin）は stable 側
+    @test quality_benchmark_regression_status(25.0, 25.0) == "stable"
+    @test quality_benchmark_regression_status(-25.0, 25.0) == "stable"
+    @test_throws ArgumentError quality_benchmark_regression_status(1.0, 0.0)
+end
+
+# 全 case で使い回す最小限のキーワード（測定値そのものは各テストで上書きする）。
+const _BENCH_KW = (
+    group = "model_core",
+    description = "test benchmark",
+    memory_bytes = 1024,
+    allocs = 8,
+    samples = 100,
+    evals_per_sample = 1,
+)
+
+@testset "QualityBenchmarkResult: improved/stable/regressed/unavailable" begin
+    stable = QualityBenchmarkResult(;
+        _BENCH_KW...,
+        id = "b_stable",
+        median_time_ns = 1_050_000,
+        baseline_median_time_ns = 1_000_000,
+        unavailable_reason = nothing,
+    )
+    @test stable.regression_status == "stable"
+    @test stable.delta_percent == 5.0
+    @test stable.unavailable_reason === nothing
+    @test stable.margin_percent == QUALITY_BENCHMARK_DEFAULT_MARGIN_PERCENT
+
+    regressed = QualityBenchmarkResult(;
+        _BENCH_KW...,
+        id = "b_regressed",
+        median_time_ns = 2_000_000,
+        baseline_median_time_ns = 1_000_000,
+        unavailable_reason = nothing,
+    )
+    @test regressed.regression_status == "regressed"
+    @test regressed.delta_percent == 100.0
+
+    improved = QualityBenchmarkResult(;
+        _BENCH_KW...,
+        id = "b_improved",
+        median_time_ns = 500_000,
+        baseline_median_time_ns = 1_000_000,
+        unavailable_reason = nothing,
+    )
+    @test improved.regression_status == "improved"
+    @test improved.delta_percent == -50.0
+
+    # margin を case ごとに広げると、同じ測定値でも regressed → stable になる
+    wide = QualityBenchmarkResult(;
+        _BENCH_KW...,
+        id = "b_wide",
+        median_time_ns = 1_300_000,
+        baseline_median_time_ns = 1_000_000,
+        margin_percent = 50.0,
+        unavailable_reason = nothing,
+    )
+    @test wide.regression_status == "stable"
+
+    # baseline が無い場合は「比較しなかった」であって pass ではない
+    for reason in QUALITY_BENCHMARK_UNAVAILABLE_REASONS
+        u = QualityBenchmarkResult(;
+            _BENCH_KW...,
+            id = "b_unavailable",
+            median_time_ns = 1_000_000,
+            unavailable_reason = reason,
+        )
+        @test u.regression_status == "unavailable"
+        @test u.delta_percent === nothing
+        @test u.baseline_median_time_ns === nothing
+        @test u.unavailable_reason == reason
+    end
+end
+
+@testset "QualityBenchmarkResult: 矛盾した入力の拒否" begin
+    # baseline あり + unavailable_reason あり（既定値のまま）は矛盾
+    @test_throws ArgumentError QualityBenchmarkResult(;
+        _BENCH_KW...,
+        id = "b",
+        median_time_ns = 1_000_000,
+        baseline_median_time_ns = 900_000,
+    )
+    # baseline なし + unavailable_reason なし も矛盾
+    @test_throws ArgumentError QualityBenchmarkResult(;
+        _BENCH_KW...,
+        id = "b",
+        median_time_ns = 1_000_000,
+        unavailable_reason = nothing,
+    )
+    # 未知の unavailable_reason
+    @test_throws ArgumentError QualityBenchmarkResult(;
+        _BENCH_KW...,
+        id = "b",
+        median_time_ns = 1_000_000,
+        unavailable_reason = "because",
+    )
+    # median_time_ns <= 0 は「無限に速い」ではなく測定不能
+    @test_throws ArgumentError QualityBenchmarkResult(;
+        _BENCH_KW...,
+        id = "b",
+        median_time_ns = 0,
+    )
+    @test_throws ArgumentError QualityBenchmarkResult(;
+        _BENCH_KW...,
+        id = "b",
+        median_time_ns = 1_000_000,
+        baseline_median_time_ns = 0,
+        unavailable_reason = nothing,
+    )
+    @test_throws ArgumentError QualityBenchmarkResult(;
+        _BENCH_KW...,
+        id = "",
+        median_time_ns = 1_000_000,
+    )
+    @test_throws ArgumentError QualityBenchmarkResult(;
+        group = "g",
+        description = "d",
+        memory_bytes = -1,
+        allocs = 0,
+        samples = 1,
+        evals_per_sample = 1,
+        id = "b",
+        median_time_ns = 1_000_000,
+    )
+    @test_throws ArgumentError QualityBenchmarkResult(;
+        group = "g",
+        description = "d",
+        memory_bytes = 0,
+        allocs = 0,
+        samples = 0,
+        evals_per_sample = 1,
+        id = "b",
+        median_time_ns = 1_000_000,
+    )
+end
+
+@testset "QualityBenchmarkBaselineRef" begin
+    absent =
+        QualityBenchmarkBaselineRef(; available = false, path = "benchmarks/baseline.json")
+    @test absent.available == false
+    @test absent.commit === nothing
+
+    present = QualityBenchmarkBaselineRef(;
+        available = true,
+        path = "benchmarks/baseline.json",
+        environment_key = "local|linux|x86_64|julia1.12",
+        commit = "0"^40,
+        recorded_at = "2026-08-11T00:00:00Z",
+        reason = "初回 baseline 収集",
+    )
+    @test present.reason == "初回 baseline 収集"
+
+    # available=true は provenance 4項目が必須
+    @test_throws ArgumentError QualityBenchmarkBaselineRef(;
+        available = true,
+        path = "benchmarks/baseline.json",
+        environment_key = "local|linux|x86_64|julia1.12",
+    )
+    # available=false では provenance を持てない（使っていないのに由来がある、を排除）
+    @test_throws ArgumentError QualityBenchmarkBaselineRef(;
+        available = false,
+        path = "benchmarks/baseline.json",
+        commit = "0"^40,
+    )
+    @test_throws ArgumentError QualityBenchmarkBaselineRef(;
+        available = false,
+        path = "benchmarks/baseline.json",
+        source = "github-artifact",
+    )
+
+    # reason は自由記述なので redact_secrets が自動適用される
+    redacted = QualityBenchmarkBaselineRef(;
+        available = true,
+        path = "benchmarks/baseline.json",
+        environment_key = "local|linux|x86_64|julia1.12",
+        commit = "0"^40,
+        recorded_at = "2026-08-11T00:00:00Z",
+        reason = "rerun with FRED_API_KEY=abcdef123456",
+    )
+    @test !occursin("abcdef123456", redacted.reason)
+    @test occursin("[REDACTED]", redacted.reason)
+end
+
+@testset "quality_tool_benchmark_result" begin
+    env_key = quality_benchmark_environment_key(;
+        runner_label = "local",
+        os = "linux",
+        arch = "x86_64",
+        julia_version = "1.12.6",
+    )
+    environment = Dict{String, Any}(
+        "key" => env_key,
+        "runner_label" => "local",
+        "os" => "linux",
+        "arch" => "x86_64",
+        "julia_version" => "1.12.6",
+        "cpu_model" => "Test CPU",
+        "manifest_digest" => "0123456789ab",
+    )
+    config = Dict{String, Any}("seconds_per_benchmark" => 5.0, "evals_per_sample" => 1)
+    baseline = QualityBenchmarkBaselineRef(;
+        available = true,
+        path = "benchmarks/baseline.json",
+        environment_key = env_key,
+        commit = "0"^40,
+        recorded_at = "2026-08-11T00:00:00Z",
+        reason = "初回 baseline 収集",
+    )
+    results = [
+        QualityBenchmarkResult(;
+            _BENCH_KW...,
+            id = "fast",
+            median_time_ns = 1_000_000,
+            baseline_median_time_ns = 1_000_000,
+            unavailable_reason = nothing,
+        ),
+        QualityBenchmarkResult(;
+            _BENCH_KW...,
+            id = "slow",
+            median_time_ns = 4_000_000,
+            baseline_median_time_ns = 1_000_000,
+            unavailable_reason = nothing,
+        ),
+        QualityBenchmarkResult(;
+            _BENCH_KW...,
+            id = "new",
+            median_time_ns = 2_000_000,
+            unavailable_reason = "baseline_benchmark_missing",
+        ),
+    ]
+
+    r = quality_tool_benchmark_result(;
+        results = results,
+        environment = environment,
+        baseline = baseline,
+        config = config,
+        headline_id = "slow",
+    )
+    @test r["benchmark_count"] == 3
+    @test length(r["benchmarks"]) == 3
+    # 個別結果は headline へ集約せず必ず保持する
+    @test Set(b["id"] for b in r["benchmarks"]) == Set(["fast", "slow", "new"])
+    @test r["regression_summary"] ==
+          Dict("improved" => 0, "stable" => 1, "regressed" => 1, "unavailable" => 1)
+    @test r["headline"]["benchmark_id"] == "slow"
+    @test r["headline"]["median_time_ms"] == 4.0
+    @test r["headline"]["regression_status"] == "regressed"
+    @test r["baseline"]["available"] == true
+    @test r["environment"]["key"] == env_key
+
+    # headline_id は results に存在する id でなければならない
+    @test_throws ArgumentError quality_tool_benchmark_result(;
+        results = results,
+        environment = environment,
+        baseline = baseline,
+        config = config,
+        headline_id = "missing",
+    )
+
+    # results は最低1件・id は一意
+    @test_throws ArgumentError quality_tool_benchmark_result(;
+        results = QualityBenchmarkResult[],
+        environment = environment,
+        baseline = baseline,
+        config = config,
+        headline_id = "fast",
+    )
+    @test_throws ArgumentError quality_tool_benchmark_result(;
+        results = [results[1], results[1]],
+        environment = environment,
+        baseline = baseline,
+        config = config,
+        headline_id = "fast",
+    )
+
+    # environment の必須キー欠落
+    @test_throws ArgumentError quality_tool_benchmark_result(;
+        results = results,
+        environment = Dict{String, Any}("key" => env_key),
+        baseline = baseline,
+        config = config,
+        headline_id = "fast",
+    )
+
+    # config は空にできない（測定条件の provenance を欠かさない）
+    @test_throws ArgumentError quality_tool_benchmark_result(;
+        results = results,
+        environment = environment,
+        baseline = baseline,
+        config = Dict{String, Any}(),
+        headline_id = "fast",
+    )
+
+    # 環境の異なる baseline とは比較しない（構造的に拒否する）
+    other_baseline = QualityBenchmarkBaselineRef(;
+        available = true,
+        path = "benchmarks/baseline.json",
+        environment_key = "other|linux|x86_64|julia1.12",
+        commit = "0"^40,
+        recorded_at = "2026-08-11T00:00:00Z",
+        reason = "別環境",
+    )
+    @test_throws ArgumentError quality_tool_benchmark_result(;
+        results = results,
+        environment = environment,
+        baseline = other_baseline,
+        config = config,
+        headline_id = "fast",
+    )
+
+    # 構造化データ（environment/config）へ秘匿情報らしき文字列が入っていたら拒否する
+    @test_throws ArgumentError quality_tool_benchmark_result(;
+        results = results,
+        environment = merge(
+            environment,
+            Dict{String, Any}("runner_label" => "token=ghp_0123456789abcdefghij"),
+        ),
+        baseline = baseline,
+        config = config,
+        headline_id = "fast",
+    )
+
+    # baseline が1件も無い実行（全件 unavailable）でも valid な result になる
+    no_baseline_results = [
+        QualityBenchmarkResult(;
+            _BENCH_KW...,
+            id = "fast",
+            median_time_ns = 1_000_000,
+            unavailable_reason = "baseline_missing",
+        ),
+    ]
+    r_none = quality_tool_benchmark_result(;
+        results = no_baseline_results,
+        environment = environment,
+        baseline = QualityBenchmarkBaselineRef(;
+            available = false,
+            path = "benchmarks/baseline.json",
+        ),
+        config = config,
+        headline_id = "fast",
+    )
+    @test r_none["regression_summary"]["unavailable"] == 1
+    @test r_none["regression_summary"]["stable"] == 0
+    @test r_none["baseline"]["available"] == false
+
+    # result 全体が QualityToolExecution（＝正準 JSON 経路）へ載ること
+    tool = QualityToolExecution(;
+        tool_name = "BenchmarkTools.jl",
+        status = :success,
+        version = "1.8.0",
+        started_at = DateTime(2026, 8, 11, 0, 0, 0),
+        completed_at = DateTime(2026, 8, 11, 0, 1, 0),
+        result = r,
+    )
+    @test tool.status == :success
+    @test tool.result["benchmark_count"] == 3
+    json = DME.canonical_json_string(tool.result)
+    @test occursin("\"regression_summary\"", json)
 end
 
 # test/quality_capture_runner.jl が依存する Test.jl 自身の挙動の前提（Julia の Test stdlib の

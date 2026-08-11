@@ -67,6 +67,14 @@ if get(ENV, "DME_QUALITY_EXPORT_JET_ENABLED", "") in ("1", "true")
     push!(DME_TEST_FILES, "test_quality_jet.jl")
 end
 
+# BenchmarkTools.jl 統合の回帰テスト（Issue #212）: JET.jl（上）と同じ opt-in 方式。
+# `DME_QUALITY_EXPORT_BENCHMARK_ENABLED` が設定されているときだけ test_quality_benchmark.jl を
+# 追加で実行する（通常の Pkg.test()（fast lane）には `using BenchmarkTools` が一切含まれない
+# ようにする。test_quality_benchmark.jl 冒頭コメント参照）。
+if get(ENV, "DME_QUALITY_EXPORT_BENCHMARK_ENABLED", "") in ("1", "true")
+    push!(DME_TEST_FILES, "test_quality_benchmark.jl")
+end
+
 # Julia品質Export Contract v1（Issue #208）: `DME_QUALITY_EXPORT_ENABLED` が設定されている
 # ときだけ、Pkg.test/Aqua.jl/JuliaFormatter.jl の構造化結果を捕捉する opt-in の実行経路を使う
 # （test/quality_capture_runner.jl 冒頭コメント参照）。未設定時（既定）は今までどおり

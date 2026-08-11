@@ -437,3 +437,455 @@ function quality_tool_coverage_result(;
         "excluded_paths" => sort(String.(excluded_paths)),
     )
 end
+
+# ---------------------------------------------------------------------------
+# BenchmarkTools.jl（Issue #212）
+# ---------------------------------------------------------------------------
+#
+# JET.jl（#211）と同じく BenchmarkTools.jl も `src/` の実行時依存にしない
+# （`test/Project.toml` のみに追加した slow-lane 専用ツール）。本ファイルは
+# `BenchmarkTools.Trial`/`BenchmarkGroup` 等の型を一切参照せず、「すでに整数・文字列へ
+# 展開済みの測定値から result dict を作る」純粋関数だけを提供する。実際の測定
+# （`@benchmarkable`/`tune!`/`run`）は `scripts/benchmark_suite.jl`（suite定義）と
+# `scripts/benchmark_worker.jl`（`using BenchmarkTools` する側）が担う
+# （`quality_tool_jet_result` と `scripts/jet_report_extract.jl` の分担と同じ）。
+#
+# 設計上の決定（詳細な根拠は docs/contract/julia-quality-export-v1.md §4.4）:
+#
+#   - **単一headline値へ集約しない**: `benchmarks` に個別結果を必ず保持し、`headline` は
+#     そのうち1件を指す参照（`benchmark_id`）として持つ。異なる計算経路の median を
+#     平均・合計して1つの `julia.benchmark_median_time_ms` にしない
+#     （Issue #212 設計上の注意の1点目）。
+#   - **baseline不存在は pass ではない**: baseline が無い/環境が違う/そのbenchmarkだけ
+#     baselineに無い、のいずれも `regression_status = "unavailable"` とし、
+#     `unavailable_reason` で3者を区別する。`"stable"`（＝比較して差が小さかった）とは
+#     構造的に別物にする（`status=:success` と `:skipped` を区別する §4 と同じ考え方）。
+#   - **回帰は advisory**: `regression_status` は事実の記録であり、CI gate の合否判定には
+#     使わない（Issue #212「性能回帰をコード品質failと即時同一視せず、初期はadvisory/
+#     unratedで運用する」）。driver の終了コードは regression 有無に依存しない。
+#   - **環境が違う baseline とは比較しない**: CI runner・OS・アーキテクチャ・Julia の
+#     マイナーバージョンが変わると絶対時間の水準自体が変わるため、`environment_key` が
+#     一致する baseline とのみ比較する（不一致は `baseline_environment_mismatch`）。
+#     CPU モデル・スレッド数・Manifest ダイジェストは key に含めず provenance として
+#     記録するのみ（GitHub Actions の runner は同一ラベルでも CPU モデルが変動するため、
+#     key に含めると比較が恒常的に unavailable になり回帰検出が成立しない）。
+#   - **margin は benchmark ごとに設定可能**: 既定は
+#     `QUALITY_BENCHMARK_DEFAULT_MARGIN_PERCENT`（実測した変動幅に基づく。契約 §4.4）。
+#     CI runner のノイズを考慮し、過度に狭い threshold を既定にしない。
+
+"""benchmark 1件の回帰判定状態の4値。`"unavailable"` は「比較しなかった」であり
+`"stable"`（比較した上で margin 以内だった）とは別（Issue #212「baseline不存在時は
+passにせずcomparison unavailableとして扱う」）。"""
+const QUALITY_BENCHMARK_REGRESSION_STATUSES =
+    ("improved", "stable", "regressed", "unavailable")
+
+"""`regression_status == "unavailable"` の理由3値。どれも「回帰が無かった」を意味しない。
+
+| 値 | 意味 |
+|---|---|
+| `baseline_missing` | baseline ファイル自体が無い（初回実行など） |
+| `baseline_environment_mismatch` | baseline はあるが `environment_key` が現在の実行環境と違う |
+| `baseline_benchmark_missing` | 環境一致の baseline はあるが、この benchmark id が未収録（新規追加した benchmark） |
+"""
+const QUALITY_BENCHMARK_UNAVAILABLE_REASONS =
+    ("baseline_missing", "baseline_environment_mismatch", "baseline_benchmark_missing")
+
+"""回帰判定の既定 margin（%）。`|delta_percent| <= margin` なら `"stable"`。
+根拠（同一コミット・同一環境で suite を複数回実行したときの median の変動幅の実測）は
+docs/contract/julia-quality-export-v1.md §4.4「margin の根拠」。"""
+const QUALITY_BENCHMARK_DEFAULT_MARGIN_PERCENT = 25.0
+
+"""baseline の保存方式。現状 repository 内 versioned baseline（`benchmarks/baseline.json`）
+のみ（GitHub Artifact 上の直近 main baseline は不採用。契約 §4.4「baseline の保存方式」）。"""
+const QUALITY_BENCHMARK_BASELINE_SOURCES = ("repository",)
+
+"""
+    quality_benchmark_environment_key(; runner_label, os, arch, julia_version) -> String
+
+baseline と現在の実行が比較可能かを判定するためのキー
+（`"<runner_label>|<os>|<arch>|julia<major>.<minor>"`）。`julia_version` は
+patch 以下を落とす（patch 更新で baseline を捨てないため。マイナー更新は最適化・
+インライン化方針が変わりうるので別環境として扱う）。各要素に区切り文字 `|` は使えない。
+"""
+function quality_benchmark_environment_key(;
+    runner_label::AbstractString,
+    os::AbstractString,
+    arch::AbstractString,
+    julia_version::AbstractString,
+)::String
+    for (name, v) in (
+        ("runner_label", runner_label),
+        ("os", os),
+        ("arch", arch),
+        ("julia_version", julia_version),
+    )
+        _qe_check_nonempty(v, "benchmark environment $name")
+        occursin('|', v) && throw(
+            ArgumentError("benchmark environment $name に区切り文字 '|' は使えません: $v"),
+        )
+    end
+    v = try
+        VersionNumber(julia_version)
+    catch
+        throw(
+            ArgumentError(
+                "benchmark environment julia_version は VersionNumber として解釈できる " *
+                "必要があります: $julia_version",
+            ),
+        )
+    end
+    return string(runner_label, "|", os, "|", arch, "|julia", v.major, ".", v.minor)
+end
+
+"""
+    quality_benchmark_delta_percent(median_time_ns, baseline_median_time_ns) -> Float64
+
+baseline 比の変化率（%、正なら遅くなった）。小数第4位で丸める（正準 JSON の出力を
+実行ごとに揺らさないため — 丸めない `Float64` は同じ入力なら同じ値になるが、
+Dashboard 側の表示・比較の安定性を優先する）。
+"""
+function quality_benchmark_delta_percent(
+    median_time_ns::Integer,
+    baseline_median_time_ns::Integer,
+)::Float64
+    baseline_median_time_ns > 0 || throw(
+        ArgumentError(
+            "benchmark: baseline_median_time_ns は正の値である必要があります: $baseline_median_time_ns",
+        ),
+    )
+    return round(
+        (median_time_ns - baseline_median_time_ns) / baseline_median_time_ns * 100;
+        digits = 4,
+    )
+end
+
+"""
+    quality_benchmark_regression_status(delta_percent, margin_percent) -> String
+
+`delta_percent > margin` なら `"regressed"`、`delta_percent < -margin` なら `"improved"`、
+それ以外は `"stable"`。境界（ちょうど `±margin`）は `"stable"` 側に入れる。
+"""
+function quality_benchmark_regression_status(
+    delta_percent::Real,
+    margin_percent::Real,
+)::String
+    margin_percent > 0 || throw(
+        ArgumentError(
+            "benchmark: margin_percent は正の値である必要があります: $margin_percent",
+        ),
+    )
+    delta_percent > margin_percent && return "regressed"
+    delta_percent < -margin_percent && return "improved"
+    return "stable"
+end
+
+"""
+    QualityBenchmarkResult(; id, group, description, median_time_ns, memory_bytes, allocs,
+                             samples, evals_per_sample,
+                             baseline_median_time_ns = nothing,
+                             margin_percent = QUALITY_BENCHMARK_DEFAULT_MARGIN_PERCENT,
+                             unavailable_reason = QUALITY_BENCHMARK_UNAVAILABLE_REASONS[1])
+
+benchmark 1件の測定結果と baseline 比較。`regression_status`・`delta_percent` は
+`baseline_median_time_ns` と `margin_percent` から自動導出する（呼び出し側の入力にできない
+＝矛盾した組み合わせを構造的に排除する。`quality_tool_jet_result` の `error_count` と同じ方針）。
+
+`baseline_median_time_ns === nothing` のときは `regression_status = "unavailable"`・
+`delta_percent = nothing` となり、`unavailable_reason` が必須になる。baseline がある場合は
+逆に `unavailable_reason` を指定できない。
+
+`median_time_ns <= 0` は「無限に速い」ではなく測定不能（サンプルが取れなかった等）なので拒否する
+（`quality_tool_coverage_result` が `coverable_lines <= 0` を拒否するのと同じ理由。呼び出し側は
+その場合 benchmark 自体を `status=:failure` として報告すること）。
+"""
+struct QualityBenchmarkResult
+    id::String
+    group::String
+    description::String
+    median_time_ns::Int
+    memory_bytes::Int
+    allocs::Int
+    samples::Int
+    evals_per_sample::Int
+    margin_percent::Float64
+    baseline_median_time_ns::Union{Int, Nothing}
+    delta_percent::Union{Float64, Nothing}
+    regression_status::String
+    unavailable_reason::Union{String, Nothing}
+end
+
+function QualityBenchmarkResult(;
+    id::AbstractString,
+    group::AbstractString,
+    description::AbstractString,
+    median_time_ns::Integer,
+    memory_bytes::Integer,
+    allocs::Integer,
+    samples::Integer,
+    evals_per_sample::Integer,
+    margin_percent::Real = QUALITY_BENCHMARK_DEFAULT_MARGIN_PERCENT,
+    baseline_median_time_ns::Union{Integer, Nothing} = nothing,
+    unavailable_reason::Union{AbstractString, Nothing} = QUALITY_BENCHMARK_UNAVAILABLE_REASONS[1],
+)::QualityBenchmarkResult
+    _qe_check_nonempty(id, "benchmark id")
+    _qe_check_nonempty(group, "benchmark group")
+    _qe_check_nonempty(description, "benchmark description")
+    median_time_ns > 0 || throw(
+        ArgumentError(
+            "benchmark $id: median_time_ns は正の値である必要があります " *
+            "（0以下は測定不能であり benchmark 自体を status=:failure として報告すること）: $median_time_ns",
+        ),
+    )
+    for (name, v) in (("memory_bytes", memory_bytes), ("allocs", allocs))
+        v < 0 && throw(ArgumentError("benchmark $id: $name は負の値にできません: $v"))
+    end
+    for (name, v) in (("samples", samples), ("evals_per_sample", evals_per_sample))
+        v >= 1 ||
+            throw(ArgumentError("benchmark $id: $name は1以上である必要があります: $v"))
+    end
+    margin_percent > 0 || throw(
+        ArgumentError(
+            "benchmark $id: margin_percent は正の値である必要があります: $margin_percent",
+        ),
+    )
+
+    if baseline_median_time_ns === nothing
+        unavailable_reason === nothing && throw(
+            ArgumentError(
+                "benchmark $id: baseline が無い場合は unavailable_reason が必須です",
+            ),
+        )
+        unavailable_reason in QUALITY_BENCHMARK_UNAVAILABLE_REASONS || throw(
+            ArgumentError(
+                "benchmark $id: unavailable_reason は $(QUALITY_BENCHMARK_UNAVAILABLE_REASONS) の " *
+                "いずれかである必要があります: $unavailable_reason",
+            ),
+        )
+        return QualityBenchmarkResult(
+            String(id),
+            String(group),
+            String(description),
+            Int(median_time_ns),
+            Int(memory_bytes),
+            Int(allocs),
+            Int(samples),
+            Int(evals_per_sample),
+            Float64(margin_percent),
+            nothing,
+            nothing,
+            "unavailable",
+            String(unavailable_reason),
+        )
+    end
+
+    unavailable_reason === nothing || throw(
+        ArgumentError(
+            "benchmark $id: baseline がある場合は unavailable_reason を指定できません " *
+            "（unavailable_reason = nothing を明示してください）",
+        ),
+    )
+    baseline_median_time_ns > 0 || throw(
+        ArgumentError(
+            "benchmark $id: baseline_median_time_ns は正の値である必要があります: $baseline_median_time_ns",
+        ),
+    )
+    delta = quality_benchmark_delta_percent(median_time_ns, baseline_median_time_ns)
+    return QualityBenchmarkResult(
+        String(id),
+        String(group),
+        String(description),
+        Int(median_time_ns),
+        Int(memory_bytes),
+        Int(allocs),
+        Int(samples),
+        Int(evals_per_sample),
+        Float64(margin_percent),
+        Int(baseline_median_time_ns),
+        delta,
+        quality_benchmark_regression_status(delta, margin_percent),
+        nothing,
+    )
+end
+
+function _qc_benchmark_result_to_dict(r::QualityBenchmarkResult)::Dict{String, Any}
+    return Dict{String, Any}(
+        "id" => r.id,
+        "group" => r.group,
+        "description" => r.description,
+        "median_time_ns" => r.median_time_ns,
+        "memory_bytes" => r.memory_bytes,
+        "allocs" => r.allocs,
+        "samples" => r.samples,
+        "evals_per_sample" => r.evals_per_sample,
+        "margin_percent" => r.margin_percent,
+        "baseline_median_time_ns" => r.baseline_median_time_ns,
+        "delta_percent" => r.delta_percent,
+        "regression_status" => r.regression_status,
+        "unavailable_reason" => r.unavailable_reason,
+    )
+end
+
+"""
+    QualityBenchmarkBaselineRef(; available, source = "repository", path,
+                                  environment_key = nothing, commit = nothing,
+                                  recorded_at = nothing, reason = nothing)
+
+比較に使った baseline の provenance。`available == true` のとき
+`environment_key`/`commit`/`recorded_at`/`reason` がすべて必須で、`false` のときはすべて
+禁止する（「baseline を使ったのに由来が分からない」「使っていないのに由来がある」を
+構造的に排除する。`QualityToolExecution` の status ごとの必須/禁止フィールドと同じ方針）。
+
+`reason` は baseline を記録・更新した理由の自由記述（`scripts/update_benchmark_baseline.jl`
+が必須入力として受け取る。Issue #212「baseline更新を自動で常に受理せず、更新理由と対象commitを
+記録する」）。`redact_secrets` を自動適用する。
+"""
+struct QualityBenchmarkBaselineRef
+    available::Bool
+    source::String
+    path::String
+    environment_key::Union{String, Nothing}
+    commit::Union{String, Nothing}
+    recorded_at::Union{String, Nothing}
+    reason::Union{String, Nothing}
+end
+
+function QualityBenchmarkBaselineRef(;
+    available::Bool,
+    source::AbstractString = "repository",
+    path::AbstractString,
+    environment_key::Union{AbstractString, Nothing} = nothing,
+    commit::Union{AbstractString, Nothing} = nothing,
+    recorded_at::Union{AbstractString, Nothing} = nothing,
+    reason::Union{AbstractString, Nothing} = nothing,
+)::QualityBenchmarkBaselineRef
+    source in QUALITY_BENCHMARK_BASELINE_SOURCES || throw(
+        ArgumentError(
+            "benchmark baseline: source は $(QUALITY_BENCHMARK_BASELINE_SOURCES) の " *
+            "いずれかである必要があります: $source",
+        ),
+    )
+    _qe_check_nonempty(path, "benchmark baseline path")
+    fields = (
+        ("environment_key", environment_key),
+        ("commit", commit),
+        ("recorded_at", recorded_at),
+        ("reason", reason),
+    )
+    for (name, v) in fields
+        if available
+            v === nothing && throw(
+                ArgumentError("benchmark baseline: available=true は $name が必須です"),
+            )
+        else
+            v === nothing || throw(
+                ArgumentError(
+                    "benchmark baseline: available=false では $name を指定できません",
+                ),
+            )
+        end
+    end
+    return QualityBenchmarkBaselineRef(
+        available,
+        String(source),
+        String(path),
+        environment_key === nothing ? nothing : String(environment_key),
+        commit === nothing ? nothing : String(commit),
+        recorded_at === nothing ? nothing : String(recorded_at),
+        reason === nothing ? nothing : redact_secrets(String(reason)),
+    )
+end
+
+function _qc_benchmark_baseline_to_dict(b::QualityBenchmarkBaselineRef)::Dict{String, Any}
+    return Dict{String, Any}(
+        "available" => b.available,
+        "source" => b.source,
+        "path" => b.path,
+        "environment_key" => b.environment_key,
+        "commit" => b.commit,
+        "recorded_at" => b.recorded_at,
+        "reason" => b.reason,
+    )
+end
+
+"""
+    quality_tool_benchmark_result(; results, environment, baseline, config, headline_id) -> Dict{String,Any}
+
+`BenchmarkTools.jl` セクションの `result`。
+
+- `results`: `QualityBenchmarkResult` の `Vector`（最低1件、`id` は一意）。個別結果は必ず
+  そのまま保持する（headline へ集約しない — 冒頭コメント参照）。
+- `environment`: 実行環境の provenance。`key`（`quality_benchmark_environment_key` の出力）・
+  `runner_label`・`os`・`arch`・`julia_version` が必須で、`cpu_model`・`cpu_threads`・
+  `manifest_digest` 等の追加キーは任意（Issue #212「runner差・Julia version差・dependency
+  更新差をprovenanceへ保持する」）。
+- `baseline`: `QualityBenchmarkBaselineRef`。
+- `config`: 測定条件の provenance（`seconds_per_benchmark`・`samples_max`・
+  `evals_per_sample`・`seed`・`warmup_evals` 等）。
+- `headline_id`: Dashboard の共通 headline 用に代表とする benchmark の `id`
+  （`results` に存在する必要がある）。
+
+`baseline.available == true` のとき、`environment["key"]` と `baseline.environment_key` は
+一致していなければならない（不一致の baseline と比較していないことを構造的に保証する。
+不一致を検出した呼び出し側は `available=false` の baseline ref と
+`unavailable_reason = "baseline_environment_mismatch"` を渡すこと）。
+"""
+function quality_tool_benchmark_result(;
+    results::AbstractVector{QualityBenchmarkResult},
+    environment::AbstractDict,
+    baseline::QualityBenchmarkBaselineRef,
+    config::AbstractDict,
+    headline_id::AbstractString,
+)::Dict{String, Any}
+    isempty(results) &&
+        throw(ArgumentError("BenchmarkTools.jl result: results は最低1件必要です"))
+    ids = [r.id for r in results]
+    length(ids) == length(Set(ids)) ||
+        throw(ArgumentError("BenchmarkTools.jl result: results に重複した id があります"))
+    headline_id in ids || throw(
+        ArgumentError(
+            "BenchmarkTools.jl result: headline_id は results に存在する id である必要があります: $headline_id",
+        ),
+    )
+
+    env_dict = Dict{String, Any}(String(k) => v for (k, v) in environment)
+    for key in ("key", "runner_label", "os", "arch", "julia_version")
+        haskey(env_dict, key) ||
+            throw(ArgumentError("BenchmarkTools.jl result: environment.$key がありません"))
+    end
+    _qe_reject_if_secret_like("BenchmarkTools.jl.environment", env_dict)
+
+    config_dict = Dict{String, Any}(String(k) => v for (k, v) in config)
+    isempty(config_dict) &&
+        throw(ArgumentError("BenchmarkTools.jl result: config は空にできません"))
+    _qe_reject_if_secret_like("BenchmarkTools.jl.config", config_dict)
+
+    if baseline.available && baseline.environment_key != env_dict["key"]
+        throw(
+            ArgumentError(
+                "BenchmarkTools.jl result: baseline.environment_key " *
+                "($(baseline.environment_key)) が environment.key ($(env_dict["key"])) と " *
+                "一致しません（環境の異なる baseline とは比較しないこと）",
+            ),
+        )
+    end
+
+    summary = Dict{String, Any}(s => 0 for s in QUALITY_BENCHMARK_REGRESSION_STATUSES)
+    for r in results
+        summary[r.regression_status] += 1
+    end
+
+    headline = results[findfirst(r -> r.id == headline_id, results)]
+    return Dict{String, Any}(
+        "benchmark_count" => length(results),
+        "benchmarks" => Any[_qc_benchmark_result_to_dict(r) for r in results],
+        "regression_summary" => summary,
+        "headline" => Dict{String, Any}(
+            "benchmark_id" => headline.id,
+            "median_time_ms" => round(headline.median_time_ns / 1e6; digits = 6),
+            "regression_status" => headline.regression_status,
+        ),
+        "baseline" => _qc_benchmark_baseline_to_dict(baseline),
+        "environment" => env_dict,
+        "config" => config_dict,
+    )
+end

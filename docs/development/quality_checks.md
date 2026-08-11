@@ -69,6 +69,7 @@ git add test/Project.toml test/Manifest.toml
 | ツール | 理由 |
 |--------|------|
 | **JET.jl**（push/PRのfast lane） | 数値計算コード・動的 JSON 応答を扱うコードでの誤検知が多く、fast lane（push/PR毎）に組み込むと CI が不安定化するリスクがある。Issue #211 で「必要になった時点」として正式導入したが、fast lane ではなく schedule/workflow_dispatch の **slow lane**（[`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml)）専用とすることでこのリスクを回避した。詳細は [§5.5](#55-jetjl-slow-laneissue-211) |
+| **BenchmarkTools.jl**（push/PRのfast lane） | CI runner 上の絶対実行時間はノイズが大きく、push/PR 毎に測っても意味のある信号にならないうえ、通常CIの所要時間を押し上げる。Issue #212 で slow lane（**weekly** schedule / workflow_dispatch）専用として導入した。回帰判定は advisory で、PR 必須の performance gate にはしない。詳細は [§5.6](#56-benchmarktoolsjl-slow-laneissue-212) |
 | **Aqua.jl の `persistent_tasks`** | DME は JuMP・Ipopt・Plots など重量級のバイナリ依存を持つ。このチェックは独立した一時プロジェクトで DME を再解決・再プリコンパイルするサブプロセスを spawn するため、メインテストプロセスと同時実行時に CI ランナーのメモリ/CPU 制約でサブプロセスが完了前にクラッシュし、CI が不安定化する（ローカルでは安定して成功する）。`test/test_quality.jl` で `persistent_tasks = false` により無効化 |
 
 ---
@@ -213,3 +214,46 @@ precompile コストが一度だけ発生する（ローカル実測で数十秒
 コード自体は JET.jl を `using` しないため、cache が warm な通常運用ではこの追加コストは
 ほぼ発生しない。GitHub Actions 上の実測値は今後の CI 実行履歴で継続的に確認する
 （Coverage.jl 導入時の§5.2と同じ実測方針）。
+
+### 5.6 BenchmarkTools.jl slow lane（Issue #212）
+
+代表的な計算経路の実行時間を測定し、リポジトリ内 baseline との比較結果を export する。
+JET.jl と同じく push/PR の fast lane には**含まれない** —
+[`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml) の
+`benchmark` job（schedule は **weekly**、加えて workflow_dispatch）専用（§3）。
+
+```bash
+# ローカルで slow lane と同じ測定を実行する（所要 約40秒: 6 benchmark × 5秒予算 + 起動）
+DME_BENCHMARK_RUNNER_LABEL=<マシン識別子> julia --project=. scripts/quality_export_benchmark.jl
+# 既定出力先: artifacts/quality/quality-export-benchmark.json
+#   （fast laneの quality-export.json・JET slow laneの quality-export-jet.json とは別ファイル）
+```
+
+対象は6経路（Solow 収束経路 / RBC IRF / SIM 型 SFC / Keen RK4 / 部門別CAPEX・信用循環 Sc3 /
+real-rate model artifact のシリアライズ）。外部ソルバー（Ramsey の Ipopt・NLsolve）・
+データ層（ネットワーク I/O）・LLM 層・可視化は対象外。選定理由・除外理由・compile time を
+測定から外す手当ては
+[Julia品質Export Contract §4.4](../contract/julia-quality-export-v1.md#44-benchmarktoolsjl-の-result)
+と [`scripts/benchmark_suite.jl`](../../scripts/benchmark_suite.jl) 冒頭コメントを参照。
+
+**回帰判定は advisory**: `regression_status`（`improved`/`stable`/`regressed`/`unavailable`）は
+事実の記録であり、CI の合否判定には使わない。`regressed` でも slow lane は失敗せず、終了コードも
+0 のまま。margin は benchmark ごとに 25〜50%（実測した変動幅に基づく。契約 §4.4「margin の根拠」）。
+
+**baseline は手動更新**: [`benchmarks/baseline.json`](../../benchmarks/baseline.json) を
+`scripts/update_benchmark_baseline.jl`（`--reason` 必須）で更新し、PR としてレビューする。
+CI は baseline を書き換えない。環境（`environment_key`）が一致する baseline とだけ比較し、
+baseline が無い場合は pass ではなく `unavailable` として報告する。手順は
+[`benchmarks/README.md`](../../benchmarks/README.md)。
+
+BenchmarkTools.jl 統合の回帰テスト（`test/test_quality_benchmark.jl`）は opt-in
+（`Pkg.test()` の既定経路には含まれない）:
+
+```bash
+DME_QUALITY_EXPORT_BENCHMARK_ENABLED=1 julia --project=. -e "using Pkg; Pkg.test()"
+```
+
+**fast lane への影響**: JET.jl 追加時（§5.5）と同じく、`test/Project.toml` へ
+BenchmarkTools.jl を追加したことで cold cache 時に一度だけ precompile コストが発生する
+（ローカル実測で約5〜7秒）。fast lane のテストコード自体は BenchmarkTools.jl を `using`
+しないため、warm cache の通常運用では追加コストはほぼ発生しない。
