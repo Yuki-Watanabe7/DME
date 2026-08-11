@@ -179,6 +179,163 @@ end
     )
 end
 
+@testset "quality_jet_finding_severity" begin
+    @test quality_jet_finding_severity("MethodErrorReport") == "error"
+    @test quality_jet_finding_severity("JET.MethodErrorReport") == "error"  # モジュール修飾子つきでも解決できる
+    @test quality_jet_finding_severity("UndefVarErrorReport") == "error"
+    @test quality_jet_finding_severity("UncaughtExceptionReport") == "warning"
+    # QUALITY_JET_SEVERITY_MAP に無い（将来 JET.jl が追加しうる）型は unrated にフォールバックする
+    @test quality_jet_finding_severity("SomeFutureReportType") == "unrated"
+    @test quality_jet_finding_severity("") == "unrated"
+end
+
+@testset "QualityJetFinding" begin
+    f = QualityJetFinding(;
+        id = "abc123",
+        report_type = "MethodErrorReport",
+        message = "no matching method found `+(::Int64, ::String)`",
+        file = "src/foo.jl",
+        line = 10,
+    )
+    @test f.id == "abc123"
+    @test f.severity == "error"  # 既定は quality_jet_finding_severity(report_type)
+    @test f.file == "src/foo.jl"
+    @test f.line == 10
+
+    # file/line は省略可能（contract §4「file/lineなしreportもvalid exportになる」）
+    f_no_loc = QualityJetFinding(;
+        id = "def456",
+        report_type = "SomeFutureReportType",
+        message = "unknown report kind",
+    )
+    @test f_no_loc.file === nothing
+    @test f_no_loc.line === nothing
+    @test f_no_loc.severity == "unrated"
+
+    # severity を明示的に上書きできる
+    f_override = QualityJetFinding(;
+        id = "ghi789",
+        report_type = "MethodErrorReport",
+        message = "m",
+        severity = "warning",
+    )
+    @test f_override.severity == "warning"
+
+    @test_throws ArgumentError QualityJetFinding(;
+        id = "",
+        report_type = "MethodErrorReport",
+        message = "m",
+    )
+    @test_throws ArgumentError QualityJetFinding(;
+        id = "x",
+        report_type = "MethodErrorReport",
+        message = "m",
+        severity = "critical",  # QUALITY_JET_SEVERITIES に無い値
+    )
+    @test_throws ArgumentError QualityJetFinding(;
+        id = "x",
+        report_type = "MethodErrorReport",
+        message = "m",
+        line = 0,  # 1未満は不正
+    )
+
+    # message 中の秘匿情報らしき文字列は redact される（QualityToolError と同じ二重防御）
+    f_secret = QualityJetFinding(;
+        id = "secret1",
+        report_type = "MethodErrorReport",
+        message = "token=abcdefghijklmnopqrstuvwxyz0123",
+    )
+    @test occursin("[REDACTED]", f_secret.message)
+    @test !occursin("abcdefghijklmnopqrstuvwxyz0123", f_secret.message)
+end
+
+@testset "quality_jet_stable_finding_ids" begin
+    ids = quality_jet_stable_finding_ids([
+        ("MethodErrorReport", "a.jl", 1, "m1"),
+        ("MethodErrorReport", "a.jl", 2, "m2"),
+        ("UndefVarErrorReport", "b.jl", 3, "m3"),
+    ])
+    @test length(ids) == 3
+    @test length(unique(ids)) == 3  # 一意
+
+    # 同一4-tupleが重複しても、id は連番付きで一意になる（Issue #211「duplicate finding ID
+    # を安定回避できる」要件）
+    dup_ids = quality_jet_stable_finding_ids([
+        ("MethodErrorReport", "a.jl", 1, "m1"),
+        ("MethodErrorReport", "a.jl", 1, "m1"),
+        ("MethodErrorReport", "a.jl", 1, "m1"),
+    ])
+    @test length(unique(dup_ids)) == 3
+    @test dup_ids[1] != dup_ids[2] != dup_ids[3]
+    @test !occursin("-", dup_ids[1])  # 最初の出現は連番なしのベースid
+    @test endswith(dup_ids[2], "-2")
+    @test endswith(dup_ids[3], "-3")
+
+    # 同じ入力からは同じ id 列が決定的に得られる（安定性）
+    ids_again = quality_jet_stable_finding_ids([
+        ("MethodErrorReport", "a.jl", 1, "m1"),
+        ("MethodErrorReport", "a.jl", 2, "m2"),
+        ("UndefVarErrorReport", "b.jl", 3, "m3"),
+    ])
+    @test ids == ids_again
+
+    # file/line が nothing（未取得）でも動く
+    ids_no_loc = quality_jet_stable_finding_ids([("SomeReport", nothing, nothing, "m")])
+    @test length(ids_no_loc) == 1
+end
+
+@testset "quality_tool_jet_result" begin
+    findings = [
+        QualityJetFinding(;
+            id = "f1",
+            report_type = "MethodErrorReport",
+            message = "m1",
+            file = "src/a.jl",
+            line = 1,
+        ),
+        QualityJetFinding(; id = "f2", report_type = "UndefVarErrorReport", message = "m2"),
+    ]
+    r = quality_tool_jet_result(; findings = findings, target_modules = ["DME"])
+    @test r["error_count"] == 2
+    @test length(r["findings"]) == 2
+    @test r["target_modules"] == ["DME"]
+    @test r["analysis_mode"] == "report_package"
+    @test r["config"]["ignore_missing_comparison"] == true
+    @test r["config"]["ignore_throws"] == true
+
+    # 0件成功（「未実行」の :skipped とは異なる、「実行して0件だった」という別の意味）
+    r0 = quality_tool_jet_result(; findings = QualityJetFinding[], target_modules = ["DME"])
+    @test r0["error_count"] == 0
+    @test r0["findings"] == Any[]
+
+    # target_modules は最低1件必要
+    @test_throws ArgumentError quality_tool_jet_result(;
+        findings = QualityJetFinding[],
+        target_modules = String[],
+    )
+
+    # 未知の analysis_mode は拒否する
+    @test_throws ArgumentError quality_tool_jet_result(;
+        findings = QualityJetFinding[],
+        target_modules = ["DME"],
+        analysis_mode = "report_call",
+    )
+
+    # 重複した id を持つ findings は拒否する
+    dup_findings = [
+        QualityJetFinding(; id = "same", report_type = "MethodErrorReport", message = "m1"),
+        QualityJetFinding(;
+            id = "same",
+            report_type = "UndefVarErrorReport",
+            message = "m2",
+        ),
+    ]
+    @test_throws ArgumentError quality_tool_jet_result(;
+        findings = dup_findings,
+        target_modules = ["DME"],
+    )
+end
+
 @testset "Coverage.jl: process_folder/get_summary against a known fixture" begin
     # DME 本体の src/ は行数が変わりうるため決定的な期待値を置けない。既知の
     # covered/coverable 行数になる小規模 fixture module を実際にサブプロセスで
@@ -224,7 +381,10 @@ end
         @test covered == 3
         @test coverable == 4
 
-        result = quality_tool_coverage_result(; covered_lines = covered, coverable_lines = coverable)
+        result = quality_tool_coverage_result(;
+            covered_lines = covered,
+            coverable_lines = coverable,
+        )
         @test result["covered_lines"] == 3
         @test result["coverable_lines"] == 4
 

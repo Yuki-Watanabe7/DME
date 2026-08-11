@@ -1,0 +1,114 @@
+name: Quality (slow lane)
+
+# JET.jl（静的解析、Issue #211）専用の slow lane。fast lane（ci.yml）とは独立した
+# workflow・独立した Artifact として運用する（ci.yml の push/pull_request トリガーには
+# 組み込まない — 通常CIの所要時間へ影響しない、という Issue #211 の要件）。
+#
+# 実行頻度: nightly（毎日 UTC 18:30 = JST 03:30）。JET.jl 解析自体はローカル実測で
+# 約30〜90秒と短く（docs/contract/julia-quality-export-v1.md §4.3）、nightly でも
+# コストは小さいと判断した。加えて workflow_dispatch で手動実行できる
+# （Issue #211「実行時間と安定性を複数回計測し、最終頻度を決定する」
+# 「workflow_dispatch とnightly/weekly scheduleを追加する」）。
+#
+# 詳細: docs/contract/julia-quality-export-v1.md §8「方法D」
+
+on:
+  schedule:
+    - cron: '30 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  jet:
+    name: JET.jl static analysis
+    runs-on: ubuntu-latest
+    # scripts/quality_export_jet.jl 自身が内部で worker subprocess の期限（既定30分、
+    # DME_QUALITY_EXPORT_JET_TIMEOUT_SECONDS で変更可）を管理し、超過時は status=:timeout
+    # として構造化して報告する（jet_analysis_worker.jl 冒頭コメント参照）。この
+    # timeout-minutes はその内部 timeout が機能しなかった場合の最終防御であり、
+    # 内部timeoutより十分大きく設定する。
+
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1.12.6'
+
+      - uses: julia-actions/cache@v3
+
+      # scripts/jet_analysis_worker.jl は root環境（DME自身の依存）と test環境（JET.jl）の
+      # 両方を必要とする（`Pkg.activate` による切り替え、jet_analysis_worker.jl 冒頭コメント
+      # 参照）。`Pkg.test()` と異なり test 環境の instantiate を自動では行わないため、
+      # 両方を明示的に instantiate する。
+      - name: Install dependencies (root + test environments)
+        run: |
+          julia --project=. -e "using Pkg; Pkg.instantiate()"
+          julia --project=test -e "using Pkg; Pkg.instantiate()"
+
+      - name: Run JET.jl analysis
+        run: julia --project=. scripts/quality_export_jet.jl
+        env:
+          DME_QUALITY_EXPORT_JET_TIMEOUT_SECONDS: "1800"
+
+      # --- 品質Export Artifact 公開（Issue #210 の fast lane 実装を slow lane 用に踏襲） -----
+      # quality-export-jet.json は「Run JET.jl analysis」ステップの成否（timeout/crash含む）に
+      # 関わらず書き出し済みのため、以降は if: always() で実行する。
+
+      - name: Install jsonschema (JSON Schema検証用; scripts/validate_quality_export.jl が使う)
+        if: always()
+        run: python3 -m pip install --quiet jsonschema
+
+      - name: Validate quality export
+        id: quality_export_validate
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -f artifacts/quality/quality-export-jet.json ]; then
+            julia --project=. scripts/validate_quality_export.jl artifacts/quality/quality-export-jet.json \
+              2>&1 | tee artifacts/quality/quality-export-jet-validate.log
+            status="${PIPESTATUS[0]}"
+          else
+            echo "quality-export-jet.json が見つかりません（Run JET.jl analysis ステップが致命的に失敗した可能性があります）" \
+              | tee artifacts/quality/quality-export-jet-validate.log
+            status=1
+          fi
+          if [ "$status" -eq 0 ]; then
+            echo "valid=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+          fi
+          exit "$status"
+
+      # 検証に通った export のみ正規Artifactとして公開する。Artifact名に "jet" を含め、
+      # fast lane の Artifact（dme-julia-quality-v1-${{ github.sha }}）と明確に区別する
+      # （Issue #211「slow lane Artifactを通常CI Artifactと識別可能にする」）。
+      - name: Upload quality export (JET.jl slow lane)
+        if: always() && steps.quality_export_validate.outputs.valid == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: dme-julia-quality-v1-jet-${{ github.sha }}
+          path: artifacts/quality/quality-export-jet.json
+          retention-days: 90
+          if-no-files-found: error
+          overwrite: true
+
+      - name: Upload quality export diagnostics (invalid or missing only)
+        if: always() && steps.quality_export_validate.outputs.valid != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: dme-julia-quality-v1-jet-invalid-${{ github.sha }}
+          path: |
+            artifacts/quality/quality-export-jet.json
+            artifacts/quality/quality-export-jet-validate.log
+          retention-days: 14
+          if-no-files-found: warn
+          overwrite: true

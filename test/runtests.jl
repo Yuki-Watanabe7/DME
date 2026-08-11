@@ -57,6 +57,16 @@ const DME_TEST_FILES = [
     "test_quality.jl",
 ]
 
+# JET.jl 統合の回帰テスト（Issue #211）: `DME_QUALITY_EXPORT_JET_ENABLED` が設定されている
+# ときだけ test_quality_jet.jl を追加で実行する。JET.jl は slow lane 専用ツールであり、
+# 通常の Pkg.test()（fast lane）には `using JET` が一切含まれないようにする
+# （test_quality_jet.jl 冒頭コメント参照。「通常CIの所要時間へ影響しない」という
+# Issue #211 の要件を満たすため）。`DME_TEST_FILES` は `const` だが `Vector` 自体は
+# mutable なので `push!` で末尾に追加できる。
+if get(ENV, "DME_QUALITY_EXPORT_JET_ENABLED", "") in ("1", "true")
+    push!(DME_TEST_FILES, "test_quality_jet.jl")
+end
+
 # Julia品質Export Contract v1（Issue #208）: `DME_QUALITY_EXPORT_ENABLED` が設定されている
 # ときだけ、Pkg.test/Aqua.jl/JuliaFormatter.jl の構造化結果を捕捉する opt-in の実行経路を使う
 # （test/quality_capture_runner.jl 冒頭コメント参照）。未設定時（既定）は今までどおり

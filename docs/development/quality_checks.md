@@ -64,11 +64,11 @@ git add test/Project.toml test/Manifest.toml
 
 ---
 
-## 3. 導入を見送ったチェック / 無効化したチェック
+## 3. 導入を見送ったチェック / 無効化したチェック / fast lane から分離したチェック
 
 | ツール | 理由 |
 |--------|------|
-| **JET.jl** | 数値計算コードでの誤検知が多く CI が不安定化するリスクあり。必要になった時点で再検討 |
+| **JET.jl**（push/PRのfast lane） | 数値計算コード・動的 JSON 応答を扱うコードでの誤検知が多く、fast lane（push/PR毎）に組み込むと CI が不安定化するリスクがある。Issue #211 で「必要になった時点」として正式導入したが、fast lane ではなく schedule/workflow_dispatch の **slow lane**（[`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml)）専用とすることでこのリスクを回避した。詳細は [§5.5](#55-jetjl-slow-laneissue-211) |
 | **Aqua.jl の `persistent_tasks`** | DME は JuMP・Ipopt・Plots など重量級のバイナリ依存を持つ。このチェックは独立した一時プロジェクトで DME を再解決・再プリコンパイルするサブプロセスを spawn するため、メインテストプロセスと同時実行時に CI ランナーのメモリ/CPU 制約でサブプロセスが完了前にクラッシュし、CI が不安定化する（ローカルでは安定して成功する）。`test/test_quality.jl` で `persistent_tasks = false` により無効化 |
 
 ---
@@ -176,3 +176,40 @@ export（および Test ステップの致命的失敗で export 自体が生成
 権限最小化の詳細は
 [Julia品質Export Contract §8.1](../contract/julia-quality-export-v1.md#81-github-actions-artifact-公開issue-210)
 を参照（Issue #210）。
+
+### 5.5 JET.jl slow lane（Issue #211）
+
+静的解析（型不安定性・実行時エラー候補の検出）を JET.jl で行う。push/PR の fast lane
+（`Pkg.test()`）には**含まれない** — schedule（nightly）/workflow_dispatch の
+[`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml) 専用（§3）。
+
+```bash
+# ローカルで slow lane と同じ解析を実行する
+julia --project=. scripts/quality_export_jet.jl
+# 既定出力先: artifacts/quality/quality-export-jet.json（fast laneの quality-export.json とは別ファイル）
+```
+
+対象は `JET.report_package(DME; target_modules=(DME,))`（DME に定義された全メソッド、
+`target_modules` で依存パッケージ内部のみで完結する finding を除外）。対象範囲の決定根拠・
+severity の扱い（advisory、CI gate には使わない）・実測値は
+[Julia品質Export Contract §4.3](../contract/julia-quality-export-v1.md#43-jetjl-の-result) を参照。
+
+`scripts/quality_export_jet.jl` は driver・`scripts/jet_analysis_worker.jl` は実際に
+JET.jl を実行する worker で、driver が worker を subprocess として起動し
+`DME_QUALITY_EXPORT_JET_TIMEOUT_SECONDS`（既定30分）を期限として管理する（設計判断:
+`scripts/jet_analysis_worker.jl` 冒頭コメント、方法D: [Julia品質Export Contract §8](../contract/julia-quality-export-v1.md#8-実行方法)）。
+
+JET.jl 統合の回帰テスト（`test/test_quality_jet.jl`）は opt-in（`Pkg.test()` の既定経路には
+含まれない）:
+
+```bash
+DME_QUALITY_EXPORT_JET_ENABLED=1 julia --project=. -e "using Pkg; Pkg.test()"
+```
+
+**fast lane への影響**: `test/Project.toml`（テスト専用環境）に JET.jl を追加したため、
+`test/Manifest.toml` が変わった直後の cold cache（`julia-actions/cache` が未ヒット）な
+`Pkg.test()` 実行では、JET.jl 自体とその推移的依存（Revise・JuliaInterpreter 等）の
+precompile コストが一度だけ発生する（ローカル実測で数十秒〜1分程度）。fast lane のテスト
+コード自体は JET.jl を `using` しないため、cache が warm な通常運用ではこの追加コストは
+ほぼ発生しない。GitHub Actions 上の実測値は今後の CI 実行履歴で継続的に確認する
+（Coverage.jl 導入時の§5.2と同じ実測方針）。
