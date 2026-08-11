@@ -17,10 +17,11 @@ software-quality-dashboard が満たす側。
 - Exporter骨格: [`scripts/quality_export.jl`](../../scripts/quality_export.jl)
 - 実測捕捉（Issue #208）: [`src/quality/quality_capture.jl`](../../src/quality/quality_capture.jl)（result 組み立ての純粋関数）・[`test/quality_capture_runner.jl`](../../test/quality_capture_runner.jl)（`Pkg.test()` 統合の実行経路）
 - Coverage.jl 実測（Issue #209）: [`scripts/quality_export_coverage.jl`](../../scripts/quality_export_coverage.jl)（`Pkg.test(coverage=true)` を呼ぶ driver。§8 方法C）
-- 検証ヘルパー: [`scripts/validate_quality_export.jl`](../../scripts/validate_quality_export.jl)（生成済み export の round-trip・schema 検証・サマリー表示。`julia --project=. scripts/validate_quality_export.jl [path]`。#211/#212/#213 が result を追加していく際も変更なしで再利用できる）
-- GitHub Actions Artifact 公開（Issue #210）: [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)（§8.1）
+- JET.jl 実測（Issue #211、slow lane専用）: [`scripts/jet_report_extract.jl`](../../scripts/jet_report_extract.jl)（JET.jl の report オブジェクト→`QualityJetFinding` 抽出の純ライブラリ）・[`scripts/jet_analysis_worker.jl`](../../scripts/jet_analysis_worker.jl)（`report_package` を実行する worker）・[`scripts/quality_export_jet.jl`](../../scripts/quality_export_jet.jl)（worker を subprocess として起動し timeout を管理する driver。§8 方法D）
+- 検証ヘルパー: [`scripts/validate_quality_export.jl`](../../scripts/validate_quality_export.jl)（生成済み export の round-trip・schema 検証・サマリー表示。`julia --project=. scripts/validate_quality_export.jl [path]`。#212/#213 が result を追加していく際も変更なしで再利用できる — #211 の JET.jl export でも実際に変更なしで再利用できることを確認済み）
+- GitHub Actions Artifact 公開: fast lane（Issue #210）は [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)（§8.1）、JET.jl slow lane（Issue #211）は [`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml)（§8.2）
 - fixture: [`test/fixtures/quality_export/`](../../test/fixtures/quality_export/)（`valid/`・`invalid/`）
-- テスト: [`test/test_quality_export.jl`](../../test/test_quality_export.jl)・[`test/test_quality_capture.jl`](../../test/test_quality_capture.jl)
+- テスト: [`test/test_quality_export.jl`](../../test/test_quality_export.jl)・[`test/test_quality_capture.jl`](../../test/test_quality_capture.jl)・[`test/test_quality_jet.jl`](../../test/test_quality_jet.jl)（opt-in、§8 方法D）
 
 1ファイル = **1コミットに対する1回の実行**を表す（複数コミットの履歴を1ファイルへまとめない）。
 `software-quality-dashboard` 側の `fixtures/providers/julia/*.json` のように複数コミットを
@@ -256,6 +257,116 @@ DME 自身はサブプロセスを spawn しない（`Distributed`/`` `julia ...
 後者は「0%」ではなく計測不能であることを明示するための決定であり、`quality_tool_coverage_result`
 自身が `coverable_lines <= 0` を `ArgumentError` で拒否することで構造的に強制する（§9）。
 
+## 4.3 JET.jl の result
+
+Issue #211。静的解析（型不安定性・実行時エラー候補の検出）を [JET.jl](https://github.com/aviatesk/JET.jl) で行う。
+`Pkg.test/Aqua.jl/JuliaFormatter.jl/Coverage.jl` の4ツール（fast lane、push/PR毎）とは異なり、
+JET.jl は **slow lane 専用**（schedule/workflow_dispatch のみ）で実行する。理由は
+`docs/development/quality_checks.md` §3 の既存決定（数値計算コード・動的 JSON 応答を扱う
+コードでの誤検知が push/PR の所要時間に影響することを避ける）を踏襲しつつ、Issue #211 で
+「必要になった時点」として正式導入したもの。
+
+### 対象範囲の決定
+
+解析方式は `JET.report_package(DME; target_modules=(DME,))` を採用する（`JET.report_call` は
+不採用）。理由:
+
+- `report_package` は Revise.jl 経由で DME に定義された全メソッドのシグネチャを収集して解析するため、
+  「package entry point・主要公開API・中核モデル実行経路・シナリオ/分析層」を個別に列挙する
+  必要がなく、一度の呼び出しで package 全体を棚卸しできる。
+- `target_modules=(DME,)` は JET.jl 公式ドキュメントが推奨する設定で、報告対象を「最終的に
+  DME 自身のモジュールコンテキストで発生したもの」に限定し、JuMP/Ipopt/Plots/Base 等の
+  依存パッケージ内部だけで完結する finding を除外する（Issue #211「dependency由来reportと
+  DME由来reportを区別する」）。実測（2026-08時点、DME 0.1.0）: `target_modules` 無しでは
+  175件、`target_modules=(DME,)` 適用後は113件。
+- `src/` 配下を一律に対象とする。`examples/`/`scripts/`/`test/` は対象外だが、これは追加設定
+  ではなく `report_package` が「モジュールに定義されたメソッド」しか解析しないことの自然な帰結
+  （これらのディレクトリのコードは DME モジュールのメソッドとして定義されていない）。
+- 特定ファイル/ディレクトリを個別に除外する設定は導入していない。実測では finding が
+  `src/data/`（FRED/e-Stat クライアントが動的な JSON 応答を `Union` 型で扱う経路。union-split
+  由来の `MethodErrorReport` が集中する）に偏る傾向を確認したが、これを対象から外して
+  不可視化するのではなく、severity を advisory 扱いに留めることで対応する（下記「severity」節、
+  ADR 0009/0012 等の「事実の保持と評価の分離」の踏襲）。
+
+対象範囲の決定根拠の詳細（実測値・severity mapping 表を含む Julia 側コメント）は
+[`src/quality/quality_capture.jl`](../../src/quality/quality_capture.jl) 冒頭の
+「JET.jl（Issue #211）」節を参照。
+
+### `result` フィールド
+
+| フィールド | 型 | 内容 |
+|---|---|---|
+| `error_count` | integer | `findings` の件数（`length(findings)` から自動導出、矛盾した入力を構造的に排除） |
+| `findings` | `Vector<finding>` | 検出した finding の一覧（0件でもよい。下記参照） |
+| `target_modules` | `Vector<string>` | 報告対象に限定したモジュール名（現状 `["DME"]` のみ） |
+| `analysis_mode` | string | 解析方式。現状 `"report_package"` のみ許可 |
+| `config` | object | `{"ignore_missing_comparison": bool, "ignore_throws": bool}`（JET.jl へ渡した解析設定の provenance。両方とも JET.jl の既定値 `true` をそのまま使う） |
+
+finding 1件の構造（`QualityJetFinding`、`src/quality/quality_capture.jl`）:
+
+| フィールド | 型 | 内容 |
+|---|---|---|
+| `id` | string | `sha1("report_type|file|line|message")` の先頭12桁hex。同一箇所への複数finding（重複4-tuple）は `-2`・`-3`... を付与し一意にする（`quality_jet_stable_finding_ids`） |
+| `report_type` | string | JET.jl の report 型名（モジュール修飾子なし。例: `"MethodErrorReport"`） |
+| `message` | string | JET.jl が生成する診断メッセージ（`redact_secrets` を自動適用） |
+| `severity` | string | `"error"`/`"warning"`/`"unrated"`（下記） |
+| `file` | `string \| null` | `src/` からの相対パス。取得できない場合は `null`（contract §4「file/lineなしreportもvalid exportになる」） |
+| `line` | `integer \| null` | 1始まりの行番号。取得できない場合は `null` |
+
+`error_count=0`（`findings=[]`）は「実行して0件だった」という成功測定であり、`status=:skipped`
+（未実行）とは構造的に異なる（§4 の状態区別と同じ考え方）。
+
+### severity（advisory、CI gate には使わない）
+
+Issue #211 の設計ノート「JET error countの閾値は実データ収集前に固定しない。初期はunratedまたは
+advisoryとして扱う」に従い、`severity` は既知の JET.jl report 型への分類ラベルに留め、合否判定・
+閾値判定には使わない（`software-quality-dashboard` 側でも同様に扱うことを想定）。
+
+| severity | 対応する report 型（例） | 意味 |
+|---|---|---|
+| `error` | `MethodErrorReport`・`UndefVarErrorReport`・`UndefKeywordErrorReport`・`DivideErrorReport`・`InvalidInvokeErrorReport`・`NonBooleanCondErrorReport`・`BuiltinErrorReport`・`GeneratorErrorReport` | 実行時に確実にエラーとなる呼び出し形状 |
+| `warning` | `UncaughtExceptionReport`・`SeriousExceptionReport`・`UnanalyzedCallErrorReport` | `throw`/`error` 呼び出しに由来（意図的な interface 未実装・validation である可能性がある。`report_package` の既定 `ignore_throws=true` により通常は抑制される） |
+| `unrated` | 上記以外（将来 JET.jl が追加する未知の report 型を含む） | 分類なし。未知の型を誤って error/warning に丸めない既定値 |
+
+mapping 本体は `QUALITY_JET_SEVERITY_MAP`（`src/quality/quality_capture.jl`）。JET.jl 自体が
+report 型を追加・改名した場合、mapping に無い型は自動的に `unrated` になる（構築時に例外には
+ならない）。
+
+### baseline suppression は導入しない
+
+Issue #211 の実施内容は「baseline suppressionを導入する場合、既知問題を不可視化せずbaseline
+fileと差分を追跡する」という条件付き要求だが、本 Issue では baseline suppression 自体を
+導入しない（全 finding をそのまま `findings` へ含める）。将来必要になった場合は、既存
+finding をどう不可視化せずに追跡するかを含めて別 Issue で設計する。
+
+```json
+"JET.jl": {
+  "status": "success",
+  "version": "0.12.1",
+  "started_at": "2026-08-11T08:00:00Z", "completed_at": "2026-08-11T08:00:40Z",
+  "duration_seconds": 40.0,
+  "result": {
+    "error_count": 113,
+    "findings": [
+      {
+        "id": "c69d09facbde",
+        "report_type": "MethodErrorReport",
+        "message": "no matching method found `parse(::Type{Int64}, ::Nothing)` (1/2 union split)",
+        "severity": "error",
+        "file": "src/data/preprocess.jl",
+        "line": 410
+      }
+    ],
+    "target_modules": ["DME"],
+    "analysis_mode": "report_package",
+    "config": { "ignore_missing_comparison": true, "ignore_throws": true }
+  }
+}
+```
+
+`status=:timeout`（worker subprocess が期限内に終了しなかった）・`status=:failure`
+（worker が異常終了した、または出力の解析に失敗した）になるケースの詳細は §8 方法D。
+
 ## 5. Secret/環境変数/API credential の redaction 方針
 
 DME が実際に使う秘匿環境変数（[設定・環境変数管理ガイド](../development/configuration.md)）は
@@ -319,6 +430,16 @@ QUALITY_COVERAGE_TARGET_PATHS    # = ["src"]
 QUALITY_COVERAGE_EXCLUDED_PATHS  # = ["examples", "scripts", "test"]
 quality_tool_coverage_result(; covered_lines, coverable_lines, target_paths=QUALITY_COVERAGE_TARGET_PATHS, excluded_paths=QUALITY_COVERAGE_EXCLUDED_PATHS) -> Dict{String,Any}
 quality_export_with_tool(e::QualityExport, tool::QualityToolExecution; generated_at=e.generated_at) -> QualityExport  # 1 tool だけ置き換えた新しい QualityExport を返す
+
+# JET.jl（Issue #211。JET.jl の型そのものは src/ から参照しない — scripts/jet_report_extract.jl が
+# JET.get_reports の戻り値から QualityJetFinding を組み立てる。§4.3）
+QUALITY_JET_SEVERITIES        # = ("error", "warning", "unrated")
+QUALITY_JET_SEVERITY_MAP      # 短縮report型名 => severity
+QUALITY_JET_ANALYSIS_MODES    # = ("report_package",)
+quality_jet_finding_severity(report_type::AbstractString) -> String   # マップに無い型は "unrated"
+QualityJetFinding(; id, report_type, message, severity=quality_jet_finding_severity(report_type), file=nothing, line=nothing)
+quality_jet_stable_finding_ids(entries::AbstractVector{<:Tuple}) -> Vector{String}  # (report_type,file,line,message) から安定id生成
+quality_tool_jet_result(; findings, target_modules, analysis_mode="report_package", ignore_missing_comparison=true, ignore_throws=true) -> Dict{String,Any}
 ```
 
 ## 8. 実行方法
@@ -346,8 +467,9 @@ DME_QUALITY_EXPORT_ENABLED=1 julia --project=. -e "using Pkg; Pkg.test()"
 `Pkg.test/Aqua.jl/JuliaFormatter.jl` の3ツールを実測（§4.1）、`Coverage.jl` は「driver プロセス
 側で後段計測する」という reason 付きの `skipped` プレースホルダで埋める（実測は方法Cが行う。
 理由は §4.2・下記参照）。残り3ツール（JET.jl/BenchmarkTools.jl/Documenter.jl。#211/#212/#213）は
-方法Aと同じ `skipped` プレースホルダのまま。`DME_QUALITY_EXPORT_ENABLED` 未設定時（既定）は
-`test/runtests.jl` の挙動を一切変えない（この経路自体が有効化されない）。
+方法Aと同じ `skipped` プレースホルダのまま（JET.jl は方法B/Cに統合しない — 下記「方法D」参照）。
+`DME_QUALITY_EXPORT_ENABLED` 未設定時（既定）は `test/runtests.jl` の挙動を一切変えない
+（この経路自体が有効化されない）。
 
 有効化したときだけの意図的な副作用: 通常（未設定時）は `test/runtests.jl` の各テストファイルが
 独立した最初の失敗で以降のファイルの実行を打ち切るのに対し、有効化時は全テストファイルを
@@ -382,6 +504,63 @@ julia --project=. scripts/quality_export_coverage.jl
 集計だけが失敗した場合（`coverable_lines <= 0` を含む）は `Coverage.jl` のエントリを
 `status=:failure` にするのみで、方法C自体の終了コードには影響させない（Issue #209
 「初期導入では Quality Gate で merge を阻止せず、baseline 収集を優先する」という決定）。
+
+**方法D: JET.jl slow lane（`scripts/quality_export_jet.jl`。Issue #211、方法B/Cとは独立）**
+
+```bash
+julia --project=. scripts/quality_export_jet.jl
+# 出力先の指定（優先順）: DME_QUALITY_EXPORT_OUTPUT > 既定 artifacts/quality/quality-export-jet.json
+#   （方法B/Cが書く artifacts/quality/quality-export.json とは別ファイル）
+# timeout秒数: DME_QUALITY_EXPORT_JET_TIMEOUT_SECONDS（既定 1800 = 30分）
+```
+
+方法B/Cとはマージしない**独立した自己完結型 export**を生成する: `JET.jl` のみ実測し、他6予約
+ツールは「fast lane の export で測定される」という reason 付きの `skipped` プレースホルダで
+埋める。CI の slow lane（[`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml)、
+schedule/workflow_dispatch）がこの方法Dを使う（§8.2）。
+
+**2プロセス構成（driver + worker）**: `scripts/quality_export_jet.jl`（driver、`--project=.`のまま
+実行）は `scripts/jet_analysis_worker.jl`（worker）を subprocess として起動し、
+`DME_QUALITY_EXPORT_JET_TIMEOUT_SECONDS`（既定30分）を期限として `process_running`/`sleep` で
+poll する。期限超過時は `kill`（SIGTERM、猶予後 SIGKILL）して `status=:timeout` として報告する。
+worker 自身は `--project=.`（DME 本体の依存: JuMP/Ipopt/Plots 等）で起動した後、
+`Pkg.activate("test/")` へ切り替えて `using JET`（`scripts/quality_export_coverage.jl` と同じ
+「先に `using DME` を済ませてから test 環境の依存を using する」トリック）し、
+`JET.report_package(DME; target_modules=(DME,))` を実行して結果を一時ファイルへ書き出す
+（§4.3「対象範囲の決定」）。
+
+**なぜ2プロセスに分けるか**: JET.jl の解析自体は実測で約30〜90秒と短いが（2026-08時点、
+`ubuntu-latest` 相当の実測ではなくローカル Apple Silicon 実測値。CI 実測値は今後の
+workflow 実行履歴で継続的に確認する）、timeout/crash を明示的な `status` として区別できる
+契約上の要件（Issue #211「0件成功、複数finding、timeout、crash、未導入を区別できる」）を
+満たすには、実行中の CPU-bound な型推論処理を安全に打ち切る手段が要る。Julia には同一プロセス
+内から安全に割り込む標準的な方法が無いため、OS プロセスレベルの kill に頼る（driver が
+worker を subprocess として管理する）。詳細な設計判断は `scripts/jet_analysis_worker.jl`
+冒頭コメント参照。
+
+**status の対応**:
+
+| worker の状態 | `JET.jl` の `status` |
+|---|---|
+| 期限内に正常終了し、`error_count`（0件を含む）を含む結果を書き出した | `success` |
+| `DME_QUALITY_EXPORT_JET_TIMEOUT_SECONDS` を超過し kill された | `timeout` |
+| 異常終了した（出力ファイル無し、または解析処理自体が例外を投げた） | `failure` |
+| 出力ファイルが JSON として壊れている（解析不能） | `failure` |
+
+**失敗の扱い**: 方法Dは `Pkg.test()` を呼ばない（テストスイート自体とは無関係）。JET.jl の
+timeout/crash は `JET.jl` エントリの `status` に反映されるのみで、方法D自体の終了コードは
+常に0（export の書き出し自体が失敗しない限り）— Issue #211「通常PR mergeを初期段階でblock
+しない」「timeoutしても他のslow lane tool結果を失わない」という決定を、現状唯一の slow lane
+ツールである JET.jl 単体の文脈で満たす（他ツールが増えた場合の扱いは #212/#213 の対象）。
+
+**driver 自体のテスト方針**: `scripts/jet_analysis_worker.jl`/`scripts/quality_export_jet.jl`
+自体（subprocess・timeout制御を含む driver 経路）は自動テストの対象にしない
+（`scripts/quality_export_coverage.jl` 等の既存 driver スクリプトと同じ方針。
+`test/test_quality_capture.jl` 冒頭コメント参照）。実行（手動/CI slow lane）で検証する
+（本 Issue の作業中に success/timeout の両経路を実際に実行して確認済み — `error_count=113`
+での成功、および人為的に短い timeout を与えた kill の双方）。一方、JET.jl オブジェクトから
+`QualityJetFinding` を組み立てる純粋な抽出ロジック（`scripts/jet_report_extract.jl`）は
+`test/test_quality_jet.jl`（opt-in、`DME_QUALITY_EXPORT_JET_ENABLED=1`）で自動テストする。
 
 ## 8.1 GitHub Actions Artifact 公開（Issue #210）
 
@@ -455,14 +634,40 @@ Node.js 20 ランタイムの deprecation（旧バージョンは Node20 固定�
 `version: '1.12.6'`（厳密指定）かつ `runs-on: ubuntu-latest` のため非該当。
 `claude.yml`/`claude-code-review.yml` は本更新の対象外（別途の更新が必要であれば別 Issue/PR で扱う）。
 
+## 8.2 JET.jl slow lane の GitHub Actions Artifact 公開（Issue #211）
+
+[`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml) は §8.1 の
+fast lane 実装をそのまま踏襲するが、以下の点が異なる:
+
+- **トリガー**: `schedule`（nightly、毎日 UTC 18:30 = JST 03:30）と `workflow_dispatch`
+  のみ。`push`/`pull_request` には組み込まない（通常CIの所要時間へ影響しない）。
+- **実行頻度の決定根拠**: JET.jl 解析自体は実測で数十秒〜2分程度と短く（§4.3・上記「方法D」）、
+  nightly でもコストは小さいと判断した。当面は固定頻度とし、実際の workflow 実行履歴
+  （所要時間・timeout/crash の発生有無）を継続的に観察した上で、必要なら頻度を見直す
+  （Issue #211「実行時間と安定性を複数回計測し、最終頻度を決定する」への当面の回答。
+  §5.2 のような CI 実測ベースの継続観察は
+  [品質チェックとローカル検証手順](../development/quality_checks.md) 側に追記する）。
+- **Artifact名**: `dme-julia-quality-v1-jet-${{ github.sha }}`（valid）・
+  `dme-julia-quality-v1-jet-invalid-${{ github.sha }}`（invalid/missing）。fast lane の
+  Artifact名（`dme-julia-quality-v1-${{ github.sha }}`）とは `-jet-` の有無で構造的に区別する
+  （Issue #211「slow lane Artifactを通常CI Artifactと識別可能にする」）。
+  retention は fast lane と同じ（valid 90日・invalid 14日）。
+- **依存環境の instantiate**: `Pkg.test()` は test 環境の instantiate を内部で自動的に行うが、
+  方法Dはそれを経由しないため、workflow 側で `--project=.`・`--project=test` の両方を
+  明示的に `Pkg.instantiate()` する。
+- それ以外（`if: always()` による検証・valid/invalid の Artifact 名分離・`overwrite: true`
+  による rerun 時の置換・`contents: read` のみの権限・action 参照のメジャーバージョン固定）は
+  §8.1 と同じ方針。
+
 ## 9. 限界
 
 - 本 contract は「DME 側が何を測定したか」という事実のみを保持する。品質スコア・合否判定は
   `software-quality-dashboard` 側の責務であり、本 contract には存在しない（ADR 0009/0012 の
   「事実と評価の分離」を踏襲）。
-- `result` の構造は `Pkg.test`/`Aqua.jl`/`JuliaFormatter.jl`/`Coverage.jl` の4ツールで確定した
-  （§4.1・§4.2、Issue #208/#209）。残り3ツールは対応 Issue（#211/#212/#213）が実装した時点で、
-  `result` フィールド一覧をこのドキュメントへ追記する（envelope 自体のスキーマ変更は伴わない想定）。
+- `result` の構造は `Pkg.test`/`Aqua.jl`/`JuliaFormatter.jl`/`Coverage.jl`/`JET.jl` の5ツールで
+  確定した（§4.1・§4.2・§4.3、Issue #208/#209/#211）。残り2ツール（BenchmarkTools.jl/
+  Documenter.jl）は対応 Issue（#212/#213）が実装した時点で、`result` フィールド一覧をこの
+  ドキュメントへ追記する（envelope 自体のスキーマ変更は伴わない想定）。
 - redaction は既知パターンベースのベストエフォートであり、機密情報の漏洩を構造的に防げる保証では
   ない（§5）。
 - `Test.get_test_counts`・`Test.TestSetException` の各フィールドは Julia の Test stdlib が
@@ -482,3 +687,16 @@ Node.js 20 ランタイムの deprecation（旧バージョンは Node20 固定�
   検出する目的に限る。個々の品質ツールの測定結果自体（テスト失敗・coverage 未達等）を理由に
   gate で CI を止めることはしない（Issue #209 の「baseline 収集を優先する」方針を踏襲。
   両者は独立に扱う — §8.1・§8「失敗の扱い」）。
+- JET.jl（§4.3）の `severity` は既知の report 型への advisory な分類であり、error countの
+  閾値・合否判定には使わない。誤検知（false positive）を自動判定する仕組みは無く、初期実測で
+  `src/data/`（動的 JSON 応答の union-split 由来）に finding が偏る傾向を確認しているが、対象
+  そのものからは除外しない（§4.3「対象範囲の決定」）。全 finding の即時修正・JET.jl を PR 必須
+  Quality Gate にすることは Issue #211 の対象外。
+- JET.jl の baseline suppression（既知finding を不可視化せず追跡する差分機構）は導入していない
+  （§4.3）。finding の `id` は同一コミット・同一 JET.jl バージョンでの解析順序に依存する
+  best-effort な安定性であり、JET.jl バージョン更新をまたいだ永続的な finding 追跡には使えない
+  （`quality_jet_stable_finding_ids` docstring）。
+- JET.jl slow lane（§8 方法D・§8.2）の driver/worker 自体（subprocess 起動・timeout の kill
+  制御）は自動テストの対象にせず、実行（手動/CI）で検証する方針を取る（既存の
+  `scripts/quality_export_coverage.jl` と同じ方針）。timeout 判定の精度は poll 間隔
+  （既定1秒）・SIGTERM後の猶予（既定10秒）に依存し、厳密な即時停止は保証しない。

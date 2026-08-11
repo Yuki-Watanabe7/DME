@@ -23,6 +23,7 @@ Dates = "1"
 Downloads = "1"
 Interpolations = "0.13, 0.14, 0.15"
 Ipopt = "1"
+JET = "0.12"
 JSON3 = "1"
 JuMP = "1"
 JuliaFormatter = "2"
@@ -37,8 +38,9 @@ julia = "1"
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 Coverage = "a2441757-f6aa-5fb2-8edb-039e3f45d037"
+JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Aqua", "Coverage", "JuliaFormatter", "Test"]
+test = ["Aqua", "Coverage", "JET", "JuliaFormatter", "Test"]

@@ -626,6 +626,46 @@ quality_tool_coverage_result(;
 # percent（julia.line_coverage 相当）は計算しない — Consumer（software-quality-dashboard）側の責務。
 ```
 
+#### JET.jl の `result` 組み立て（Issue #211、`quality_capture`。slow lane専用）
+
+JET.jl（静的解析）は push/PR の fast lane には含まれず、schedule/workflow_dispatch の
+slow lane（[`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml)）
+専用。実測は `scripts/quality_export_jet.jl`（driver）が `scripts/jet_analysis_worker.jl`
+（worker、`JET.jl` を実際に `using` する）を subprocess として起動し timeout を管理する。
+JET.jl の型（`JET.InferenceErrorReport` 等）に触れる処理は `scripts/jet_report_extract.jl`
+（worker が include する純ライブラリ）に閉じ込め、`src/`（DME 本体）は JET.jl を実行時依存に
+しない。詳細は
+[Julia品質Export Contract §4.3](contract/julia-quality-export-v1.md#43-jetjl-の-result) を参照。
+
+```julia
+QUALITY_JET_SEVERITIES        # = ("error", "warning", "unrated")
+QUALITY_JET_SEVERITY_MAP      # 短縮report型名（例: "MethodErrorReport"） => severity
+QUALITY_JET_ANALYSIS_MODES    # = ("report_package",)
+
+quality_jet_finding_severity(report_type::AbstractString) -> String
+# QUALITY_JET_SEVERITY_MAP に無い report 型（将来 JET.jl が追加する未知の型を含む）は "unrated"
+
+QualityJetFinding(;
+    id::AbstractString, report_type::AbstractString, message::AbstractString,
+    severity::AbstractString = quality_jet_finding_severity(report_type),
+    file::Union{AbstractString,Nothing} = nothing, line::Union{Integer,Nothing} = nothing,
+) -> QualityJetFinding
+
+quality_jet_stable_finding_ids(entries::AbstractVector{<:Tuple}) -> Vector{String}
+# entries は (report_type, file, line, message) の Tuple。sha1 先頭12桁hex + 重複時は連番付与
+
+quality_tool_jet_result(;
+    findings::AbstractVector{QualityJetFinding}, target_modules::AbstractVector{<:AbstractString},
+    analysis_mode::AbstractString = "report_package",
+    ignore_missing_comparison::Bool = true, ignore_throws::Bool = true,
+) -> Dict{String,Any}   # error_count は length(findings) から自動導出。0件（success）と skipped（未実行）を区別する
+```
+
+> `severity` は既知の JET.jl report 型への advisory な分類であり、CI gate の判定には使わない
+> （Issue #211「JET error countの閾値は実データ収集前に固定しない」）。対象範囲の決定
+> （`report_package` vs `report_call`・`target_modules` によるdependency-origin除外）は
+> `src/quality/quality_capture.jl` 冒頭コメント参照。
+
 ### 実データ型
 
 外部マクロデータを DME 内で統一的に扱う標準データ型。

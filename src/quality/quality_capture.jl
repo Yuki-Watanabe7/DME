@@ -162,6 +162,210 @@ end
 _qc_now_utc()::DateTime = Dates.floor(Dates.unix2datetime(time()), Dates.Second)
 
 # ---------------------------------------------------------------------------
+# JET.jl（Issue #211）
+# ---------------------------------------------------------------------------
+#
+# JET.jl 自体は `src/` の実行時依存にしない（`test/Project.toml` のみに追加した
+# slow-lane専用ツール。`using DME` する一般ユーザーに JET を強制しない設計判断、
+# Pkg.test/Aqua.jl/Coverage.jl と同じ「ツール固有オブジェクトへの依存は src/ の外へ
+# 閉じ込める」方針の踏襲）。そのため本ファイルは `JET.InferenceErrorReport` 等の
+# JET.jl の型を一切参照しない。JET の生の解析結果（`JETToplevelResult`）から
+# `QualityJetFinding` の `Vector` を組み立てる処理は `scripts/jet_report_extract.jl`
+# （`using JET` する側）が担い、本ファイルはその後の「すでに文字列/整数へ展開済みの
+# finding から result dict を作る」部分だけを純粋関数として提供する
+# （`quality_tool_aqua_result` が Test.jl オブジェクトを扱わないのと同じ設計）。
+#
+# 対象範囲の決定（Issue #211 実施内容「初期対象と除外対象を明文化する」への回答。
+# 詳細な根拠は docs/contract/julia-quality-export-v1.md §4.3）:
+#   - 解析方式は `JET.report_package(DME; target_modules=(DME,))`
+#     （`JET.report_call` ではなく）を採用する。DME に定義された全メソッドの
+#     シグネチャから静的に解析するため、個別の entry point（主要公開API・
+#     中核モデル実行経路・シナリオ/分析層 等）を手動で列挙する必要がなく、
+#     package全体を一度に棚卸しできる。
+#   - `target_modules=(DME,)` により、報告対象を「最終的に DME 自身のモジュール
+#     コンテキストで発生したもの」に限定し、JuMP/Ipopt/Plots/Base 等の依存
+#     パッケージ内部だけで完結する finding を除外する
+#     （JET 公式ドキュメントが推奨する「dependency由来reportとDME由来reportを
+#     区別する」ための標準的な設定）。
+#   - `src/` 配下を一律に対象とし、`examples/`/`scripts/`/`test/` は対象外
+#     （`report_package` は module に定義されたメソッドのみを解析するため、
+#     これらのディレクトリのコードはそもそも DME モジュールのメソッドとして
+#     定義されておらず、追加の除外設定なしに対象外になる）。
+#   - 特定ファイル/ディレクトリを個別に除外する設定は初期導入では行わない
+#     （実測: `src/data/`（動的 JSON 応答を扱う FRED/e-Stat クライアント）に
+#     finding が集中する傾向を確認したが、severity を "unrated"/advisory に
+#     留めることで対応し、対象そのものから外して不可視化はしない — ADR 0009/0012
+#     等の「事実の保持と評価の分離」を踏襲）。
+
+"""JET.jl finding の severity 3値。`error`/`warning` は既知の report 型への
+advisory的な分類であり、CI gate の判定には使わない（Issue #211「JET error countの
+閾値は実データ収集前に固定しない。初期はunratedまたはadvisoryとして扱う」）。
+`unrated` は `QUALITY_JET_SEVERITY_MAP` に無い（＝将来 JET.jl が追加する未知の）
+report 型の既定値。"""
+const QUALITY_JET_SEVERITIES = ("error", "warning", "unrated")
+
+#: JET.jl の report 型名（`JET.` 修飾子を除いた短縮名）→ severity。未知の型は
+#: `quality_jet_finding_severity` の既定 `"unrated"` にフォールバックする
+#: （このmapに無い型を誤って"error"/"warning"に丸めない）。
+#: `error`: 実行時に確実にエラーとなる呼び出し形状を示す report 型
+#: （method dispatch 不能・未定義変数・divide error 等）。
+#: `warning`: `throw`/`error` 呼び出しに由来する report 型
+#: （意図的な interface 未実装・validation 等である可能性があり、`report_package`
+#: の既定 `ignore_throws=true` で通常は抑制されるが、明示的に無効化した解析では
+#: 現れうる）。
+const QUALITY_JET_SEVERITY_MAP = Dict{String, String}(
+    "MethodErrorReport" => "error",
+    "InvalidInvokeErrorReport" => "error",
+    "UndefVarErrorReport" => "error",
+    "UndefKeywordErrorReport" => "error",
+    "DivideErrorReport" => "error",
+    "NonBooleanCondErrorReport" => "error",
+    "BuiltinErrorReport" => "error",
+    "GeneratorErrorReport" => "error",
+    "UncaughtExceptionReport" => "warning",
+    "SeriousExceptionReport" => "warning",
+    "UnanalyzedCallErrorReport" => "warning",
+)
+
+"""`report_type`（例: `"JET.MethodErrorReport"` または `"MethodErrorReport"`）から
+severity を引く。`QUALITY_JET_SEVERITY_MAP` に無い型は `"unrated"`。"""
+function quality_jet_finding_severity(report_type::AbstractString)::String
+    short = String(split(report_type, '.')[end])
+    return get(QUALITY_JET_SEVERITY_MAP, short, "unrated")
+end
+
+"""
+    QualityJetFinding(; id, report_type, message, severity = quality_jet_finding_severity(report_type),
+                         file = nothing, line = nothing)
+
+JET.jl の1 finding。`file`/`line` は取得できない場合 `nothing` を許す
+（contract doc §4「file/line（取得可能な場合）」）。`message` は自由記述のため
+`redact_secrets` を自動適用する（`QualityToolError` と同じ二重防御）。
+"""
+struct QualityJetFinding
+    id::String
+    report_type::String
+    message::String
+    severity::String
+    file::Union{String, Nothing}
+    line::Union{Int, Nothing}
+end
+
+function QualityJetFinding(;
+    id::AbstractString,
+    report_type::AbstractString,
+    message::AbstractString,
+    severity::AbstractString = quality_jet_finding_severity(report_type),
+    file::Union{AbstractString, Nothing} = nothing,
+    line::Union{Integer, Nothing} = nothing,
+)::QualityJetFinding
+    _qe_check_nonempty(id, "JET finding id")
+    _qe_check_nonempty(report_type, "JET finding report_type")
+    _qe_check_nonempty(message, "JET finding message")
+    severity in QUALITY_JET_SEVERITIES || throw(
+        ArgumentError(
+            "JET finding severity は $(QUALITY_JET_SEVERITIES) のいずれかである必要があります: $severity",
+        ),
+    )
+    (line === nothing || line >= 1) ||
+        throw(ArgumentError("JET finding line は1以上である必要があります: $line"))
+    return QualityJetFinding(
+        String(id),
+        String(report_type),
+        redact_secrets(String(message)),
+        severity,
+        file === nothing ? nothing : String(file),
+        line === nothing ? nothing : Int(line),
+    )
+end
+
+"""
+    quality_jet_stable_finding_ids(entries::AbstractVector{<:Tuple}) -> Vector{String}
+
+`entries`（`(report_type, file, line, message)` の `Tuple` の `Vector`、`report_package`
+が返す順序のまま渡す想定）から finding id を安定的に生成する。id は
+`sha1("report_type|file|line|message")` の先頭12桁hex。同一4-tupleが複数回現れる場合
+（JET.jl 自体が同一箇所を重複して報告するケースを理論上排除しない）でも `-2`・`-3`...
+を付与し一意性を保つ（Issue #211「duplicate finding IDを安定回避できる」要件）。
+
+安定性は「同一コミット・同一 JET.jl バージョンでの解析順序が変わらない限り」という条件
+付きである点に注意（JET.jl 自体の解析順序保証に依存する。将来 JET.jl バージョンの更新で
+既存 id が変わりうる — Dashboard 側での永続的な finding 追跡には使えない、単一 export
+内での一意性のみを保証する）。
+"""
+function quality_jet_stable_finding_ids(entries::AbstractVector{<:Tuple})::Vector{String}
+    seen = Dict{String, Int}()
+    ids = String[]
+    for (report_type, file, line, message) in entries
+        key = string(report_type, "|", file, "|", line, "|", message)
+        base = bytes2hex(SHA.sha1(key))[1:12]
+        n = get(seen, base, 0) + 1
+        seen[base] = n
+        push!(ids, n == 1 ? base : "$base-$n")
+    end
+    return ids
+end
+
+#: `quality_tool_jet_result` の `analysis_mode` として初期に許可する値
+#: （本ファイル冒頭「JET.jl（Issue #211）」節の対象範囲の決定により、初期導入は
+#: `report_package` のみ）。
+const QUALITY_JET_ANALYSIS_MODES = ("report_package",)
+
+"""
+    quality_tool_jet_result(; findings, target_modules, analysis_mode = "report_package",
+                               ignore_missing_comparison = true, ignore_throws = true) -> Dict{String,Any}
+
+`JET.jl` セクションの `result`。`findings` は空でもよい（0件成功。Issue #211
+「0件成功、複数finding、timeout、crash、未導入を区別できる」の「0件成功」に対応 —
+`status=:success` かつ `findings=[]` は「解析して0件だった」を表し、`status=:skipped`
+（未実行）とは構造的に異なる）。`error_count` は `length(findings)` から自動導出する
+（呼び出し側の入力にできない。矛盾した入力を構造的に排除する既存方針と同じ）。
+
+`target_modules`/`analysis_mode`/`ignore_missing_comparison`/`ignore_throws` は
+「target/ignore configuration」（Issue #211 実施内容）の記録であり、この export
+だけから解析条件を再現できるようにする provenance。
+"""
+function quality_tool_jet_result(;
+    findings::AbstractVector{QualityJetFinding},
+    target_modules::AbstractVector{<:AbstractString},
+    analysis_mode::AbstractString = "report_package",
+    ignore_missing_comparison::Bool = true,
+    ignore_throws::Bool = true,
+)::Dict{String, Any}
+    ids = [f.id for f in findings]
+    length(ids) == length(Set(ids)) ||
+        throw(ArgumentError("JET.jl result: findings に重複した id があります"))
+    isempty(target_modules) &&
+        throw(ArgumentError("JET.jl result: target_modules は最低1件必要です"))
+    analysis_mode in QUALITY_JET_ANALYSIS_MODES || throw(
+        ArgumentError(
+            "JET.jl result: analysis_mode は $(QUALITY_JET_ANALYSIS_MODES) のいずれかである必要があります: $analysis_mode",
+        ),
+    )
+
+    findings_arr = Any[
+        Dict{String, Any}(
+            "id" => f.id,
+            "report_type" => f.report_type,
+            "message" => f.message,
+            "severity" => f.severity,
+            "file" => f.file,
+            "line" => f.line,
+        ) for f in findings
+    ]
+    return Dict{String, Any}(
+        "error_count" => length(findings),
+        "findings" => findings_arr,
+        "target_modules" => sort(String.(target_modules)),
+        "analysis_mode" => String(analysis_mode),
+        "config" => Dict{String, Any}(
+            "ignore_missing_comparison" => ignore_missing_comparison,
+            "ignore_throws" => ignore_throws,
+        ),
+    )
+end
+
+# ---------------------------------------------------------------------------
 # Coverage.jl（Issue #209）
 # ---------------------------------------------------------------------------
 #

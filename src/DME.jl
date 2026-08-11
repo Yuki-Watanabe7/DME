@@ -179,6 +179,14 @@ export
     QUALITY_COVERAGE_TARGET_PATHS,
     QUALITY_COVERAGE_EXCLUDED_PATHS,
     quality_tool_coverage_result,
+    # JET.jl 実測結果の構造化（Issue #211、src/quality/quality_capture.jl）
+    QUALITY_JET_SEVERITIES,
+    QUALITY_JET_SEVERITY_MAP,
+    QUALITY_JET_ANALYSIS_MODES,
+    quality_jet_finding_severity,
+    QualityJetFinding,
+    quality_jet_stable_finding_ids,
+    quality_tool_jet_result,
     # Stable orchestration CLI (Issue #220, src/cli.jl)
     dme_main,
     # SFC accounting primitives (src/sfc/)
