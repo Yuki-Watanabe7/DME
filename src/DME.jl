@@ -187,6 +187,17 @@ export
     QualityJetFinding,
     quality_jet_stable_finding_ids,
     quality_tool_jet_result,
+    # BenchmarkTools.jl 実測結果の構造化（Issue #212、src/quality/quality_capture.jl）
+    QUALITY_BENCHMARK_REGRESSION_STATUSES,
+    QUALITY_BENCHMARK_UNAVAILABLE_REASONS,
+    QUALITY_BENCHMARK_DEFAULT_MARGIN_PERCENT,
+    QUALITY_BENCHMARK_BASELINE_SOURCES,
+    quality_benchmark_environment_key,
+    quality_benchmark_delta_percent,
+    quality_benchmark_regression_status,
+    QualityBenchmarkResult,
+    QualityBenchmarkBaselineRef,
+    quality_tool_benchmark_result,
     # Stable orchestration CLI (Issue #220, src/cli.jl)
     dme_main,
     # SFC accounting primitives (src/sfc/)

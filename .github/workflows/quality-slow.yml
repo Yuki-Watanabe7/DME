@@ -1,20 +1,30 @@
 name: Quality (slow lane)
 
-# JET.jl（静的解析、Issue #211）専用の slow lane。fast lane（ci.yml）とは独立した
-# workflow・独立した Artifact として運用する（ci.yml の push/pull_request トリガーには
-# 組み込まない — 通常CIの所要時間へ影響しない、という Issue #211 の要件）。
+# fast lane（ci.yml）に組み込まない品質ツールの slow lane。job ごとに独立した export
+# ファイル・独立した Artifact として運用する（ci.yml の push/pull_request トリガーには
+# 組み込まない — 通常CIの所要時間へ影響しない、という Issue #211/#212 の要件）。
 #
-# 実行頻度: nightly（毎日 UTC 18:30 = JST 03:30）。JET.jl 解析自体はローカル実測で
-# 約30〜90秒と短く（docs/contract/julia-quality-export-v1.md §4.3）、nightly でも
-# コストは小さいと判断した。加えて workflow_dispatch で手動実行できる
-# （Issue #211「実行時間と安定性を複数回計測し、最終頻度を決定する」
-# 「workflow_dispatch とnightly/weekly scheduleを追加する」）。
+#   - jet:       JET.jl 静的解析（Issue #211）。nightly（毎日 UTC 18:30 = JST 03:30）。
+#                解析自体はローカル実測で約30〜90秒と短く、nightly でもコストは小さい
+#                （docs/contract/julia-quality-export-v1.md §4.3）。
+#   - benchmark: BenchmarkTools.jl 性能測定（Issue #212）。weekly（毎週日曜 UTC 19:30 =
+#                月曜 JST 04:30）。suite 全体で約30秒（6 benchmark × 5秒予算）＋
+#                依存の instantiate/precompile。nightly ではなく weekly なのは、
+#                (a) 性能測定は静的解析と違って「毎日の差分」ではなくトレンドを見るもの、
+#                (b) baseline は手動更新であり日次の細かい変動を追う運用ではない、
+#                (c) CI runner のノイズ（§4.4 の margin 参照）に対して日次の点は情報量が
+#                小さい、という理由（Issue #212「低頻度scheduleで実行する」）。
 #
-# 詳細: docs/contract/julia-quality-export-v1.md §8「方法D」
+# どちらの job も `workflow_dispatch` で個別に手動実行できる。`schedule` で起動した場合は
+# `github.event.schedule` で自分の cron のときだけ動くよう job 側で分岐する
+# （`on.schedule` は workflow 単位のトリガーであり、cron ごとに job を選ぶ仕組みが無いため）。
+#
+# 詳細: docs/contract/julia-quality-export-v1.md §8「方法D」（JET）・「方法E」（benchmark）
 
 on:
   schedule:
     - cron: '30 18 * * *'
+    - cron: '30 19 * * 0'
   workflow_dispatch:
 
 permissions:
@@ -23,6 +33,7 @@ permissions:
 jobs:
   jet:
     name: JET.jl static analysis
+    if: github.event_name != 'schedule' || github.event.schedule == '30 18 * * *'
     runs-on: ubuntu-latest
     # scripts/quality_export_jet.jl 自身が内部で worker subprocess の期限（既定30分、
     # DME_QUALITY_EXPORT_JET_TIMEOUT_SECONDS で変更可）を管理し、超過時は status=:timeout
@@ -109,6 +120,102 @@ jobs:
           path: |
             artifacts/quality/quality-export-jet.json
             artifacts/quality/quality-export-jet-validate.log
+          retention-days: 14
+          if-no-files-found: warn
+          overwrite: true
+
+  benchmark:
+    name: BenchmarkTools.jl performance benchmarks
+    if: github.event_name != 'schedule' || github.event.schedule == '30 19 * * 0'
+    runs-on: ubuntu-latest
+    # scripts/quality_export_benchmark.jl 自身が内部で worker subprocess の期限（既定30分、
+    # DME_QUALITY_EXPORT_BENCHMARK_TIMEOUT_SECONDS で変更可）を管理し、超過時は
+    # status=:timeout として構造化して報告する。この timeout-minutes はその内部 timeout が
+    # 機能しなかった場合の最終防御であり、内部timeoutより十分大きく設定する。
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1.12.6'
+
+      - uses: julia-actions/cache@v3
+
+      # scripts/benchmark_worker.jl は root環境（DME自身の依存）と test環境（BenchmarkTools.jl）
+      # の両方を必要とする（`Pkg.activate` による切り替え、benchmark_worker.jl 冒頭コメント
+      # 参照）。`Pkg.test()` と異なり test 環境の instantiate を自動では行わないため、
+      # 両方を明示的に instantiate する。
+      - name: Install dependencies (root + test environments)
+        run: |
+          julia --project=. -e "using Pkg; Pkg.instantiate()"
+          julia --project=test -e "using Pkg; Pkg.instantiate()"
+
+      # 測定対象のコンパイルを測定時間から外す（benchmark_suite.jl の warmup とは別に、
+      # precompile 済みキャッシュをここで確定させておく）。
+      - name: Precompile DME
+        run: julia --project=. -e "using DME"
+
+      - name: Run benchmark suite
+        run: julia --project=. scripts/quality_export_benchmark.jl
+        env:
+          DME_QUALITY_EXPORT_BENCHMARK_TIMEOUT_SECONDS: "1800"
+
+      # --- 品質Export Artifact 公開（§8.1 の fast lane 実装を slow lane 用に踏襲） --------
+      # quality-export-benchmark.json は「Run benchmark suite」ステップの成否（timeout/crash
+      # 含む）に関わらず書き出し済みのため、以降は if: always() で実行する。
+
+      - name: Install jsonschema (JSON Schema検証用; scripts/validate_quality_export.jl が使う)
+        if: always()
+        run: python3 -m pip install --quiet jsonschema
+
+      - name: Validate quality export
+        id: quality_export_validate
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -f artifacts/quality/quality-export-benchmark.json ]; then
+            julia --project=. scripts/validate_quality_export.jl artifacts/quality/quality-export-benchmark.json \
+              2>&1 | tee artifacts/quality/quality-export-benchmark-validate.log
+            status="${PIPESTATUS[0]}"
+          else
+            echo "quality-export-benchmark.json が見つかりません（Run benchmark suite ステップが致命的に失敗した可能性があります）" \
+              | tee artifacts/quality/quality-export-benchmark-validate.log
+            status=1
+          fi
+          if [ "$status" -eq 0 ]; then
+            echo "valid=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+          fi
+          exit "$status"
+
+      # 検証に通った export のみ正規Artifactとして公開する。Artifact名に "benchmark" を含め、
+      # fast lane（dme-julia-quality-v1-${{ github.sha }}）とも JET slow lane
+      # （dme-julia-quality-v1-jet-${{ github.sha }}）とも区別する。
+      - name: Upload quality export (BenchmarkTools.jl slow lane)
+        if: always() && steps.quality_export_validate.outputs.valid == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: dme-julia-quality-v1-benchmark-${{ github.sha }}
+          path: artifacts/quality/quality-export-benchmark.json
+          retention-days: 90
+          if-no-files-found: error
+          overwrite: true
+
+      - name: Upload quality export diagnostics (invalid or missing only)
+        if: always() && steps.quality_export_validate.outputs.valid != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: dme-julia-quality-v1-benchmark-invalid-${{ github.sha }}
+          path: |
+            artifacts/quality/quality-export-benchmark.json
+            artifacts/quality/quality-export-benchmark-validate.log
           retention-days: 14
           if-no-files-found: warn
           overwrite: true

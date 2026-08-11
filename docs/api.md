@@ -666,6 +666,63 @@ quality_tool_jet_result(;
 > （`report_package` vs `report_call`・`target_modules` によるdependency-origin除外）は
 > `src/quality/quality_capture.jl` 冒頭コメント参照。
 
+#### BenchmarkTools.jl の `result` 組み立て（Issue #212、`quality_capture`。slow lane専用）
+
+性能測定も JET.jl と同じく fast lane には含まれず、slow lane
+（[`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml) の
+`benchmark` job、**weekly** schedule / workflow_dispatch）専用。実測は
+`scripts/quality_export_benchmark.jl`（driver）が `scripts/benchmark_worker.jl`
+（worker、`BenchmarkTools` を実際に `using` する）を subprocess として起動し timeout を
+管理する。suite 定義と `BenchmarkTools.Trial` から測定値を取り出す処理は
+`scripts/benchmark_suite.jl`（worker が include する純ライブラリ）に閉じ込め、`src/`（DME 本体）は
+BenchmarkTools.jl を実行時依存にしない。詳細は
+[Julia品質Export Contract §4.4](contract/julia-quality-export-v1.md#44-benchmarktoolsjl-の-result)
+を参照。
+
+```julia
+QUALITY_BENCHMARK_REGRESSION_STATUSES     # = ("improved", "stable", "regressed", "unavailable")
+QUALITY_BENCHMARK_UNAVAILABLE_REASONS     # = ("baseline_missing", "baseline_environment_mismatch", "baseline_benchmark_missing")
+QUALITY_BENCHMARK_DEFAULT_MARGIN_PERCENT  # = 25.0
+QUALITY_BENCHMARK_BASELINE_SOURCES        # = ("repository",)
+
+quality_benchmark_environment_key(;
+    runner_label::AbstractString, os::AbstractString,
+    arch::AbstractString, julia_version::AbstractString,
+) -> String   # "<runner_label>|<os>|<arch>|julia<major>.<minor>"（patch は含めない）
+
+quality_benchmark_delta_percent(median_time_ns::Integer, baseline_median_time_ns::Integer) -> Float64
+quality_benchmark_regression_status(delta_percent::Real, margin_percent::Real) -> String
+# 境界（ちょうど ±margin）は "stable" 側
+
+QualityBenchmarkResult(;
+    id, group, description, median_time_ns, memory_bytes, allocs, samples, evals_per_sample,
+    margin_percent::Real = QUALITY_BENCHMARK_DEFAULT_MARGIN_PERCENT,
+    baseline_median_time_ns::Union{Integer,Nothing} = nothing,
+    unavailable_reason::Union{AbstractString,Nothing} = "baseline_missing",
+) -> QualityBenchmarkResult
+# delta_percent / regression_status は baseline と margin から自動導出（入力にできない）。
+# baseline なし ⇔ unavailable_reason ありが構造的に強制される。
+
+QualityBenchmarkBaselineRef(;
+    available::Bool, source::AbstractString = "repository", path::AbstractString,
+    environment_key = nothing, commit = nothing, recorded_at = nothing, reason = nothing,
+) -> QualityBenchmarkBaselineRef
+# available=true は provenance 4項目が必須、false では禁止
+
+quality_tool_benchmark_result(;
+    results::AbstractVector{QualityBenchmarkResult}, environment::AbstractDict,
+    baseline::QualityBenchmarkBaselineRef, config::AbstractDict, headline_id::AbstractString,
+) -> Dict{String,Any}
+# 個別結果は headline へ集約せず必ず全件保持する。baseline.environment_key と
+# environment["key"] が違えば ArgumentError（環境の異なる baseline とは比較しない）。
+```
+
+> `regression_status` は advisory であり、CI gate・PR 必須 performance gate には使わない
+> （Issue #212）。baseline が無い/環境が違う/その benchmark だけ未収録は `"stable"` ではなく
+> `"unavailable"`（＋ `unavailable_reason`）として報告する。baseline
+> （`benchmarks/baseline.json`）の更新は `scripts/update_benchmark_baseline.jl` による
+> 手動操作のみで、更新理由（`--reason`）が必須。
+
 ### 実データ型
 
 外部マクロデータを DME 内で統一的に扱う標準データ型。
