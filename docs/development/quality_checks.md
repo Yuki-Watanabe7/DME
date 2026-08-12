@@ -274,7 +274,8 @@ workflow（[`.github/workflows/docs.yml`](../../.github/workflows/docs.yml)）�
 # 0. docs 環境を用意する（初回のみ）
 julia --project=docs -e "using Pkg; Pkg.instantiate()"
 
-# 1. ビルドだけを確認する（品質Export は書かない。所要 約15秒 + DME のロード）
+# 1. ビルドだけを確認する（品質Export は書かない。ローカル実測 約15秒 + DME のロード。
+#    CI 実測では job 全体 約8分だが、その大半は依存の instantiate で、ビルド自体は約30秒）
 julia --project=docs docs/make.jl
 #   生成物: docs/build/（.gitignore 済み。docs/build/index.html をブラウザで開ける）
 

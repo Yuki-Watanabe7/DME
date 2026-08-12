@@ -1243,7 +1243,10 @@ CI 環境の baseline は、この実行の Artifact をダウンロードして
   workflow 自身を列挙、加えて `workflow_dispatch`。`ci` job とは別 job のため、通常CIの
   所要時間そのものは延びない（Issue #213「slow laneまたはdocs変更時のconditional jobとして
   CIへ追加する」のうち後者を採用。ビルド自体はローカル実測で約15秒と軽く、slow lane に
-  置く理由が無い）。
+  置く理由が無い）。CI 実測（2026-08-12、初回・cache 未構築の `ubuntu-latest`）: job 全体
+  7分53秒のうち **`Pkg.instantiate()`（root + docs）が6分54秒**、ビルドと export の書き出しは
+  30秒。所要時間は依存の解決が支配的で、`julia-actions/cache` が効く2回目以降は短縮される
+  （`ci` job と並行して走るため、いずれにせよ通常CIの完了を遅らせない）。
 - **ビルド失敗を job の失敗として扱う**（`Check documentation build status` ステップ）:
   `result.build_status == "failed"`、および測定自体ができなかった場合（`status` が
   `failure`/`timeout`/`not_installed`）に job を失敗させる。**`warnings` では失敗させず**
