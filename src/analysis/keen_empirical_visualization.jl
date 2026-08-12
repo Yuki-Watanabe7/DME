@@ -55,7 +55,7 @@ validation の境界を縦線で示す。
 model 系列は観測開始状態（`:observed_start`）からの予測 trajectory。発散後・欠損は `NaN` の
 まま線を途切れさせ、線形補間や 0 化は行わない（#123 の要件）。observed は理論変数の近似
 proxy、literature は文献 default、calibrated は採用期間・proxy・weight・bounds に依存する
-推定値であることに注意（[keen.md](../../docs/models/keen.md)）。
+推定値であることに注意（[keen.md](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/keen.md)）。
 
 ## キーワード引数
 - `variables` : 描画対象（`:ω`・`:λ`・`:d` の部分集合）
@@ -194,7 +194,7 @@ x 軸ラベルに用いる。`metric` は `:objective_value`・`:peak_debt_ratio
 `:ponzi_share`・`:n_transitions` のいずれか。
 
 診断のみを変える感応度（`amortization_rate` 等）では推定値・ODE 軌跡は不変で診断指標だけが
-変わることを、この棒グラフで確認できる（[keen_empirical_strategy.md §6.1](../../docs/models/keen_empirical_strategy.md)）。
+変わることを、この棒グラフで確認できる（[keen_empirical_strategy.md §6.1](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/keen_empirical_strategy.md)）。
 """
 function plot_keen_sensitivity(
     result::KeenValidationResult;

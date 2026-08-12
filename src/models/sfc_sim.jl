@@ -44,7 +44,7 @@ H*  = (1 − α1) / α2 · YD*
 ```
 
 `0 < α1 < 1` で大域安定であり、危機 regime を持たない（限界は
-[SFC 統合設計](../../docs/models/sim_sfc.md) §限界を参照）。
+[SFC 統合設計](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/sim_sfc.md) §限界を参照）。
 
 ## 会計との接続
 

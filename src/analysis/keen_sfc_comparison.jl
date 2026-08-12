@@ -206,10 +206,17 @@ _ksfc_sources(extra::AbstractVector{String} = String[]) =
 # ===========================================================================
 # KEEN_SFC_CONCEPT_CORRESPONDENCES（registry）
 # ===========================================================================
-#
-# 根拠は docs（keen.md / sim_sfc.md / minsky_regime_diagnostics.md）と #149 の
-# 能力 metadata・概念定義 registry のみ。数値実証結果は含めない。
 
+"""
+    KEEN_SFC_CONCEPT_CORRESPONDENCES :: Vector{KeenSFCConceptCorrespondence}
+
+Keen モデルと最小 SIM 型 SFC モデルの概念対応 registry（[`KEEN_SFC_CONCEPTS`](@ref) の各概念に
+1件）。[`keen_sfc_correspondences`](@ref) で概念・`mapping_type`・`comparability` により
+絞り込んで参照する。
+
+根拠は docs（keen.md / sim_sfc.md / minsky_regime_diagnostics.md）と能力 metadata・概念定義
+registry のみで、数値実証結果は含めない（ADR 0006 の「概念対応は repository metadata に限定する」）。
+"""
 const KEEN_SFC_CONCEPT_CORRESPONDENCES = KeenSFCConceptCorrespondence[
     KeenSFCConceptCorrespondence(;
         concept = :aggregate_output,

@@ -10,7 +10,7 @@
 """
     DivergenceStatus
 
-時系列上の各時点が Keen モデルの発散ガード（[keen.md](../../docs/models/keen.md) §8）に対して
+時系列上の各時点が Keen モデルの発散ガード（[keen.md](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/keen.md) §8）に対して
 どの状態にあるかを区別する。
 
 - `no_divergence`       : 発散ガード未作動（有効値）

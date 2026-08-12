@@ -889,3 +889,245 @@ function quality_tool_benchmark_result(;
         "config" => config_dict,
     )
 end
+
+# ---------------------------------------------------------------------------
+# Documenter.jl（Issue #213）
+# ---------------------------------------------------------------------------
+#
+# JET.jl（#211）・BenchmarkTools.jl（#212）と同じく Documenter.jl も `src/` の実行時依存に
+# しない（`docs/Project.toml` という専用環境にのみ置く）。本ファイルは
+# `Documenter.Document` 等の型を一切参照せず、「すでに整数・文字列へ展開済みの
+# ビルド結果から result dict を作る」純粋関数だけを提供する。実際のビルド設定と実行は
+# `docs/make.jl`（設定の正本）と `scripts/docs_build_worker.jl`（`using Documenter` する側）
+# が担う。
+#
+# 設計上の決定（詳細な根拠は docs/contract/julia-quality-export-v1.md §4.5、ADR 0017）:
+#
+#   - **`build_status` は導出する**: 呼び出し側が直接指定できるのは「ビルドが例外で
+#     終わったか（`build_failed`）」と warning/error の件数だけで、3値
+#     （`success`/`warnings`/`failed`）はそこから決まる（`QualityBenchmarkResult` の
+#     `regression_status` と同じ「矛盾した入力を構造的に排除する」方針）。
+#   - **ビルド失敗は tool の失敗ではない**: `build_status = "failed"` は「測定できた
+#     （＝ビルドを実行して失敗を観測した）」であり `QualityToolExecution.status` は
+#     `:success` のままにする。`:failure`/`:timeout` は Documenter を起動できなかった・
+#     worker が異常終了した・期限切れになった場合に限る（§4「実行して測定できた」と
+#     「実行したが失敗した」の区別を、ドキュメントビルドという文脈へ適用したもの）。
+#   - **warning を無条件に fail へ昇格させない**: どの Documenter エラークラスを
+#     ビルド失敗とし、どれを warning へ降格するかは `docs/make.jl` の
+#     `DME_DOCS_WARNONLY` が決め、その内容を `config.warnonly` として export へ残す
+#     （Issue #213 設計上の注意「warning category ごとに方針を決める」）。
+#   - **カテゴリ別件数は取得できないことがある**: Documenter が例外を投げると
+#     `Documenter.Document`（`internal.errors`）が得られないため、`categories` は
+#     `nothing`（JSON では `null`）になる。全カテゴリ0件と区別する
+#     （`baseline_missing` を `stable` と区別するのと同じ考え方）。
+
+"""ドキュメントビルド結果の3値。`software-quality-dashboard` の Julia Native Provider
+（`providers/julia/mapper.py` の `"Documenter.jl"` ケース）が
+`julia.documentation_build_status` へそのまま写す値であり、Consumer 側の enum と一致させる
+必要がある（この3値以外を出すと Consumer が `ProviderError` を投げる）。"""
+const QUALITY_DOCS_BUILD_STATUSES = ("success", "warnings", "failed")
+
+"""`messages` の `level` 2値。`@info`/`@debug` は記録しない（ビルドの進捗ログであり
+品質の事実ではないため）。"""
+const QUALITY_DOCS_MESSAGE_LEVELS = ("warning", "error")
+
+"""Documenter が `@docerror` のタグとして使うエラークラス名（Documenter 1.x の
+`Documenter.ERROR_NAMES`）。`categories` のキー集合を固定するために DME 側にも持つ
+（キーが実行ごとに増減すると Consumer が「0件」と「そのカテゴリが存在しない」を
+区別できなくなるため）。Documenter 側に未知のクラスが増えた場合は
+`quality_tool_documenter_result` が `ArgumentError` で拒否する（黙って捨てない）。"""
+const QUALITY_DOCS_ERROR_CATEGORIES = (
+    "autodocs_block",
+    "cross_references",
+    "docs_block",
+    "doctest",
+    "eval_block",
+    "example_block",
+    "footnote",
+    "linkcheck",
+    "linkcheck_remotes",
+    "meta_block",
+    "missing_docs",
+    "parse_error",
+    "setup_block",
+)
+
+"""`messages` に載せる最大件数。ビルドが大量に warning を出したときに export が
+肥大化するのを防ぐ（超過した場合は `messages_truncated = true` になり、件数自体は
+`warnings`/`errors` に残るため「0件に丸める」ことはない）。"""
+const QUALITY_DOCS_MESSAGE_LIMIT = 50
+
+"""`messages` 1件の最大文字数。Documenter の warning は AST を含む長大なものがあるため
+切り詰める（切り詰めた場合は末尾に `"…"` を付す）。"""
+const QUALITY_DOCS_MESSAGE_MAX_CHARS = 1000
+
+"""
+    QualityDocsMessage(; level, message)
+
+ドキュメントビルド中に記録された warning/error 1件（Issue #213 実施内容の
+「warning countと安全な要約」の「安全な要約」側）。`message` は自由記述のため
+`redact_secrets` を自動適用し、`QUALITY_DOCS_MESSAGE_MAX_CHARS` で切り詰める
+（`QualityJetFinding.message` と同じ二重防御）。
+
+Documenter のログレコード自体は `@docerror` のタグ（エラークラス）を持たないため、
+1件ごとのカテゴリは保持しない。カテゴリ別の件数は
+`quality_tool_documenter_result` の `categories` が別途保持する。
+"""
+struct QualityDocsMessage
+    level::String
+    message::String
+end
+
+function QualityDocsMessage(;
+    level::AbstractString,
+    message::AbstractString,
+)::QualityDocsMessage
+    level in QUALITY_DOCS_MESSAGE_LEVELS || throw(
+        ArgumentError(
+            "docs message level は $(QUALITY_DOCS_MESSAGE_LEVELS) のいずれかである必要があります: $level",
+        ),
+    )
+    _qe_check_nonempty(message, "docs message")
+    redacted = redact_secrets(String(message))
+    truncated = if length(redacted) > QUALITY_DOCS_MESSAGE_MAX_CHARS
+        String(first(redacted, QUALITY_DOCS_MESSAGE_MAX_CHARS)) * "…"
+    else
+        redacted
+    end
+    return QualityDocsMessage(String(level), truncated)
+end
+
+"""
+    quality_docs_build_status(; build_failed, warnings, errors) -> String
+
+`build_status` の導出規則。
+
+| 条件 | `build_status` |
+|---|---|
+| `build_failed`（`makedocs` が例外を投げた）または `errors > 0` | `"failed"` |
+| 上記以外で `warnings > 0` | `"warnings"` |
+| 上記以外 | `"success"` |
+
+`errors > 0` を `"failed"` に含めるのは、`warnonly` へ降格していないエラークラスが
+発火した場合、Documenter は error レベルでログしたうえで最終的に例外を投げる（＝
+`build_failed` と同時に立つ）ためで、片方だけが立つ状態を許容しないための冗長な防御。
+"""
+function quality_docs_build_status(;
+    build_failed::Bool,
+    warnings::Integer,
+    errors::Integer,
+)::String
+    (warnings < 0 || errors < 0) && throw(
+        ArgumentError(
+            "Documenter.jl result: warnings/errors は負の値にできません: warnings=$warnings errors=$errors",
+        ),
+    )
+    (build_failed || errors > 0) && return "failed"
+    warnings > 0 && return "warnings"
+    return "success"
+end
+
+"""
+    quality_tool_documenter_result(; build_failed, warnings, errors, messages,
+                                      categories = nothing, target, config) -> Dict{String,Any}
+
+`Documenter.jl` セクションの `result`。
+
+- `build_failed`: `makedocs` が例外を投げたか（ドキュメントビルドの失敗。**ツール実行の
+  失敗ではない** — 冒頭コメント参照）。
+- `warnings`/`errors`: ビルド中に記録された warning/error レベルのログ件数
+  （`messages` は上限付きの抜粋なので、件数はこちらが正本）。
+- `messages`: `QualityDocsMessage` の `Vector`（`QUALITY_DOCS_MESSAGE_LIMIT` 件まで。
+  超過分は `messages_truncated = true` として明示する）。
+- `categories`: Documenter エラークラス名 => 件数。ビルドが例外で終わり
+  `Documenter.Document` を取得できなかった場合は `nothing`（＝全カテゴリ0件と区別する）。
+- `target`: 何をビルドしたかの provenance（`source`・`pages`・`modules`・`format` が必須）。
+- `config`: ビルド設定の provenance（`checkdocs`・`doctest`・`linkcheck`・`warnonly` が必須）。
+
+`build_status` は `quality_docs_build_status` が導出し、呼び出し側は指定できない。
+`strict`（Consumer 側 fixture が持つフィールド）は `config.warnonly` が空かどうかから
+導出する（＝全エラークラスをビルド失敗として扱う設定か）。
+"""
+function quality_tool_documenter_result(;
+    build_failed::Bool,
+    warnings::Integer,
+    errors::Integer,
+    messages::AbstractVector{QualityDocsMessage} = QualityDocsMessage[],
+    categories::Union{AbstractDict, Nothing} = nothing,
+    target::AbstractDict,
+    config::AbstractDict,
+)::Dict{String, Any}
+    build_status =
+        quality_docs_build_status(; build_failed, warnings = warnings, errors = errors)
+
+    length(messages) <= warnings + errors || throw(
+        ArgumentError(
+            "Documenter.jl result: messages の件数 ($(length(messages))) が " *
+            "warnings + errors ($(warnings + errors)) を超えています",
+        ),
+    )
+    length(messages) <= QUALITY_DOCS_MESSAGE_LIMIT || throw(
+        ArgumentError(
+            "Documenter.jl result: messages は $(QUALITY_DOCS_MESSAGE_LIMIT) 件までです: $(length(messages))",
+        ),
+    )
+
+    categories_value = if categories === nothing
+        nothing
+    else
+        counts = Dict{String, Any}()
+        for (k, v) in categories
+            key = String(k)
+            key in QUALITY_DOCS_ERROR_CATEGORIES || throw(
+                ArgumentError(
+                    "Documenter.jl result: 未知の Documenter エラークラスです（" *
+                    "QUALITY_DOCS_ERROR_CATEGORIES の更新が必要）: $key",
+                ),
+            )
+            v < 0 && throw(
+                ArgumentError(
+                    "Documenter.jl result: categories.$key は負の値にできません: $v",
+                ),
+            )
+            counts[key] = Int(v)
+        end
+        # 未出現のクラスも 0 で埋め、キー集合を固定する（実行ごとにキーが増減しない）。
+        for name in QUALITY_DOCS_ERROR_CATEGORIES
+            get!(counts, name, 0)
+        end
+        counts
+    end
+
+    target_dict = Dict{String, Any}(String(k) => v for (k, v) in target)
+    for key in ("source", "pages", "modules", "format")
+        haskey(target_dict, key) ||
+            throw(ArgumentError("Documenter.jl result: target.$key がありません"))
+    end
+    _qe_reject_if_secret_like("Documenter.jl.target", target_dict)
+
+    config_dict = Dict{String, Any}(String(k) => v for (k, v) in config)
+    for key in ("checkdocs", "doctest", "linkcheck", "warnonly")
+        haskey(config_dict, key) ||
+            throw(ArgumentError("Documenter.jl result: config.$key がありません"))
+    end
+    _qe_reject_if_secret_like("Documenter.jl.config", config_dict)
+
+    warnonly = config_dict["warnonly"]
+    warnonly isa AbstractVector || throw(
+        ArgumentError("Documenter.jl result: config.warnonly は配列である必要があります"),
+    )
+
+    return Dict{String, Any}(
+        "build_status" => build_status,
+        "warnings" => Int(warnings),
+        "errors" => Int(errors),
+        "strict" => isempty(warnonly),
+        "categories" => categories_value,
+        "messages" => Any[
+            Dict{String, Any}("level" => m.level, "message" => m.message) for m in messages
+        ],
+        "messages_truncated" => length(messages) < warnings + errors,
+        "target" => target_dict,
+        "config" => config_dict,
+    )
+end

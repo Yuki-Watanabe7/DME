@@ -821,6 +821,215 @@ end
     @test occursin("\"regression_summary\"", json)
 end
 
+# ---------------------------------------------------------------------------
+# Documenter.jl（Issue #213）
+# ---------------------------------------------------------------------------
+#
+# 実際の `makedocs` 実行（`docs/make.jl` + `scripts/docs_build_worker.jl`）はここでは
+# 検証しない。他の slow lane driver/worker と同じ方針で、実行（手動 `julia --project=docs
+# docs/make.jl` / CI の docs workflow）が検証を担う（契約 §8 方法F「driver 自体のテスト方針」）。
+# ここで検証するのは worker がビルド結果を渡す先の純粋関数の契約。
+
+const _DOCS_TARGET = Dict{String, Any}(
+    "source" => "docs/src",
+    "pages" => ["index.md", "api/core.md"],
+    "modules" => ["DME"],
+    "format" => "html",
+)
+const _DOCS_CONFIG = Dict{String, Any}(
+    "checkdocs" => "exports",
+    "doctest" => false,
+    "linkcheck" => false,
+    "warnonly" => ["cross_references", "linkcheck", "linkcheck_remotes"],
+)
+
+@testset "quality_docs_build_status" begin
+    @test quality_docs_build_status(; build_failed = false, warnings = 0, errors = 0) ==
+          "success"
+    @test quality_docs_build_status(; build_failed = false, warnings = 3, errors = 0) ==
+          "warnings"
+    @test quality_docs_build_status(; build_failed = true, warnings = 0, errors = 1) ==
+          "failed"
+    # warning があってもビルドが失敗していれば failed が優先される
+    @test quality_docs_build_status(; build_failed = true, warnings = 9, errors = 0) ==
+          "failed"
+    # 例外は投げなかったが error レベルのログがある場合も failed（冗長な防御）
+    @test quality_docs_build_status(; build_failed = false, warnings = 0, errors = 2) ==
+          "failed"
+    # Consumer（software-quality-dashboard）の enum と一致する3値のみ
+    for bf in (true, false), w in (0, 1), e in (0, 1)
+        @test quality_docs_build_status(; build_failed = bf, warnings = w, errors = e) in
+              QUALITY_DOCS_BUILD_STATUSES
+    end
+
+    @test_throws ArgumentError quality_docs_build_status(;
+        build_failed = false,
+        warnings = -1,
+        errors = 0,
+    )
+end
+
+@testset "QualityDocsMessage" begin
+    m = QualityDocsMessage(; level = "warning", message = "invalid local link")
+    @test m.level == "warning"
+    @test m.message == "invalid local link"
+
+    # 自由記述フィールドなので redact_secrets が自動適用される
+    secret = QualityDocsMessage(; level = "error", message = "OPENAI_API_KEY=sk-abcdefghij")
+    @test !occursin("sk-abcdefghij", secret.message)
+
+    # 長大な warning（Documenter は AST を含めることがある）は切り詰める
+    long = QualityDocsMessage(;
+        level = "warning",
+        message = repeat("x", QUALITY_DOCS_MESSAGE_MAX_CHARS + 500),
+    )
+    @test length(long.message) == QUALITY_DOCS_MESSAGE_MAX_CHARS + 1  # 末尾の "…" の分
+    @test endswith(long.message, "…")
+
+    @test_throws ArgumentError QualityDocsMessage(; level = "info", message = "x")
+    @test_throws ArgumentError QualityDocsMessage(; level = "warning", message = "")
+end
+
+@testset "quality_tool_documenter_result: success/warnings/failed" begin
+    ok = quality_tool_documenter_result(;
+        build_failed = false,
+        warnings = 0,
+        errors = 0,
+        categories = Dict("cross_references" => 0),
+        target = _DOCS_TARGET,
+        config = _DOCS_CONFIG,
+    )
+    @test ok["build_status"] == "success"
+    @test ok["warnings"] == 0
+    @test ok["errors"] == 0
+    @test ok["messages"] == []
+    @test ok["messages_truncated"] == false
+    # warnonly が空でないので strict ではない
+    @test ok["strict"] == false
+    # categories のキー集合は実行ごとに増減しない（未出現のクラスも0で埋める）
+    @test Set(keys(ok["categories"])) == Set(QUALITY_DOCS_ERROR_CATEGORIES)
+    @test all(v == 0 for v in values(ok["categories"]))
+
+    warned = quality_tool_documenter_result(;
+        build_failed = false,
+        warnings = 2,
+        errors = 0,
+        messages = [
+            QualityDocsMessage(; level = "warning", message = "invalid local link/image"),
+            QualityDocsMessage(; level = "warning", message = "Cannot resolve @ref"),
+        ],
+        categories = Dict("cross_references" => 2),
+        target = _DOCS_TARGET,
+        config = _DOCS_CONFIG,
+    )
+    @test warned["build_status"] == "warnings"
+    @test warned["categories"]["cross_references"] == 2
+    @test warned["categories"]["missing_docs"] == 0
+    @test length(warned["messages"]) == 2
+    @test warned["messages_truncated"] == false
+
+    # ビルドが例外で終わった場合は Documenter.Document を取得できないため
+    # categories = nothing（＝全カテゴリ0件と構造的に区別する）
+    failed = quality_tool_documenter_result(;
+        build_failed = true,
+        warnings = 0,
+        errors = 2,
+        messages = [QualityDocsMessage(; level = "error", message = "undefined binding")],
+        categories = nothing,
+        target = _DOCS_TARGET,
+        config = _DOCS_CONFIG,
+    )
+    @test failed["build_status"] == "failed"
+    @test failed["categories"] === nothing
+    # messages は上限付きの抜粋なので、件数の正本は warnings/errors 側
+    @test failed["messages_truncated"] == true
+    @test failed["errors"] == 2
+
+    # strict = warnonly が空（＝全カテゴリをビルド失敗として扱う設定）
+    strict = quality_tool_documenter_result(;
+        build_failed = false,
+        warnings = 0,
+        errors = 0,
+        target = _DOCS_TARGET,
+        config = merge(_DOCS_CONFIG, Dict{String, Any}("warnonly" => String[])),
+    )
+    @test strict["strict"] == true
+
+    # result 全体が QualityToolExecution（＝正準 JSON 経路）へ載ること。
+    # ビルド失敗は「測定できた」なので status は :success のままである
+    # （tool の :failure は worker がビルド結果を出せなかった場合に限る）。
+    tool = QualityToolExecution(;
+        tool_name = "Documenter.jl",
+        status = :success,
+        version = "1.17.0",
+        started_at = DateTime(2026, 8, 12, 0, 0, 0),
+        completed_at = DateTime(2026, 8, 12, 0, 0, 41),
+        result = failed,
+    )
+    @test tool.status == :success
+    @test tool.result["build_status"] == "failed"
+    @test occursin("\"build_status\"", DME.canonical_json_string(tool.result))
+end
+
+@testset "quality_tool_documenter_result: 矛盾した入力の拒否" begin
+    base = (target = _DOCS_TARGET, config = _DOCS_CONFIG)
+
+    # messages は warnings + errors の抜粋なので、それを超えることはありえない
+    @test_throws ArgumentError quality_tool_documenter_result(;
+        build_failed = false,
+        warnings = 0,
+        errors = 0,
+        messages = [QualityDocsMessage(; level = "warning", message = "x")],
+        base...,
+    )
+
+    # 未知の Documenter エラークラスは黙って捨てず拒否する
+    # （Documenter 側でクラスが増えた場合に QUALITY_DOCS_ERROR_CATEGORIES の更新を強制する）
+    @test_throws ArgumentError quality_tool_documenter_result(;
+        build_failed = false,
+        warnings = 0,
+        errors = 0,
+        categories = Dict("brand_new_documenter_class" => 1),
+        base...,
+    )
+
+    # target/config の必須キー
+    for key in ("source", "pages", "modules", "format")
+        @test_throws ArgumentError quality_tool_documenter_result(;
+            build_failed = false,
+            warnings = 0,
+            errors = 0,
+            target = Dict{String, Any}(
+                k => v for (k, v) in _DOCS_TARGET if k != key
+            ),
+            config = _DOCS_CONFIG,
+        )
+    end
+    for key in ("checkdocs", "doctest", "linkcheck", "warnonly")
+        @test_throws ArgumentError quality_tool_documenter_result(;
+            build_failed = false,
+            warnings = 0,
+            errors = 0,
+            target = _DOCS_TARGET,
+            config = Dict{String, Any}(
+                k => v for (k, v) in _DOCS_CONFIG if k != key
+            ),
+        )
+    end
+
+    # 構造化データ（target/config）に秘匿情報らしき文字列があれば redact ではなく拒否
+    @test_throws ArgumentError quality_tool_documenter_result(;
+        build_failed = false,
+        warnings = 0,
+        errors = 0,
+        target = merge(
+            _DOCS_TARGET,
+            Dict{String, Any}("source" => "docs/src?token=abcdef0123456789"),
+        ),
+        config = _DOCS_CONFIG,
+    )
+end
+
 # test/quality_capture_runner.jl が依存する Test.jl 自身の挙動の前提（Julia の Test stdlib の
 # マイナーバージョン更新で壊れうる、準内部 API への依存の回帰テスト。
 # src/quality/quality_capture.jl 冒頭コメント・test/quality_capture_runner.jl 冒頭コメント参照）。

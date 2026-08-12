@@ -609,7 +609,7 @@ load_quality_export(path).commit == e.commit  # true
 
 `Pkg.test()` のテストサブプロセス自身は `.cov` トレースファイルを読めない（プロセスが
 終了するまでディスクへ確定しないため）。実測は `Pkg.test()` を呼び出す**外側**の driver
-スクリプト [`scripts/quality_export_coverage.jl`](../../scripts/quality_export_coverage.jl) が
+スクリプト [`scripts/quality_export_coverage.jl`](../scripts/quality_export_coverage.jl) が
 担う。詳細は
 [Julia品質Export Contract §4.2](contract/julia-quality-export-v1.md#42-coveragejl-の-result) を参照。
 
@@ -629,7 +629,7 @@ quality_tool_coverage_result(;
 #### JET.jl の `result` 組み立て（Issue #211、`quality_capture`。slow lane専用）
 
 JET.jl（静的解析）は push/PR の fast lane には含まれず、schedule/workflow_dispatch の
-slow lane（[`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml)）
+slow lane（[`.github/workflows/quality-slow.yml`](../.github/workflows/quality-slow.yml)）
 専用。実測は `scripts/quality_export_jet.jl`（driver）が `scripts/jet_analysis_worker.jl`
 （worker、`JET.jl` を実際に `using` する）を subprocess として起動し timeout を管理する。
 JET.jl の型（`JET.InferenceErrorReport` 等）に触れる処理は `scripts/jet_report_extract.jl`
@@ -669,7 +669,7 @@ quality_tool_jet_result(;
 #### BenchmarkTools.jl の `result` 組み立て（Issue #212、`quality_capture`。slow lane専用）
 
 性能測定も JET.jl と同じく fast lane には含まれず、slow lane
-（[`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml) の
+（[`.github/workflows/quality-slow.yml`](../.github/workflows/quality-slow.yml) の
 `benchmark` job、**weekly** schedule / workflow_dispatch）専用。実測は
 `scripts/quality_export_benchmark.jl`（driver）が `scripts/benchmark_worker.jl`
 （worker、`BenchmarkTools` を実際に `using` する）を subprocess として起動し timeout を
@@ -722,6 +722,48 @@ quality_tool_benchmark_result(;
 > `"unavailable"`（＋ `unavailable_reason`）として報告する。baseline
 > （`benchmarks/baseline.json`）の更新は `scripts/update_benchmark_baseline.jl` による
 > 手動操作のみで、更新理由（`--reason`）が必須。
+
+#### Documenter.jl の `result` 組み立て（Issue #213、`quality_capture`。docs lane専用）
+
+ドキュメントビルドは fast lane にも slow lane にも含めず、`docs/**`・`src/**`・`**/*.md` の
+変更で起動する専用 workflow（[`.github/workflows/docs.yml`](../.github/workflows/docs.yml)）で
+実行する。実測は `scripts/quality_export_docs.jl`（driver）が `scripts/docs_build_worker.jl`
+（worker、`--project=docs` で `Documenter` を実際に `using` する）を subprocess として起動し
+timeout を管理する。**`makedocs` の設定は [`docs/make.jl`](make.jl) の `dme_build_docs` に
+集約**され（人手のローカル実行と CI の測定で同じ設定を使う）、`src/`（DME 本体）は
+Documenter.jl を実行時依存にしない。詳細は
+[Julia品質Export Contract §4.5](contract/julia-quality-export-v1.md#45-documenterjl-の-result)
+と [ADR 0017](adr/0017-documenter-adoption-and-docs-quality-export.md) を参照。
+
+```julia
+QUALITY_DOCS_BUILD_STATUSES      # = ("success", "warnings", "failed")（Consumer 側の enum と一致）
+QUALITY_DOCS_MESSAGE_LEVELS      # = ("warning", "error")
+QUALITY_DOCS_ERROR_CATEGORIES    # Documenter.ERROR_NAMES 相当の13クラス名（categories のキー集合を固定）
+QUALITY_DOCS_MESSAGE_LIMIT       # = 50
+QUALITY_DOCS_MESSAGE_MAX_CHARS   # = 1000
+
+QualityDocsMessage(; level::AbstractString, message::AbstractString) -> QualityDocsMessage
+# message は redact_secrets を自動適用し MAX_CHARS で切り詰める（末尾に "…"）
+
+quality_docs_build_status(; build_failed::Bool, warnings::Integer, errors::Integer) -> String
+# build_failed || errors>0 → "failed"、warnings>0 → "warnings"、それ以外 → "success"
+
+quality_tool_documenter_result(;
+    build_failed::Bool, warnings::Integer, errors::Integer,
+    messages::AbstractVector{QualityDocsMessage} = QualityDocsMessage[],
+    categories::Union{AbstractDict,Nothing} = nothing,
+    target::AbstractDict, config::AbstractDict,
+) -> Dict{String,Any}
+# build_status / strict / messages_truncated は自動導出（入力にできない）。
+# categories = nothing（ビルドが例外で終わり Documenter.Document を取れなかった）は
+# 「全カテゴリ0件」と構造的に区別する。未知の Documenter エラークラスは ArgumentError。
+```
+
+> **ビルド失敗（`build_status = "failed"`）は `QualityToolExecution.status = :success`**
+> （＝ビルドを実行して失敗を観測できた）。`:failure`/`:timeout`/`:not_installed` は worker が
+> ビルド結果自体を出せなかった場合に限る。どの Documenter エラークラスをビルド失敗とし、
+> どれを warning へ降格するかは `docs/make.jl` の `DME_DOCS_WARNONLY` が決め、その内容は
+> `config.warnonly` として export に残る（Issue #213「warningを無条件にfailへ昇格させない」）。
 
 ### 実データ型
 

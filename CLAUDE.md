@@ -21,7 +21,7 @@ DME は動学的マクロ経済モデルを Julia で実装したパッケージ
 | `benchmarks/` | BenchmarkTools.jl slow lane の baseline（`baseline.json`。手動更新のみ。suite 定義は `scripts/benchmark_suite.jl`） |
 | `examples/` | 機能別デモスクリプト（API キー不要で完走） |
 | `test/` | テスト（`test/fixtures/` に API fixture、`test/Project.toml`/`test/Manifest.toml` にテスト専用依存を固定） |
-| `docs/` | 詳細ドキュメント（下表参照） |
+| `docs/` | 詳細ドキュメント（下表参照）。**`docs/make.jl` / `docs/src/` / `docs/Project.toml` / `docs/Manifest.toml` の4点だけは Documenter.jl 用**（Julia の慣習に合わせた配置。`docs/src/` は docstring から生成する API リファレンスのソースで、他の `docs/**.md`（設計文書）とは別物。ADR 0017） |
 
 ## よく使うコマンド
 
@@ -44,6 +44,8 @@ julia --project=. -e "using Pkg; Pkg.test()"
    - `docs/` 配下のみの変更（docs-only）の場合は Julia 環境セットアップや `Pkg.test()` は不要。docs-only 変更をした場合は PR 本文または最終コメントに「docs-only のため Julia test は未実行」と明記すること。
 3. **Project.toml を変更した場合**: `julia --project=. -e 'using Pkg; Pkg.resolve()'` を実行し、`Manifest.toml` もコミットすること。
 4. **test/Project.toml を変更した場合**: `julia --project=test -e 'using Pkg; Pkg.instantiate()'` を実行し、`test/Manifest.toml` もコミットすること。テスト専用依存（`Aqua`・`JuliaFormatter`・`Test`）を追加・変更する場合はルート `Project.toml` の `[extras]`/`[targets]` も更新すること（詳細: [品質チェックとローカル検証手順](docs/development/quality_checks.md) 2.1 節）。
+5. **docs/Project.toml を変更した場合**: `julia --project=docs -e 'using Pkg; Pkg.instantiate()'` を実行し、`docs/Manifest.toml` もコミットすること（Documenter.jl 専用環境。詳細: [品質チェックとローカル検証手順](docs/development/quality_checks.md) 5.7 節）。
+6. **`src/` に新しいサブディレクトリを追加した場合**: `docs/make.jl` の `DME_API_GROUPS` へ割り当てること（割り当て漏れは Documenter ビルドが失敗する。既存ディレクトリへのファイル追加は対応不要）。
 
 ## GitHub Issue対応の標準手順
 
@@ -129,9 +131,10 @@ Issue対応時の標準フロー:
 | [ADR 0014: Digital Twin / Digital Shadow の名称使用条件](docs/adr/0014-digital-twin-naming-conditions.md) | 現段階でDigital Twin / Digital Shadowを名乗らない・`Digital Shadow` の最低条件4件（定期取込・乖離の継続記録・vintage・provenanceと再現）と `Digital Twin` の追加条件4件（継続同期・状態推定・予測誤差更新・予測性能の継続報告）を先に固定する・充足判定を実装Issueとテスト/デモの提示で行い自己申告しない・「部分的な」「〜的」等の緩和表現を禁じる・条件を緩める変更は本ADRの改訂としてのみ行う・LLM層の禁止表現へ追加する決定記録 |
 | [ADR 0015: イベント・シナリオ実行層の統合実装契約](docs/adr/0015-macro-event-runtime-contract.md) | 契約と既存実装の差異30件を登録し解決先を明示する・4層をレコード型としイベント型9種を宣言的レジストリで持つ（型別structを作らない）・`L1`/`L2` から `L4` を生成する公開関数を提供せず層飛ばしを型で禁じる・`:other` を観測/解釈層に限定する・時点指定を暦日基準とモデル期基準の2基準とし混在を拒否する・失敗を例外/構造化拒否/警告の3層へ分け実行ステータスを4値に固定する・適用先を持たないイベントを既定でfail closedとする・`CapexShockSpec`/`capex_exogenous_paths` を非推奨にせず並置維持し時間形状と合成のみ共通化する・外生パスをモデル実行前に全期確定させる・`SimulationResult` 非変更とイベント層metadata予約キー20個・replay入力をScenario artifactに限定する・hash対象フィールドを明示しvolatile fieldを除外する・部門集約と `:as_of` を実装しない・`unmapped_target`/`untranslatable`/`unsupported_model` を同一視しない決定記録 |
 | [DME real-rate model artifact contract（vendor）](docs/contract/README.md) | economic-data-provider ADR 006 の JSON Schema・example artifact の vendor コピーと同期方針 |
-| [Julia品質Export Contract](docs/contract/julia-quality-export-v1.md) | `software-quality-dashboard` 連携用に DME が所有する versioned contract（`julia-quality-export/v1`。real-rate model artifact とは逆方向）・トップレベル構造・予約ツール名7種と対応Issue・status5値ごとの必須/禁止フィールド表・Pkg.test/Aqua.jl/JuliaFormatter.jl（Issue #208）・Coverage.jl（Issue #209、fast lane）・JET.jl（Issue #211、slow lane専用・`report_package`/`target_modules`による対象範囲の決定・severityはadvisory）・BenchmarkTools.jl（Issue #212、slow lane専用weekly・代表6経路の選定/除外・repository内versioned baselineとenvironment_key・回帰判定4値とmarginの実測根拠・advisory）のresult構造・redaction方針（自由記述は自動redact/構造化データはreject）・versioning方針・Julia API早見表・スタンドアロン骨格/`Pkg.test()`統合/Coverage込み実測/JET.jl slow lane/benchmark slow lane（いずれもdriver+worker、subprocess timeout制御）の5通りの実行方法・fast/slow laneそれぞれのGitHub Actions Artifact公開・限界 |
+| [Julia品質Export Contract](docs/contract/julia-quality-export-v1.md) | `software-quality-dashboard` 連携用に DME が所有する versioned contract（`julia-quality-export/v1`。real-rate model artifact とは逆方向）・トップレベル構造・予約ツール名7種と対応Issue・status5値ごとの必須/禁止フィールド表・Pkg.test/Aqua.jl/JuliaFormatter.jl（Issue #208）・Coverage.jl（Issue #209、fast lane）・JET.jl（Issue #211、slow lane専用・`report_package`/`target_modules`による対象範囲の決定・severityはadvisory）・BenchmarkTools.jl（Issue #212、slow lane専用weekly・代表6経路の選定/除外・repository内versioned baselineとenvironment_key・回帰判定4値とmarginの実測根拠・advisory）・Documenter.jl（Issue #213、docs lane専用・build_status3値の導出・warning categoryごとの failed/warning 割り当て・categoriesのnullと0件の区別・messagesの上限付き安全要約）のresult構造・redaction方針（自由記述は自動redact/構造化データはreject）・versioning方針・Julia API早見表・スタンドアロン骨格/`Pkg.test()`統合/Coverage込み実測/JET.jl slow lane/benchmark slow lane/Documenter docs lane（後4者はdriver+worker、subprocess timeout制御）の6通りの実行方法・fast/slow/docs laneそれぞれのGitHub Actions Artifact公開・限界 |
+| [ADR 0017: Documenter.jl の採用範囲とドキュメント品質Export](docs/adr/0017-documenter-adoption-and-docs-quality-export.md) | Documenter.jlを「公開サイトの生成器」ではなく「docstringのビルド検査器」として採用し`deploydocs`を呼ばない・サイトの対象を`src/**`のdocstringに限定し既存78件のMarkdownを移行しない・APIページの対象ファイル一覧を`docs/make.jl`が`src/`走査で生成し割り当て漏れをビルド失敗にする・doctest/linkcheckを初期導入では実行しない・warningを無条件にfailへ昇格させずDocumenterエラークラスごとに方針を決める・ビルド失敗（`build_status=failed`）をツール実行の失敗（`status=failure`）と区別する・カテゴリ別件数を取得できない場合は`null`にする・slow laneではなくdocs変更で起動する独立workflowとする・ビルド失敗はCI失敗として扱いwarningは扱わない・生成HTMLのサイズ閾値を明示的に引き上げる決定記録 |
 | [ADR 0016: Julia品質Export Contract v1](docs/adr/0016-julia-quality-export-contract.md) | `tools` を open な辞書とし各ツールの `result` 構造を後続Issue（#208/#209/#211/#212/#213）に委ねる・`status` 5値ごとの必須/禁止フィールドで`0`/未計測/未導入/実行失敗の混同を構造的に防ぐ・自由記述フィールドの自動redactと構造化データのreject（2層防御）・real-rate model artifactのUTC固定/正準JSON/atomic write/汎用バリデータ不使用doctrineの踏襲・上書き可能なephemeral artifactとしhash自己参照フィールドを持たない決定記録 |
-| [品質チェックとローカル検証手順](docs/development/quality_checks.md) | Aqua.jl・JuliaFormatter・テスト実行方法 |
+| [品質チェックとローカル検証手順](docs/development/quality_checks.md) | Aqua.jl・JuliaFormatter・テスト実行方法・品質Export の各 lane（fast / JET slow / benchmark slow / Documenter docs）のローカル実行手順 |
 | [Keen 実証説明の LLM 回帰テストと安全性評価](docs/development/keen_llm_regression.md) | 契約/parser/シナリオ/golden/forbidden の評価レイヤー・安全性評価器・fixture 再生成/追加手順・任意 provider 評価 |
 | [Keen 実証 AIエコノミスト統合デモ](docs/examples/keen_empirical_ai_economist.md) | データ取得→実証分析→根拠付きLLM説明→クロスモデル比較→provenance保存の再現可能な統合デモの実行手順・成果物・設定例 |
 | [SFC対応 AIエコノミスト統合デモ](docs/examples/sfc_ai_economist.md) | baseline/財政ショック→SFC会計検証→比較API v2→Keen–SFC比較レポート→根拠付きLLM説明→provenance保存の再現可能な統合デモの実行手順・成果物・設定例 |

@@ -26,7 +26,7 @@ const KEEN_CALIBRATION_METHODOLOGY_VERSION = "keen-calibration/1.0.0"
     KEEN_LITERATURE_PARAMS
 
 Grasselli & Costa Lima (2012) 数値例に基づく Keen モデルの文献 default パラメータ
-（[keen.md](../../docs/models/keen.md) §パラメータと同一）。固定値の供給源（`:literature`）や
+（[keen.md](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/keen.md) §パラメータと同一）。固定値の供給源（`:literature`）や
 literature vs calibrated 比較（[`calibrate_keen`](@ref) の `literature_objective`）に用いる。
 """
 const KEEN_LITERATURE_PARAMS = (
@@ -82,7 +82,7 @@ end
     KeenCalibrationConfig
 
 Keen 限定キャリブレーションの再現可能な推定設定。全 10 パラメータ同時推定を既定にせず、
-固定パラメータと推定対象を明示的に分離する（[keen_empirical_strategy.md](../../docs/models/keen_empirical_strategy.md) §3・§5）。
+固定パラメータと推定対象を明示的に分離する（[keen_empirical_strategy.md](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/keen_empirical_strategy.md) §3・§5）。
 
 ## 主なフィールド
 - `estimated_params::Vector{Symbol}` : 推定対象パラメータ名（`_KEEN_ESTIMABLE` の部分集合）。既定 `[:φ0,:φ1,:κ0,:κ1]`
@@ -105,7 +105,7 @@ Keen 限定キャリブレーションの再現可能な推定設定。全 10 �
 - `invalid_penalty::Float64` : 良い均衡が定義できない候補への penalty
 - `methodology_version::String`
 
-弱識別・双安定性・fit の限界については [keen_empirical_strategy.md](../../docs/models/keen_empirical_strategy.md) §8 を参照。
+弱識別・双安定性・fit の限界については [keen_empirical_strategy.md](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/keen_empirical_strategy.md) §8 を参照。
 推定値を因果パラメータや普遍定数として断定してはならない。
 """
 struct KeenCalibrationConfig
@@ -266,7 +266,7 @@ end
     keen_default_calibration_config(dataset::KeenEmpiricalDataset; kwargs...) -> KeenCalibrationConfig
 
 米国既定に対応する Keen 限定キャリブレーション設定を、`dataset` から `r`（`dataset.r_param`）を
-固定値として取り込んで構築する（[keen_empirical_strategy.md](../../docs/models/keen_empirical_strategy.md) §5.2）。
+固定値として取り込んで構築する（[keen_empirical_strategy.md](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/keen_empirical_strategy.md) §5.2）。
 
 - **推定対象**: Phillips `φ0,φ1` と投資 `κ0,κ1`（曲率 `κ2` は文献値で固定）
 - **固定**: `α,β,δ,ν,κ2`（文献値, `:literature`）・`r`（標本統計, `:data`）
@@ -332,7 +332,7 @@ end
     KeenCalibrationResult
 
 Keen 限定キャリブレーションの構造化結果。元の `KeenEmpiricalDataset`・`KeenModel` を変更せず、
-派生結果として保持する（[keen_empirical_strategy.md](../../docs/models/keen_empirical_strategy.md) §5.3）。
+派生結果として保持する（[keen_empirical_strategy.md](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/keen_empirical_strategy.md) §5.3）。
 
 ## 主なフィールド
 - `config::KeenCalibrationConfig`
@@ -695,7 +695,7 @@ end
 objective 感応度・literature 比較を診断として返す。同一 `dataset`・`config` で決定的。
 
 推定値を因果パラメータ・普遍定数・危機確率として断定してはならない
-（[keen_empirical_strategy.md](../../docs/models/keen_empirical_strategy.md) §8）。
+（[keen_empirical_strategy.md](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/keen_empirical_strategy.md) §8）。
 """
 function calibrate_keen(dataset::KeenEmpiricalDataset, config::KeenCalibrationConfig)
     r = config.fixed_params[:r]

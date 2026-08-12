@@ -1,0 +1,136 @@
+{
+  "export_schema": "julia-quality-export/v1",
+  "producer": {
+    "name": "dme-quality-export",
+    "version": "0.1.0"
+  },
+  "package": {
+    "name": "DME",
+    "uuid": "32de5cd0-ad60-11e9-36bc-9b7c9b1e2078",
+    "version": "0.1.0"
+  },
+  "repository": {
+    "owner": "Yuki-Watanabe7",
+    "name": "DME"
+  },
+  "branch": "develop",
+  "commit": "cafe0005cafe0005cafe0005cafe0005cafe0005",
+  "measured_at": "2026-08-12T02:10:00Z",
+  "generated_at": "2026-08-12T02:10:41Z",
+  "julia_version": "1.12.6",
+  "tools": {
+    "Documenter.jl": {
+      "status": "success",
+      "version": "1.17.0",
+      "started_at": "2026-08-12T02:10:00Z",
+      "completed_at": "2026-08-12T02:10:41Z",
+      "duration_seconds": 41,
+      "result": {
+        "build_status": "failed",
+        "warnings": 0,
+        "errors": 2,
+        "strict": false,
+        "categories": null,
+        "messages": [
+          {
+            "level": "error",
+            "message": "undefined binding 'DME.this_binding_does_not_exist' in `@docs` block in docs/src/index.md:38-40"
+          },
+          {
+            "level": "error",
+            "message": "makedocs threw: `makedocs` encountered an error [:docs_block] -- terminating build before rendering."
+          }
+        ],
+        "messages_truncated": false,
+        "target": {
+          "source": "docs/src",
+          "pages": [
+            "index.md",
+            "api/core.md",
+            "api/models.md",
+            "api/data.md",
+            "api/analysis.md",
+            "api/llm.md",
+            "api/artifacts.md"
+          ],
+          "modules": [
+            "DME"
+          ],
+          "format": "html"
+        },
+        "config": {
+          "checkdocs": "exports",
+          "doctest": false,
+          "linkcheck": false,
+          "warnonly": [
+            "cross_references",
+            "linkcheck",
+            "linkcheck_remotes"
+          ]
+        }
+      },
+      "error": null,
+      "reason": null
+    },
+    "Pkg.test": {
+      "status": "skipped",
+      "version": null,
+      "started_at": null,
+      "completed_at": null,
+      "duration_seconds": null,
+      "result": null,
+      "error": null,
+      "reason": "measured by another lane (fast lane: scripts/quality_export_coverage.jl, JET/benchmark slow lane: scripts/quality_export_jet.jl / scripts/quality_export_benchmark.jl), not by this docs export"
+    },
+    "Aqua.jl": {
+      "status": "skipped",
+      "version": null,
+      "started_at": null,
+      "completed_at": null,
+      "duration_seconds": null,
+      "result": null,
+      "error": null,
+      "reason": "measured by another lane (fast lane: scripts/quality_export_coverage.jl, JET/benchmark slow lane: scripts/quality_export_jet.jl / scripts/quality_export_benchmark.jl), not by this docs export"
+    },
+    "JuliaFormatter.jl": {
+      "status": "skipped",
+      "version": null,
+      "started_at": null,
+      "completed_at": null,
+      "duration_seconds": null,
+      "result": null,
+      "error": null,
+      "reason": "measured by another lane (fast lane: scripts/quality_export_coverage.jl, JET/benchmark slow lane: scripts/quality_export_jet.jl / scripts/quality_export_benchmark.jl), not by this docs export"
+    },
+    "Coverage.jl": {
+      "status": "skipped",
+      "version": null,
+      "started_at": null,
+      "completed_at": null,
+      "duration_seconds": null,
+      "result": null,
+      "error": null,
+      "reason": "measured by another lane (fast lane: scripts/quality_export_coverage.jl, JET/benchmark slow lane: scripts/quality_export_jet.jl / scripts/quality_export_benchmark.jl), not by this docs export"
+    },
+    "JET.jl": {
+      "status": "skipped",
+      "version": null,
+      "started_at": null,
+      "completed_at": null,
+      "duration_seconds": null,
+      "result": null,
+      "error": null,
+      "reason": "measured by another lane (fast lane: scripts/quality_export_coverage.jl, JET/benchmark slow lane: scripts/quality_export_jet.jl / scripts/quality_export_benchmark.jl), not by this docs export"
+    },
+    "BenchmarkTools.jl": {
+      "status": "skipped",
+      "version": null,
+      "started_at": null,
+      "completed_at": null,
+      "duration_seconds": null,
+      "result": null,
+      "error": null,
+      "reason": "measured by another lane (fast lane: scripts/quality_export_coverage.jl, JET/benchmark slow lane: scripts/quality_export_jet.jl / scripts/quality_export_benchmark.jl), not by this docs export"
+    }
+  }
+}

@@ -18,10 +18,11 @@ software-quality-dashboard が満たす側。
 - 実測捕捉（Issue #208）: [`src/quality/quality_capture.jl`](../../src/quality/quality_capture.jl)（result 組み立ての純粋関数）・[`test/quality_capture_runner.jl`](../../test/quality_capture_runner.jl)（`Pkg.test()` 統合の実行経路）
 - Coverage.jl 実測（Issue #209）: [`scripts/quality_export_coverage.jl`](../../scripts/quality_export_coverage.jl)（`Pkg.test(coverage=true)` を呼ぶ driver。§8 方法C）
 - JET.jl 実測（Issue #211、slow lane専用）: [`scripts/jet_report_extract.jl`](../../scripts/jet_report_extract.jl)（JET.jl の report オブジェクト→`QualityJetFinding` 抽出の純ライブラリ）・[`scripts/jet_analysis_worker.jl`](../../scripts/jet_analysis_worker.jl)（`report_package` を実行する worker）・[`scripts/quality_export_jet.jl`](../../scripts/quality_export_jet.jl)（worker を subprocess として起動し timeout を管理する driver。§8 方法D）
-- 検証ヘルパー: [`scripts/validate_quality_export.jl`](../../scripts/validate_quality_export.jl)（生成済み export の round-trip・schema 検証・サマリー表示。`julia --project=. scripts/validate_quality_export.jl [path]`。#212/#213 が result を追加していく際も変更なしで再利用できる — #211 の JET.jl export でも実際に変更なしで再利用できることを確認済み）
-- GitHub Actions Artifact 公開: fast lane（Issue #210）は [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)（§8.1）、JET.jl slow lane（Issue #211）は [`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml)（§8.2）
+- Documenter.jl 実測（Issue #213、docs lane専用）: [`docs/make.jl`](../make.jl)（ビルド設定の正本。人手のローカル実行と CI の測定で同じ設定を使う）・[`scripts/docs_build_worker.jl`](../../scripts/docs_build_worker.jl)（`makedocs` を実行しログを捕捉する worker）・[`scripts/quality_export_docs.jl`](../../scripts/quality_export_docs.jl)（worker を subprocess として起動し timeout を管理する driver。§8 方法F）
+- 検証ヘルパー: [`scripts/validate_quality_export.jl`](../../scripts/validate_quality_export.jl)（生成済み export の round-trip・schema 検証・サマリー表示。`julia --project=. scripts/validate_quality_export.jl [path]`。予約7ツールすべての result を追加し終えた現在まで、一度も変更せずに再利用できている）
+- GitHub Actions Artifact 公開: fast lane（Issue #210）は [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)（§8.1）、JET.jl / BenchmarkTools.jl slow lane（Issue #211/#212）は [`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml)（§8.2・§8.3）、Documenter.jl docs lane（Issue #213）は [`.github/workflows/docs.yml`](../../.github/workflows/docs.yml)（§8.4）
 - fixture: [`test/fixtures/quality_export/`](../../test/fixtures/quality_export/)（`valid/`・`invalid/`）
-- テスト: [`test/test_quality_export.jl`](../../test/test_quality_export.jl)・[`test/test_quality_capture.jl`](../../test/test_quality_capture.jl)・[`test/test_quality_jet.jl`](../../test/test_quality_jet.jl)（opt-in、§8 方法D）
+- テスト: [`test/test_quality_export.jl`](../../test/test_quality_export.jl)・[`test/test_quality_capture.jl`](../../test/test_quality_capture.jl)・[`test/test_quality_jet.jl`](../../test/test_quality_jet.jl)（opt-in、§8 方法D）・[`test/test_quality_benchmark.jl`](../../test/test_quality_benchmark.jl)（opt-in、§8 方法E）
 
 1ファイル = **1コミットに対する1回の実行**を表す（複数コミットの履歴を1ファイルへまとめない）。
 `software-quality-dashboard` 側の `fixtures/providers/julia/*.json` のように複数コミットを
@@ -105,10 +106,10 @@ software-quality-dashboard が満たす側。
 
 `result` の中身（フィールド構造）はツールごとに §3 の対応 Issue が定義する。現時点では
 `Dict`/`Vector`/`String`/`Bool`/`Integer`/有限 `AbstractFloat`/`Nothing` の入れ子であることのみを
-Julia 側が強制する（`canonical_json_bytes` の値域制約）。定義済みは
-`Pkg.test`/`Aqua.jl`/`JuliaFormatter.jl`（§4.1、Issue #208）・`Coverage.jl`（§4.2、#209）・
-`JET.jl`（§4.3、#211）・`BenchmarkTools.jl`（§4.4、#212）の6ツール。残る `Documenter.jl` は
-対応 Issue（#213）が実装した時点でこのドキュメントへ追記する。
+Julia 側が強制する（`canonical_json_bytes` の値域制約）。予約7ツールすべての `result` が
+定義済みである: `Pkg.test`/`Aqua.jl`/`JuliaFormatter.jl`（§4.1、Issue #208）・
+`Coverage.jl`（§4.2、#209）・`JET.jl`（§4.3、#211）・`BenchmarkTools.jl`（§4.4、#212）・
+`Documenter.jl`（§4.5、#213）。
 
 ## 4.1 Pkg.test/Aqua.jl/JuliaFormatter.jl の result
 
@@ -597,6 +598,145 @@ slow lane workflow も回帰では失敗しない。`software-quality-dashboard`
 benchmark 自体の失敗・timeout を「遅い結果」として `median_time_ns` に反映することはしない
 （Issue #212「benchmark自体の失敗/timeoutを遅い結果として扱わない」）。
 
+## 4.5 Documenter.jl の result
+
+Issue #213。[Documenter.jl](https://github.com/JuliaDocs/Documenter.jl) による
+package documentation build の結果を構造化する。JET.jl（§4.3）・BenchmarkTools.jl（§4.4）と
+同じく fast lane には含めず、**docs lane 専用**（`docs/**`・`src/**`・`**/*.md` の変更で
+起動する専用 workflow）で実行する（§8 方法F・§8.4）。
+
+### 採用範囲: 公開サイトではなく docstring のビルド検査
+
+DME は Documenter.jl を「公開サイトの生成器」ではなく **docstring のビルド検査器** として
+採用している（決定の記録は [ADR 0017](../adr/0017-documenter-adoption-and-docs-quality-export.md)）。
+`deploydocs` は呼ばず GitHub Pages へ公開しない。生成物 `docs/build/` は検査の副産物として
+`.gitignore` する。
+
+サイトに載せる対象は `src/**/*.jl` の docstring のみ（landing page 1枚＋`src/` の
+ディレクトリ構成に対応した API リファレンス6ページ）。`docs/**.md`（設計文書・ADR・
+分析文書、78件）は Documenter へ移行しない — 既存文書は `src/**.jl`・
+`.github/workflows/**` など Markdown ではないリポジトリ内資産へもリンクしており、一括移行
+すると恒常的な警告になって警告の総数が意味を失うため（ADR 0017 決定2）。
+
+API ページの対象ファイル一覧は [`docs/make.jl`](../make.jl) が `src/` を走査して生成し
+（`DME_API_PAGES`）、全 `.jl` がいずれかのページグループへ割り当てられていることを
+`docs/make.jl` 自身が検査する（割り当て漏れはビルド失敗。docstring が黙ってサイトから
+欠落しないようにするため）。**ビルド設定はすべて `docs/make.jl` の `dme_build_docs` に
+集約**し、worker 側で別の設定を組み立てない（人手のローカル実行 `julia --project=docs
+docs/make.jl` と CI の測定が同じ設定であることを構造的に保証する）。
+
+### warning category ごとの方針
+
+Issue #213 設計上の注意「warningを無条件にfailへ昇格させず、warning categoryごとに方針を
+決める」への回答。`makedocs(warnonly = ...)` へ渡す Documenter エラークラスの割り当て:
+
+| Documenter エラークラス | 扱い | 理由 |
+|---|---|---|
+| `:autodocs_block`・`:docs_block`・`:doctest`・`:eval_block`・`:example_block`・`:footnote`・`:meta_block`・`:missing_docs`・`:parse_error`・`:setup_block` | **ビルド失敗**（`build_status = "failed"`） | 「サイトを正しく生成できない」ことを意味し、リポジトリ内で完結し決定的で修正方法が一意 |
+| `:cross_references` | 警告（`build_status = "warnings"`） | docstring がサイト外のリポジトリ内文書（`docs/**.md`）を参照するのは正当な運用であり、Documenter からは常に「サイト外リンク」に見える。件数・カテゴリは export に残すので不可視化はしない |
+| `:linkcheck`・`:linkcheck_remotes` | 警告 | `linkcheck = false` のため発火しないが、「ネットワーク到達性をビルド失敗の理由にしない」方針を設定として固定する |
+
+`warnonly` の内容は `result.config.warnonly` として export に残る（この export だけから
+判定方針を再現できる provenance）。
+
+初期導入では `doctest = false`（`src/` に `jldoctest` ブロックが0件のため。ADR 0017 決定4）・
+`linkcheck = false`（CI の決定性を優先。決定5）・`checkdocs = :exports`。
+
+### `result` フィールド
+
+| フィールド | 型 | 内容 |
+|---|---|---|
+| `build_status` | string | `"success"`/`"warnings"`/`"failed"`。**Consumer 側の enum と一致させる必要がある**（`software-quality-dashboard` の `providers/julia/mapper.py` が `julia.documentation_build_status` へそのまま写し、3値以外は `ProviderError` になる）。導出規則は下表 |
+| `warnings` | integer | ビルド中に記録された warning レベルのログ件数 |
+| `errors` | integer | 同 error レベルのログ件数（ビルドが例外で終わった場合はその例外1件を含む） |
+| `strict` | bool | `config.warnonly` が空か（＝全エラークラスをビルド失敗として扱う設定か）。`config` から導出 |
+| `categories` | `object \| null` | Documenter エラークラス名 => 件数。キー集合は固定（未出現のクラスも `0` で埋める）。**ビルドが例外で終わった場合は `null`** |
+| `messages` | `Vector<message>` | warning/error の安全な要約（下記） |
+| `messages_truncated` | bool | `messages` が `warnings + errors` の全件を含んでいないか |
+| `target` | object | `{"source", "pages", "modules", "format"}`（何をビルドしたかの provenance） |
+| `config` | object | `{"checkdocs", "doctest", "linkcheck", "warnonly"}`（ビルド設定の provenance） |
+
+`build_status` の導出（`quality_docs_build_status`。呼び出し側は直接指定できない）:
+
+| 条件 | `build_status` |
+|---|---|
+| `makedocs` が例外を投げた、または `errors > 0` | `failed` |
+| 上記以外で `warnings > 0` | `warnings` |
+| 上記以外 | `success` |
+
+message 1件の構造（`QualityDocsMessage`、`src/quality/quality_capture.jl`）:
+
+| フィールド | 型 | 内容 |
+|---|---|---|
+| `level` | string | `"warning"`/`"error"`（`@info`/`@debug` は記録しない — ビルドの進捗ログであり品質の事実ではない） |
+| `message` | string | ログ本文とキーワード引数を1つに整形したもの。`redact_secrets` を自動適用し `QUALITY_DOCS_MESSAGE_MAX_CHARS`（1,000文字）で切り詰める |
+
+`messages` は `QUALITY_DOCS_MESSAGE_LIMIT`（50件）までの**抜粋**であり、件数の正本は
+`warnings`/`errors`（Issue #213「warning countと安全な要約」の両方に対応）。抜粋は
+**error を先に**採る（大量の warning でビルド失敗の原因が押し出されないようにするため）。
+
+`categories = null` は「取得できなかった」であり「全カテゴリ0件」ではない。ビルドが例外で
+終わると `makedocs(debug = true)` の戻り値（`Documenter.Document`）が得られず
+`internal.errors` を読めないため（`baseline_missing` を `stable` と区別する §4.4 と同じ
+考え方。ADR 0017 決定8）。
+
+### ビルド失敗は「ツール実行の失敗」ではない
+
+`build_status = "failed"` でも `QualityToolExecution.status` は `success` のままにする
+（＝ビルドを実行して失敗を観測できた）。`failure`/`timeout`/`not_installed` は worker が
+ビルド結果自体を出せなかった場合に限る（§8 方法F の status 表）。Issue #213 の
+「build failure時にもvalid partial exportを残す」と「tool crash/未導入を成功扱いしない」を
+同時に満たすための2層分離（ADR 0017 決定7）。
+
+```json
+"Documenter.jl": {
+  "status": "success",
+  "version": "1.17.0",
+  "started_at": "2026-08-12T02:10:00Z", "completed_at": "2026-08-12T02:10:41Z",
+  "duration_seconds": 41.0,
+  "result": {
+    "build_status": "warnings",
+    "warnings": 1,
+    "errors": 0,
+    "strict": false,
+    "categories": {
+      "autodocs_block": 0, "cross_references": 1, "docs_block": 0, "doctest": 0,
+      "eval_block": 0, "example_block": 0, "footnote": 0, "linkcheck": 0,
+      "linkcheck_remotes": 0, "meta_block": 0, "missing_docs": 0, "parse_error": 0,
+      "setup_block": 0
+    },
+    "messages": [
+      {
+        "level": "warning",
+        "message": "invalid local link/image: file does not exist in docs/src/index.md\n  link = ..."
+      }
+    ],
+    "messages_truncated": false,
+    "target": {
+      "source": "docs/src",
+      "pages": ["index.md", "api/core.md", "api/models.md", "api/data.md",
+                "api/analysis.md", "api/llm.md", "api/artifacts.md"],
+      "modules": ["DME"],
+      "format": "html"
+    },
+    "config": {
+      "checkdocs": "exports",
+      "doctest": false,
+      "linkcheck": false,
+      "warnonly": ["cross_references", "linkcheck", "linkcheck_remotes"]
+    }
+  }
+}
+```
+
+### 生成 HTML のサイズ閾値
+
+`size_threshold_warn = 512KiB`・`size_threshold = 1MiB` を明示する（Documenter の既定は
+100KiB 警告 / 200KiB エラー）。既定値は公開サイトの読み手の体験を守るための値であり、
+公開しない DME には当てはまらず、そのままだと最大ページ（`api/analysis.md`、約236KiB）が
+恒常的な警告を出し続けて本当の警告を覆い隠す。閾値を撤廃はせず、現状の2〜3倍を上限として
+「病的な肥大化だけを捕まえる」役割に限定する（ADR 0017 決定11）。
+
 ## 5. Secret/環境変数/API credential の redaction 方針
 
 DME が実際に使う秘匿環境変数（[設定・環境変数管理ガイド](../development/configuration.md)）は
@@ -685,6 +825,18 @@ QualityBenchmarkResult(; id, group, description, median_time_ns, memory_bytes, a
                           baseline_median_time_ns=nothing, unavailable_reason="baseline_missing")
 QualityBenchmarkBaselineRef(; available, source="repository", path, environment_key=nothing, commit=nothing, recorded_at=nothing, reason=nothing)
 quality_tool_benchmark_result(; results, environment, baseline, config, headline_id) -> Dict{String,Any}
+
+# Documenter.jl（Issue #213。Documenter.jl の型そのものは src/ から参照しない —
+# docs/make.jl がビルド設定を持ち、scripts/docs_build_worker.jl が makedocs を実行する。§4.5）
+QUALITY_DOCS_BUILD_STATUSES      # = ("success", "warnings", "failed")
+QUALITY_DOCS_MESSAGE_LEVELS      # = ("warning", "error")
+QUALITY_DOCS_ERROR_CATEGORIES    # Documenter.ERROR_NAMES 相当の13クラス名
+QUALITY_DOCS_MESSAGE_LIMIT       # = 50（messages の最大件数）
+QUALITY_DOCS_MESSAGE_MAX_CHARS   # = 1000（messages 1件の最大文字数）
+QualityDocsMessage(; level, message)
+quality_docs_build_status(; build_failed, warnings, errors) -> String
+quality_tool_documenter_result(; build_failed, warnings, errors, messages = QualityDocsMessage[],
+                                  categories = nothing, target, config) -> Dict{String,Any}
 ```
 
 ## 8. 実行方法
@@ -759,7 +911,7 @@ julia --project=. scripts/quality_export_jet.jl
 # timeout秒数: DME_QUALITY_EXPORT_JET_TIMEOUT_SECONDS（既定 1800 = 30分）
 ```
 
-方法B/Cとはマージしない**独立した自己完結型 export**を生成する: `JET.jl` のみ実測し、他6予約
+方法B/C/E/Fとはマージしない**独立した自己完結型 export**を生成する: `JET.jl` のみ実測し、他6予約
 ツールは「fast lane の export で測定される」という reason 付きの `skipped` プレースホルダで
 埋める。CI の slow lane（[`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml)、
 schedule/workflow_dispatch）がこの方法Dを使う（§8.2）。
@@ -819,8 +971,8 @@ julia --project=. scripts/quality_export_benchmark.jl
 ```
 
 他の方法とはマージしない**独立した自己完結型 export** を生成する: `BenchmarkTools.jl` のみ
-実測し、他6予約ツールは「どの経路が実測するか（`Documenter.jl` はまだどこにも接続されて
-いないこと）」を reason に書いた `skipped` プレースホルダで埋める。CI の slow lane
+実測し、他6予約ツールはどの経路が実測するかを reason に書いた `skipped` プレースホルダで
+埋める。CI の slow lane
 （[`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml) の
 `benchmark` job）がこの方法Eを使う（§8.3）。
 
@@ -878,6 +1030,74 @@ success（baseline なし／あり）・`stable`/`regressed` の判定・timeout
 `test/test_quality_benchmark.jl`（opt-in、`DME_QUALITY_EXPORT_BENCHMARK_ENABLED=1`）で
 自動テストし、`result` の組み立て（純粋関数）は `test/test_quality_capture.jl` で
 4つの `regression_status` すべてを含めて検証する。
+
+**方法F: Documenter.jl docs lane（`scripts/quality_export_docs.jl`。Issue #213、方法B/C/D/Eとは独立）**
+
+```bash
+# 1. docs 環境を用意する（初回のみ）
+julia --project=docs -e "using Pkg; Pkg.instantiate()"
+
+# 2a. ビルドだけを人手で確認する（品質Export は書かない）
+julia --project=docs docs/make.jl
+
+# 2b. 品質Export まで書き出す（CI の docs lane が使うのと同じコマンド）
+julia --project=. scripts/quality_export_docs.jl
+# 出力先の指定（優先順）: DME_QUALITY_EXPORT_OUTPUT > 既定 artifacts/quality/quality-export-docs.json
+#   （方法B/Cの quality-export.json・方法Dの quality-export-jet.json・
+#     方法Eの quality-export-benchmark.json とは別ファイル）
+# timeout秒数: DME_QUALITY_EXPORT_DOCS_TIMEOUT_SECONDS（既定 1800 = 30分）
+```
+
+他の方法とはマージしない**独立した自己完結型 export** を生成する: `Documenter.jl` のみ
+実測し、他6予約ツールはどの経路が実測するかを reason に書いた `skipped` プレースホルダで
+埋める。CI の docs lane（[`.github/workflows/docs.yml`](../../.github/workflows/docs.yml)）が
+この方法Fを使う（§8.4）。
+
+**2プロセス構成（driver + worker）**: 方法D/Eと同じく `scripts/quality_export_docs.jl`
+（driver、`--project=.`）が `scripts/docs_build_worker.jl`（worker）を subprocess として
+起動し、`DME_QUALITY_EXPORT_DOCS_TIMEOUT_SECONDS` を期限として poll する（期限超過時は
+SIGTERM → 猶予後 SIGKILL、`status=:timeout`）。
+
+**環境の組み合わせ方が方法D/Eと異なる**: worker は `--project=docs`（`docs/Project.toml`。
+Documenter.jl と `Pkg.develop(path = "..")` された DME）で起動する。方法Dの
+`Pkg.activate` 切り替えも方法Eの `LOAD_PATH` 追加も使わない — Documenter.jl は
+`test/Project.toml` ではなく Julia の慣習どおり専用の docs 環境に置いているため、最初から
+その環境で起動すれば済む。
+
+**worker がビルド設定を持たない**: `makedocs` の設定は `docs/make.jl` の `dme_build_docs` に
+集約され、worker はそれを `include` して呼ぶだけ（§4.5「採用範囲」）。worker が行うのは
+(a) ログの捕捉（warning/error 件数と本文）、(b) `makedocs(debug = true)` が返す
+`Documenter.Document` からのカテゴリ別件数の取り出し、(c) `quality_tool_documenter_result`
+への受け渡しの3点。
+
+**status の対応**:
+
+| worker の状態 | `Documenter.jl` の `status` |
+|---|---|
+| 期限内に正常終了し、ビルド結果を書き出した（**ビルドが失敗した場合を含む**） | `success` |
+| `DME_QUALITY_EXPORT_DOCS_TIMEOUT_SECONDS` を超過し kill された | `timeout` |
+| 異常終了した（出力ファイル無し、`docs/make.jl` の読み込み失敗、result 組み立ての契約違反） | `failure` |
+| 出力ファイルが JSON として壊れている（解析不能） | `failure` |
+| docs 環境から Documenter.jl をロードできなかった（instantiate 前など） | `not_installed` |
+
+ビルド自体の成否は `status` ではなく `result.build_status` が表す（§4.5「ビルド失敗は
+『ツール実行の失敗』ではない」）。`not_installed` の判定は worker の**先頭**で
+（`using DME` よりも前に）行い、出力 JSON も DME に依存せず手書きで書き出す — docs 環境が
+instantiate されていない場合は Documenter も DME もロードできないため、DME に依存すると
+「未導入」と「worker の異常終了」を区別できなくなる。
+
+**失敗の扱い**: 方法Fは `Pkg.test()` を呼ばない。方法F自体の終了コードは、ビルドの成否・
+warning の有無・timeout/crash のいずれにも依存せず常に0（export の書き出し自体が失敗しない
+限り）。**ビルド失敗を CI の失敗として扱うのは workflow 側の責務**（§8.4）。
+
+**driver 自体のテスト方針**: `scripts/docs_build_worker.jl`/`scripts/quality_export_docs.jl`
+自体（subprocess・timeout制御を含む driver 経路）と `docs/make.jl` は自動テストの対象に
+しない（方法C/D/Eと同じ方針）。実行（手動/CI docs lane）で検証する（本 Issue の作業中に
+`success`（warning 0件）・`warnings`（サイト内リンク切れ）・`failed`（`@docs` の未定義
+binding）・`timeout`・`not_installed` の5経路すべてを実際に実行して確認済み）。
+`result` の組み立て（純粋関数）は `test/test_quality_capture.jl` で3つの `build_status`・
+`categories` の `null` と0件の区別・messages の redaction/切り詰め/件数不整合の拒否を含めて
+自動テストする。
 
 ## 8.1 GitHub Actions Artifact 公開（Issue #210）
 
@@ -1007,15 +1227,55 @@ CI 環境の baseline は、この実行の Artifact をダウンロードして
 `scripts/update_benchmark_baseline.jl` を手動実行し、PR としてレビュー・マージすることで
 確立する（§8 方法E）。
 
+## 8.4 Documenter.jl docs lane の GitHub Actions Artifact 公開（Issue #213）
+
+[`.github/workflows/docs.yml`](../../.github/workflows/docs.yml) は §8.1 の fast lane 実装を
+踏襲するが、以下の点が異なる。
+
+- **なぜ独立した workflow なのか**: `ci.yml`（fast lane）は `paths-ignore: docs/**, **/*.md`
+  を持つため、docs のみの変更は現状まったく CI 検査を受けない。workflow 単位のトリガー条件は
+  job を足しても変えられないので別 workflow が必要（Issue #213 設計上の注意
+  「docs-only変更が既存CIのpaths-ignoreで完全に検査対象外にならないよう、別workflowの
+  必要性を検討する」への回答）。一方 `quality-slow.yml`（schedule/workflow_dispatch のみ）へ
+  置くと、docs を変更した PR をその場で検査できない。
+- **トリガー**: `pull_request`/`push`（`branches: [main]`）の `paths` に `docs/**`・`src/**`
+  （docstring の所在）・`**/*.md`・docs lane のスクリプト・`Project.toml`/`Manifest.toml`・
+  workflow 自身を列挙、加えて `workflow_dispatch`。`ci` job とは別 job のため、通常CIの
+  所要時間そのものは延びない（Issue #213「slow laneまたはdocs変更時のconditional jobとして
+  CIへ追加する」のうち後者を採用。ビルド自体はローカル実測で約15秒と軽く、slow lane に
+  置く理由が無い）。CI 実測（2026-08-12、初回・cache 未構築の `ubuntu-latest`）: job 全体
+  7分53秒のうち **`Pkg.instantiate()`（root + docs）が6分54秒**、ビルドと export の書き出しは
+  30秒。所要時間は依存の解決が支配的で、`julia-actions/cache` が効く2回目以降は短縮される
+  （`ci` job と並行して走るため、いずれにせよ通常CIの完了を遅らせない）。
+- **ビルド失敗を job の失敗として扱う**（`Check documentation build status` ステップ）:
+  `result.build_status == "failed"`、および測定自体ができなかった場合（`status` が
+  `failure`/`timeout`/`not_installed`）に job を失敗させる。**`warnings` では失敗させず**
+  GitHub Actions の `::warning::` として出す（Issue #213「warningを無条件にfailへ昇格させ
+  ない」。どのカテゴリをビルド失敗とするかの判断は §4.5「warning category ごとの方針」が
+  既に行っており、workflow 側でそれを二重に上書きしない）。
+  他 lane（#209/#211/#212）が測定結果を理由に CI を止めないのに対し docs lane だけが止めるのは、
+  ビルド失敗が「閾値を満たさない」ではなく「ドキュメントがビルドできない」という
+  コンパイルエラー相当の二値の欠陥だからである（ADR 0017 決定10）。
+- **依存環境の instantiate**: driver は root 環境、worker は docs 環境で動くため、
+  `--project=.`・`--project=docs` の両方を明示的に `Pkg.instantiate()` する。
+- **Artifact名**: `dme-julia-quality-v1-docs-${{ github.sha }}`（valid）・
+  `dme-julia-quality-v1-docs-invalid-${{ github.sha }}`（invalid/missing）。fast lane
+  （`dme-julia-quality-v1-…`）とも JET slow lane（`…-jet-…`）とも benchmark slow lane
+  （`…-benchmark-…`）とも区別する。retention は同じ（valid 90日・invalid 14日）。
+- **GitHub Pages deploy 権限を与えない**: `deploydocs` を呼ばない（§4.5「採用範囲」）ため、
+  workflow の `permissions` は他 lane と同じ `contents: read` のみでよい（Issue #213
+  設計上の注意「GitHub Pages deploy 権限を品質検査jobへ不要に付与しない」）。
+- それ以外（`if: always()` による検証・valid/invalid の Artifact 名分離・`overwrite: true`・
+  action 参照のメジャーバージョン固定）は §8.1 と同じ方針。
+
 ## 9. 限界
 
 - 本 contract は「DME 側が何を測定したか」という事実のみを保持する。品質スコア・合否判定は
   `software-quality-dashboard` 側の責務であり、本 contract には存在しない（ADR 0009/0012 の
   「事実と評価の分離」を踏襲）。
-- `result` の構造は `Pkg.test`/`Aqua.jl`/`JuliaFormatter.jl`/`Coverage.jl`/`JET.jl`/
-  `BenchmarkTools.jl` の6ツールで確定した（§4.1・§4.2・§4.3・§4.4、Issue
-  #208/#209/#211/#212）。残り1ツール（Documenter.jl）は対応 Issue（#213）が実装した時点で、
-  `result` フィールド一覧をこのドキュメントへ追記する（envelope 自体のスキーマ変更は伴わない想定）。
+- `result` の構造は予約7ツールすべてで確定した（§4.1・§4.2・§4.3・§4.4・§4.5、Issue
+  #208/#209/#211/#212/#213）。いずれも envelope 自体のスキーマ変更は伴っていない
+  （`schemas/julia-quality-export-v1.schema.json` は #207 から未変更）。
 - redaction は既知パターンベースのベストエフォートであり、機密情報の漏洩を構造的に防げる保証では
   ない（§5）。
 - `Test.get_test_counts`・`Test.TestSetException` の各フィールドは Julia の Test stdlib が
@@ -1065,3 +1325,19 @@ CI 環境の baseline は、この実行の Artifact をダウンロードして
   限り、意図的な性能変更（アルゴリズム変更等）は `regressed`/`improved` として残り続ける。
   複数コミットにまたがる性能トレンドの保持は本 contract の範囲外（1ファイル=1コミットの
   1回の実行、§1）。
+- Documenter.jl（§4.5）のビルド成功は「全ドキュメントが正しい」ことを意味しない。検証される
+  のはサイトに載る `src/**` の docstring の構文・参照解決・サイト内リンクだけで、
+  `docs/**.md` の78文書の内容・相互リンク・鮮度は一切検査されない（ADR 0017 決定2・限界）。
+  自然言語としての正確性の自動評価は Issue #213 の対象外。
+- Documenter.jl の `categories` はビルドが例外で終わると取得できず `null` になる（§4.5）。
+  `messages` は上限50件・1件1,000文字の抜粋であり、全 warning の完全なログではない
+  （件数の正本は `warnings`/`errors`）。
+- docs lane（§8 方法F・§8.4）は `paths` トリガーであるため、`paths` に列挙されていない
+  ファイルの変更で docstring 参照が壊れた場合はその PR では検査されない。driver/worker と
+  `docs/make.jl` 自体は自動テストの対象にせず実行で検証する方針（方法C/D/Eと同じ）。
+- GitHub Pages への公開・バージョン付きドキュメント配信・`deploydocs` の設定は対象外
+  （ADR 0017 決定1）。DME は Documenter を公開サイトの生成器ではなく docstring のビルド
+  検査器として使う。
+- docstring からリポジトリ内文書へのリンクは絶対 GitHub URL（`main` 固定）であり、リンク先の
+  文書をリネームしても機械的には検出されない（ADR 0017 影響）。リポジトリ全体の Markdown
+  相対リンク検査を品質Export のツールとして追加するかは本 contract の範囲外。

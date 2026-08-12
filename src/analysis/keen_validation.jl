@@ -29,8 +29,8 @@ const KEEN_VALIDATION_METHODOLOGY_VERSION = "keen-validation/1.0.0"
     KEEN_VALIDATION_CAVEATS
 
 バリデーション結果に常に添付する注意事項（fit を因果妥当性・危機確率・投資助言と
-同一視しないための固定文言）。[keen_empirical_strategy.md](../../docs/models/keen_empirical_strategy.md) §8・
-[LLM 安全性ルール](../../docs/llm_safety.md) と対応する。
+同一視しないための固定文言）。[keen_empirical_strategy.md](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/keen_empirical_strategy.md) §8・
+[LLM 安全性ルール](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/llm_safety.md) と対応する。
 """
 const KEEN_VALIDATION_CAVEATS = String[
     "実証 fit（当てはまり）は因果関係・危機発生確率・将来予測精度と同一ではない。",
@@ -429,7 +429,7 @@ end
 
 `wage_share_proxy` / `calibration_sample` の感応度は代替 dataset を要するため既定には含めず、
 `sensitivity_scenarios` へ `KeenSensitivityScenario` を追加して指定する
-（[keen_empirical_strategy.md](../../docs/models/keen_empirical_strategy.md) §6）。
+（[keen_empirical_strategy.md](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/keen_empirical_strategy.md) §6）。
 """
 function keen_default_validation_config(
     dataset::KeenEmpiricalDataset;
@@ -1090,7 +1090,7 @@ end
 4. `config.sensitivity_scenarios` を決定論的に実行し、推定値・fit・regime・遷移・発散の感応度を返す
 
 同一 `dataset`・`config` で決定的。推定値・fit を因果妥当性・危機確率・投資助言と同一視してはならない
-（[keen_empirical_strategy.md](../../docs/models/keen_empirical_strategy.md) §8、`KEEN_VALIDATION_CAVEATS`）。
+（[keen_empirical_strategy.md](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/keen_empirical_strategy.md) §8、`KEEN_VALIDATION_CAVEATS`）。
 """
 function validate_keen(dataset::KeenEmpiricalDataset, config::KeenValidationConfig)
     isempty(dataset.calibration_indices) &&

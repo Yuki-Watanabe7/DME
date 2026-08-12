@@ -1,0 +1,187 @@
+name: Docs
+
+# Documenter.jl によるドキュメントビルド検査（Issue #213）。
+#
+# ## なぜ ci.yml とも quality-slow.yml とも別の workflow なのか
+#
+#   - `ci.yml`（fast lane）は `paths-ignore: docs/** , **/*.md` を持つため、docs のみの
+#     変更は現状まったく CI 検査を受けない。job を足しても workflow 単位のトリガー条件は
+#     変えられないので、別 workflow が必要（Issue #213 設計上の注意
+#     「docs-only変更が既存CIのpaths-ignoreで完全に検査対象外にならないよう、
+#     別workflowの必要性を検討する」への回答）。
+#   - `quality-slow.yml`（slow lane）は schedule/workflow_dispatch のみで動くため、
+#     docs を変更した PR をその場で検査できない。ビルド自体はローカル実測で約15秒
+#     （依存の instantiate/precompile を除く）と軽く、slow lane に置く理由が無い
+#     （docs/contract/julia-quality-export-v1.md §8.4）。
+#
+# `ci` job とは独立した job・独立した export ファイル・独立した Artifact として運用し、
+# 通常の Julia テストとは別の failure reason を保持する（Issue #213 実施内容）。
+#
+# 詳細: docs/contract/julia-quality-export-v1.md §4.5 / §8 方法F / §8.4、ADR 0017
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'src/**'
+      - '**/*.md'
+      - 'scripts/docs_build_worker.jl'
+      - 'scripts/quality_export_docs.jl'
+      - 'Project.toml'
+      - 'Manifest.toml'
+      - '.github/workflows/docs.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'src/**'
+      - '**/*.md'
+      - 'scripts/docs_build_worker.jl'
+      - 'scripts/quality_export_docs.jl'
+      - 'Project.toml'
+      - 'Manifest.toml'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    name: Documenter.jl build
+    runs-on: ubuntu-latest
+    # scripts/quality_export_docs.jl 自身が内部で worker subprocess の期限（既定30分、
+    # DME_QUALITY_EXPORT_DOCS_TIMEOUT_SECONDS で変更可）を管理し、超過時は
+    # status=:timeout として構造化して報告する。この timeout-minutes はその内部 timeout が
+    # 機能しなかった場合の最終防御であり、内部timeoutより十分大きく設定する。
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1.12.6'
+
+      - uses: julia-actions/cache@v3
+
+      # driver は root環境（`--project=.`）、worker は docs環境（`--project=docs`、
+      # Documenter.jl と `Pkg.develop` された DME）で動く。`Pkg.test()` と異なり
+      # 自動 instantiate は行われないため両方を明示的に instantiate する。
+      - name: Install dependencies (root + docs environments)
+        run: |
+          julia --project=. -e "using Pkg; Pkg.instantiate()"
+          julia --project=docs -e "using Pkg; Pkg.instantiate()"
+
+      - name: Build docs and write quality export
+        run: julia --project=. scripts/quality_export_docs.jl
+        env:
+          DME_QUALITY_EXPORT_DOCS_TIMEOUT_SECONDS: "1800"
+
+      # ビルド失敗（build_status = "failed"）と、測定自体ができなかった場合
+      # （status = failure/timeout/not_installed）を job の失敗として扱う。
+      # **warning はここで失敗にしない**（Issue #213 設計上の注意
+      # 「warningを無条件にfailへ昇格させず、warning categoryごとに方針を決める」。
+      # どのカテゴリをビルド失敗とするかの判断は docs/make.jl の DME_DOCS_WARNONLY が
+      # 既に行っており、ここでその判断を二重に上書きしない）。
+      # scripts/quality_export_docs.jl 自体は export を必ず書き出すため常に exit 0 で、
+      # 成否の判定はこのステップが担う。
+      - name: Check documentation build status
+        id: docs_build_status
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, sys
+
+          path = "artifacts/quality/quality-export-docs.json"
+          try:
+              with open(path, encoding="utf-8") as f:
+                  document = json.load(f)
+          except OSError as exc:
+              sys.exit(f"::error::quality export を読めませんでした ({path}): {exc}")
+
+          tool = document.get("tools", {}).get("Documenter.jl")
+          if tool is None:
+              sys.exit("::error::export に Documenter.jl セクションがありません")
+
+          status = tool.get("status")
+          if status != "success":
+              error = tool.get("error") or {}
+              reason = tool.get("reason") or error.get("message", "")
+              sys.exit(f"::error::Documenter.jl を測定できませんでした (status={status}): {reason}")
+
+          result = tool.get("result", {})
+          build_status = result.get("build_status")
+          warnings = result.get("warnings", 0)
+          errors = result.get("errors", 0)
+          print(f"build_status={build_status} warnings={warnings} errors={errors}")
+          for message in result.get("messages", []):
+              print(f"  [{message.get('level')}] {message.get('message')}")
+
+          if build_status == "failed":
+              sys.exit(f"::error::Documenter build failed (errors={errors})")
+          if build_status == "warnings":
+              print(f"::warning::Documenter build succeeded with {warnings} warning(s)")
+          PY
+
+      # --- 品質Export Artifact 公開（§8.1 の fast lane 実装を docs lane 用に踏襲） ------
+      # quality-export-docs.json は前段の成否（ビルド失敗・timeout・crash 含む）に関わらず
+      # 書き出し済みのため、以降は if: always() で実行する。
+
+      - name: Install jsonschema (JSON Schema検証用; scripts/validate_quality_export.jl が使う)
+        if: always()
+        run: python3 -m pip install --quiet jsonschema
+
+      - name: Validate quality export
+        id: quality_export_validate
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ -f artifacts/quality/quality-export-docs.json ]; then
+            julia --project=. scripts/validate_quality_export.jl artifacts/quality/quality-export-docs.json \
+              2>&1 | tee artifacts/quality/quality-export-docs-validate.log
+            status="${PIPESTATUS[0]}"
+          else
+            mkdir -p artifacts/quality
+            echo "quality-export-docs.json が見つかりません（Build docs ステップが致命的に失敗した可能性があります）" \
+              | tee artifacts/quality/quality-export-docs-validate.log
+            status=1
+          fi
+          if [ "$status" -eq 0 ]; then
+            echo "valid=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+          fi
+          exit "$status"
+
+      # 検証に通った export のみ正規Artifactとして公開する。Artifact名に "docs" を含め、
+      # fast lane（dme-julia-quality-v1-…）・JET slow lane（…-jet-…）・
+      # benchmark slow lane（…-benchmark-…）のいずれとも区別する。
+      - name: Upload quality export (Documenter.jl docs lane)
+        if: always() && steps.quality_export_validate.outputs.valid == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: dme-julia-quality-v1-docs-${{ github.sha }}
+          path: artifacts/quality/quality-export-docs.json
+          retention-days: 90
+          if-no-files-found: error
+          overwrite: true
+
+      - name: Upload quality export diagnostics (invalid or missing only)
+        if: always() && steps.quality_export_validate.outputs.valid != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: dme-julia-quality-v1-docs-invalid-${{ github.sha }}
+          path: |
+            artifacts/quality/quality-export-docs.json
+            artifacts/quality/quality-export-docs-validate.log
+          retention-days: 14
+          if-no-files-found: warn
+          overwrite: true
