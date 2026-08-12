@@ -19,7 +19,7 @@
 # 潜在変数の単独提示抑止（実施内容4）:
 #   `SimulationResult.metadata["variable_observability"]`（`I-6`）を参照し、要求された変数が
 #   すべて潜在（observability コード `E`「潜在状態として推定が必要」・`A`「観測不能・シナリオ
-#   仮定のみ」、[観測方程式・識別戦略](../../docs/models/capex_credit_cycle_empirical_strategy.md)
+#   仮定のみ」、[観測方程式・識別戦略](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/capex_credit_cycle_empirical_strategy.md)
 #   §3 の5分類）である場合に `ArgumentError` を送出する（`_ccc_assert_not_latent_only`）。
 #   観測可能な変数と併せて指定する分には抑止しない（「単独提示」の抑止であり、潜在変数を含む
 #   図そのものの禁止ではない）。
@@ -40,7 +40,7 @@ const _CCC_LATENT_OBSERVABILITY_CODES = ("E", "A")
     _ccc_assert_not_latent_only(result::SimulationResult, vars::Vector{String})
 
 `vars` に含まれる全変数の `variable_observability` コードが潜在（`E`・`A`、
-[観測方程式・識別戦略 §3](../../docs/models/capex_credit_cycle_empirical_strategy.md)）である場合に
+[観測方程式・識別戦略 §3](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/capex_credit_cycle_empirical_strategy.md)）である場合に
 `ArgumentError` を送出する。`variable_observability` が metadata に無い場合（CCC 以外の
 `SimulationResult` を誤って渡した場合等）は検査をスキップする。
 """
@@ -517,7 +517,7 @@ end
 
 `funding_pressure_s` の5値（`diag.funding_pressure`、precedence順: `fp_invalid` →
 `fp_unlevered` → `fp_interest_uncovered` → `fp_rollover_dependent` → `fp_covered`、
-[ストック・フロー会計表 §7.4](../../docs/models/capex_credit_cycle_stock_flow.md)）を部門ごとに
+[ストック・フロー会計表 §7.4](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/capex_credit_cycle_stock_flow.md)）を部門ごとに
 時系列帯として描画する（`I-7` 実施内容3）。`Minsky` の資金調達区分（`hedge`/`speculative`/
 `ponzi`）とは**別ラベル体系**であり、独立の配色・独立の関数を用いる。同一の図に重ねない
 （#166 §7.4）。

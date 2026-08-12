@@ -6,13 +6,13 @@
 含まれない。
 
 正本:
-- [統合設計](../../docs/architecture/capex_credit_cycle_integration.md)
-- [統合モデル仕様 index](../../docs/models/capex_credit_cycle_design.md)
-- [動学方程式](../../docs/models/capex_credit_cycle_equations.md) §3-§17（期内処理順序・全方程式・
+- [統合設計](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/architecture/capex_credit_cycle_integration.md)
+- [統合モデル仕様 index](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/capex_credit_cycle_design.md)
+- [動学方程式](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/capex_credit_cycle_equations.md) §3-§17（期内処理順序・全方程式・
   パラメータ辞書・逆較正・数値ガード）
-- [部門境界と変数定義](../../docs/models/capex_credit_cycle_sectors_variables.md) §4-6
-- [ADR 0011](../../docs/adr/0011-capex-credit-cycle-dynamics-contract.md)
-- [ADR 0013](../../docs/adr/0013-capex-credit-cycle-integration-contract.md)
+- [部門境界と変数定義](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/capex_credit_cycle_sectors_variables.md) §4-6
+- [ADR 0011](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/adr/0011-capex-credit-cycle-dynamics-contract.md)
+- [ADR 0013](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/adr/0013-capex-credit-cycle-integration-contract.md)
 """
 
 const CAPEX_CREDIT_CYCLE_MODEL_VERSION = "capex-credit-cycle/1.0.0"

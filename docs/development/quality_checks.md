@@ -70,6 +70,7 @@ git add test/Project.toml test/Manifest.toml
 |--------|------|
 | **JET.jl**（push/PRのfast lane） | 数値計算コード・動的 JSON 応答を扱うコードでの誤検知が多く、fast lane（push/PR毎）に組み込むと CI が不安定化するリスクがある。Issue #211 で「必要になった時点」として正式導入したが、fast lane ではなく schedule/workflow_dispatch の **slow lane**（[`.github/workflows/quality-slow.yml`](../../.github/workflows/quality-slow.yml)）専用とすることでこのリスクを回避した。詳細は [§5.5](#55-jetjl-slow-laneissue-211) |
 | **BenchmarkTools.jl**（push/PRのfast lane） | CI runner 上の絶対実行時間はノイズが大きく、push/PR 毎に測っても意味のある信号にならないうえ、通常CIの所要時間を押し上げる。Issue #212 で slow lane（**weekly** schedule / workflow_dispatch）専用として導入した。回帰判定は advisory で、PR 必須の performance gate にはしない。詳細は [§5.6](#56-benchmarktoolsjl-slow-laneissue-212) |
+| **Documenter.jl**（push/PRのfast lane） | `ci.yml` は `paths-ignore: docs/**, **/*.md` を持つため docs-only 変更を検査できず、また `src/**` 変更のたびに fast lane へビルドを足すと通常CIの所要時間を押し上げる。Issue #213 で、`docs/**`・`src/**`・`**/*.md` の変更で起動する**専用 workflow**（[`.github/workflows/docs.yml`](../../.github/workflows/docs.yml)）として導入した。`ci` job とは別 job のため通常CIは遅くならない。詳細は [§5.7](#57-documenterjl-docs-laneissue-213) |
 | **Aqua.jl の `persistent_tasks`** | DME は JuMP・Ipopt・Plots など重量級のバイナリ依存を持つ。このチェックは独立した一時プロジェクトで DME を再解決・再プリコンパイルするサブプロセスを spawn するため、メインテストプロセスと同時実行時に CI ランナーのメモリ/CPU 制約でサブプロセスが完了前にクラッシュし、CI が不安定化する（ローカルでは安定して成功する）。`test/test_quality.jl` で `persistent_tasks = false` により無効化 |
 
 ---
@@ -257,3 +258,55 @@ DME_QUALITY_EXPORT_BENCHMARK_ENABLED=1 julia --project=. -e "using Pkg; Pkg.test
 BenchmarkTools.jl を追加したことで cold cache 時に一度だけ precompile コストが発生する
 （ローカル実測で約5〜7秒）。fast lane のテストコード自体は BenchmarkTools.jl を `using`
 しないため、warm cache の通常運用では追加コストはほぼ発生しない。
+
+### 5.7 Documenter.jl docs lane（Issue #213）
+
+`src/**/*.jl` の docstring から API リファレンスをビルドし、その結果を export する。
+DME は Documenter.jl を **公開サイトの生成器ではなく docstring のビルド検査器** として
+使う（`deploydocs` は呼ばず GitHub Pages へ公開しない。決定は
+[ADR 0017](../adr/0017-documenter-adoption-and-docs-quality-export.md)）。
+
+fast lane にも slow lane にも属さず、`docs/**`・`src/**`・`**/*.md` の変更で起動する専用
+workflow（[`.github/workflows/docs.yml`](../../.github/workflows/docs.yml)）で実行する
+（`ci.yml` は `paths-ignore: docs/**, **/*.md` を持ち docs-only 変更を検査しないため）。
+
+```bash
+# 0. docs 環境を用意する（初回のみ）
+julia --project=docs -e "using Pkg; Pkg.instantiate()"
+
+# 1. ビルドだけを確認する（品質Export は書かない。所要 約15秒 + DME のロード）
+julia --project=docs docs/make.jl
+#   生成物: docs/build/（.gitignore 済み。docs/build/index.html をブラウザで開ける）
+
+# 2. 品質Export まで書き出す（CI の docs lane が使うのと同じコマンド）
+julia --project=. scripts/quality_export_docs.jl
+# 既定出力先: artifacts/quality/quality-export-docs.json
+#   （他 lane の quality-export{,-jet,-benchmark}.json とは別ファイル）
+```
+
+**ビルド設定の正本は [`docs/make.jl`](../make.jl)**（`dme_build_docs`）。対象ページ・
+`checkdocs`・`warnonly`・`doctest`/`linkcheck` の有無はすべてここにあり、worker
+（`scripts/docs_build_worker.jl`）は `include` して呼ぶだけ。人手のローカル実行と CI の測定が
+同じ設定であることを構造的に保証している。
+
+**API ページの対象ファイルは自動で決まる**: `docs/src/api/*.md` の `@autodocs` は
+`docs/make.jl` が `src/` を走査して作る `DME_API_PAGES` を参照する。`src/` に新しい
+**サブディレクトリ**を追加して `DME_API_GROUPS` へ割り当てないとビルドが失敗する
+（docstring が黙ってサイトから欠落しないようにするための検査）。既存ディレクトリへの
+ファイル追加は何もしなくてよい。
+
+**warning はビルド失敗にしない / ビルド失敗は CI 失敗にする**:
+
+- `:cross_references`（docstring からサイト外のリポジトリ内文書へのリンク等）は警告に
+  留め、件数とカテゴリを export に残す。
+- それ以外の Documenter エラークラス（`:docs_block`・`:missing_docs`・`:parse_error` 等）は
+  ビルド失敗（`build_status = "failed"`）とし、docs workflow はこの場合に job を失敗させる。
+- カテゴリごとの割り当ては
+  [Julia品質Export Contract §4.5](../contract/julia-quality-export-v1.md#45-documenterjl-の-result)
+  「warning category ごとの方針」を参照。
+
+**docs 環境の依存を変更した場合**は `julia --project=docs -e 'using Pkg; Pkg.instantiate()'`
+を実行し `docs/Manifest.toml` もコミットすること（`test/` 環境と同じ運用。§2.1）。
+
+**fast lane への影響**: Documenter.jl は `test/Project.toml` ではなく専用の
+`docs/Project.toml` にあるため、`Pkg.test()`（fast lane）の依存も所要時間も変わらない。

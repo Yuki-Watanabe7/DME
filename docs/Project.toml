@@ -1,0 +1,6 @@
+[deps]
+DME = "32de5cd0-ad60-11e9-36bc-9b7c9b1e2078"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+
+[compat]
+Documenter = "1"

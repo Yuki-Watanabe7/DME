@@ -56,7 +56,7 @@ end
 simulation truncated)"）で明示し、`ponzi` の帯へは一切混入しない。
 
 区分は `KeenModel` の集計量から導かれる代理診断であり、実測の企業比率ではない
-（タイトルに明記）。詳細は [Minsky 資金調達区分診断](../../docs/models/minsky_regime_diagnostics.md)
+（タイトルに明記）。詳細は [Minsky 資金調達区分診断](https://github.com/Yuki-Watanabe7/DME/blob/main/docs/models/minsky_regime_diagnostics.md)
 を参照。
 
 ## キーワード引数

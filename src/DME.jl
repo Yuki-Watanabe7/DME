@@ -198,6 +198,15 @@ export
     QualityBenchmarkResult,
     QualityBenchmarkBaselineRef,
     quality_tool_benchmark_result,
+    # Documenter.jl ビルド結果の構造化（Issue #213、src/quality/quality_capture.jl）
+    QUALITY_DOCS_BUILD_STATUSES,
+    QUALITY_DOCS_MESSAGE_LEVELS,
+    QUALITY_DOCS_ERROR_CATEGORIES,
+    QUALITY_DOCS_MESSAGE_LIMIT,
+    QUALITY_DOCS_MESSAGE_MAX_CHARS,
+    QualityDocsMessage,
+    quality_docs_build_status,
+    quality_tool_documenter_result,
     # Stable orchestration CLI (Issue #220, src/cli.jl)
     dme_main,
     # SFC accounting primitives (src/sfc/)

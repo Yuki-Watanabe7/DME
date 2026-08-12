@@ -6,6 +6,10 @@
 # デモ生成物（ローカル出力・再現可能なためコミットしない）
 /artifacts/
 
+# Documenter.jl のビルド生成物（Issue #213。docs/make.jl の出力先。DME は
+# このサイトを公開せず docstring のビルド検査にのみ使うため、生成物は保持しない）
+/docs/build/
+
 # Coverage.jl のトレースファイル（Issue #209。scripts/quality_export_coverage.jl が
 # Coverage.clean_folder で都度削除するが、異常終了時の取り残し対策として無視する）
 *.jl.cov
