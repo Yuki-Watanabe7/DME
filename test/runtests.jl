@@ -33,6 +33,7 @@ const DME_TEST_FILES = [
     "test_sfc_primitives.jl",
     "test_sfc_accounting.jl",
     "test_sfc_sim.jl",
+    "test_macro_event_types.jl",
     "test_capex_credit_cycle.jl",
     "test_capex_credit_cycle_accounting.jl",
     "test_capex_credit_cycle_diagnostics.jl",
