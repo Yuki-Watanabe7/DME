@@ -244,6 +244,12 @@ end
 
 # ------------------------------------------------------------
 # 時間形状の離散定義（シナリオ時間軸 §5.2。t < timing では 0）
+#
+# `_ccc_shock_value` の内部実装は共通層 `src/scenarios/scenario_time.jl` の `shock_shape_path`
+# へ委譲する（統合設計 §8.3・`Y-23`。Issue #198）。`_ccc_shock_active` は `:absolute` 合成の
+# 「1件のみ許可」検査専用の活性判定であり、委譲対象ではない（値0との区別に用いるため独立に
+# 保持する）。**戻り値の数値は委譲前と bit 単位で変わらない**（同一の演算順序・同一の数式を
+# 用いるため）。
 # ------------------------------------------------------------
 
 """
@@ -269,30 +275,32 @@ function _ccc_shock_active(shock::CapexShockSpec, t::Int)
 end
 
 """
+    _ccc_persistence_spec(shock::CapexShockSpec) -> PersistenceSpec
+
+`CapexShockSpec` の形状指定（`shape`・`duration`・`shape_params`）を共通層の `PersistenceSpec`
+へ写す（`shock_shape_path` への委譲のため）。`CapexShockSpec` に `AppliedModelInput` の属性を
+持たせない（統合設計 §8.3 契約3）。
+"""
+function _ccc_persistence_spec(shock::CapexShockSpec)
+    return PersistenceSpec(;
+        shape = shock.shape,
+        duration = shock.duration,
+        params = shock.shape_params,
+    )
+end
+
+"""
     _ccc_shock_value(shock, t) -> Float64
 
 期 `t` における `a_t`（シナリオ時間軸 §5.2 の形状定義に沿った値）。`shock` が非作用の期は
-`0.0` を返す（`:multiplicative`/`:additive` の合成における単位元）。
+`0.0` を返す（`:multiplicative`/`:additive` の合成における単位元）。共通層 `shock_shape_path`
+（`src/scenarios/scenario_time.jl`）へ委譲する（`Y-23`。打ち切りは行わないため `t_until` は
+`nothing`）。
 """
 function _ccc_shock_value(shock::CapexShockSpec, t::Int)
     _ccc_shock_active(shock, t) || return 0.0
-    t0 = shock.timing
-    m = shock.magnitude
-    if shock.shape === :step
-        return m
-    elseif shock.shape === :ramp
-        d_up = shock.duration
-        return t < t0 + d_up ? m * (t - t0 + 1) / d_up : m
-    elseif shock.shape === :ar1_decay
-        h = shock.shape_params.half_life
-        rho = 0.5^(1 / h)
-        return m * rho^(t - t0)
-    else # :step_then_ramp
-        hold = shock.shape_params.hold
-        down = shock.shape_params.ramp_down
-        t < t0 + hold && return m
-        return m * (1 - (t - t0 - hold + 1) / down)
-    end
+    persistence = _ccc_persistence_spec(shock)
+    return shock_shape_path(persistence, shock.magnitude, shock.timing, [t], nothing)[1]
 end
 
 # ------------------------------------------------------------

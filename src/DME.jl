@@ -95,12 +95,25 @@ export
     # イベント・シナリオ実行層: 検証
     validate_event,
     # イベント・シナリオ実行層: シナリオ集合・時間軸型（src/scenarios/scenario_time.jl・
-    # scenario_types.jl。`CalendarQuarter`/`TimingRuleSet` は型のみ、規則の実装は Issue #198）
+    # scenario_types.jl。`CalendarQuarter`/`TimingRuleSet` は型、規則の実装は Issue #198）
     CalendarQuarter,
     TimingRuleSet,
     Scenario,
     ScenarioWarning,
     EventRejection,
+    # イベント・シナリオ実行層: 暦四半期変換・時間形状（src/scenarios/scenario_time.jl、
+    # Issue #198 / `E-2`）
+    quarter_of,
+    quarter_index,
+    quarter_label,
+    shock_shape_path,
+    # イベント・シナリオ実行層: スケジューラ（src/scenarios/event_scheduler.jl、
+    # Issue #198 / `E-2`）
+    ScheduledEvent,
+    EventLogEntry,
+    EventSchedule,
+    schedule_events,
+    compose_exogenous_paths,
     # CCC: 構築・較正（部門別CAPEX・信用循環モデル、src/models/capex_credit_cycle.jl）
     CAPEX_CREDIT_CYCLE_MODEL_VERSION,
     CapexCreditCycleTargets,
@@ -544,11 +557,16 @@ include("./core/solver_options.jl")
 
 # イベント・シナリオ実行層の共通型（Issue #197 / `E-1`。統合設計 §4.1-4.2 の配置決定に従い
 # models/ ブロックより前に置く純粋な共通層。stdlib Dates 以外へ依存しない。
-# scenario_time.jl（CalendarQuarter・TimingRuleSet の型のみ）→ macro_events.jl（4層レコード型・
-# 語彙定数）→ scenario_types.jl（Scenario・ScenarioWarning・EventRejection）の順に依存する）
-include("./scenarios/scenario_time.jl")
+# macro_events.jl（4層レコード型・語彙定数・PersistenceSpec・EventTiming）→ scenario_time.jl
+# （CalendarQuarter・TimingRuleSet の型・暦四半期変換・時間形状6種。`shock_shape_path`/
+# `resolve_t_apply` が macro_events.jl の型に依存するため #198 実装時にこの順へ修正した。
+# macro_events.jl は scenario_time.jl の型を参照しないため安全）→ scenario_types.jl（Scenario・
+# ScenarioWarning・EventRejection）→ event_scheduler.jl（全順序・固定順合成・schedule_events、
+# Issue #198 / `E-2`）の順に依存する）
 include("./scenarios/macro_events.jl")
+include("./scenarios/scenario_time.jl")
 include("./scenarios/scenario_types.jl")
+include("./scenarios/event_scheduler.jl")
 
 # Model implementations
 include("./models/ramsey.jl")
