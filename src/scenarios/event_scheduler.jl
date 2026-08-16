@@ -161,7 +161,7 @@ function _event_scheduler_filter_out_of_horizon(
                     subject_ids = [inp.input_id],
                     target_variable = inp.target_variable,
                     detail = "t_apply=$(inp.t_apply) はホライズン [-$(horizon_runup), " *
-                    "$(horizon_eval - 1)] の外のため適用しません（統合設計 §7.3、`Y-09`）",
+                             "$(horizon_eval - 1)] の外のため適用しません（統合設計 §7.3、`Y-09`）",
                 ),
             )
         else
@@ -185,7 +185,7 @@ function _event_scheduler_drop_duplicates(inputs::Vector{AppliedModelInput})
                     subject_ids = [inp.input_id],
                     target_variable = inp.target_variable,
                     detail = "input_id=$(inp.input_id) が重複して渡されました。先に現れたものを" *
-                    "採用し、重複はログ（warnings）に残して適用対象からは除きます",
+                             "採用し、重複はログ（warnings）に残して適用対象からは除きます",
                 ),
             )
         else
@@ -226,8 +226,8 @@ function _event_scheduler_offsetting_warnings(inputs::Vector{AppliedModelInput})
                 subject_ids = [inp.input_id for inp in group],
                 target_variable = target,
                 detail = "t_apply=$(t_apply) の $(target) で符号の異なるイベントが相殺しています" *
-                "（net=$(net)、gross=$(gross)）。相殺を理由にイベントを除去していません" *
-                "（統合設計 §7.5 契約2）",
+                         "（net=$(net)、gross=$(gross)）。相殺を理由にイベントを除去していません" *
+                         "（統合設計 §7.5 契約2）",
             ),
         )
     end
@@ -275,8 +275,8 @@ function _event_scheduler_conflicting_absolute(
                 subject_ids = sort(collect(conflict_ids)),
                 target_concept = nothing,
                 detail = "target=$target で :absolute のイベントが同時に複数活性化する期が" *
-                "あります（t=$(conflict_periods)）。モデルは単一の絶対値しか保持できず、" *
-                "1つに定まりません（統合設計 §7.5）",
+                         "あります（t=$(conflict_periods)）。モデルは単一の絶対値しか保持できず、" *
+                         "1つに定まりません（統合設計 §7.5）",
             ),
         )
     end
