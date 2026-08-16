@@ -24,10 +24,11 @@ DME は Documenter.jl を「公開サイトの生成器」ではなく **docstri
 
 ## API リファレンス
 
-`src/` のディレクトリ構成に対応した6ページに分かれています。
+`src/` のディレクトリ構成に対応した7ページに分かれています。
 
 - [コアインターフェース](api/core.md) — 共通インターフェース・`SimulationResult`・比較・可視化・数値ユーティリティ・CLI
 - [モデル](api/models.md) — 各モデルの型・構築・シミュレーション
+- [シナリオ・イベント実行層](api/scenarios.md) — マクロイベントの4層概念階層・シナリオ・時間軸型
 - [実データ層](api/data.md) — `DataSeries`・前処理・FRED / e-Stat クライアント
 - [分析・診断層](api/analysis.md) — 較正・検証・診断・SFC 会計
 - [LLM層](api/llm.md) — `AnalysisContext`・プロンプト・provider 抽象化
