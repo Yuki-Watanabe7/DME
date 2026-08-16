@@ -104,6 +104,7 @@ end
 const DME_API_GROUPS = [
     ("core", "コアインターフェース", ["", "core", "numerics"]),
     ("models", "モデル", ["models"]),
+    ("scenarios", "シナリオ・イベント実行層", ["scenarios"]),
     ("data", "実データ層", ["data"]),
     ("analysis", "分析・診断層", ["analysis", "sfc"]),
     ("llm", "LLM層", ["llm"]),
@@ -125,7 +126,8 @@ let assigned = Set(Iterators.flatten(values(DME_API_PAGES))),
     missing_files = sort!(collect(setdiff(all_files, assigned)))
     isempty(missing_files) || error(
         "docs/make.jl: 次の src/ ファイルが DME_API_GROUPS のどのグループにも " *
-        "割り当てられていません（API ページから欠落します）: " * join(missing_files, ", "),
+        "割り当てられていません（API ページから欠落します）: " *
+        join(missing_files, ", "),
     )
 end
 
@@ -158,8 +160,7 @@ function dme_build_docs(; debug::Bool = false)
         ),
         pages = [
             "ホーム" => "index.md",
-            "API リファレンス" =>
-                ["api/$(name).md" for (name, _, _) in DME_API_GROUPS],
+            "API リファレンス" => ["api/$(name).md" for (name, _, _) in DME_API_GROUPS],
         ],
         checkdocs = DME_DOCS_CHECKDOCS,
         doctest = DME_DOCS_DOCTEST,

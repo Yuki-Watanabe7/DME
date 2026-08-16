@@ -66,6 +66,41 @@ export
     transition_path,
     simulate,
     impulse_response,
+    # イベント・シナリオ実行層: version（Issue #197 / `E-1`、src/scenarios/macro_events.jl）
+    MACRO_EVENT_CONTRACT_VERSION,
+    SCENARIO_TIME_SEMANTICS_VERSION,
+    MACRO_EVENT_RUNTIME_VERSION,
+    EVENT_RULE_VERSION,
+    CAPEX_CC_EVENT_MAPPING_VERSION,
+    SCENARIO_ARTIFACT_SCHEMA_VERSION,
+    # イベント・シナリオ実行層: 4層レコード型と共通下位構造
+    AbstractMacroEvent,
+    ObservedEvent,
+    InterpretedSignal,
+    ScenarioAssumption,
+    AppliedModelInput,
+    EventSource,
+    EventProvenance,
+    PersistenceSpec,
+    EventTiming,
+    # イベント・シナリオ実行層: 語彙
+    MACRO_EVENT_TYPES,
+    MACRO_EVENT_TARGET_CONCEPTS,
+    MACRO_EVENT_SHAPES,
+    MACRO_EVENT_APPLICATION_MODES,
+    MACRO_EVENT_MAGNITUDE_SOURCES,
+    MACRO_EVENT_LAYERS,
+    MACRO_EVENT_WARNING_CODES,
+    MACRO_EVENT_REJECTION_CODES,
+    # イベント・シナリオ実行層: 検証
+    validate_event,
+    # イベント・シナリオ実行層: シナリオ集合・時間軸型（src/scenarios/scenario_time.jl・
+    # scenario_types.jl。`CalendarQuarter`/`TimingRuleSet` は型のみ、規則の実装は Issue #198）
+    CalendarQuarter,
+    TimingRuleSet,
+    Scenario,
+    ScenarioWarning,
+    EventRejection,
     # CCC: 構築・較正（部門別CAPEX・信用循環モデル、src/models/capex_credit_cycle.jl）
     CAPEX_CREDIT_CYCLE_MODEL_VERSION,
     CapexCreditCycleTargets,
@@ -506,6 +541,14 @@ include("./numerics/interpolation.jl")
 # Core abstractions: model interface, solver options
 include("./core/model_interface.jl")
 include("./core/solver_options.jl")
+
+# イベント・シナリオ実行層の共通型（Issue #197 / `E-1`。統合設計 §4.1-4.2 の配置決定に従い
+# models/ ブロックより前に置く純粋な共通層。stdlib Dates 以外へ依存しない。
+# scenario_time.jl（CalendarQuarter・TimingRuleSet の型のみ）→ macro_events.jl（4層レコード型・
+# 語彙定数）→ scenario_types.jl（Scenario・ScenarioWarning・EventRejection）の順に依存する）
+include("./scenarios/scenario_time.jl")
+include("./scenarios/macro_events.jl")
+include("./scenarios/scenario_types.jl")
 
 # Model implementations
 include("./models/ramsey.jl")
