@@ -452,11 +452,8 @@ function schedule_events(
     periods = collect((-sc.horizon_runup):(sc.horizon_eval - 1))
     assumption_by_id = Dict(a.assumption_id => a for a in sc.assumptions)
 
-    in_range, horizon_warnings = _event_scheduler_filter_out_of_horizon(
-        inputs,
-        sc.horizon_runup,
-        sc.horizon_eval,
-    )
+    in_range, horizon_warnings =
+        _event_scheduler_filter_out_of_horizon(inputs, sc.horizon_runup, sc.horizon_eval)
     deduped, duplicate_warnings = _event_scheduler_drop_duplicates(in_range)
 
     target_order = collect(keys(baseline))

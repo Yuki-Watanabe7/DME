@@ -57,9 +57,8 @@ end
     )
     unformatted_files = filter(f -> !JuliaFormatter.format(f; overwrite = false), jl_files)
     is_formatted = isempty(unformatted_files)
-    # `QUALITY_CAPTURE_FORMATTER` は下の一時例外に関わらず実態（未フォーマットの事実）を
-    # そのまま記録する。品質exportの正直な報告という契約（Issue #208/#209）を、CI
-    # ブロッキングの緩和とは独立に保つため。
+    # `QUALITY_CAPTURE_FORMATTER` は実態（未フォーマットの事実）をそのまま記録する。
+    # 品質exportの正直な報告という契約（Issue #208/#209）を保つため。
     QUALITY_CAPTURE_FORMATTER[] = (
         formatted = is_formatted,
         unformatted_files = [relpath(f, src_dir) for f in unformatted_files],
@@ -68,19 +67,5 @@ end
         @warn "src/ にフォーマット未適用のファイルがあります: $(join([relpath(f, src_dir) for f in unformatted_files], ", "))。`julia --project=. -e 'using JuliaFormatter; format(\"src/\")'` を実行してください。"
     end
 
-    # 一時例外（Issue #231）: PR #230 で追加された以下2ファイルは、対応セッションが
-    # サンドボックス環境（Julia本体をインストールできない egress ポリシー）で
-    # JuliaFormatter を実行検証できず、コードベース内の既存ファイルとの照合による手動整形
-    # でも実機一致を確認できなかった。CIのブロッキングのみを一時的に緩和し、他ファイルの
-    # 検出は従来通り有効に保つ（`QUALITY_CAPTURE_FORMATTER` は上記の通り実態を隠さない）。
-    # Issue #231 で実際に `format("src/")` を実行し、本例外を削除すること。
-    _formatter_known_exceptions = Set([
-        "scenarios/event_scheduler.jl",
-        "scenarios/scenario_time.jl",
-    ])
-    unexpected_unformatted = setdiff(
-        Set(relpath(f, src_dir) for f in unformatted_files),
-        _formatter_known_exceptions,
-    )
-    @test isempty(unexpected_unformatted)
+    @test is_formatted
 end
