@@ -190,12 +190,8 @@ function resolve_t_apply(
     )
     q = quarter_of(timing.effective_from)
     t_raw = quarter_index(q, period_zero)
-    offset = _scenario_time_calendar_offset(
-        timing.rule,
-        timing.effective_from,
-        q,
-        timing_rules,
-    )
+    offset =
+        _scenario_time_calendar_offset(timing.rule, timing.effective_from, q, timing_rules)
     return t_raw + offset
 end
 
