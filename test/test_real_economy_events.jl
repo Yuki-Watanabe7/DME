@@ -398,19 +398,21 @@ const _REE_HAPPY_PATH = Dict{Symbol, NamedTuple}(
             _ree_observed(event_id = "OE-d2", magnitude = -4.0, unit = "%", notes = "別の書き方")
         different_magnitude = _ree_observed(event_id = "OE-d3", magnitude = -4.000001, unit = "%")
 
-        @test macro_event_dedup_key(base) == macro_event_dedup_key(same_content)
-        @test macro_event_dedup_key(base) != macro_event_dedup_key(different_magnitude)
+        # magnitude が Union{Float64,Missing} を含むため、タプルの `==` は missing どうしで
+        # missing を返す（三値論理）。決定的な等価判定には `isequal` を用いる。
+        @test isequal(macro_event_dedup_key(base), macro_event_dedup_key(same_content))
+        @test !isequal(macro_event_dedup_key(base), macro_event_dedup_key(different_magnitude))
 
         is_base = _ree_interpreted(event_id = "IS-d1")
         is_same = _ree_interpreted(event_id = "IS-d2", confidence = 0.9, notes = "別の書き方")
         is_diff_entity = _ree_interpreted(event_id = "IS-d3", entity = "fictional-corp-a")
-        @test macro_event_dedup_key(is_base) == macro_event_dedup_key(is_same)
-        @test macro_event_dedup_key(is_base) != macro_event_dedup_key(is_diff_entity)
+        @test isequal(macro_event_dedup_key(is_base), macro_event_dedup_key(is_same))
+        @test !isequal(macro_event_dedup_key(is_base), macro_event_dedup_key(is_diff_entity))
 
-        # magnitude が欠測どうしなら一致する
+        # magnitude が欠測どうしなら一致する（isequal(missing, missing) === true）
         qualitative_a = _ree_observed(event_id = "OE-q-a")
         qualitative_b = _ree_observed(event_id = "OE-q-b", notes = "別の記述")
-        @test macro_event_dedup_key(qualitative_a) == macro_event_dedup_key(qualitative_b)
+        @test isequal(macro_event_dedup_key(qualitative_a), macro_event_dedup_key(qualitative_b))
     end
 
     @testset ":other は smart constructor では扱えない（型別規則が定義されないため）" begin

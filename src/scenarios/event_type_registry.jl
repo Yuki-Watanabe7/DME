@@ -45,9 +45,7 @@ function _event_type_spec_check_symbols(
 )
     for v in values
         v in allowed || throw(
-            ArgumentError(
-                "$label に未知の値が含まれています: $v（許容: $(allowed)）",
-            ),
+            ArgumentError("$label に未知の値が含まれています: $v（許容: $(allowed)）"),
         )
     end
     return nothing
@@ -141,7 +139,10 @@ struct MacroEventTypeSpec
             ),
         )
         _macro_event_require_nonempty("MacroEventTypeSpec.display_name", display_name)
-        _macro_event_require_nonempty("MacroEventTypeSpec.contract_section", contract_section)
+        _macro_event_require_nonempty(
+            "MacroEventTypeSpec.contract_section",
+            contract_section,
+        )
         _event_type_spec_check_symbols(
             "MacroEventTypeSpec.allowed_sectors",
             allowed_sectors,
@@ -244,7 +245,11 @@ const MACRO_EVENT_TYPE_REGISTRY = Dict{Symbol, MacroEventTypeSpec}(
         default_shape = :ar1_decay,
         default_shape_params = (half_life = 6,),
         default_duration = nothing,
-        inapplicable_conditions = [:geography_ne_us, :sector_out_of_s1_s3, :direction_unknown],
+        inapplicable_conditions = [
+            :geography_ne_us,
+            :sector_out_of_s1_s3,
+            :direction_unknown,
+        ],
         required_methodology_keys = ["期待指数への換算式", "baseline参照期"],
         contract_section = "macro_event_contract §4.2 row 1・row 1b・§4.3 row 1・§4.4 row 1",
     ),
@@ -295,7 +300,7 @@ const MACRO_EVENT_TYPE_REGISTRY = Dict{Symbol, MacroEventTypeSpec}(
             "取消金額の基準",
         ],
         contract_section = "macro_event_contract §4.2 row 3・row 3b・row 3c・§4.3 row 3・" *
-                            "§4.4 row 3・§4.5-1",
+                           "§4.4 row 3・§4.5-1",
     ),
     :PriceOrMarginShock => MacroEventTypeSpec(;
         event_type = :PriceOrMarginShock,
@@ -313,7 +318,7 @@ const MACRO_EVENT_TYPE_REGISTRY = Dict{Symbol, MacroEventTypeSpec}(
         inapplicable_conditions = [:sector_ne_s1, :margin_only_no_price_conversion],
         required_methodology_keys = ["価格指数の基準", "実質化の有無"],
         contract_section = "macro_event_contract §4.2 row 4・row 4b・§4.3 row 4・§4.4 row 4・" *
-                            "§4.5-2",
+                           "§4.5-2",
     ),
     :EmploymentPlanRevision => MacroEventTypeSpec(;
         event_type = :EmploymentPlanRevision,
@@ -380,7 +385,10 @@ function _ert_check_application_mode(spec::MacroEventTypeSpec, application_mode:
     return nothing
 end
 
-function _ert_check_target_concepts(spec::MacroEventTypeSpec, target_concepts::Vector{Symbol})
+function _ert_check_target_concepts(
+    spec::MacroEventTypeSpec,
+    target_concepts::Vector{Symbol},
+)
     for tc in target_concepts
         tc in spec.allowed_target_concepts || throw(
             ArgumentError(
@@ -459,7 +467,7 @@ function _ert_check_order_cancellation_unit(
         (application_mode === nothing || application_mode === :multiplicative) || throw(
             ArgumentError(
                 "OrderCancellation の sector=:s1 は application_mode=:multiplicative で" *
-                "なければなりません（実値: $application_mode。マクロイベント変換契約 §4.2 row 3）",
+                "なければなりません（実値: $(application_mode)。マクロイベント変換契約 §4.2 row 3）",
             ),
         )
     elseif sector in (:s2, :s3)
@@ -473,7 +481,7 @@ function _ert_check_order_cancellation_unit(
         (application_mode === nothing || application_mode === :additive) || throw(
             ArgumentError(
                 "OrderCancellation の sector=$sector は application_mode=:additive で" *
-                "なければなりません（実値: $application_mode。マクロイベント変換契約 §4.2 row 3b）",
+                "なければなりません（実値: $(application_mode)。マクロイベント変換契約 §4.2 row 3b）",
             ),
         )
     end
@@ -705,7 +713,14 @@ announced_at, magnitude, unit)` に、`InterpretedSignal` では正準化のた�
 算出のみを提供する。
 """
 function macro_event_dedup_key(e::ObservedEvent)
-    return (e.source.document_id, e.entity, e.event_type, e.announced_at, e.magnitude, e.unit)
+    return (
+        e.source.document_id,
+        e.entity,
+        e.event_type,
+        e.announced_at,
+        e.magnitude,
+        e.unit,
+    )
 end
 
 function macro_event_dedup_key(e::InterpretedSignal)
