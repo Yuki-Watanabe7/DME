@@ -1,0 +1,37 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "実体経済イベント型5種（Issue #199 / `E-3`）のうち :PriceOrMarginShock の synthetic fixture。fictional なデータであり、実在企業・実在イベントを用いない。プログラム的には読み込まない（test/fixtures/capex_credit_cycle/ と同様の参考資料）。実際の型検証テストは test/test_real_economy_events.jl が行う。"
+    },
+    "contract_reference": "docs/architecture/macro_event_contract.md §4.2 row 4・row 4b・§4.3 row 4・§4.4 row 4・§4.5-2",
+    "registry_row": {
+        "event_type": "PriceOrMarginShock",
+        "allowed_sectors": ["s1"],
+        "allowed_target_concepts": ["output_price_margin"],
+        "allowed_units": ["%"],
+        "allowed_application_modes": ["multiplicative"],
+        "default_timing_rule": "cutoff",
+        "default_shape": "ar1_decay",
+        "default_shape_params": { "half_life": 4 }
+    },
+    "cases": {
+        "normal": {
+            "sector": "s1",
+            "direction": "down",
+            "unit": "%",
+            "magnitude": -3.0,
+            "note": "fictional な AI・クラウドサービス価格の下方修正"
+        },
+        "rejected_price_margin_confusion": {
+            "sector": "s1",
+            "unit": "%pt",
+            "magnitude": -3.0,
+            "expected_error": "価格とmarginの混同: PriceOrMarginShock の unit=\"%pt\" は margin の変化幅（ポイント）であり、価格変化率（unit=\"%\"）と混同しています"
+        },
+        "unmapped_s2_s3": {
+            "sector": "s2",
+            "note": "S2/S3 の価格は control 変数（price_s2/price_s3）であり _shock_ex を持たない（row 4b）。unmapped_target の判定は #201"
+        },
+        "required_methodology": ["価格指数の基準", "実質化の有無"]
+    }
+}

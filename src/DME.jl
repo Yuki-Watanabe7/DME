@@ -114,6 +114,15 @@ export
     EventSchedule,
     schedule_events,
     compose_exogenous_paths,
+    # イベント・シナリオ実行層: イベント型レジストリ・実体経済イベント型5種（
+    # src/scenarios/event_type_registry.jl、Issue #199 / `E-3`）
+    MacroEventTypeSpec,
+    MACRO_EVENT_TYPE_REGISTRY,
+    macro_event_type_spec,
+    observed_event,
+    interpreted_signal,
+    scenario_assumption,
+    macro_event_dedup_key,
     # CCC: 構築・較正（部門別CAPEX・信用循環モデル、src/models/capex_credit_cycle.jl）
     CAPEX_CREDIT_CYCLE_MODEL_VERSION,
     CapexCreditCycleTargets,
@@ -562,11 +571,14 @@ include("./core/solver_options.jl")
 # `resolve_t_apply` が macro_events.jl の型に依存するため #198 実装時にこの順へ修正した。
 # macro_events.jl は scenario_time.jl の型を参照しないため安全）→ scenario_types.jl（Scenario・
 # ScenarioWarning・EventRejection）→ event_scheduler.jl（全順序・固定順合成・schedule_events、
-# Issue #198 / `E-2`）の順に依存する）
+# Issue #198 / `E-2`）→ event_type_registry.jl（イベント型レジストリ・実体経済イベント型5種・
+# 型別 smart constructor、Issue #199 / `E-3`。macro_events.jl の語彙定数・内部語彙のみに
+# 依存する）の順に依存する）
 include("./scenarios/macro_events.jl")
 include("./scenarios/scenario_time.jl")
 include("./scenarios/scenario_types.jl")
 include("./scenarios/event_scheduler.jl")
+include("./scenarios/event_type_registry.jl")
 
 # Model implementations
 include("./models/ramsey.jl")
