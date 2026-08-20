@@ -1,0 +1,62 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "実体経済イベント型5種（Issue #199 / `E-3`）のうち :DemandOutlookRevision の synthetic fixture。fictional なデータであり、実在企業・実在イベントを用いない。プログラム的には読み込まない（test/fixtures/capex_credit_cycle/ と同様の参考資料）。実際の型検証テストは test/test_real_economy_events.jl が行う。"
+    },
+    "contract_reference": "docs/architecture/macro_event_contract.md §4.2 row 1・row 1b・§4.3 row 1・§4.4 row 1",
+    "registry_row": {
+        "event_type": "DemandOutlookRevision",
+        "allowed_sectors": ["s1", "s2", "s3"],
+        "allowed_target_concepts": ["demand_expectation"],
+        "allowed_units": ["%"],
+        "allowed_application_modes": ["multiplicative"],
+        "default_timing_rule": "cutoff",
+        "default_shape": "ar1_decay",
+        "default_shape_params": { "half_life": 6 }
+    },
+    "cases": {
+        "normal": {
+            "sector": "s1",
+            "direction": "down",
+            "unit": "%",
+            "magnitude": -12.0,
+            "target_concepts": ["demand_expectation"],
+            "note": "fictional な AI 需要見通しの下方修正（12%）"
+        },
+        "qualitative_no_magnitude": {
+            "sector": "s1",
+            "direction": "down",
+            "magnitude": null,
+            "note": "『需要見通しに弱含みの兆し』のような定性報道。magnitude は missing のまま保持し0へ置き換えない"
+        },
+        "quantitative": {
+            "sector": "s2",
+            "direction": "up",
+            "unit": "%",
+            "magnitude": 8.0,
+            "note": "半導体需要見通しの上方修正"
+        },
+        "rejected_sign_mismatch": {
+            "sector": "s1",
+            "direction": "up",
+            "unit": "%",
+            "magnitude": -5.0,
+            "expected_error": "符号不一致: direction=:up のとき magnitude は正でなければなりません"
+        },
+        "rejected_unit_mismatch": {
+            "sector": "s1",
+            "unit": "bp",
+            "magnitude": 5.0,
+            "expected_error": "unit=\"bp\" は event_type=DemandOutlookRevision の許容単位にありません"
+        },
+        "unknown_sector": {
+            "sector": "s5",
+            "note": "契約 §4.2 が想定しない部門。E-3 のレジストリでは構築を拒否せず宣言的データにとどめる（unmapped_target の判定は #201）"
+        },
+        "duplicate": {
+            "event_a": { "event_id": "OE-dup-a", "document_id": "doc-1", "magnitude": -12.0, "unit": "%" },
+            "event_b": { "event_id": "OE-dup-b", "document_id": "doc-1", "magnitude": -12.0, "unit": "%", "notes": "別の記者による書き起こし" },
+            "note": "notes の差だけでは dedup key（macro_event_dedup_key）は変わらない"
+        }
+    }
+}

@@ -1,0 +1,33 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "実体経済イベント型5種（Issue #199 / `E-3`）のうち :EmploymentPlanRevision の synthetic fixture。fictional なデータであり、実在企業・実在イベントを用いない。プログラム的には読み込まない（test/fixtures/capex_credit_cycle/ と同様の参考資料）。実際の型検証テストは test/test_real_economy_events.jl が行う。"
+    },
+    "contract_reference": "docs/architecture/macro_event_contract.md §4.2 row 8・§4.5-5",
+    "registry_row": {
+        "event_type": "EmploymentPlanRevision",
+        "allowed_sectors": ["s1", "s2", "s3"],
+        "allowed_target_concepts": ["employment_plan"],
+        "allowed_units": ["%"],
+        "allowed_application_modes": ["multiplicative"],
+        "default_timing_rule": null,
+        "default_shape": null,
+        "note": "適用先変数を持たない（emp_s は control。§4.2 row 8）。既定 shape・既定 timing rule も定義しない"
+    },
+    "cases": {
+        "held_as_concept": {
+            "sector": "s1",
+            "direction": "down",
+            "unit": "%",
+            "magnitude": -5.0,
+            "target_concepts": ["employment_plan"],
+            "note": "L3 Scenario Assumption としては構築できる（雇用計画 concept として保持）が、CCC の exogenous 変数に写像先が無いため #201 の mapping adapter で常に unmapped_target となる"
+        },
+        "rejected_conversion_to_consumption": {
+            "sector": "s1",
+            "target_concepts": ["demand_expectation"],
+            "expected_error": "target_concepts に event_type=EmploymentPlanRevision では許容されない concept が含まれています: demand_expectation",
+            "note": "人員削減を消費・所得（demand_expectation 等）への直接ショックへ変換することを禁じる（受け入れ条件）"
+        }
+    }
+}

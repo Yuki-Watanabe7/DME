@@ -1,0 +1,51 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "実体経済イベント型5種（Issue #199 / `E-3`）のうち :CapexGuidanceRevision の synthetic fixture。fictional なデータであり、実在企業・実在イベントを用いない。プログラム的には読み込まない（test/fixtures/capex_credit_cycle/ と同様の参考資料）。実際の型検証テストは test/test_real_economy_events.jl が行う。"
+    },
+    "contract_reference": "docs/architecture/macro_event_contract.md §4.2 row 2・§4.3 row 2・§4.4 row 2",
+    "registry_row": {
+        "event_type": "CapexGuidanceRevision",
+        "allowed_sectors": ["s1"],
+        "allowed_target_concepts": ["capex_plan"],
+        "allowed_units": ["%"],
+        "allowed_application_modes": ["multiplicative"],
+        "default_timing_rule": "cutoff",
+        "default_shape": "step_then_ramp",
+        "default_shape_params": { "hold": 4, "ramp_down": 4 }
+    },
+    "cases": {
+        "normal": {
+            "sector": "s1",
+            "direction": "up",
+            "unit": "%",
+            "magnitude": 15.0,
+            "target_concepts": ["capex_plan"],
+            "note": "fictional な AI 関連 CAPEX ガイダンスの上方修正（15%）"
+        },
+        "qualitative_no_magnitude": {
+            "sector": "s1",
+            "direction": "up",
+            "magnitude": null,
+            "note": "『複数社が年度計画の上方修正を示唆』のような定性報道"
+        },
+        "rejected_sign_mismatch": {
+            "sector": "s1",
+            "direction": "down",
+            "unit": "%",
+            "magnitude": 3.0,
+            "expected_error": "符号不一致: direction=:down のとき magnitude は負でなければなりません"
+        },
+        "rejected_unit_mismatch": {
+            "sector": "s1",
+            "unit": "bn USD (2017 chained)",
+            "magnitude": 5.0,
+            "expected_error": "unit=\"bn USD (2017 chained)\" は event_type=CapexGuidanceRevision の許容単位にありません（ガイダンス改定は前回比%のみを表現し絶対額は表現しない）"
+        },
+        "required_methodology": [
+            "基準（前回比／前年比／baseline比）",
+            "按分方式",
+            "集約対象企業リストとweight"
+        ]
+    }
+}
