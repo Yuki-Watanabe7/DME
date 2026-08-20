@@ -7,10 +7,12 @@
 # 検査しない。
 #
 # 注意（実装スコープの調整）:
-#   - 項目2（`L1`/`L2`から`AppliedModelInput`を生成する公開メソッドが存在しないこと）は
-#     `map_event`（Issue #201）が本Issueでは未実装のため、`methods(map_event)` を用いた
-#     完全な検査は行わない。代わりに、4層が構造的に独立した型であり暗黙の変換経路
-#     （`Base.convert` 等）を持たないことのみを確認する。
+#   - 項目2（`L1`/`L2`から`AppliedModelInput`を生成する公開メソッドが存在しないこと）は、
+#     `map_event`（Issue #201 / `E-5`で定義）の引数型が `ScenarioAssumption`（L3）限定である
+#     ことを `applicable` で確認する形へ更新した（型注釈自体による強制、統合設計 §5.2 契約2）。
+#     4層が構造的に独立した型であり暗黙の変換経路（`Base.convert` 等）を持たないことも
+#     あわせて確認する。`CAPEX_CC_EVENT_MAPPING_RULES` の逐語照合等 mapping adapter 固有の
+#     検査（項目10–12相当）は test/test_capex_event_adapter.jl（Issue #201）が対象とする。
 #   - 項目13のうち `SCENARIO_EXECUTION_STATUSES`（4値）は `run_scenario`（Issue #202）が
 #     定義するため対象外とし、本ファイルでは `MACRO_EVENT_REJECTION_CODES`（12種）・
 #     `MACRO_EVENT_WARNING_CODES`（12種）のみを検査する。
@@ -25,6 +27,8 @@ using Dates: Date
 # ------------------------------------------------------------
 # テスト用ヘルパ（fictional。実在企業・実在イベントを用いない）
 # ------------------------------------------------------------
+
+struct _MevDummyModel <: AbstractMacroModel end
 
 _mev_source(; document_id::String = "doc-1") =
     EventSource(publisher = "fictional wire", document_id = document_id)
@@ -98,9 +102,14 @@ end
     end
 
     @testset "統合設計 §10.1-2: L1/L2 から AppliedModelInput への直接経路が無い（map_event は #201）" begin
-        # `map_event` は本Issueでは未定義（#201の対象）。4層が独立型であり、暗黙のconvertも
-        # 存在しないことのみを確認する。
-        @test !isdefined(DME, :map_event)
+        # `map_event`（#201/`E-5`で定義）の引数型は `ScenarioAssumption`（L3）のみであり、
+        # `ObservedEvent`（L1）・`InterpretedSignal`（L2）を直接受け取るメソッドは存在しない
+        # （統合設計 §5.2 契約2「L1/L2からL4を生成する公開関数を提供しない」）。暗黙のconvertも
+        # 存在しないことをあわせて確認する。
+        @test isdefined(DME, :map_event)
+        dummy = _MevDummyModel()
+        @test !applicable(map_event, dummy, _mev_observed())
+        @test !applicable(map_event, dummy, _mev_interpreted())
         @test !hasmethod(convert, Tuple{Type{AppliedModelInput}, ObservedEvent})
         @test !hasmethod(convert, Tuple{Type{AppliedModelInput}, InterpretedSignal})
     end

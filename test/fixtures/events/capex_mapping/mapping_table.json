@@ -1,0 +1,176 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "CCC向けイベント mapping adapter（Issue #201 / `E-5`）の CAPEX_CC_EVENT_MAPPING_RULES を人間可読な形で記録した参考資料。fictional であり、実在企業・実在イベントを用いない。プログラム的には読み込まない（test/fixtures/events/financial/・real_economy/ と同様）。実際のmapping検証テストは test/test_capex_event_adapter.jl が行う。"
+    },
+    "contract_reference": "docs/architecture/macro_event_contract.md §4.1（適用先7変数）・§4.2（対象・変数・方式・単位）・§4.4（適用不能条件）・§4.5（適用先を持たないイベント型と上流への差し戻しD1-D4）",
+    "exogenous_variables": [
+        "ai_exp",
+        "capex_plan_shock_ex",
+        "spread_shock_ex",
+        "policy_rate",
+        "ext_demand_s2",
+        "ext_demand_s3",
+        "price_s1"
+    ],
+    "rows": [
+        {
+            "contract_row": "row 1",
+            "event_type": "DemandOutlookRevision",
+            "sector": "s1",
+            "target_variable": "ai_exp",
+            "application_mode": "multiplicative",
+            "unit": "%",
+            "mappable": true
+        },
+        {
+            "contract_row": "row 1b (S2)",
+            "event_type": "DemandOutlookRevision",
+            "sector": "s2",
+            "target_variable": "ext_demand_s2",
+            "application_mode": "multiplicative",
+            "unit": "%",
+            "mappable": true
+        },
+        {
+            "contract_row": "row 1b (S3)",
+            "event_type": "DemandOutlookRevision",
+            "sector": "s3",
+            "target_variable": "ext_demand_s3",
+            "application_mode": "multiplicative",
+            "unit": "%",
+            "mappable": true
+        },
+        {
+            "contract_row": "row 2",
+            "event_type": "CapexGuidanceRevision",
+            "sector": "s1",
+            "target_variable": "capex_plan_shock_ex",
+            "application_mode": "multiplicative",
+            "unit": "%",
+            "mappable": true
+        },
+        {
+            "contract_row": "row 3",
+            "event_type": "OrderCancellation",
+            "sector": "s1",
+            "note": "着工前の計画取消",
+            "target_variable": "capex_plan_shock_ex",
+            "application_mode": "multiplicative",
+            "unit": "%",
+            "mappable": true
+        },
+        {
+            "contract_row": "row 3b (S2)",
+            "event_type": "OrderCancellation",
+            "sector": "s2",
+            "note": "モデル外顧客からの取消",
+            "target_variable": "ext_demand_s2",
+            "application_mode": "additive",
+            "unit": "bn USD (2017 chained)",
+            "mappable": true
+        },
+        {
+            "contract_row": "row 3b (S3)",
+            "event_type": "OrderCancellation",
+            "sector": "s3",
+            "target_variable": "ext_demand_s3",
+            "application_mode": "additive",
+            "unit": "bn USD (2017 chained)",
+            "mappable": true
+        },
+        {
+            "contract_row": "row 3c",
+            "event_type": "OrderCancellation",
+            "sector": "s1",
+            "note": "着工済み案件の取消。row 3 と同一の (event_type, sector) を持つため map_event からは到達不能（監査目的の行、pipe_cancel_s ≡ 0）",
+            "target_variable": null,
+            "mappable": false,
+            "unmapped_reason": "pipeline_cancellation_irreversible",
+            "upstream_issue": ""
+        },
+        {
+            "contract_row": "row 4",
+            "event_type": "PriceOrMarginShock",
+            "sector": "s1",
+            "target_variable": "price_s1",
+            "application_mode": "multiplicative",
+            "unit": "%",
+            "mappable": true
+        },
+        {
+            "contract_row": "row 4b",
+            "event_type": "PriceOrMarginShock",
+            "sector": "s2 or s3",
+            "target_variable": null,
+            "mappable": false,
+            "unmapped_reason": "sector_ne_s1",
+            "upstream_issue": "D1"
+        },
+        {
+            "contract_row": "row 5",
+            "event_type": "CreditSpreadShock",
+            "sector": "any",
+            "target_variable": "spread_shock_ex",
+            "application_mode": "additive",
+            "unit": "bp",
+            "mappable": true
+        },
+        {
+            "contract_row": "row 6",
+            "event_type": "LendingStandardChange",
+            "sector": "any",
+            "target_variable": null,
+            "mappable": false,
+            "unmapped_reason": "lending_standard_has_no_target_variable",
+            "upstream_issue": "D2"
+        },
+        {
+            "contract_row": "row 7",
+            "event_type": "RefinancingOrRatingEvent",
+            "sector": "any",
+            "note": "市場価格に現れた分。a.notes に refinancing_unavailable/maturity_wall が含まれない既定ケース",
+            "target_variable": "spread_shock_ex",
+            "application_mode": "additive",
+            "unit": "bp",
+            "mappable": true
+        },
+        {
+            "contract_row": "row 7b",
+            "event_type": "RefinancingOrRatingEvent",
+            "sector": "any",
+            "note": "借換条件そのものの変更。a.notes に reason=refinancing_unavailable または reason=maturity_wall を含む場合に選ばれる",
+            "target_variable": null,
+            "mappable": false,
+            "unmapped_reason": "refinancing_condition_target_unavailable",
+            "upstream_issue": "D3"
+        },
+        {
+            "contract_row": "row 8",
+            "event_type": "EmploymentPlanRevision",
+            "sector": "any",
+            "target_variable": null,
+            "mappable": false,
+            "unmapped_reason": "employment_plan_has_no_target_variable",
+            "upstream_issue": "D4"
+        },
+        {
+            "contract_row": "row 9 (:absolute)",
+            "event_type": "PolicyRateChange",
+            "sector": "any",
+            "target_variable": "policy_rate",
+            "application_mode": "absolute",
+            "unit": "%pt",
+            "mappable": true
+        },
+        {
+            "contract_row": "row 9 (:additive)",
+            "event_type": "PolicyRateChange",
+            "sector": "any",
+            "target_variable": "policy_rate",
+            "application_mode": "additive",
+            "unit": "%pt",
+            "mappable": true
+        }
+    ]
+}

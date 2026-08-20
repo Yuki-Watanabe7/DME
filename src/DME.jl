@@ -159,6 +159,12 @@ export
     capex_diagnostics,
     capex_counterfactual,
     capex_label_sensitivity,
+    # CCC: イベント mapping adapter（src/scenarios/adapters/capex_credit_cycle_event_adapter.jl、
+    # Issue #201 / `E-5`）
+    EventMappingRule,
+    CAPEX_CC_EVENT_MAPPING_RULES,
+    map_event,
+    capex_scenario_assumptions,
     # New Keynesian: 期待インフレ率パス・level 復元（Issue #159）
     nk_expected_inflation_path,
     nk_inflation_level,
@@ -651,6 +657,13 @@ include("./analysis/capex_credit_cycle_scenarios.jl")
 # （delayed_containment の延長再実行）。診断ラベル・funding_pressure_s・ループ利得・非線形性近傍・
 # 反実仮想。読み取り専用でモデル本体の動学に影響しない）
 include("./analysis/capex_credit_cycle_diagnostics.jl")
+
+# 部門別CAPEX・信用循環モデルのイベント mapping adapter（Issue #201 / `E-5`。depends on
+# CapexCreditCycleModel・scenarios/macro_events.jl・scenario_time.jl・scenario_types.jl・
+# analysis/capex_credit_cycle_scenarios.jl（`CapexShockSpec`・`capex_scenario`・
+# `_ccc_persistence_spec`）。ScenarioAssumption（L3）→ AppliedModelInput（L4）変換と
+# capex_scenario_assumptions（Sc0–Sc4 の L3 表現）を提供する）
+include("./scenarios/adapters/capex_credit_cycle_event_adapter.jl")
 
 # Minsky financing regime diagnostics (depends on KeenModel and SimulationResult)
 include("./analysis/minsky_regimes.jl")
