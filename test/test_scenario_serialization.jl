@@ -293,12 +293,8 @@ end
     end
 
     @testset "項目12: golden fixture（source.kind == \"golden\"）" begin
-        fixture_path = joinpath(
-            @__DIR__,
-            "fixtures",
-            "scenarios",
-            "event_driven_capex_golden.json",
-        )
+        fixture_path =
+            joinpath(@__DIR__, "fixtures", "scenarios", "event_driven_capex_golden.json")
         @test isfile(fixture_path)
         fixture = DME._scenario_json_to_plain(JSON3.read(read(fixture_path, String)))
         @test fixture["source"]["kind"] == "golden"
@@ -319,8 +315,9 @@ end
             )
             run1 = run_scenario(m, sc)
             save_scenario_artifact(dir, run1)
-            manifest =
-                DME._scenario_json_to_plain(JSON3.read(read(joinpath(dir, "manifest.json"), String)))
+            manifest = DME._scenario_json_to_plain(
+                JSON3.read(read(joinpath(dir, "manifest.json"), String)),
+            )
             @test manifest["schema_version"] == SCENARIO_ARTIFACT_SCHEMA_VERSION
             @test manifest["status"] == "completed"
             @test manifest["params_hash"] == run1.provenance.params_hash
@@ -342,8 +339,9 @@ end
             @test run1.status === :rejected_mapping
             @test run1.schedule === nothing
             paths = save_scenario_artifact(dir, run1)
-            event_log =
-                DME._scenario_json_to_plain(JSON3.read(read(joinpath(dir, "event_log.json"), String)))
+            event_log = DME._scenario_json_to_plain(
+                JSON3.read(read(joinpath(dir, "event_log.json"), String)),
+            )
             @test isempty(event_log["event_log"])
             result_summary = DME._scenario_json_to_plain(
                 JSON3.read(read(joinpath(dir, "result_summary.json"), String)),
@@ -364,7 +362,8 @@ end
         run1 = run_scenario(m, sc)
         @test run1.status === :completed
         log = scenario_event_log(run1.schedule)
-        expected_order = [e.input_id for e in sort(run1.schedule.log; by = e -> e.order_key)]
+        expected_order =
+            [e.input_id for e in sort(run1.schedule.log; by = e -> e.order_key)]
         @test [e["input_id"] for e in log] == expected_order
 
         sc_reordered = _tsr_scenario(;

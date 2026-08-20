@@ -138,9 +138,10 @@ sc = Scenario(;
 fixture = Dict{String, Any}(
     "source" => Dict{String, Any}(
         "kind" => "golden",
-        "description" => "Issue #203 のシリアライズ/replayテストで実際にプログラム的に" *
-                          "読み込む fictional シナリオ。test/fixtures/events/ の illustrative " *
-                          "fixture（読み込まない参考資料）と区別する（Y-25）。",
+        "description" =>
+            "Issue #203 のシリアライズ/replayテストで実際にプログラム的に" *
+            "読み込む fictional シナリオ。test/fixtures/events/ の illustrative " *
+            "fixture（読み込まない参考資料）と区別する（Y-25）。",
     ),
     "scenario" => scenario_to_dict(sc),
 )

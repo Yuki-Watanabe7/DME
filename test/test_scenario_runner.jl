@@ -23,8 +23,11 @@ _tsr_provenance(; derived_from = ["fictional-source-1"]) = EventProvenance(;
 _tsr_timing(t_apply::Int = 0) =
     EventTiming(; basis = :period, rule = :explicit_period, t_apply = t_apply)
 
-_tsr_persistence(; shape::Symbol = :step, duration = nothing, params::NamedTuple = NamedTuple()) =
-    PersistenceSpec(; shape = shape, duration = duration, params = params)
+_tsr_persistence(;
+    shape::Symbol = :step,
+    duration = nothing,
+    params::NamedTuple = NamedTuple(),
+) = PersistenceSpec(; shape = shape, duration = duration, params = params)
 
 function _tsr_assumption(;
     id::AbstractString,
@@ -93,8 +96,17 @@ _tsr_employment_assumption(; id = "emp-1") = _tsr_assumption(;
     target_concepts = [:employment_plan],
 )
 
-function _tsr_scenario(; id::Symbol = :test_scenario, assumptions = ScenarioAssumption[], kwargs...)
-    return Scenario(; id = id, model = :capex_credit_cycle, assumptions = assumptions, kwargs...)
+function _tsr_scenario(;
+    id::Symbol = :test_scenario,
+    assumptions = ScenarioAssumption[],
+    kwargs...,
+)
+    return Scenario(;
+        id = id,
+        model = :capex_credit_cycle,
+        assumptions = assumptions,
+        kwargs...,
+    )
 end
 
 @testset "run_scenario（Issue #202 / E-6）" begin
@@ -276,18 +288,21 @@ end
         # 実質的な回帰確認は test_capex_credit_cycle.jl 自体（無変更）で行う。
         @test capex_exogenous_paths(m, capex_scenario(:Sc0)) ==
               Dict{Symbol, Vector{Float64}}(
-            v => fill(getproperty(
-                (
-                    ai_exp = 1.0,
-                    capex_plan_shock_ex = 1.0,
-                    spread_shock_ex = 0.0,
-                    policy_rate = parameters(m).st_pol_ref,
-                    ext_demand_s2 = parameters(m).st_extdem_s2,
-                    ext_demand_s3 = parameters(m).st_extdem_s3,
-                    price_s1 = 1.0,
+            v => fill(
+                getproperty(
+                    (
+                        ai_exp = 1.0,
+                        capex_plan_shock_ex = 1.0,
+                        spread_shock_ex = 0.0,
+                        policy_rate = parameters(m).st_pol_ref,
+                        ext_demand_s2 = parameters(m).st_extdem_s2,
+                        ext_demand_s3 = parameters(m).st_extdem_s3,
+                        price_s1 = 1.0,
+                    ),
+                    v,
                 ),
-                v,
-            ), 28) for v in exogenous_variables(m)
+                28,
+            ) for v in exogenous_variables(m)
         )
     end
 
