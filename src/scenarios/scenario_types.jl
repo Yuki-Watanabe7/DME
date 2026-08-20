@@ -1,10 +1,20 @@
-# scenario_types.jl: シナリオ集合と構造化拒否・警告の型（Issue #197 / `E-1`）。
+# scenario_types.jl: シナリオ集合と構造化拒否・警告の型（Issue #197 / `E-1`）・
+# `run_scenario` の実行契約型（Issue #202 / `E-6`）。
 #
-# 本ファイルは `Scenario`・`ScenarioWarning`・`EventRejection` を定義する。統合設計 §4.1 は
-# `scenario_types.jl` の最終的な責務として `ScheduledEvent`・`EventSchedule`・
-# `ScenarioRunOptions`・`ScenarioRun`・`ScenarioProvenance` も同ファイルへ含めるが、これらは
-# `run_scenario`（Issue #202 / `E-6`）の実装対象であり、本 Issue では追加しない
-# （Issue #197 実施内容が明示する範囲: `ScenarioWarning`・`EventRejection`・`Scenario`）。
+# 本ファイルは `Scenario`・`ScenarioWarning`・`EventRejection`（Issue #197）に加えて
+# `SCENARIO_EXECUTION_STATUSES`・`ScenarioRunOptions`・`ScenarioProvenance`（Issue #202）を
+# 定義する。統合設計 §4.1 は `ScheduledEvent`・`EventSchedule` も本ファイルの責務としているが、
+# 実装（Issue #198）は両者を `event_scheduler.jl` へ置いた（同ファイル冒頭コメント参照）。
+# `ScenarioRun`・`run_scenario` 本体は `src/scenarios/scenario_runner.jl`（Issue #202）が担う。
+#
+# `ScenarioProvenance` のフィールドは統合設計 §9.2 の再現契約タプル
+# `(model_version, contract_versions, scenario_id, scenario_version, event_set_hash,
+#   rule_version, mapping_version, params_hash, initial_state_id, solver_settings_hash,
+#   timing_rule_set)` と1:1対応する。ハッシュの実際の算出（型写像 encoder・
+# `event_set_hash`・`scenario_content_hash`・`params_hash`・`initial_state_id`・
+# `solver_settings_hash`）は `scenario_runner.jl` が提供する（`scenario_provenance.jl` への
+# 分離・`scenario_to_dict`/`_from_dict`・`save_scenario_artifact`/`replay_scenario` は
+# Issue #203 / `E-7` の対象）。
 #
 # `Scenario` 自体の**集合レベルの構造化検証**（`mixed_timing_basis`・`period_zero_required`・
 # `horizon_mismatch` 等、統合設計 §6.1 の層(2)）は `run_scenario` の実行ステップ1が担う
@@ -202,4 +212,113 @@ struct Scenario
             String(notes),
         )
     end
+end
+
+# ------------------------------------------------------------
+# 実行ステータス（統合設計 §6.3、Issue #202 / `E-6`）
+# ------------------------------------------------------------
+
+"""
+    SCENARIO_EXECUTION_STATUSES
+
+`run_scenario` が返す `ScenarioRun.status` の4値（統合設計 §6.3）。5値目を追加しない。
+
+- `:completed`: 全イベントが適用され、モデルが `:completed` で終了した。
+- `:rejected_validation`: `Scenario` 自体の検証に失敗（重複ID・timing基準の混在・
+  horizon不一致・model不一致 等）。`result === nothing`・`exog === nothing`。
+- `:rejected_mapping`: mapping または合成の段階で拒否（`unmapped_target`・
+  `conflicting_absolute` 等）。`result === nothing`・`exog === nothing`。
+- `:terminated`: 外生パスは構成できたが、モデルが `termination_reason ≠ :completed` で
+  終了した。`result`・`exog` は非 `nothing`（有効区間まで）。
+
+警告の有無は status に影響しない（`ScenarioRun.warnings` フィールドで表す）。
+"""
+const SCENARIO_EXECUTION_STATUSES =
+    (:completed, :rejected_validation, :rejected_mapping, :terminated)
+
+# ------------------------------------------------------------
+# ScenarioRunOptions（統合設計 §5.7、Issue #202 / `E-6`）
+# ------------------------------------------------------------
+
+"""
+    ScenarioRunOptions
+
+`run_scenario` の実行設定（統合設計 §5.7）。
+
+## フィールド
+- `on_unmapped::Symbol`: `:reject`（既定・fail closed）または `:warn`（`Y-06`）。
+  `:reject` のとき、1件でも `unmapped_target` があれば `status = :rejected_mapping` と
+  なりモデルを実行しない。`:warn` のとき `unmapped_target_accepted` 警告を記録し、
+  残りのイベントで実行する。
+- `confidence_threshold::Union{Float64,Nothing}`: 既定 `nothing`（`Y-16`）。明示指定した
+  ときのみ `low_confidence` 警告を出す。`confidence` はいかなる場合も magnitude・
+  適用可否に作用しない。
+- `extreme_shock_ratio::Float64`: 既定 `0.50`。baseline比 ±この比率超で `extreme_shock`
+  警告を出す。
+- `timing_sensitive_days::Int`: 既定 `14`。`:calendar` 基準のイベントについて cutoff
+  近傍判定（`timing_sensitive` 警告、#168 時間軸 §4.6）に用いる。
+- `validate_accounting::Bool`: 既定 `true`。`true` のとき `validate_capex_accounting` を
+  呼び `ScenarioRun.accounting` へ格納する。
+- `diagnostics::Bool`: 既定 `true`。`true` のとき `capex_diagnostics` を呼び
+  `ScenarioRun.diagnostics` へ格納する。
+- `model_options`: `CapexCreditCycleOptions` または `nothing`（既定。`nothing` のときは
+  `Scenario` の `horizon_runup`/`horizon_eval` から構成する）。
+- `thresholds`: `CapexDiagnosticThresholds` または `nothing`（既定。`nothing` のときは
+  既定の `CapexDiagnosticThresholds()` を用いる）。
+"""
+Base.@kwdef struct ScenarioRunOptions
+    on_unmapped::Symbol = :reject
+    confidence_threshold::Union{Float64, Nothing} = nothing
+    extreme_shock_ratio::Float64 = 0.50
+    timing_sensitive_days::Int = 14
+    validate_accounting::Bool = true
+    diagnostics::Bool = true
+    model_options = nothing
+    thresholds = nothing
+end
+
+# ------------------------------------------------------------
+# ScenarioProvenance（統合設計 §9.2 の再現契約タプル、Issue #202 / `E-6`）
+# ------------------------------------------------------------
+
+"""
+    ScenarioProvenance
+
+統合設計 §9.2「再現契約」のタプル
+`(model_version, contract_versions, scenario_id, scenario_version, event_set_hash,
+rule_version, mapping_version, params_hash, initial_state_id, solver_settings_hash,
+timing_rule_set)` を1:1で保持するレコード型。`ScenarioRun.provenance` として
+`run_scenario` が構築する。これらが一致するのに結果が異なる場合、それは実装のバグである
+（統合設計 §9.2）。
+
+## フィールド
+- `model_version::String`: `m.contract_versions.model_version`。
+- `contract_versions::Dict{String,String}`: イベント層 version 定数の一覧。
+- `scenario_id::String` / `scenario_version::String`
+- `event_set_hash::String`: `"sha256:…"`（`Scenario.assumptions` のみを対象、`event_set_hash`
+  関数）。
+- `rule_version::String`: `EVENT_RULE_VERSION`。
+- `mapping_version::String`: `CAPEX_CC_EVENT_MAPPING_VERSION`。
+- `params_hash::String`: `"sha256:…"`（`parameters(m)` の正準 JSON）。
+- `initial_state_id::String`: `state0` の正準 JSON の SHA-256。`state0 === nothing` の
+  ときは文字列 `"steady_state"`。
+- `solver_settings_hash::String`: `"sha256:…"`（`CapexCreditCycleOptions` 全フィールド）。
+- `timing_rule_set::Dict{String,Any}`: `TimingRuleSet` の `id`/`version`。
+
+ハッシュの算出関数（`event_set_hash`・`scenario_content_hash`・型写像 encoder）は
+`scenario_runner.jl` が定義する（Issue #203 / `E-7` が `scenario_provenance.jl` へ完成させる
+までの暫定配置。統合設計 §11 `E-7` 行）。
+"""
+struct ScenarioProvenance
+    model_version::String
+    contract_versions::Dict{String, String}
+    scenario_id::String
+    scenario_version::String
+    event_set_hash::String
+    rule_version::String
+    mapping_version::String
+    params_hash::String
+    initial_state_id::String
+    solver_settings_hash::String
+    timing_rule_set::Dict{String, Any}
 end
