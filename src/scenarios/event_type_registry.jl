@@ -1,32 +1,50 @@
-# event_type_registry.jl: イベント型レジストリと実体経済イベント型 5 種（Issue #199 / `E-3`）。
+# event_type_registry.jl: イベント型レジストリと初期イベント型 9 種（Issue #199 / `E-3`・
+# Issue #200 / `E-4`）。
 #
 # `MacroEventTypeSpec`（イベント型ごとの許容部門・許容単位・既定適用方式・既定 timing rule・
-# 既定 shape・適用不能条件・必須 methodology metadata を宣言的に保持するレコード型）と
-# `MACRO_EVENT_TYPE_REGISTRY`（`Dict{Symbol,MacroEventTypeSpec}`）・`macro_event_type_spec` を
-# 定義する。実体経済側 5 種（`:DemandOutlookRevision`・`:CapexGuidanceRevision`・
-# `:OrderCancellation`・`:PriceOrMarginShock`・`:EmploymentPlanRevision`）をレジストリへ
-# 登録する。信用・金融政策側 4 種は Issue #200 が同ファイルへ追加する（統合設計 §11 `E-4`）。
+# 既定 shape・適用不能条件・必須 methodology metadata・（`:RefinancingOrRatingEvent` に限り）
+# reason code 語彙を宣言的に保持するレコード型）と `MACRO_EVENT_TYPE_REGISTRY`
+# （`Dict{Symbol,MacroEventTypeSpec}`）・`macro_event_type_spec` を定義する。実体経済側 5 種
+# （`:DemandOutlookRevision`・`:CapexGuidanceRevision`・`:OrderCancellation`・
+# `:PriceOrMarginShock`・`:EmploymentPlanRevision`、Issue #199）と信用・金融政策側 4 種
+# （`:CreditSpreadShock`・`:LendingStandardChange`・`:RefinancingOrRatingEvent`・
+# `:PolicyRateChange`、Issue #200）をレジストリへ登録する。
 #
 # 型別 smart constructor（`observed_event`・`interpreted_signal`・`scenario_assumption`）を
 # 提供する。これらはレジストリを参照して event_type 別の許容 unit・application_mode・
 # target_concepts を検証したうえで、`macro_events.jl` の層別コンストラクタ（`ObservedEvent`・
 # `InterpretedSignal`・`ScenarioAssumption`）へ委譲する。`:other` は扱わない（型別検証が
-# 定義されないため。`:other` を用いる場合は層別コンストラクタを直接使用する）。
+# 定義されないため。`:other` を用いる場合は層別コンストラクタを直接使用する）。信用・金融政策側
+# 4 種は実体経済側 5 種と同じ検証ヘルパ（`_ert_check_unit`・`_ert_check_application_mode`・
+# `_ert_check_target_concepts`・`_ert_check_direction_magnitude_sign`）で足りる
+# （`:OrderCancellation`/`:PriceOrMarginShock` のような単位混同分岐は不要）。
 #
-# 本ファイルは**5 個の event-specific struct を作らない**（統合設計 `Y-22`。データ形状は
+# 本ファイルは**9 個の event-specific struct を作らない**（統合設計 `Y-22`。データ形状は
 # 層ごとに 1 つであり、イベント型ごとの差異は宣言的なレジストリ行で表現する）。
 # `sector` の許容値はレジストリに記録するが、構築時には**強制しない**（統合設計 §3.2・
-# 本 Issue コメントによる本文からの変更点 3。「target を持たない sector」の判定は
+# #199 コメントによる本文からの変更点 3。「target を持たない sector」の判定は
 # `unmapped_target` として #201 の mapping adapter が行う。本ファイルは
-# `inapplicable_conditions` を宣言するにとどめる）。
+# `inapplicable_conditions` を宣言するにとどめる）。`:RefinancingOrRatingEvent` の
+# rating action / outlook / refinancing availability / maturity wall の区別も同様に
+# **新しい struct（subtype）ではなく reason code の語彙**として宣言するにとどめる
+# （#200 コメントによる本文からの変更点 3、`Y-22`）。個々のレコードでの reason の記録は
+# 既存の `direction`（upgrade/downgrade）・`magnitude`/`unit`（市場価格へ現れた分）・
+# `notes`（reason code 語彙を参照する自由記述）で足り、4 層レコード型に新しいフィールドを
+# 追加しない（本 Issue の対象ファイルは本ファイルと `src/DME.jl`・テストに限られ、
+# `macro_events.jl` の変更は対象外）。
+#
+# 政策金利と信用スプレッドは別 target concept（`:policy_rate` と `:credit_spread`）・別
+# event_type を持つ独立したレコードであり、本ファイルは両者を自動的に相殺（netting）する
+# ロジックを持たない（実施内容「`PolicyRateChange`を信用スプレッドへ自動相殺しない」）。
 #
 # 設計契約:
 #   docs/architecture/macro_event_runtime_integration.md §5.3（イベント型レジストリ）・
-#     §11 `E-3` 行（本 Issue コメントによる本文からの変更点 1-3）
-#   docs/architecture/macro_event_contract.md §4.2（対象・変数・方式・単位）・§4.3（適用時点・
-#     持続・合成）・§4.4（適用不能条件・必須 methodology metadata）・§4.5（適用先を持たない
-#     イベント型）・§5.5（重複投入の検出・dedup key）
+#     §11 `E-3`・`E-4` 行（#199・#200 コメントによる本文からの変更点）
+#   docs/architecture/macro_event_contract.md §3.3（単位語彙）・§4.2（対象・変数・方式・単位）・
+#     §4.3（適用時点・持続・合成）・§4.4（適用不能条件・必須 methodology metadata）・
+#     §4.5（適用先を持たないイベント型）・§5.5（重複投入の検出・dedup key）
 #   Issue #199 本文・#199 コメント（#196 統合設計による確定）
+#   Issue #200 本文・#200 コメント（#196 統合設計による確定）
 
 # ------------------------------------------------------------
 # MacroEventTypeSpec（統合設計 §5.3）
@@ -34,6 +52,22 @@
 
 "許容 `allowed_scope` の語彙（企業単位／部門単位／経済全体単位。統合設計 §5.3 のコメント）。"
 const _EVENT_TYPE_SPEC_SCOPES = (:entity, :sector, :system_wide)
+
+"""
+`:RefinancingOrRatingEvent` の reason code 語彙（#200 コメントによる本文からの変更点 3。
+rating action（`:rating_upgrade`/`:rating_downgrade`）・outlook（`:outlook_change`）・
+refinancing availability（`:refinancing_unavailable`）・maturity wall（`:maturity_wall`）を
+混同しないための語彙。新しい struct（subtype）は作らず、レジストリ行の宣言的な語彙リストと
+個々のレコードの `direction`/`magnitude`/`notes` の組み合わせで表現する（他の event_type は
+`reason_codes = Symbol[]`）。
+"""
+const _MACRO_EVENT_REASON_CODES = (
+    :rating_upgrade,
+    :rating_downgrade,
+    :outlook_change,
+    :refinancing_unavailable,
+    :maturity_wall,
+)
 
 "許容 `effective_from_default` の語彙（統合設計 §5.3 のコメント）。"
 const _EVENT_TYPE_SPEC_EFFECTIVE_FROM_DEFAULTS = (:announced_at, :observed_at, :explicit)
@@ -93,6 +127,9 @@ end
   （宣言のみ。判定は #201）。
 - `required_methodology_keys::Vector{String}`: マクロイベント変換契約 §4.4 の必須 metadata。
 - `contract_section::String`: 出典（例 `"macro_event_contract §4.2 row 1"`）。
+- `reason_codes::Vector{Symbol}`: `:RefinancingOrRatingEvent` に限り
+  `_MACRO_EVENT_REASON_CODES` の部分集合を宣言する（宣言のみ。個々のレコードでの検証は
+  行わない。他の event_type は空ベクトル、既定 `Symbol[]`）。
 
 `default_shape !== nothing` のとき、`PersistenceSpec(shape=default_shape,
 duration=default_duration, params=default_shape_params)` が構築できることをレジストリ登録時に
@@ -114,6 +151,7 @@ struct MacroEventTypeSpec
     inapplicable_conditions::Vector{Symbol}
     required_methodology_keys::Vector{String}
     contract_section::String
+    reason_codes::Vector{Symbol}
 
     function MacroEventTypeSpec(;
         event_type::Symbol,
@@ -131,6 +169,7 @@ struct MacroEventTypeSpec
         default_duration::Union{Int, Nothing} = nothing,
         inapplicable_conditions::Vector{Symbol} = Symbol[],
         required_methodology_keys::Vector{String} = String[],
+        reason_codes::Vector{Symbol} = Symbol[],
     )
         event_type in MACRO_EVENT_TYPES || throw(
             ArgumentError(
@@ -201,6 +240,16 @@ struct MacroEventTypeSpec
                 params = default_shape_params,
             )
         end
+        _event_type_spec_check_symbols(
+            "MacroEventTypeSpec.reason_codes",
+            reason_codes,
+            _MACRO_EVENT_REASON_CODES,
+        )
+        length(reason_codes) == length(unique(reason_codes)) || throw(
+            ArgumentError(
+                "MacroEventTypeSpec.reason_codes に重複があります: $reason_codes",
+            ),
+        )
         return new(
             event_type,
             String(display_name),
@@ -217,19 +266,21 @@ struct MacroEventTypeSpec
             inapplicable_conditions,
             required_methodology_keys,
             String(contract_section),
+            reason_codes,
         )
     end
 end
 
 # ------------------------------------------------------------
-# レジストリ本体（実体経済側 5 種、Issue #199）
+# レジストリ本体（実体経済側 5 種 Issue #199・信用・金融政策側 4 種 Issue #200）
 # ------------------------------------------------------------
 
 """
     MACRO_EVENT_TYPE_REGISTRY
 
 `event_type => MacroEventTypeSpec` のレジストリ（統合設計 §5.3）。実体経済側 5 種
-（Issue #199）を登録する。信用・金融政策側 4 種は Issue #200 が同じ `Dict` へ追加する。
+（Issue #199）と信用・金融政策側 4 種（Issue #200）の計 9 種（`MACRO_EVENT_TYPES` と一致）を
+登録する。
 """
 const MACRO_EVENT_TYPE_REGISTRY = Dict{Symbol, MacroEventTypeSpec}(
     :DemandOutlookRevision => MacroEventTypeSpec(;
@@ -339,6 +390,97 @@ const MACRO_EVENT_TYPE_REGISTRY = Dict{Symbol, MacroEventTypeSpec}(
             "（雇用計画conceptとして保持する。マクロイベント変換契約 §4.5-5）",
         ],
         contract_section = "macro_event_contract §4.2 row 8・§4.5-5",
+    ),
+    :CreditSpreadShock => MacroEventTypeSpec(;
+        event_type = :CreditSpreadShock,
+        display_name = "信用スプレッドショック",
+        allowed_sectors = [:s4, :unknown],
+        allowed_scope = [:entity, :sector, :system_wide],
+        allowed_target_concepts = [:credit_spread],
+        allowed_units = ["bp"],
+        allowed_application_modes = [:additive],
+        effective_from_default = :announced_at,
+        default_timing_rule = :same_quarter,
+        default_shape = :ar1_decay,
+        default_shape_params = (half_life = 4,),
+        default_duration = nothing,
+        inapplicable_conditions = [:credit_market_scope_mismatch],
+        required_methodology_keys = [
+            "参照系列（HY OAS / IG OAS）",
+            "内生成分と外生成分の分離方針",
+        ],
+        contract_section = "macro_event_contract §4.2 row 5・§4.3 row 5・§4.4 row 5",
+    ),
+    :LendingStandardChange => MacroEventTypeSpec(;
+        event_type = :LendingStandardChange,
+        display_name = "貸出態度変化",
+        allowed_sectors = [:s4],
+        allowed_scope = [:sector, :system_wide],
+        allowed_target_concepts = [:lending_standard],
+        allowed_units = ["%"],
+        allowed_application_modes = [:multiplicative],
+        effective_from_default = :announced_at,
+        default_timing_rule = nothing,
+        default_shape = nothing,
+        default_shape_params = NamedTuple(),
+        default_duration = nothing,
+        inapplicable_conditions = [:lending_standard_has_no_target_variable],
+        required_methodology_keys = [
+            "貸出態度の変化を消費・投資への直接ショックへ変換しないことの明記" *
+            "（貸出態度conceptとして保持する。マクロイベント変換契約 §4.5-3）",
+            "定性的な引き締め表現の場合は magnitude を捏造せず欠測のまま保持することの明記",
+        ],
+        contract_section = "macro_event_contract §4.2 row 6・§4.5-3",
+    ),
+    :RefinancingOrRatingEvent => MacroEventTypeSpec(;
+        event_type = :RefinancingOrRatingEvent,
+        display_name = "借換・格付イベント",
+        allowed_sectors = [:s1, :s2, :s3, :s4],
+        allowed_scope = [:entity, :sector, :system_wide],
+        allowed_target_concepts = [:refinancing_condition],
+        allowed_units = ["bp"],
+        allowed_application_modes = [:additive],
+        effective_from_default = :announced_at,
+        default_timing_rule = :same_quarter,
+        default_shape = :ar1_decay,
+        default_shape_params = (half_life = 4,),
+        default_duration = nothing,
+        inapplicable_conditions = [
+            :rating_change_not_reflected_in_market_price,
+            :refinancing_condition_target_unavailable,
+        ],
+        required_methodology_keys = [
+            "格付→スプレッド換算の根拠",
+            "借換条件（rollover）への作用は表現していないことの明記",
+        ],
+        contract_section = "macro_event_contract §4.2 row 7・row 7b・§4.3 row 7・§4.4 row 7",
+        reason_codes = [
+            :rating_upgrade,
+            :rating_downgrade,
+            :outlook_change,
+            :refinancing_unavailable,
+            :maturity_wall,
+        ],
+    ),
+    :PolicyRateChange => MacroEventTypeSpec(;
+        event_type = :PolicyRateChange,
+        display_name = "政策金利変更",
+        allowed_sectors = [:out_of_model],
+        allowed_scope = [:system_wide],
+        allowed_target_concepts = [:policy_rate],
+        allowed_units = ["%pt"],
+        allowed_application_modes = [:absolute, :additive],
+        effective_from_default = :announced_at,
+        default_timing_rule = :same_quarter,
+        default_shape = :step,
+        default_shape_params = NamedTuple(),
+        default_duration = nothing,
+        inapplicable_conditions = [:policy_rate_negative_after_application],
+        required_methodology_keys = [
+            "実効FF金利ベースか目標レンジベースかの明記",
+            "四半期平均への換算方式",
+        ],
+        contract_section = "macro_event_contract §4.2 row 9・§4.3 row 9・§4.4 row 9",
     ),
 )
 

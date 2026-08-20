@@ -1,0 +1,42 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "信用・金融政策側イベント型4種（Issue #200 / `E-4`）のうち :LendingStandardChange の synthetic fixture。fictional なデータであり、実在企業・実在イベントを用いない。プログラム的には読み込まない（test/fixtures/capex_credit_cycle/ と同様の参考資料）。実際の型検証テストは test/test_financial_events.jl が行う。"
+    },
+    "contract_reference": "docs/architecture/macro_event_contract.md §4.2 row 6・§4.5-3",
+    "registry_row": {
+        "event_type": "LendingStandardChange",
+        "allowed_sectors": ["s4"],
+        "allowed_target_concepts": ["lending_standard"],
+        "allowed_units": ["%"],
+        "allowed_application_modes": ["multiplicative"],
+        "default_timing_rule": null,
+        "default_shape": null,
+        "note": "適用先変数を持たない（lend_stance は control。§4.2 row 6）。既定 shape・既定 timing rule も定義しない"
+    },
+    "cases": {
+        "qualitative_tightening": {
+            "sector": "s4",
+            "direction": "up",
+            "magnitude": null,
+            "unit": null,
+            "note": "SLOOS 等の定性報告のみ（数量無し）。magnitude を捏造せず欠測のまま保持する"
+        },
+        "quantitative_tightening": {
+            "sector": "s4",
+            "direction": "up",
+            "unit": "%",
+            "magnitude": 38.0,
+            "note": "SLOOS 純引締め率（%）が判明している場合はその値を保持する"
+        },
+        "held_as_concept": {
+            "sector": "s4",
+            "direction": "up",
+            "unit": "%",
+            "magnitude": 10.0,
+            "target_concepts": ["lending_standard"],
+            "magnitude_source": "assumed_default",
+            "note": "L3 Scenario Assumption としては構築できる（貸出態度conceptとして保持する）が、CCC の exogenous 変数に写像先が無いため #201 の mapping adapter で常に unmapped_target となる"
+        }
+    }
+}

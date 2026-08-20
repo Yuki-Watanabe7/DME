@@ -158,13 +158,12 @@ const _REE_HAPPY_PATH = Dict{Symbol, NamedTuple}(
             @test spec.event_type === t
             @test spec isa MacroEventTypeSpec
         end
-        @test length(MACRO_EVENT_TYPE_REGISTRY) == 5
+        # 信用・金融政策側4種（Issue #200）を含めた登録数は test_financial_events.jl が検証する。
+        @test length(MACRO_EVENT_TYPE_REGISTRY) == length(MACRO_EVENT_TYPES)
     end
 
     @testset "未登録 event_type は macro_event_type_spec で ArgumentError（generic へ縮約しない）" begin
         @test_throws ArgumentError macro_event_type_spec(:NotARealEventType)
-        # 信用・政策側4種は Issue #200 が登録するため、本Issue時点では未登録
-        @test_throws ArgumentError macro_event_type_spec(:CreditSpreadShock)
         @test_throws ArgumentError macro_event_type_spec(:other)
     end
 

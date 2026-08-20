@@ -1,0 +1,58 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "信用・金融政策側イベント型4種（Issue #200 / `E-4`）のうち :RefinancingOrRatingEvent の synthetic fixture。fictional なデータであり、実在企業・実在イベントを用いない。プログラム的には読み込まない（test/fixtures/capex_credit_cycle/ と同様の参考資料）。実際の型検証テストは test/test_financial_events.jl が行う。"
+    },
+    "contract_reference": "docs/architecture/macro_event_contract.md §4.2 row 7・row 7b・§4.3 row 7・§4.4 row 7",
+    "registry_row": {
+        "event_type": "RefinancingOrRatingEvent",
+        "allowed_sectors": ["s1", "s2", "s3", "s4"],
+        "allowed_target_concepts": ["refinancing_condition"],
+        "allowed_units": ["bp"],
+        "allowed_application_modes": ["additive"],
+        "default_timing_rule": "same_quarter",
+        "default_shape": "ar1_decay",
+        "default_shape_params": { "half_life": 4 },
+        "reason_codes": [
+            "rating_upgrade",
+            "rating_downgrade",
+            "outlook_change",
+            "refinancing_unavailable",
+            "maturity_wall"
+        ],
+        "note": "rating action / outlook / refinancing availability / maturity wall を混同しないための reason code 語彙（新しい subtype ではなくレジストリ行の宣言）。direction は magnitude の符号規約であり rating の良し悪しとは独立（upgrade=スプレッド縮小=負変化=direction:down、downgrade=拡大=正変化=direction:up）"
+    },
+    "cases": {
+        "rating_upgrade_reflected_in_market": {
+            "reason_code": "rating_upgrade",
+            "sector": "s1",
+            "direction": "down",
+            "unit": "bp",
+            "magnitude": -15.0,
+            "note": "格上げにより社債スプレッドが縮小（市場価格に反映された分のみ spread_shock_ex へ写像可能）"
+        },
+        "rating_downgrade_reflected_in_market": {
+            "reason_code": "rating_downgrade",
+            "sector": "s1",
+            "direction": "up",
+            "unit": "bp",
+            "magnitude": 40.0,
+            "note": "格下げにより社債スプレッドが拡大"
+        },
+        "refinancing_unavailable_qualitative": {
+            "reason_code": "refinancing_unavailable",
+            "sector": "s1",
+            "direction": "down",
+            "magnitude": null,
+            "unit": null,
+            "note": "借換不能の定性報告。市場価格への換算根拠が無いため magnitude 欠測のまま保持する。借換条件（rollover）自体への作用は表現していない（§4.5-4、unmapped_target）"
+        },
+        "maturity_wall": {
+            "reason_code": "maturity_wall",
+            "sector": "s1",
+            "direction": "unknown",
+            "effective_from": "2027-06-30",
+            "note": "満期集中（maturity wall）の期限は effective_from/effective_until で追跡する"
+        }
+    }
+}
