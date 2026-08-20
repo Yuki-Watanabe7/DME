@@ -42,6 +42,7 @@ const DME_TEST_FILES = [
     "test_capex_credit_cycle_diagnostics.jl",
     "test_capex_credit_cycle_visualization.jl",
     "test_capex_event_adapter.jl",
+    "test_scenario_runner.jl",
     "test_analysis_context.jl",
     "test_keen_empirical_context.jl",
     "test_doc_context.jl",

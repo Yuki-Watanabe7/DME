@@ -165,6 +165,15 @@ export
     CAPEX_CC_EVENT_MAPPING_RULES,
     map_event,
     capex_scenario_assumptions,
+    # イベント・シナリオ実行層: 実行 API（src/scenarios/scenario_types.jl・scenario_runner.jl、
+    # Issue #202 / `E-6`）
+    SCENARIO_EXECUTION_STATUSES,
+    ScenarioRunOptions,
+    ScenarioProvenance,
+    ScenarioRun,
+    run_scenario,
+    event_set_hash,
+    scenario_content_hash,
     # New Keynesian: 期待インフレ率パス・level 復元（Issue #159）
     nk_expected_inflation_path,
     nk_inflation_level,
@@ -664,6 +673,15 @@ include("./analysis/capex_credit_cycle_diagnostics.jl")
 # `_ccc_persistence_spec`）。ScenarioAssumption（L3）→ AppliedModelInput（L4）変換と
 # capex_scenario_assumptions（Sc0–Sc4 の L3 表現）を提供する）
 include("./scenarios/adapters/capex_credit_cycle_event_adapter.jl")
+
+# イベント・シナリオ実行層の実行 API（Issue #202 / `E-6`。depends on CapexCreditCycleModel・
+# scenarios/macro_events.jl・scenario_time.jl・scenario_types.jl・event_scheduler.jl・
+# scenarios/adapters/capex_credit_cycle_event_adapter.jl（map_event）・
+# analysis/capex_credit_cycle_accounting.jl（validate_capex_accounting）・
+# analysis/capex_credit_cycle_diagnostics.jl（capex_diagnostics）・core/simulation_result.jl
+# （to_simulation_result）・artifacts/json_canonical.jl（canonical_json_bytes）。
+# Scenario → SimulationResult までを決定的な順序で実行する run_scenario を提供する)
+include("./scenarios/scenario_runner.jl")
 
 # Minsky financing regime diagnostics (depends on KeenModel and SimulationResult)
 include("./analysis/minsky_regimes.jl")
