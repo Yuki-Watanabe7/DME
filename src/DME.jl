@@ -114,8 +114,9 @@ export
     EventSchedule,
     schedule_events,
     compose_exogenous_paths,
-    # イベント・シナリオ実行層: イベント型レジストリ・実体経済イベント型5種（
-    # src/scenarios/event_type_registry.jl、Issue #199 / `E-3`）
+    # イベント・シナリオ実行層: イベント型レジストリ・実体経済イベント型5種（Issue #199 /
+    # `E-3`）・信用・金融政策側イベント型4種（Issue #200 / `E-4`）（src/scenarios/
+    # event_type_registry.jl）
     MacroEventTypeSpec,
     MACRO_EVENT_TYPE_REGISTRY,
     macro_event_type_spec,
@@ -571,9 +572,9 @@ include("./core/solver_options.jl")
 # `resolve_t_apply` が macro_events.jl の型に依存するため #198 実装時にこの順へ修正した。
 # macro_events.jl は scenario_time.jl の型を参照しないため安全）→ scenario_types.jl（Scenario・
 # ScenarioWarning・EventRejection）→ event_scheduler.jl（全順序・固定順合成・schedule_events、
-# Issue #198 / `E-2`）→ event_type_registry.jl（イベント型レジストリ・実体経済イベント型5種・
-# 型別 smart constructor、Issue #199 / `E-3`。macro_events.jl の語彙定数・内部語彙のみに
-# 依存する）の順に依存する）
+# Issue #198 / `E-2`）→ event_type_registry.jl（イベント型レジストリ・実体経済イベント型5種
+# [Issue #199 / `E-3`]・信用・金融政策側イベント型4種 [Issue #200 / `E-4`]・型別 smart
+# constructor。macro_events.jl の語彙定数・内部語彙のみに依存する）の順に依存する）
 include("./scenarios/macro_events.jl")
 include("./scenarios/scenario_time.jl")
 include("./scenarios/scenario_types.jl")

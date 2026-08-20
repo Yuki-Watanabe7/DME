@@ -1,0 +1,41 @@
+{
+    "source": {
+        "kind": "illustrative",
+        "description": "信用・金融政策側イベント型4種（Issue #200 / `E-4`）のうち :PolicyRateChange の synthetic fixture。fictional なデータであり、実在企業・実在イベントを用いない。プログラム的には読み込まない（test/fixtures/capex_credit_cycle/ と同様の参考資料）。実際の型検証テストは test/test_financial_events.jl が行う。"
+    },
+    "contract_reference": "docs/architecture/macro_event_contract.md §4.2 row 9・§4.3 row 9・§4.4 row 9",
+    "registry_row": {
+        "event_type": "PolicyRateChange",
+        "allowed_sectors": ["out_of_model"],
+        "allowed_target_concepts": ["policy_rate"],
+        "allowed_units": ["%pt"],
+        "allowed_application_modes": ["absolute", "additive"],
+        "default_timing_rule": "same_quarter",
+        "default_shape": "step",
+        "note": "policy_rate（部門横断・外生）へ適用。水準（:absolute）と変化幅（:additive）を区別する。%pt と bp の暗黙換算は行わない。:absolute は1期1件のみ（スケジューラ/実行層の責務、§5.2）"
+    },
+    "cases": {
+        "level_specification": {
+            "sector": "out_of_model",
+            "direction": "up",
+            "unit": "%pt",
+            "application_mode": "absolute",
+            "magnitude": 4.5,
+            "note": "政策金利の水準を 4.5% と直接指定する"
+        },
+        "change_specification": {
+            "sector": "out_of_model",
+            "direction": "down",
+            "unit": "%pt",
+            "application_mode": "additive",
+            "magnitude": -0.25,
+            "note": "25bp（0.25%pt）の利下げ（変更幅として指定する）"
+        },
+        "simultaneous_with_credit_spread_shock": {
+            "note": "同一時点の PolicyRateChange と CreditSpreadShock は別 event_type・別 target_concept（policy_rate と credit_spread）を持つ独立したレコードとして保持し、自動的には相殺（netting）しない"
+        },
+        "rejected_negative_after_application": {
+            "note": "適用後の policy_rate < 0 は #165 の符号制約違反としてクリップせず拒否する（inapplicable_conditions=[:policy_rate_negative_after_application]。実際の適用後値の判定は #201/#202 の責務であり本レジストリは宣言のみ）"
+        }
+    }
+}
