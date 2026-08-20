@@ -85,15 +85,19 @@ function _dme_src_jl_files(subdir::AbstractString)
     return [isempty(subdir) ? f : joinpath(subdir, f) for f in files]
 end
 
-"""`src/` 配下のサブディレクトリ（`.jl` を含むもの）と `src/` 直下を全て列挙する。"""
+"""`src/` 配下の全ディレクトリ（`.jl` を直接含むもの）と `src/` 直下を再帰的に列挙する
+（`src/scenarios/adapters/` のようなネストしたサブディレクトリも対象。相対パスの区切りは
+`/` で返す。`src/` 直下は `""`）。1階層のみの走査だと `src/scenarios/adapters/` のような
+ネストしたディレクトリを健全性検査が見落とし、`DME_API_GROUPS` への割り当て漏れが
+黙って通ってしまう（Issue #201 の CI 失敗で発覚。#235 参照）。
+"""
 function _dme_src_subdirs()
     dirs = String[""]
-    for entry in sort!(readdir(DME_SRC_ROOT))
-        path = joinpath(DME_SRC_ROOT, entry)
-        isdir(path) || continue
-        any(endswith(f, ".jl") for f in readdir(path)) && push!(dirs, entry)
+    for (root, _, files) in walkdir(DME_SRC_ROOT)
+        root == DME_SRC_ROOT && continue
+        any(endswith(f, ".jl") for f in files) && push!(dirs, relpath(root, DME_SRC_ROOT))
     end
-    return dirs
+    return sort!(dirs)
 end
 
 #: API ページのグループ定義（ページ名 => (表示名, 対象 `src/` サブディレクトリ)）。
@@ -104,7 +108,7 @@ end
 const DME_API_GROUPS = [
     ("core", "コアインターフェース", ["", "core", "numerics"]),
     ("models", "モデル", ["models"]),
-    ("scenarios", "シナリオ・イベント実行層", ["scenarios"]),
+    ("scenarios", "シナリオ・イベント実行層", ["scenarios", "scenarios/adapters"]),
     ("data", "実データ層", ["data"]),
     ("analysis", "分析・診断層", ["analysis", "sfc"]),
     ("llm", "LLM層", ["llm"]),
