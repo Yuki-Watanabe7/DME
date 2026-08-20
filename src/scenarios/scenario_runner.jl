@@ -10,193 +10,21 @@
 # `status = :rejected_*` のとき `result === nothing`・`exog === nothing` であり
 # モデルを実行していない（fail closed、統合設計 §6.3）。
 #
-# 本ファイルはさらに、統合設計 §9.2 の再現契約（`event_set_hash`・`scenario_content_hash`・
-# `params_hash`・`initial_state_id`・`solver_settings_hash`）を計算する最小限の型写像
-# encoder（`_scenario_hash_encode`）を提供する。完全な encode/decode・`scenario_to_dict`/
-# `_from_dict`・`save_scenario_artifact`/`replay_scenario`・`event_log`（統合設計 §9.1 の
-# 14項目）は Issue #203 / `E-7` が `scenario_provenance.jl`/`scenario_serialization.jl` へ
-# 完成させる対象であり、本ファイルでは扱わない（統合設計 §11 `E-6` 行「対象外」）。
+# 本ファイルが Issue #202 時点で暫定的に持っていた再現契約 hash（`event_set_hash`・
+# `scenario_content_hash`・`params_hash`・`initial_state_id`・`solver_settings_hash`）と
+# 型写像 encoder（`_scenario_hash_encode`）は、Issue #203 / `E-7` で
+# `src/scenarios/scenario_provenance.jl` へ移設した（統合設計 §11 `E-7` 行・§4.1）。
+# `event_log`（統合設計 §9.1 の14項目、`scenario_event_log`）・完全な encode/decode
+# （`scenario_to_dict`/`_from_dict`）・`save_scenario_artifact`/`load_scenario`/
+# `replay_scenario` も Issue #203 が `scenario_provenance.jl`/`scenario_serialization.jl`
+# へ実装した。
 #
 # 設計契約:
 #   docs/architecture/macro_event_runtime_integration.md §5.7（`ScenarioRunOptions`・
 #     `ScenarioRun`・`run_scenario` の型・実行順）・§6（失敗契約の3層分離）・
 #     §7.6（定期更新とイベントのハイブリッド実行）・§8.2（既存 `capex_run` の移行表、`Y-20`・
 #     `Y-21`）・§9.2（再現契約・hash対象フィールド）・§9.3（`SimulationResult` metadata
-#     予約キー、`event_log` を除く19キー）・§11 `E-6` 行
-
-# ------------------------------------------------------------
-# 型写像 encoder（統合設計 §9.4、Issue #203 で `scenario_provenance.jl` へ完成する前段）
-# ------------------------------------------------------------
-
-"""
-    _scenario_hash_encode(x)
-
-`canonical_json_bytes`（RFC 8785、`src/artifacts/json_canonical.jl`）が直接扱えない型を
-Dict/Vector/String/Bool/Integer/Float64/Nothing へ写す（統合設計 §9.4 の型写像）。
-`json_canonical.jl` 自体は変更しない。
-"""
-_scenario_hash_encode(::Nothing) = nothing
-_scenario_hash_encode(::Missing) = nothing
-_scenario_hash_encode(x::Symbol) = String(x)
-_scenario_hash_encode(x::Date) = Dates.format(x, "yyyy-mm-dd")
-_scenario_hash_encode(x::DateTime) = Dates.format(x, "yyyy-mm-ddTHH:MM:SS") * "Z"
-_scenario_hash_encode(x::Integer) = x
-_scenario_hash_encode(x::AbstractFloat) = Float64(x)
-_scenario_hash_encode(x::AbstractString) = String(x)
-_scenario_hash_encode(x::Tuple) = Any[_scenario_hash_encode(v) for v in x]
-_scenario_hash_encode(x::NamedTuple) =
-    Dict{String, Any}(String(k) => _scenario_hash_encode(v) for (k, v) in pairs(x))
-_scenario_hash_encode(x::AbstractDict) =
-    Dict{String, Any}(String(k) => _scenario_hash_encode(v) for (k, v) in x)
-_scenario_hash_encode(x::AbstractVector) = Any[_scenario_hash_encode(v) for v in x]
-_scenario_hash_encode(x) = throw(
-    ArgumentError(
-        "_scenario_hash_encode: 統合設計 §9.4 の型写像が対応しない型です: $(typeof(x))",
-    ),
-)
-
-"`canonical_json_bytes` の SHA-256 を `\"sha256:<64hex>\"` 形式で返す（統合設計 §9.2）。"
-_scenario_sha256(value)::String = "sha256:" * sha256_hex_of_canonical(value)
-
-# ------------------------------------------------------------
-# event_set_hash / scenario_content_hash（統合設計 §9.2、`Y-04`・`Y-17`）
-# ------------------------------------------------------------
-
-"""
-    _scenario_assumption_hash_dict(a::ScenarioAssumption) -> Dict{String,Any}
-
-`ScenarioAssumption` の hash 対象フィールドのみを Dict へ写す（統合設計 §9.2 の「hash に
-含める」表）。`confidence`・`uncertainty`・`notes`・`caveats`・`provenance.generated_at` は
-含めない（volatile / 表示専用）。
-"""
-function _scenario_assumption_hash_dict(a::ScenarioAssumption)
-    timing = a.timing
-    persistence = a.persistence
-    provenance = a.provenance
-    return Dict{String, Any}(
-        "assumption_id" => a.assumption_id,
-        "event_type" => String(a.event_type),
-        "schema_version" => a.schema_version,
-        "sector" => String(a.sector),
-        "geography" => a.geography,
-        "direction" => String(a.direction),
-        "magnitude" => a.magnitude,
-        "unit" => a.unit,
-        "magnitude_source" => String(a.magnitude_source),
-        "application_mode" => String(a.application_mode),
-        "timing" => Dict{String, Any}(
-            "basis" => String(timing.basis),
-            "rule" => String(timing.rule),
-            "effective_from" => _scenario_hash_encode(timing.effective_from),
-            "effective_until" => _scenario_hash_encode(timing.effective_until),
-            "t_apply" => timing.t_apply,
-            "t_until" => timing.t_until,
-            "rule_overridden" => timing.rule_overridden,
-            "from_source" => String(timing.from_source),
-        ),
-        "persistence" => Dict{String, Any}(
-            "shape" => String(persistence.shape),
-            "duration" => persistence.duration,
-            "params" => _scenario_hash_encode(persistence.params),
-        ),
-        "target_concepts" => sort(String.(a.target_concepts)),
-        "is_scenario_assumption" => a.is_scenario_assumption,
-        "provenance" => Dict{String, Any}(
-            "layer" => String(provenance.layer),
-            "derived_from" => sort(copy(provenance.derived_from)),
-            "rule_id" => provenance.rule_id,
-            "rule_version" => provenance.rule_version,
-            "generator" => provenance.generator,
-        ),
-    )
-end
-
-"""
-    event_set_hash(sc::Scenario) -> String
-
-`sc.assumptions`（`L3` 集合）のみを対象とした `"sha256:…"`（統合設計 §9.2）。
-`assumption_id` 昇順に整列してから正準化するため、入力順・`Vector` の反復順に依存しない
-（統合設計 §10.4 項目11）。`generated_at`/`notes`/`confidence` を変えても値は変わらない
-（項目12）。`magnitude` を1ulp変えると値が変わる（項目13）。
-"""
-function event_set_hash(sc::Scenario)
-    sorted = sort(sc.assumptions; by = a -> a.assumption_id)
-    payload = Dict{String, Any}(
-        "assumptions" => [_scenario_assumption_hash_dict(a) for a in sorted],
-    )
-    return _scenario_sha256(payload)
-end
-
-"""
-    scenario_content_hash(sc::Scenario) -> String
-
-`Scenario` 全体（時間軸設定・ホライズン・既定値セットを含む）を対象とした `"sha256:…"`
-（統合設計 §9.2）。
-"""
-function scenario_content_hash(sc::Scenario)
-    sorted = sort(sc.assumptions; by = a -> a.assumption_id)
-    payload = Dict{String, Any}(
-        "id" => String(sc.id),
-        "name" => sc.name,
-        "version" => sc.version,
-        "model" => String(sc.model),
-        "period_zero" =>
-            sc.period_zero === nothing ? nothing :
-            Dict{String, Any}(
-                "year" => sc.period_zero.year,
-                "quarter" => sc.period_zero.quarter,
-            ),
-        "horizon_runup" => sc.horizon_runup,
-        "horizon_eval" => sc.horizon_eval,
-        "timing_rules" => _scenario_timing_rule_set_dict(sc.timing_rules),
-        "defaults_set_id" => sc.defaults_set_id,
-        "defaults_set_version" => sc.defaults_set_version,
-        "assumptions" => [_scenario_assumption_hash_dict(a) for a in sorted],
-    )
-    return _scenario_sha256(payload)
-end
-
-"`TimingRuleSet` を hash・metadata 用の `Dict` へ写す。"
-function _scenario_timing_rule_set_dict(tr::TimingRuleSet)
-    return Dict{String, Any}(
-        "id" => tr.id,
-        "version" => tr.version,
-        "cutoff_month_offset" => tr.cutoff_month_offset,
-        "rules" => Dict{String, Any}(String(k) => String(v) for (k, v) in tr.rules),
-    )
-end
-
-# ------------------------------------------------------------
-# params_hash / initial_state_id / solver_settings_hash（統合設計 §9.2、`Y-17`）
-# ------------------------------------------------------------
-
-"`parameters(m)` の正準 JSON の SHA-256（統合設計 §9.2）。"
-_scenario_params_hash(m::CapexCreditCycleModel) =
-    _scenario_sha256(_scenario_hash_encode(parameters(m)))
-
-"""
-    _scenario_initial_state_id(state0) -> String
-
-`state0` の正準 JSON の SHA-256。`state0 === nothing` のときは文字列 `"steady_state"`
-（統合設計 §9.2、`Y-17`）。`run_scenario` は `state0` を常に `nothing`（既定の定常状態）で
-呼ぶため（`ScenarioRunOptions` に `state0` フィールドを持たない、統合設計 §5.7）、実務上は
-常に `"steady_state"` を返す。
-"""
-_scenario_initial_state_id(::Nothing) = "steady_state"
-_scenario_initial_state_id(state0) = _scenario_sha256(_scenario_hash_encode(state0))
-
-"`CapexCreditCycleOptions` 全フィールドの正準 JSON の SHA-256（統合設計 §9.2）。"
-function _scenario_solver_settings_hash(o::CapexCreditCycleOptions)
-    d = Dict{String, Any}(
-        "horizon_runup" => o.horizon_runup,
-        "horizon_eval" => o.horizon_eval,
-        "div_eps" => o.div_eps,
-        "guard_max" => o.guard_max,
-        "runup_tol" => o.runup_tol,
-        "stop_on_sign_violation" => o.stop_on_sign_violation,
-    )
-    return _scenario_sha256(d)
-end
+#     予約キー20個。`event_log` を含む）・§11 `E-6`・`E-7` 行
 
 # ------------------------------------------------------------
 # period label（統合設計 §7.1・§9.3、`Y-07`）
@@ -554,7 +382,7 @@ struct ScenarioRun
 end
 
 # ------------------------------------------------------------
-# metadata 付与（統合設計 §9.3、`event_log` を除く19キー。`event_log` は Issue #203）
+# metadata 付与（統合設計 §9.3、イベント層20キー）
 # ------------------------------------------------------------
 
 """
@@ -562,8 +390,9 @@ end
                                      rejections, warnings, provenance)
 
 `to_simulation_result` が生成した `result.metadata`（可変 `Dict`）へ、統合設計 §9.3の
-イベント層 metadata 予約キーのうち `event_log` を除く19個を**追加**する（既存の `CCC`
-予約20キー + 補助3キーは上書きしない。`event_log` は Issue #203 / `E-7` が完成させる）。
+イベント層 metadata 予約キー20個を**追加**する（既存の `CCC` 予約20キー + 補助3キーは
+上書きしない）。`event_log` は `scenario_event_log`（`scenario_provenance.jl`、Issue #203）を
+呼ぶ。
 """
 function _scenario_merge_event_metadata!(
     result::SimulationResult,
@@ -595,6 +424,7 @@ function _scenario_merge_event_metadata!(
     md["unmapped_policy"] = String(options.on_unmapped)
     md["params_hash"] = provenance.params_hash
     md["initial_state_id"] = provenance.initial_state_id
+    md["event_log"] = scenario_event_log(schedule)
     return nothing
 end
 

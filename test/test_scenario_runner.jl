@@ -2,7 +2,9 @@
 #
 # 統合設計 §10.4（実行・互換・再現、14項目）のうち #202 の受け入れ条件（同 §11 `E-6` 行）が
 # 対象とする 1–5・7–10・14 を中心に検証する。§10.4 の 6・11–13 は Issue #201（`capex_exogenous_paths`
-# 委譲）・Issue #203（`scenario_provenance.jl` の完全な hash 契約）の対象。
+# 委譲）・Issue #203（`scenario_provenance.jl` の完全な hash 契約・`event_log`）の対象。
+# `event_log` metadata と `scenario_provenance.jl`/`scenario_serialization.jl` の詳細テストは
+# `test/test_scenario_serialization.jl`（Issue #203）を参照。
 
 using Dates: Date
 
@@ -329,10 +331,12 @@ end
             "unmapped_policy",
             "params_hash",
             "initial_state_id",
+            "event_log",
         )
             @test haskey(md, key)
         end
-        @test !haskey(md, "event_log") # event_log は Issue #203 の対象
+        @test !isempty(md["event_log"])
+        @test md["event_log"] isa Vector{Dict{String, Any}}
         @test md["scenario_id"] == "test_scenario"
         @test md["shock_origin_index"] == 9 # horizon_runup=8 → periods[9] == 0
         @test md["period_zero"] === nothing
