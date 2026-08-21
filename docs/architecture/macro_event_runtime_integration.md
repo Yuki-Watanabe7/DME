@@ -11,7 +11,7 @@
 | 項目 | 内容 |
 |---|---|
 | **対象** | 観測イベントからモデル実行までを担う共通イベント層・シナリオ層・モデル固有 mapping 層・実行層の DME 内実装設計 |
-| **ステータス** | 整合レビュー・型・公開API・失敗契約・移行方針・再現契約・テスト戦略・作業分解を確定。Julia 実装は未着手 |
+| **ステータス** | 整合レビュー・型・公開API・失敗契約・移行方針・再現契約・テスト戦略・作業分解を確定。`E-1`–`E-9`（#197–#205）すべて実装完了（統合デモ・E2E・fixture・利用文書は [日付付き複数イベントScenario統合デモ](../examples/event_driven_capex_scenario_demo.md) を参照） |
 | **event runtime version** | `macro-event-runtime/1.0.0` |
 | **上位契約** | `macro-event-contract/1.0.2`・`scenario-time-semantics/1.1.0`（いずれも本書の改訂を反映した版）・`capex-credit-cycle-integration/1.0.0`・`capex-credit-cycle-vars/1.2.0`・`capex-credit-cycle-boundaries/1.0.1` |
 | **継承する横断契約** | `model-interface`（`src/core/model_interface.jl` の `exogenous_variables`）・RFC 8785 正準化（`src/artifacts/json_canonical.jl`）・`comparison-v2/1.0.0` |
@@ -1443,6 +1443,7 @@ E-1 ──> E-2 ─┬─> E-3 ─┐
 | version | 日付 | 変更 |
 |---|---|---|
 | `macro-event-runtime/1.0.0` | 2026-08-05 | 初版（#196）。契約と実装の整合レビュー（`Y-01`–`Y-30`）・層と責務の境界・ファイル配置と include 順序・4 層レコード型とイベント型レジストリ・`Scenario` / scheduler / mapping / `run_scenario` / 比較診断 / シリアライズの公開 API・失敗契約の 3 層分離と実行ステータス 4 値・時点指定 2 基準と時間形状 6 種・既存シナリオ API の並置維持と共通化範囲・イベントログと hash 対象と metadata 予約キー 20 個・テスト戦略 77 項目・実装作業への分解（`E-1`–`E-9`）を確定 |
+| （実装 status 同期） | 2026-08-21 | version 番号は変更しない（型・公開 API・失敗契約・実行順を変更する改訂ではないため、§5.1 の版上げ条件に該当しない）。`E-1`–`E-9`（#197–#205）すべて実装完了。統合デモ・E2E テスト・golden fixture・利用文書は [日付付き複数イベントScenario統合デモ](../examples/event_driven_capex_scenario_demo.md)（`examples/event_driven_capex_scenario_demo.jl`・`test/test_event_driven_scenario_demo.jl`・`test/fixtures/scenarios/event_driven_capex/`）を参照 |
 
 ---
 
