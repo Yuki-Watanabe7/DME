@@ -182,6 +182,13 @@ export
     save_scenario_artifact,
     load_scenario,
     replay_scenario,
+    # イベント・シナリオ実行層: シナリオ比較診断（src/analysis/scenario_diagnostics.jl、
+    # Issue #204 / `E-8`）
+    ScenarioDiagnosticThresholds,
+    ScenarioComparisonDiagnostics,
+    scenario_comparison,
+    scenario_timing_sensitivity,
+    scenario_magnitude_sensitivity,
     # New Keynesian: 期待インフレ率パス・level 復元（Issue #159）
     nk_expected_inflation_path,
     nk_inflation_level,
@@ -704,6 +711,15 @@ include("./scenarios/scenario_runner.jl")
 # `scenario_to_dict`/`scenario_from_dict`・`save_scenario_artifact`・`load_scenario`・
 # `replay_scenario` を提供する)
 include("./scenarios/scenario_serialization.jl")
+
+# シナリオ比較診断（Issue #204 / `E-8`。depends on scenarios/scenario_types.jl・
+# scenarios/scenario_runner.jl（ScenarioRun・run_scenario・ScenarioRunOptions）・
+# scenarios/macro_events.jl（ScenarioAssumption・EventTiming）・core/simulation_result.jl
+# （SimulationResult）・analysis/capex_credit_cycle_diagnostics.jl（CapexDiagnostics・
+# CAPEX_CC_LOOP_IDS を任意引数としてのみ参照。capex_diagnostics 自体は変更しない）。
+# `scenario_comparison`・`scenario_timing_sensitivity`・`scenario_magnitude_sensitivity` を
+# 提供する読み取り専用層)
+include("./analysis/scenario_diagnostics.jl")
 
 # Minsky financing regime diagnostics (depends on KeenModel and SimulationResult)
 include("./analysis/minsky_regimes.jl")
