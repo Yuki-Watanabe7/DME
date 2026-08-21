@@ -139,6 +139,7 @@ Issue対応時の標準フロー:
 | [Keen 実証 AIエコノミスト統合デモ](docs/examples/keen_empirical_ai_economist.md) | データ取得→実証分析→根拠付きLLM説明→クロスモデル比較→provenance保存の再現可能な統合デモの実行手順・成果物・設定例 |
 | [SFC対応 AIエコノミスト統合デモ](docs/examples/sfc_ai_economist.md) | baseline/財政ショック→SFC会計検証→比較API v2→Keen–SFC比較レポート→根拠付きLLM説明→provenance保存の再現可能な統合デモの実行手順・成果物・設定例 |
 | [部門別CAPEX・信用循環モデル統合デモ](docs/examples/capex_credit_cycle_demo.md) | Sc0–Sc4シナリオ実行→会計恒等式検証（12項目）→診断・閾値感応度→判定問題Q2–Q4の回答→比較API v2（mechanismモード）→可視化→provenance保存の再現可能な統合デモの実行手順・成果物・設定例（APIキー不要・ネットワークアクセスなし・決定的） |
+| [日付付き複数イベントScenario統合デモ](docs/examples/event_driven_capex_scenario_demo.md) | 8ケース（baseline/需要見通し/CAPEX+受注/信用+貸出/政策金利/同時イベント合成/negative fixture ×2）の`run_scenario`実行→Sc0–Sc4数値互換性確認→9イベント型カバレッジ→決定性・replay確認→成果物（scenario/event_log/manifest/result_summary/comparison/report）保存の再現可能な統合デモの実行手順・成果物・Phase 1 API（`CapexShockSpec`）との使い分け（APIキー不要・ネットワークアクセスなし・決定的） |
 | [Real-rate model artifact 生成デモ](docs/examples/real_rate_model_artifact.md) | New Keynesian モデル→期待インフレ率・model-implied実質政策金利のartifact構築→検証→atomic保存までの再現可能な実行手順・成果物・economic-data-providerへの受け渡し手順 |
 | [依存パッケージ管理と注意点](docs/development/dependency_management.md) | JuMP・Interpolations・NLsolve の注意点・Manifest.toml 管理 |
 | [設定・環境変数管理ガイド](docs/development/configuration.md) | API キー設定・fixture/mock モード・CI 運用方針 |

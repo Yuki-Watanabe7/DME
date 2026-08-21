@@ -61,6 +61,7 @@ const DME_TEST_FILES = [
     "test_keen_empirical_ai_economist_demo.jl",
     "test_sfc_ai_economist_demo.jl",
     "test_capex_credit_cycle_demo.jl",
+    "test_event_driven_scenario_demo.jl",
     "test_quality_capture.jl",
     "test_quality.jl",
 ]
