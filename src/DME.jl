@@ -172,8 +172,16 @@ export
     ScenarioProvenance,
     ScenarioRun,
     run_scenario,
+    # イベント・シナリオ実行層: 監査・再現（src/scenarios/scenario_provenance.jl・
+    # scenario_serialization.jl、Issue #203 / `E-7`）
+    scenario_event_log,
     event_set_hash,
     scenario_content_hash,
+    scenario_to_dict,
+    scenario_from_dict,
+    save_scenario_artifact,
+    load_scenario,
+    replay_scenario,
     # New Keynesian: 期待インフレ率パス・level 復元（Issue #159）
     nk_expected_inflation_path,
     nk_inflation_level,
@@ -674,14 +682,28 @@ include("./analysis/capex_credit_cycle_diagnostics.jl")
 # capex_scenario_assumptions（Sc0–Sc4 の L3 表現）を提供する）
 include("./scenarios/adapters/capex_credit_cycle_event_adapter.jl")
 
+# イベント・シナリオ実行層の再現契約・監査 dict・manifest 構築（Issue #203 / `E-7`。depends
+# on artifacts/json_canonical.jl（canonical_json_bytes）・scenarios/scenario_types.jl
+# （ScenarioProvenance）のみ。`ScenarioRun` 型へは依存しない。`event_set_hash`・
+# `scenario_content_hash`・`params_hash`・`initial_state_id`・`solver_settings_hash`・
+# `scenario_event_log`・型写像 encoder（`_scenario_hash_encode`）を提供する）
+include("./scenarios/scenario_provenance.jl")
+
 # イベント・シナリオ実行層の実行 API（Issue #202 / `E-6`。depends on CapexCreditCycleModel・
 # scenarios/macro_events.jl・scenario_time.jl・scenario_types.jl・event_scheduler.jl・
 # scenarios/adapters/capex_credit_cycle_event_adapter.jl（map_event）・
 # analysis/capex_credit_cycle_accounting.jl（validate_capex_accounting）・
 # analysis/capex_credit_cycle_diagnostics.jl（capex_diagnostics）・core/simulation_result.jl
-# （to_simulation_result）・artifacts/json_canonical.jl（canonical_json_bytes）。
+# （to_simulation_result）・scenarios/scenario_provenance.jl（再現契約 hash）。
 # Scenario → SimulationResult までを決定的な順序で実行する run_scenario を提供する)
 include("./scenarios/scenario_runner.jl")
+
+# イベント・シナリオ実行層の JSON シリアライズ・成果物保存・replay（Issue #203 / `E-7`。
+# depends on scenarios/scenario_provenance.jl（hash・型写像 encoder）・
+# scenarios/scenario_runner.jl（ScenarioRun・run_scenario）・artifacts/json_canonical.jl。
+# `scenario_to_dict`/`scenario_from_dict`・`save_scenario_artifact`・`load_scenario`・
+# `replay_scenario` を提供する)
+include("./scenarios/scenario_serialization.jl")
 
 # Minsky financing regime diagnostics (depends on KeenModel and SimulationResult)
 include("./analysis/minsky_regimes.jl")

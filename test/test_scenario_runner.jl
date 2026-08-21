@@ -2,7 +2,9 @@
 #
 # 統合設計 §10.4（実行・互換・再現、14項目）のうち #202 の受け入れ条件（同 §11 `E-6` 行）が
 # 対象とする 1–5・7–10・14 を中心に検証する。§10.4 の 6・11–13 は Issue #201（`capex_exogenous_paths`
-# 委譲）・Issue #203（`scenario_provenance.jl` の完全な hash 契約）の対象。
+# 委譲）・Issue #203（`scenario_provenance.jl` の完全な hash 契約・`event_log`）の対象。
+# `event_log` metadata と `scenario_provenance.jl`/`scenario_serialization.jl` の詳細テストは
+# `test/test_scenario_serialization.jl`（Issue #203）を参照。
 
 using Dates: Date
 
@@ -21,8 +23,11 @@ _tsr_provenance(; derived_from = ["fictional-source-1"]) = EventProvenance(;
 _tsr_timing(t_apply::Int = 0) =
     EventTiming(; basis = :period, rule = :explicit_period, t_apply = t_apply)
 
-_tsr_persistence(; shape::Symbol = :step, duration = nothing, params::NamedTuple = NamedTuple()) =
-    PersistenceSpec(; shape = shape, duration = duration, params = params)
+_tsr_persistence(;
+    shape::Symbol = :step,
+    duration = nothing,
+    params::NamedTuple = NamedTuple(),
+) = PersistenceSpec(; shape = shape, duration = duration, params = params)
 
 function _tsr_assumption(;
     id::AbstractString,
@@ -91,8 +96,17 @@ _tsr_employment_assumption(; id = "emp-1") = _tsr_assumption(;
     target_concepts = [:employment_plan],
 )
 
-function _tsr_scenario(; id::Symbol = :test_scenario, assumptions = ScenarioAssumption[], kwargs...)
-    return Scenario(; id = id, model = :capex_credit_cycle, assumptions = assumptions, kwargs...)
+function _tsr_scenario(;
+    id::Symbol = :test_scenario,
+    assumptions = ScenarioAssumption[],
+    kwargs...,
+)
+    return Scenario(;
+        id = id,
+        model = :capex_credit_cycle,
+        assumptions = assumptions,
+        kwargs...,
+    )
 end
 
 @testset "run_scenario（Issue #202 / E-6）" begin
@@ -274,18 +288,21 @@ end
         # 実質的な回帰確認は test_capex_credit_cycle.jl 自体（無変更）で行う。
         @test capex_exogenous_paths(m, capex_scenario(:Sc0)) ==
               Dict{Symbol, Vector{Float64}}(
-            v => fill(getproperty(
-                (
-                    ai_exp = 1.0,
-                    capex_plan_shock_ex = 1.0,
-                    spread_shock_ex = 0.0,
-                    policy_rate = parameters(m).st_pol_ref,
-                    ext_demand_s2 = parameters(m).st_extdem_s2,
-                    ext_demand_s3 = parameters(m).st_extdem_s3,
-                    price_s1 = 1.0,
+            v => fill(
+                getproperty(
+                    (
+                        ai_exp = 1.0,
+                        capex_plan_shock_ex = 1.0,
+                        spread_shock_ex = 0.0,
+                        policy_rate = parameters(m).st_pol_ref,
+                        ext_demand_s2 = parameters(m).st_extdem_s2,
+                        ext_demand_s3 = parameters(m).st_extdem_s3,
+                        price_s1 = 1.0,
+                    ),
+                    v,
                 ),
-                v,
-            ), 28) for v in exogenous_variables(m)
+                28,
+            ) for v in exogenous_variables(m)
         )
     end
 
@@ -329,10 +346,12 @@ end
             "unmapped_policy",
             "params_hash",
             "initial_state_id",
+            "event_log",
         )
             @test haskey(md, key)
         end
-        @test !haskey(md, "event_log") # event_log は Issue #203 の対象
+        @test !isempty(md["event_log"])
+        @test md["event_log"] isa Vector{Dict{String, Any}}
         @test md["scenario_id"] == "test_scenario"
         @test md["shock_origin_index"] == 9 # horizon_runup=8 → periods[9] == 0
         @test md["period_zero"] === nothing
