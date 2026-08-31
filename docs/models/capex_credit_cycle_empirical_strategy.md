@@ -11,12 +11,13 @@
 | 項目 | 内容 |
 |---|---|
 | **対象** | 部門別CAPEX・信用循環モデル（`CapexCreditCycleModel` 相当、未実装） |
-| **ステータス** | 観測方程式・識別戦略・検証契約のみ確定。データ取得コード・パラメータ推定・履歴再生の実行は未着手 |
-| **empirical version** | `capex-credit-cycle-empirical/1.1.0` |
-| **上位契約** | `capex-credit-cycle-contract/1.0.0`・`capex-credit-cycle-graph/1.1.0`・`capex-credit-cycle-vars/1.2.0`・`capex-credit-cycle-accounting/1.1.0`・`capex-credit-cycle-boundaries/1.0.0`・`capex-credit-cycle-equations/1.1.0`・`macro-event-contract/1.0.1`・`scenario-time-semantics/1.0.0` |
-| **改訂の優先関係** | **§15（#171 統合レビューによる改訂）が本書の正本である。§5.2・§7.1・§7.2・§7.4・§7.5 の一部は §15 で上書きされている。較正・推定の前に §15 を読むこと。** |
+| **ステータス** | 観測方程式・識別戦略・検証契約を確定。Julia の型・API・失敗契約・artifact は [実証統合設計](../architecture/capex_credit_cycle_empirical_integration.md)（#240）で確定済み。データ取得コード・パラメータ推定・履歴再生の実装は未着手（#241–#251） |
+| **empirical version** | `capex-credit-cycle-empirical/1.2.0` |
+| **上位契約** | `capex-credit-cycle-contract/1.0.0`・`capex-credit-cycle-graph/1.1.0`・`capex-credit-cycle-vars/1.2.0`・`capex-credit-cycle-accounting/1.1.0`・`capex-credit-cycle-boundaries/1.0.1`・`capex-credit-cycle-equations/1.1.0`・`macro-event-contract/1.0.2`・`scenario-time-semantics/1.1.0` |
+| **下位の実装契約** | `capex-credit-cycle-empirical-integration/1.0.0`（[実証統合設計](../architecture/capex_credit_cycle_empirical_integration.md)。本書の契約を Julia の型・API・失敗契約・artifact へ落とす） |
+| **改訂の優先関係** | **§15（#171 統合レビューによる改訂）と §16（#240 統合レビューによる改訂）が本書の正本である。§16 は §15 より優先する。§2.4・§4.2・§5.2・§7.1・§7.2・§7.4・§7.5・§15.2 の一部は改訂節で上書きされている。較正・推定の前に §15 と §16 を読むこと。** |
 | **基準経済・頻度** | 米国・四半期（`Δt = 0.25` 年。契約 §2.1 を継承） |
-| **決定記録** | [ADR 0012](../adr/0012-capex-credit-cycle-empirical-contract.md) |
+| **決定記録** | [ADR 0012](../adr/0012-capex-credit-cycle-empirical-contract.md)（本書の決定）・[ADR 0018](../adr/0018-capex-credit-cycle-empirical-runtime-contract.md)（実装契約・§16 の改訂） |
 
 > **LLM向け要約**: 本書は、部門別CAPEX・信用循環モデルを実データへ接続する際の
 > **観測可能性の分類**（§3）・**観測方程式**（§4）・**逆較正が必要とする定常水準の観測対応**（§5）・
@@ -940,9 +941,80 @@ LLM による説明生成時は、上記を [llm_safety.md](../llm_safety.md) �
 
 ---
 
-## 16. 改訂履歴
+## 16. #240 統合レビューによる改訂（`1.2.0`）
+
+本節は #240 の実証統合レビュー（[実証統合設計](../architecture/capex_credit_cycle_empirical_integration.md) §2）で検出された差異のうち本書が担当する 6 件（`Z-05`・`Z-10`・`Z-11`・`Z-12`・`Z-14`・`Z-21`）の解決を記録する。**本節は本書の正本であり、本文および §15 の該当箇所と矛盾する場合は本節が優先する。**
+
+### 16.1 `BOP` の位置づけ（`Z-05`）
+
+§1.3 は時点基準を `SUM` / `AVG` / `EOP` / `BOP` の 4 種とするが、§4.2 の既定割当表は `SUM` / `EOP` / `AVG` の 3 種しか与えていない。
+
+**改訂**: `BOP` は**観測側の集計方式ではない**。モデルが `x[t−1]` として参照する期首値であり、`EOP` 系列の 1 期ラグとして構成する。§4.2 の表に `BOP` の行を追加せず、次の契約を追加する。
+
+> **`BOP` の扱い**: `BOP` を独立の `aggregation`（`:sum` / `:mean` / `:end`）として実装しない。`EOP` として取得した系列の 1 期ラグとして構成し、ラグの適用を `transformations` へ記録する。
+
+### 16.2 `st_dcap_s` の倍率（`Z-10`）
+
+§5.2-11 は `st_dcap_s ≥ debt_s^{ss} / sales_s^{ss}` の余裕幅について「既定は `1.2 ×`（暫定）とし感応度対象」とする。実装（`_ccc_calibrate_structural`）は `2 ×` を用いている。
+
+**改訂**: 余裕幅は**較正層が観測から与える `CAL-OBS` の入力**であり、本書が既定値を宣言する対象ではない。§5.2-11 の記述を次へ改める。
+
+> `st_dcap_s` の余裕幅は `CAL-OBS` の入力として較正層が与える。**実装の既定値は `2 ×`**（`src/models/capex_credit_cycle.jl`）であり、`1.2 ×` は下限側の目安として参照する値にすぎない。倍率は §10.4 の感応度対象とする。
+
+### 16.3 `st_cor_s1` の区分（`Z-11`）
+
+§7.2 は `st_cor_s1`–`st_cor_s3` を一括で `CAL-SS`（`cap_s^{ss} · bh_util_tgt_s / y_s^{ss}` から逆算）としているが、**`S1` には `util_s1` の観測系列が無い**（§3.2-4 で `util_s1` は `E`）。したがって `bh_util_tgt_s1` が定まらず、`st_cor_s1` を定常水準から逆算できない。実装は `st_cor_s1 = 2.0` を定数として置いている。
+
+**改訂**: §7.2 の該当行を次へ分割する。
+
+| パラメータ | 区分（改訂後） | 決め方 |
+|---|---|---|
+| `st_cor_s2`・`st_cor_s3` | `CAL-SS` | §5.2-2（`cap_s^{ss} · bh_util_tgt_s / y_s^{ss}`） |
+| `st_cor_s1` | **`SENS`** | `util_s1^{ss}` が `E`（対応系列なし）であり自由度が残る。既定値（実装値 `2.0`）を置き、§10.4 の走査対象とする |
+
+あわせて §7.5 の `SENS` 一覧へ **`st_cor_s1`** を追加する（改訂後の `SENS` 一覧: `st_cor_s1`・`st_maturity_s1`–`_s3`・`st_commit_s1`・`pl_ltv`・`bh_price_elas_s2`/`_s3`・診断閾値セット・`CapexCreditCycleOptions` の数値設定）。
+
+### 16.4 `ext_demand_s^{ss}` の残差方向と識別（`Z-12`）
+
+§15.4 は `ext_demand_s^{ss}` を「`y_s^{ss}` から資本財需要成分と一般需要成分を差し引いた残差」とする。一方 §5.2-9 は `order_gen_s^{ss}` を「`y_s^{ss}` から資本財起因分と `ext_demand_s^{ss}` を控除した残差」とし、実装（`_ccc_calibrate_structural`）も `ext_demand_s^{ss}` を入力・`order_gen_s^{ss}` を残差としている。**両者は逆方向であり、定常水準では恒等式が両者の和しか決めない。**
+
+**改訂**: 次を §5.2 と §15.4 の双方に優先する規定として置く。
+
+1. **定常水準において `order_gen_s^{ss}` と `ext_demand_s^{ss}` の分割は観測から識別されない**。恒等式 `y_s^{ss} = order_cap_s^{ss}（+ order_inv_s3^{ss}）+ order_gen_s^{ss} + ext_demand_s^{ss}` は和のみを決める。
+2. 分割には識別仮定を要する。**`st_gen_share_s` を baseline 期間ではなく標本全体（`sample_start`–`sample_end`）での `order_s` の `y_s5` に対する比として `CAL-OBS` で先に与え、`ext_demand_s^{ss}` を残差とする**。推定窓を methodology metadata へ保存する。
+3. この選択は `allocation` であり、**§10.4 の `alternative proxy` 感応度の必須対象に加える**（`(g) st_gen_share_s` の推定窓と按分方式）。
+4. §4.3 の 3 契約（残差であることの明記・負値をクリップしない・分散超過を識別失敗として報告）はそのまま適用する。
+
+### 16.5 `EB-6` の `EST` 個数と総数（`Z-14`）
+
+§15.2 は `EB-6` を 11 `EST`（`bh_emp_up_s1`–`_s5` 5 + `bh_emp_down_s1`–`_s5` 5 + `bh_wage_slope` 1）とし、`EST` 総数を 37 とする。しかし**モデルに `emp_s4` は存在しない**（状態変数は `emp_s1`・`emp_s2`・`emp_s3`・`emp_s5` の 4 本）。`bh_emp_up_s4`・`bh_emp_down_s4`・`bh_emp_band_s4` は `st_lprod_s4`・`st_wbase_s4` と同じく**対応する方程式も観測も持たない辞書上の空き値**である。
+
+**改訂**:
+
+- `EB-6` の `EST` を **9 個**とする（`bh_emp_up_s1`/`_s2`/`_s3`/`_s5` 4 + `bh_emp_down_s1`/`_s2`/`_s3`/`_s5` 4 + `bh_wage_slope` 1）。
+- **`EST` 総数を 35 とする**（`EB-1` 4 + `EB-2` 3 + `EB-3` 4 + `EB-4` 4 + `EB-5` 9 + `EB-6` 9 + `EB-7` 2）。
+- `bh_emp_up_s4`・`bh_emp_down_s4`・`bh_emp_band_s4` は**推定・較正・感応度のいずれの対象にもしない**。区分は「対応する方程式を持たない辞書上の空き値」とし、6 区分のいずれにも割り当てない（§7.1 の「各パラメータはちょうど 1 つの区分を持つ」は、対応する方程式を持つパラメータについての契約である）。
+
+### 16.6 vintage の記録（`Z-21`）
+
+§2.4 は「`metadata["data_vintage"] = "latest"` と取得日（`retrieved_at`）を必ず保存する」とするが、`economic-data-provider` の現行 REST 応答は vintage を返さない。**provider が申告していない値を `"latest"` と書くことは、確認していない事実の申告になる**（§1.2-1 の規律に反する）。
+
+**改訂**: §2.4 の「vintage の記録」行を次へ改める。
+
+| 論点 | 改訂後の決定 |
+|---|---|
+| `data_vintage` | **provider が申告した値**を保存する。**未申告のときは `"unknown"`** とし、`"latest"` と書かない |
+| `vintage_mode` | `:latest_only` の **1 値のみ**を語彙に持つ。`:as_of` を語彙へ先取りしない |
+| `retrieved_at` | 保存する。ただし artifact の canonical hash 対象からは除外する（volatile field。[実証統合設計](../architecture/capex_credit_cycle_empirical_integration.md) §11.3） |
+
+**契約**: 「`:latest`（最新 vintage・確定値）で較正した」と述べられるのは、provider が vintage を申告した場合に限る。申告が無い場合は「取得時点で provider が返した値を用いた」と述べる。いずれの場合も「その時点で予測できた」と述べない（§2.4 の既存契約は維持）。
+
+---
+
+## 17. 改訂履歴
 
 | version | 日付 | 変更 |
 |---|---|---|
+| `capex-credit-cycle-empirical/1.2.0` | 2026-09-01 | #240 の実証統合レビューによる改訂（§16）。`BOP` を独立の集計方式として実装せず `EOP` の1期ラグとして構成することを明記。`st_dcap_s` の余裕幅を `CAL-OBS` の入力とし実装既定 `2 ×` を正とする。`st_cor_s1` を `CAL-SS` から `SENS` へ移す（`util_s1^{ss}` が `E` で逆算できないため）。定常水準では `order_gen_s^{ss}` と `ext_demand_s^{ss}` の分割が識別されないことを明記し、`st_gen_share_s` を標本全体から先に与え `ext_demand_s^{ss}` を残差とする識別仮定を固定（§5.2-9 と §15.4 の逆方向を解消）。`emp_s4` が存在しないため `EB-6` の `EST` を 11 → 9 へ、`EST` 総数を 37 → 35 へ修正。`data_vintage` を provider 申告値とし未申告を `"unknown"` とする（`"latest"` と書かない）。`vintage_mode` を `:latest_only` の1値に固定。下位の実装契約として `capex-credit-cycle-empirical-integration/1.0.0` を追加 |
 | `capex-credit-cycle-empirical/1.1.0` | 2026-07-30 | #171 の統合レビューによる改訂（§15）。上位契約を `vars/1.2.0`・`accounting/1.1.0`・`equations/1.1.0`・`macro-event-contract/1.0.1` へ更新。区分の二重付与 3 件を一意化（`st_pipelag_s`・`st_dcap_s` を `CAL-OBS`、`bh_cc_lend`/`bh_cc_equity`/`bh_cc_fc` を `W1` 事前適用で `CAL-OBS`）し、区分と感応度対象が直交する概念であることを §7.1 へ追記。`st_commit_s` を `st_commit_s1` へ修正。推定ブロックの `EST` 個数を実測値へ修正（総数 37）。#166 §11 が引き渡した `st_maturity_s` の較正要求を外した事実と理由を記録。§5.2 の `ext_demand_s^{ss}` の観測ソースを §4.3 の残差構成規則として明記。在庫の当期価格評価に伴い `st_invprice_s` を `FIX` 一覧から削除（構造 35 → 34 系統）。遅延バッファの列挙と宣言の食い違い（35 対 34）が解消され状態次元 65 が確定。`:no_double_count` の価格・投資変化局面での検証と会計恒等式の履歴再生検証を §10 へ追加 |
 | `capex-credit-cycle-empirical/1.0.0` | 2026-07-30 | 初版（#170）。観測可能性 5 分類（`D`/`C`/`P`/`E`/`A`）と 8 群の変数割当・観測方程式の構成要素 9 項目と部門別実物量/資本能力/金融信用の観測方程式・頻度変換の既定割当（NIPA 年率の `÷ 4` を含む）・`y_s` のアンカー式と `ext_demand_s` の残差構成規則と 3 契約・`aggregation`/`allocation`/`proxy` の methodology metadata・逆較正入力 13 項目の観測対応と定常水準の算出方式・データソース境界 3 層と企業開示を較正入力に用いない決定・モデル層/データ層/較正層の境界・fixture 最小セットと metadata 保存項目・パラメータ 6 区分（`FIX`/`CAL-SS`/`CAL-OBS`/`EST`/`SCN`/`SENS`）の全パラメータ割当・推定ブロック `EB-1`–`EB-7` と固定推定順序・診断閾値を較正しない決定と `breadth` の較正不能性・識別リスク `ID-1`–`ID-7` と弱識別対応規則 `W1`–`W4`・履歴再生の必要条件 `NC-1`–`NC-7` と候補 `H1`–`H6`・履歴再生 baseline を成長率ゼロの定常状態とする決定・数値fit/動学構造/比較/数値頑健性の 4 レイヤー分離と出力契約・因果と予測上の限界 14 件を固定 |

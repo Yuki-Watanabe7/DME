@@ -2,7 +2,8 @@
 
 > 関連 Issue: #171（本書）・#163〜#170（統合対象の設計成果）・#125（ロードマップ）
 > 実装配置・API・テスト・作業分解: [統合設計](../architecture/capex_credit_cycle_integration.md)
-> 決定記録: [ADR 0013](../adr/0013-capex-credit-cycle-integration-contract.md)
+> 実データ接続・較正・履歴再生・検証の実装契約: [実証統合設計](../architecture/capex_credit_cycle_empirical_integration.md)（#240）
+> 決定記録: [ADR 0013](../adr/0013-capex-credit-cycle-integration-contract.md)・[ADR 0018](../adr/0018-capex-credit-cycle-empirical-runtime-contract.md)
 
 ---
 
@@ -560,7 +561,8 @@ bp → %pt          : spread / 100                （100bp = 1%pt）
 ## 参考
 
 - [統合設計](../architecture/capex_credit_cycle_integration.md) — 整合レビュー（`X-01`–`X-32`）・実装配置・公開API・出力契約・テスト・デモ・作業分解
+- [実証統合設計](../architecture/capex_credit_cycle_empirical_integration.md) — 整合レビュー（`Z-01`–`Z-30`）・7段のデータフロー・実証層の型/API・失敗契約・標本/vintage semantics・48 targetキーの観測対応・履歴再生と検証の構成・作業分解（`P-1`–`P-11`）
 - #163 [分析契約](capex_credit_cycle_analysis_contract.md)・#164 [因果グラフ](capex_credit_cycle_causal_graph.md)・#165 [部門境界と変数定義](capex_credit_cycle_sectors_variables.md)・#166 [ストック・フロー会計表](capex_credit_cycle_stock_flow.md)・#167 [責務境界](capex_credit_cycle_model_boundaries.md)
 - #168 [イベント変換契約](../architecture/macro_event_contract.md)・[シナリオ時間軸](../architecture/scenario_time_semantics.md)
 - #169 [動学方程式](capex_credit_cycle_equations.md)・#170 [観測方程式・識別戦略・検証方針](capex_credit_cycle_empirical_strategy.md)
-- [ADR 0009](../adr/0009-capex-credit-cycle-model-responsibilities.md)・[ADR 0010](../adr/0010-macro-event-scenario-contract.md)・[ADR 0011](../adr/0011-capex-credit-cycle-dynamics-contract.md)・[ADR 0012](../adr/0012-capex-credit-cycle-empirical-contract.md)・[ADR 0013](../adr/0013-capex-credit-cycle-integration-contract.md)・[ADR 0014](../adr/0014-digital-twin-naming-conditions.md)
+- [ADR 0009](../adr/0009-capex-credit-cycle-model-responsibilities.md)・[ADR 0010](../adr/0010-macro-event-scenario-contract.md)・[ADR 0011](../adr/0011-capex-credit-cycle-dynamics-contract.md)・[ADR 0012](../adr/0012-capex-credit-cycle-empirical-contract.md)・[ADR 0013](../adr/0013-capex-credit-cycle-integration-contract.md)・[ADR 0014](../adr/0014-digital-twin-naming-conditions.md)・[ADR 0018](../adr/0018-capex-credit-cycle-empirical-runtime-contract.md)
