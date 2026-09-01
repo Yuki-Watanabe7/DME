@@ -42,6 +42,20 @@ export
     KeenEmpiricalDataset,
     build_keen_empirical_dataset,
     KEEN_EMPIRICAL_METHODOLOGY_VERSION,
+    # CCC empirical catalog (Issue #241 / P-1)
+    CAPEX_CC_EMPIRICAL_INTEGRATION_VERSION,
+    CAPEX_CC_SERIES_ROLES,
+    CAPEX_CC_SOURCE_KINDS,
+    CAPEX_CC_METHODOLOGY_KINDS,
+    CAPEX_CC_OBSERVABILITY_CLASSES,
+    CapexSeriesSpec,
+    CAPEX_CC_SERIES_CATALOG,
+    capex_series_catalog,
+    CapexProviderGap,
+    CAPEX_CC_PROVIDER_GAPS,
+    validate_capex_series_catalog,
+    capex_series_catalog_to_dict,
+    save_capex_series_catalog,
     # Model type hierarchy
     AbstractMacroModel,
     RamseyModel,
@@ -585,6 +599,7 @@ include("./data/data_series.jl")
 include("./data/preprocess.jl")
 include("./data/fred.jl")
 include("./data/estat.jl")
+include("./data/capex_credit_cycle_catalog.jl")
 include("./data/keen_empirical.jl")
 
 # Numerical utilities: grid types and interpolation
