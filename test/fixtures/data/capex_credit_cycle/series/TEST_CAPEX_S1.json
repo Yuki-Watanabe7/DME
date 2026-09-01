@@ -1,0 +1,12 @@
+{
+  "id": "TEST_CAPEX_S1",
+  "source_id": "TEST_CAPEX_S1_SOURCE",
+  "name": "Test Capital Expenditure",
+  "unit": "Billions of dollars",
+  "frequency": "quarterly",
+  "points": [
+    {"label": "2020-Q1", "value": 10.0},
+    {"label": "2020-Q2", "value": null},
+    {"label": "2020-Q3", "value": 12.5}
+  ]
+}

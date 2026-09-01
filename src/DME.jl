@@ -42,6 +42,10 @@ export
     KeenEmpiricalDataset,
     build_keen_empirical_dataset,
     KEEN_EMPIRICAL_METHODOLOGY_VERSION,
+    # Generic economic-data-provider REST client (Issue #242 / P-2)
+    DataProviderClient,
+    fetch_provider_series,
+    fetch_provider_catalog,
     # CCC empirical catalog (Issue #241 / P-1)
     CAPEX_CC_EMPIRICAL_INTEGRATION_VERSION,
     CAPEX_CC_SERIES_ROLES,
@@ -56,6 +60,11 @@ export
     validate_capex_series_catalog,
     capex_series_catalog_to_dict,
     save_capex_series_catalog,
+    # CCC raw provider observations (Issue #242 / P-2)
+    CAPEX_CC_RAW_STATUSES,
+    CapexRawObservation,
+    CapexRawDataset,
+    build_capex_raw_dataset,
     # Model type hierarchy
     AbstractMacroModel,
     RamseyModel,
@@ -599,7 +608,9 @@ include("./data/data_series.jl")
 include("./data/preprocess.jl")
 include("./data/fred.jl")
 include("./data/estat.jl")
+include("./data/data_provider.jl")
 include("./data/capex_credit_cycle_catalog.jl")
+include("./data/capex_credit_cycle_provider.jl")
 include("./data/keen_empirical.jl")
 
 # Numerical utilities: grid types and interpolation
