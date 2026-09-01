@@ -1,0 +1,12 @@
+{
+  "id": "TEST_CAPEX_S2",
+  "source_id": "TEST_CAPEX_S2_SOURCE",
+  "name": "Test Employment",
+  "unit": "Thousands of persons",
+  "frequency": "monthly",
+  "points": [
+    {"label": "2020-01", "value": 100.0},
+    {"label": "2020-02", "value": 101.0},
+    {"label": "2020-03", "value": 99.5}
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "items": [
+    {
+      "series_id": "TEST_CAPEX_S1",
+      "title": "Test Capital Expenditure",
+      "country": "US",
+      "rate_types": [],
+      "role": "test",
+      "unit": "Billions of dollars",
+      "frequency": "quarterly",
+      "source": "Test Statistical Agency",
+      "provider": "test-provider",
+      "source_status": "available",
+      "seasonal_adjustment": "SA",
+      "estimation_method": "published"
+    },
+    {
+      "series_id": "TEST_CAPEX_S2",
+      "title": "Test Employment",
+      "country": "US",
+      "rate_types": [],
+      "role": "test",
+      "unit": "Thousands of persons",
+      "frequency": "monthly",
+      "source": "Test Statistical Agency",
+      "provider": "test-provider",
+      "source_status": "available",
+      "seasonal_adjustment": "SA",
+      "estimation_method": "published"
+    }
+  ],
+  "pagination": {"total": 2, "limit": 100, "next_cursor": null},
+  "snapshot": {
+    "version": "test-catalog-v1",
+    "content_hash": "test-content-hash",
+    "contract_version": "test-contract-v1"
+  }
+}
