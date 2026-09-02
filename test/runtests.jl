@@ -11,6 +11,7 @@ const DME_TEST_FILES = [
     "test_keen_empirical_data.jl",
     "test_capex_credit_cycle_catalog.jl",
     "test_capex_credit_cycle_provider.jl",
+    "test_capex_credit_cycle_measurements.jl",
     "test_keen_calibration.jl",
     "test_keen_validation.jl",
     "test_ramsey.jl",

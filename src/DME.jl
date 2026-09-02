@@ -65,6 +65,12 @@ export
     CapexRawObservation,
     CapexRawDataset,
     build_capex_raw_dataset,
+    # CCC measurement / empirical dataset (Issue #243 / P-3)
+    CapexMeasurement,
+    CapexSampleWindow,
+    CapexEmpiricalDataset,
+    build_capex_empirical_dataset,
+    capex_annual_to_quarterly,
     # Model type hierarchy
     AbstractMacroModel,
     RamseyModel,
@@ -611,6 +617,7 @@ include("./data/estat.jl")
 include("./data/data_provider.jl")
 include("./data/capex_credit_cycle_catalog.jl")
 include("./data/capex_credit_cycle_provider.jl")
+include("./data/capex_credit_cycle_measurements.jl")
 include("./data/keen_empirical.jl")
 
 # Numerical utilities: grid types and interpolation
