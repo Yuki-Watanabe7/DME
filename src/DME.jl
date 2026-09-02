@@ -188,6 +188,20 @@ export
     capex_diagnostics,
     capex_counterfactual,
     capex_label_sensitivity,
+    # CCC: 実証較正層（src/analysis/capex_credit_cycle_calibration.jl、Issue #244 / `P-4`）
+    CAPEX_CC_CALIBRATION_VERSION,
+    CAPEX_CC_TARGET_SOURCE_KINDS,
+    CAPEX_CC_PARAMETER_CLASSES,
+    CAPEX_CC_PARAMETER_DICT_PLACEHOLDERS,
+    CAPEX_CC_STRUCTURAL_OVERRIDABLE,
+    CapexTargetSpec,
+    CapexEmpiricalCalibration,
+    capex_parameter_class,
+    capex_parameter_provenance,
+    build_capex_steady_state_targets,
+    calibrate_capex_credit_cycle,
+    capex_calibration_to_dict,
+    save_capex_calibration,
     # CCC: イベント mapping adapter（src/scenarios/adapters/capex_credit_cycle_event_adapter.jl、
     # Issue #201 / `E-5`）
     EventMappingRule,
@@ -714,6 +728,13 @@ include("./analysis/capex_credit_cycle_scenarios.jl")
 # （delayed_containment の延長再実行）。診断ラベル・funding_pressure_s・ループ利得・非線形性近傍・
 # 反実仮想。読み取り専用でモデル本体の動学に影響しない）
 include("./analysis/capex_credit_cycle_diagnostics.jl")
+
+# 部門別CAPEX・信用循環モデルの実証較正層（Issue #244 / `P-4`。depends on
+# CapexCreditCycleModel（capex_credit_cycle_model の structural 引数・CapexSteadyStateReport）・
+# data/capex_credit_cycle_measurements.jl（CapexEmpiricalDataset・四半期ラベル parse）・
+# artifacts/json_canonical.jl（sha256_hex_of_canonical）・JSON3。observation dataset の
+# baseline 期間平均から 48 定常水準ターゲットと逆較正モデルを決定論的に構築する読み取り専用層）
+include("./analysis/capex_credit_cycle_calibration.jl")
 
 # 部門別CAPEX・信用循環モデルのイベント mapping adapter（Issue #201 / `E-5`。depends on
 # CapexCreditCycleModel・scenarios/macro_events.jl・scenario_time.jl・scenario_types.jl・

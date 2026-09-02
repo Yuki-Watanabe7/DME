@@ -743,7 +743,7 @@ capex_parameter_set(cal::CapexEmpiricalCalibration,
 | `SCN` | シナリオ入力 | `exog` / `state0` / `CapexShockSpec` / `ScenarioAssumption` | `parameters` に含めない |
 | `SENS` | 既定値 + 走査 | 既定値のまま。感応度層が variant ごとに差し替える | 感応度層が与える |
 
-**契約**: `parameters(m)` の 147 個すべてについて `parameter_provenance` が 6 区分のいずれか 1 つを返す（区分の欠落・重複を許さない。#170 §7.1）。区分と「感応度走査の対象であること」は直交する（#170 §15.1）。
+**契約**: `parameters(m)` の 147 個のうち、対応する方程式を持つ 142 個について `parameter_provenance` が 6 区分のいずれか 1 つを返す（区分の欠落・重複を許さない。#170 §7.1）。`emp_s4` が存在しないため方程式も観測も持たない 5 個（`st_lprod_s4`・`st_wbase_s4`・`bh_emp_up_s4`・`bh_emp_down_s4`・`bh_emp_band_s4`）は 6 区分のいずれにも割り当てず、実装は `:dict_placeholder` を返す（#170 §16.5 が正本。§8.4 の「辞書上の空き値」と同一）。区分と「感応度走査の対象であること」は直交する（#170 §15.1）。
 
 ### 8.2 48 target キーの観測対応（`Z-07`・`Z-08`）
 
@@ -1176,7 +1176,7 @@ catalog_version
 34. `SS-1`–`SS-17` 違反が `ss_inconsistent` として構造化され、自動補正されない。
 35. 自由度なし整合条件の乖離が `ss_residual` に記録される。
 36. `SCN` / `SENS` パラメータが較正で上書きされない。
-37. `parameter_provenance` が 147 パラメータすべてに 6 区分のいずれか 1 つを返す（欠落・重複なし）。
+37. `parameter_provenance` が 147 パラメータすべてを返し、方程式を持つ 142 個は 6 区分のいずれか 1 つ、辞書上の空き値 5 個（`*_s4`）は `:dict_placeholder`（欠落・重複なし。#170 §16.5）。
 38. 同一 dataset から同一 `targets_hash` を生成する。
 
 ### 12.5 識別・推定（11 項目）

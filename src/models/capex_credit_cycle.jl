@@ -807,6 +807,56 @@ const _CCC_ST_COR_S1 = 2.0
 const _CCC_ST_COLL_LTV_MARGIN = 1.65
 
 """
+    CAPEX_CC_STRUCTURAL_OVERRIDABLE
+
+`capex_credit_cycle_model` の `structural` キーワードで上書きできる `st_` パラメータ集合
+（実証統合設計 §5.5・`Z-09`・ADR 0018 決定 5）。`CAL-OBS`（観測比率・文献値から直接較正）
+および `SENS`（観測がなく既定値＋走査で扱う）の系統に限る。ここに含まれないキー（特に
+`CAL-SS`＝逆較正で自由度なしに決まる系統）を `structural` で渡すと `structural_override_conflict`
+として `ArgumentError` を投げ、閉形式導出を黙って壊さない。
+"""
+const CAPEX_CC_STRUCTURAL_OVERRIDABLE = (
+    :st_cor_s1,
+    :st_maturity_s1,
+    :st_maturity_s2,
+    :st_maturity_s3,
+    :st_cash_min_s1,
+    :st_cash_min_s2,
+    :st_cash_min_s3,
+    :st_commit_s1,
+    :st_cshare_s3,
+    :st_coll_ltv,
+    :st_dcap_s1,
+    :st_dcap_s2,
+    :st_dcap_s3,
+    :st_pipelag_s1,
+    :st_pipelag_s2,
+    :st_pipelag_s3,
+)
+
+function _ccc_validate_structural_overrides(structural::NamedTuple)
+    isempty(structural) && return nothing
+    allowed = Set(CAPEX_CC_STRUCTURAL_OVERRIDABLE)
+    bad = [k for k in keys(structural) if !(k in allowed)]
+    isempty(bad) || throw(
+        ArgumentError(
+            "structural_override_conflict: $(sort(bad)) は structural で上書きできません。" *
+            "上書き可能なのは CAPEX_CC_STRUCTURAL_OVERRIDABLE の $(length(CAPEX_CC_STRUCTURAL_OVERRIDABLE)) キー" *
+            "（CAL-OBS・SENS の st_ 系統）のみで、CAL-SS（逆較正で自由度なしに決まる系統）は含まれません。",
+        ),
+    )
+    for k in keys(structural)
+        v = getproperty(structural, k)
+        (v isa Real && isfinite(v)) || throw(
+            ArgumentError(
+                "structural[$k] は有限の実数でなければなりません（実値: $(repr(v)))",
+            ),
+        )
+    end
+    return nothing
+end
+
+"""
     _ccc_default_behavioral() -> NamedTuple
 
 `bh_` パラメータのうち逆較正（§14.2）で決まらないものの既定値。#170 の推定・較正対象であり、
@@ -1119,27 +1169,37 @@ end
 
 """
     capex_credit_cycle_model(targets; behavioral=NamedTuple(), policy=NamedTuple(),
-                              sectors=CapexSectorSets()) -> CapexCreditCycleModel
+                              structural=NamedTuple(), sectors=CapexSectorSets())
+        -> CapexCreditCycleModel
 
 `targets` の定常水準から `st_` パラメータ（および `bh_util_tgt_s`・`bh_backlog_target_s`・
 `bh_inv_target_s`）を §14.2 の13ステップで閉形式に逆算し、`CapexCreditCycleModel` を構築する。
 非線形ソルバは用いない。`behavioral`・`policy` は既定値（計算済みの値を含む）を上書きする。
+
+`structural`（実証統合設計 §5.5・`Z-09`）は `CAL-OBS`・`SENS` の `st_` 系統
+（[`CAPEX_CC_STRUCTURAL_OVERRIDABLE`](@ref)）を較正層が観測から与えるための上書き口。
+逆較正の閉形式（`_ccc_calibrate_structural`）を再計算せず、その出力へ `merge` する。
+`CAPEX_CC_STRUCTURAL_OVERRIDABLE` 以外のキーを渡すと `structural_override_conflict`
+として `ArgumentError` を投げる。既定は空で、既存の呼び出しに対して非破壊。
 """
 function capex_credit_cycle_model(
     targets::CapexCreditCycleTargets;
     behavioral::NamedTuple = NamedTuple(),
     policy::NamedTuple = NamedTuple(),
+    structural::NamedTuple = NamedTuple(),
     sectors::CapexSectorSets = CapexSectorSets(),
 )
     _ccc_validate_target_keys(targets.values)
+    _ccc_validate_structural_overrides(structural)
     tv = targets.values
 
     policy_full = merge(_ccc_default_policy(), policy)
     calibrated_bh = _ccc_calibrate_behavioral(tv)
     behavioral_full = merge(_ccc_default_behavioral(), calibrated_bh, behavioral)
-    structural = _ccc_calibrate_structural(tv, behavioral_full, policy_full)
+    structural_full =
+        merge(_ccc_calibrate_structural(tv, behavioral_full, policy_full), structural)
 
-    params = merge(behavioral_full, policy_full, structural)
+    params = merge(behavioral_full, policy_full, structural_full)
 
     return CapexCreditCycleModel(; params = params, targets = targets, sectors = sectors)
 end
