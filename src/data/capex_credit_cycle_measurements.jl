@@ -415,6 +415,10 @@ function _capex_measure_series(obs::CapexRawObservation)::CapexMeasurement
             "proxy series with $(spec.scope_bias) scope bias relative to: $(spec.sector_scope)",
         )
 
+    # 最終系列は "YYYY-Qn" 軸でなければならない。四半期の provider 系列が別形式の
+    # ラベルを返した場合は測定失敗として扱う（build 側で unavailable に落ちる）。
+    foreach(_capex_parse_quarter_label, current.dates)
+
     n_invalid = count(v -> !ismissing(v) && !isfinite(v), current.values)
 
     return CapexMeasurement(

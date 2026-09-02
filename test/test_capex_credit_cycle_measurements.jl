@@ -541,6 +541,34 @@ end
         @test ds_fixture.metadata["dataset_hash"] == ds_rest.metadata["dataset_hash"]
     end
 
+    @testset "a malformed quarterly label becomes a measurement failure, not a crash" begin
+        calib = _meas_spec(key = :calib)
+        bad = _meas_spec(
+            key = :bad,
+            role = :validation_only,
+            observability = :P,
+            methodology = :proxy,
+            scope_bias = :indeterminate,
+        )
+        bad_series = DataSeries(
+            "BAD",
+            "BAD",
+            "TEST",
+            Quarterly,
+            "test unit",
+            ["2010Q1", "2010Q2", "2010Q3"],
+            Vector{Union{Float64, Missing}}([1.0, 2.0, 3.0]),
+        )
+        raw = _meas_raw([
+            _meas_obs(calib, _q_series("C", "2010-Q1", collect(1.0:10.0))),
+            _meas_obs(bad, bad_series),
+        ])
+        ds = build_capex_empirical_dataset(raw; min_valid_obs = 8)
+        @test !haskey(ds.measurements, :bad)
+        @test haskey(ds.quality_flags["measurement_failures"], "bad")
+        @test all(ismissing, ds.values[:bad])
+    end
+
     @testset "shipped catalog has no EDP series yet, so the dataset build fails closed" begin
         raw = build_capex_raw_dataset(;
             client = DataProviderClient(
