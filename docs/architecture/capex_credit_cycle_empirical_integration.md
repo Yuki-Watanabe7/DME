@@ -326,7 +326,7 @@
 | CCC 実証: raw observation | `CapexRawObservation`・`CapexRawDataset`・`build_capex_raw_dataset` |
 | CCC 実証: measurement | `CapexMeasurement`・`CapexSampleWindow`・`CapexEmpiricalDataset`・`build_capex_empirical_dataset`・`capex_annual_to_quarterly` |
 | CCC 実証: 較正 | `CapexTargetSpec`・`CapexEmpiricalCalibration`・`build_capex_steady_state_targets`・`calibrate_capex_credit_cycle`・`CAPEX_CC_STRUCTURAL_OVERRIDABLE` |
-| CCC 実証: 識別 | `CapexEstimationBlockSpec`・`CAPEX_CC_ESTIMATION_BLOCKS`・`CapexIdentificationDiagnostic`・`diagnose_capex_identification` |
+| CCC 実証: 識別 | `CapexEstimationBlockSpec`・`CAPEX_CC_ESTIMATION_BLOCKS`・`CapexIdentificationDiagnostic`・`CapexIdentificationConfig`・`diagnose_capex_identification`・`validate_capex_estimation_blocks`・`capex_estimation_block`・`capex_identification_to_dict`・`save_capex_identification`（版・語彙は `CAPEX_CC_IDENTIFICATION_VERSION`・`CAPEX_CC_IDENTIFICATION_RISKS`） |
 | CCC 実証: 推定 | `CapexEstimationConfig`・`CapexBlockEstimate`・`CapexParameterSet`・`estimate_capex_block`・`capex_parameter_set` |
 | CCC 実証: 履歴再生 | `CapexHistoricalEpisodeSpec`・`CAPEX_CC_EPISODE_IDS`・`CapexEpisodeAssessment`・`assess_capex_episodes`・`CapexReplayOptions`・`CapexHistoricalReplayRun`・`capex_historical_replay` |
 | CCC 実証: 検証・感応度 | `CapexSeriesFit`・`CapexEmpiricalValidationReport`・`validate_capex_empirical`・`CapexSensitivityAxis`・`CapexRobustnessReport`・`capex_empirical_robustness` |
@@ -651,6 +651,16 @@ capex_parameter_set(cal::CapexEmpiricalCalibration,
 5. `standard_errors_supported = false` を保持する（#170 §8.3-1）。objective の曲率を分散推定と呼ばない。
 6. 推定順序 `EB-1 → EB-3 → EB-4 → EB-6 → EB-7 → EB-5 → EB-2` を `order` で固定し、実行順を provenance へ保存する。
 7. `CapexParameterSet` は `:literature_default` / `:calibrated` / `:estimated` を**同一 artifact 内で別フィールドとして**保持し、由来不明の混在を作らない。
+
+**識別診断の実装（`P-5` / #245）**: 上記スケッチに対し次を確定した（§5 冒頭の「戻り値の型を変えずにフィールドを追加することは許容」に沿う）。
+
+- `CapexIdentificationDiagnostic` へ `order` / `est_params` / `effective_est_params`（`W1`/`W4` 適用後）/ `required_keys` / `identification_risks` / `equation_ids` を追加した（block 仕様を引かずに診断だけで推定可否を読めるようにするため）。
+- 検出しきい値を `CapexIdentificationConfig`（`min_obs` 既定 12・`variation_tol`・`collinearity_tol`）へ分離した。**`W2` / `W3` の発火しきい値は推定層（`CapexEstimationConfig`。#246）の責務**であり、識別層は dataset と catalog から推定前に判定できる項目のみを持つ。config は `identification_hash` の対象に含める。
+- `diagnose_capex_identification` の `cal` を省略可能にした（`cal` を渡したときのみ `parameter_provenance` との二重照合を行う）。診断は `ds` と `config` のみに依存し、**較正・推定の前に単独で実行できる**（#245 受け入れ条件）。
+- ステータス判定: 必須系列欠損／短標本は `:insufficient_data`、必須系列の変動不足（定数）と「候補が全て `W1` 事前適用」は `:not_identified`、近似特異または proxy/allocation のみの必須系列は `:weakly_identified`、それ以外は `:estimable`。`reasons` に機械可読な接頭辞（`missing_required_series` / `short_sample` / `no_variation` / `near_singular` / `proxy_or_allocation_only`）を積む。
+- **catalog の `observability` が `:P`（または methodology が `:proxy` / `:allocation`）の必須系列は direct 観測と同じ識別強度として扱わない**（§12.5-42）。当該ブロックが近似特異または proxy 依存で `:weakly_identified` になった場合、事前割当の無い候補にも `W2` を armed する（#170 §8.3 の `W2` 適用条件を catalog から**推定前**に判定するもので、推定結果は見ない。§8.6 の「事前固定」）。
+  - 具体例: `EB-4` の `bh_price_sens_s2` / `_s3` は `util_s`（`E9-15` の説明変数）に依存するが、catalog（#241）は `util_s2` / `util_s3` を `observability = :P`・`methodology = :proxy`・`role = :validation_only` と分類している（#170 §3.2-4 の本文は `D` としているが、catalog が観測分類の正本。ADR 0018 決定 3）。したがって `EB-4` は `:weakly_identified` となり、`bh_price_adj_s*` / `bh_price_sens_s*` は `W2`（範囲報告）で扱う。
+- 追加 export: `CapexIdentificationConfig` / `CAPEX_CC_IDENTIFICATION_VERSION` / `CAPEX_CC_IDENTIFICATION_RISKS` / `validate_capex_estimation_blocks` / `capex_estimation_block` / `capex_identification_to_dict` / `save_capex_identification`。
 
 ---
 

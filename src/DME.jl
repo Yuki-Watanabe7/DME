@@ -202,6 +202,20 @@ export
     calibrate_capex_credit_cycle,
     capex_calibration_to_dict,
     save_capex_calibration,
+    # CCC: 実証識別層（src/analysis/capex_credit_cycle_identification.jl、Issue #245 / `P-5`）
+    CAPEX_CC_IDENTIFICATION_VERSION,
+    CAPEX_CC_IDENTIFICATION_STATUSES,
+    CAPEX_CC_WEAK_ID_ACTIONS,
+    CAPEX_CC_IDENTIFICATION_RISKS,
+    CAPEX_CC_ESTIMATION_BLOCKS,
+    CapexIdentificationConfig,
+    CapexEstimationBlockSpec,
+    CapexIdentificationDiagnostic,
+    validate_capex_estimation_blocks,
+    capex_estimation_block,
+    diagnose_capex_identification,
+    capex_identification_to_dict,
+    save_capex_identification,
     # CCC: イベント mapping adapter（src/scenarios/adapters/capex_credit_cycle_event_adapter.jl、
     # Issue #201 / `E-5`）
     EventMappingRule,
@@ -735,6 +749,14 @@ include("./analysis/capex_credit_cycle_diagnostics.jl")
 # artifacts/json_canonical.jl（sha256_hex_of_canonical）・JSON3。observation dataset の
 # baseline 期間平均から 48 定常水準ターゲットと逆較正モデルを決定論的に構築する読み取り専用層）
 include("./analysis/capex_credit_cycle_calibration.jl")
+
+# 部門別CAPEX・信用循環モデルの実証識別層（Issue #245 / `P-5`。depends on
+# analysis/capex_credit_cycle_calibration.jl（CapexEmpiricalCalibration・capex_parameter_class）・
+# data/capex_credit_cycle_measurements.jl（CapexEmpiricalDataset）・models/capex_credit_cycle.jl
+# （CAPEX_CC_PARAMETER_NAMES）・artifacts/json_canonical.jl（sha256_hex_of_canonical）・JSON3。
+# EB-1–EB-7 の推定ブロック仕様と、観測 dataset からの推定可否・弱識別 W1–W4 の決定論的診断を
+# 提供する読み取り専用層。パラメータ値の最適化は #246 / P-6 の責務）
+include("./analysis/capex_credit_cycle_identification.jl")
 
 # 部門別CAPEX・信用循環モデルのイベント mapping adapter（Issue #201 / `E-5`。depends on
 # CapexCreditCycleModel・scenarios/macro_events.jl・scenario_time.jl・scenario_types.jl・
