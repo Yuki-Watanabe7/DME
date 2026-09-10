@@ -11,7 +11,7 @@
 | 項目 | 内容 |
 |---|---|
 | **対象** | 部門別CAPEX・信用循環モデル（`CapexCreditCycleModel` 相当、未実装） |
-| **ステータス** | 観測方程式・識別戦略・検証契約を確定。Julia の型・API・失敗契約・artifact は [実証統合設計](../architecture/capex_credit_cycle_empirical_integration.md)（#240）で確定済み。データ取得コード・パラメータ推定・履歴再生の実装は未着手（#241–#251） |
+| **ステータス** | 観測方程式・識別戦略・検証契約を確定。Julia の型・API・失敗契約・artifact は [実証統合設計](../architecture/capex_credit_cycle_empirical_integration.md)（#240）で確定済み。実装は catalog・raw observation・measurement・dataset・較正（#241–#244）、識別診断（#245）、ブロック別限定推定と parameter artifact（#246）まで完了。履歴再生・検証・robustness・統合デモは未着手（#247–#251） |
 | **empirical version** | `capex-credit-cycle-empirical/1.2.0` |
 | **上位契約** | `capex-credit-cycle-contract/1.0.0`・`capex-credit-cycle-graph/1.1.0`・`capex-credit-cycle-vars/1.2.0`・`capex-credit-cycle-accounting/1.1.0`・`capex-credit-cycle-boundaries/1.0.1`・`capex-credit-cycle-equations/1.1.0`・`macro-event-contract/1.0.2`・`scenario-time-semantics/1.1.0` |
 | **下位の実装契約** | `capex-credit-cycle-empirical-integration/1.0.0`（[実証統合設計](../architecture/capex_credit_cycle_empirical_integration.md)。本書の契約を Julia の型・API・失敗契約・artifact へ落とす） |

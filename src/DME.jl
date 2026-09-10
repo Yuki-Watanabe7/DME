@@ -216,6 +216,25 @@ export
     diagnose_capex_identification,
     capex_identification_to_dict,
     save_capex_identification,
+    # CCC: 実証推定層（src/analysis/capex_credit_cycle_estimation.jl、Issue #246 / `P-6`）
+    CAPEX_CC_ESTIMATION_VERSION,
+    CAPEX_CC_ESTIMATION_STATUSES,
+    CAPEX_CC_PARAMETER_SET_KINDS,
+    CAPEX_CC_EST_PARAM_BOUNDS,
+    CapexEstimationConfig,
+    CapexBlockEstimate,
+    CapexBlockEstimateStart,
+    CapexParameterSet,
+    capex_est_param_bounds,
+    capex_equation_residual,
+    estimate_capex_block,
+    capex_parameter_set,
+    capex_estimation_config_to_dict,
+    capex_estimation_config_from_dict,
+    capex_block_estimate_to_dict,
+    capex_parameter_set_to_dict,
+    save_capex_parameter_set,
+    save_capex_block_estimate,
     # CCC: イベント mapping adapter（src/scenarios/adapters/capex_credit_cycle_event_adapter.jl、
     # Issue #201 / `E-5`）
     EventMappingRule,
@@ -757,6 +776,15 @@ include("./analysis/capex_credit_cycle_calibration.jl")
 # EB-1–EB-7 の推定ブロック仕様と、観測 dataset からの推定可否・弱識別 W1–W4 の決定論的診断を
 # 提供する読み取り専用層。パラメータ値の最適化は #246 / P-6 の責務）
 include("./analysis/capex_credit_cycle_identification.jl")
+
+# 部門別CAPEX・信用循環モデルの実証推定層（Issue #246 / P-6。depends on
+# analysis/capex_credit_cycle_identification.jl（CapexEstimationBlockSpec・診断・_ccc_id_resolve）・
+# analysis/capex_credit_cycle_calibration.jl（CapexEmpiricalCalibration・capex_parameter_class）・
+# models/capex_credit_cycle.jl（_ccc_default_behavioral・CAPEX_CC_EST_PARAM_BOUNDS 対象・_CCC_S15）・
+# analysis/keen_calibration.jl（_nelder_mead）・artifacts/json_canonical.jl（sha256_hex_of_canonical）。
+# EB-1–EB-7 を 1 ブロックずつ限定推定し、弱識別を W1–W4 契約どおり降格させ、由来別 parameter
+# artifact を生成する読み取り専用層。残差関数は #169 の式 ID と 1:1）
+include("./analysis/capex_credit_cycle_estimation.jl")
 
 # 部門別CAPEX・信用循環モデルのイベント mapping adapter（Issue #201 / `E-5`。depends on
 # CapexCreditCycleModel・scenarios/macro_events.jl・scenario_time.jl・scenario_types.jl・
