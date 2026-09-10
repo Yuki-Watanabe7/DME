@@ -662,6 +662,18 @@ capex_parameter_set(cal::CapexEmpiricalCalibration,
   - 具体例: `EB-4` の `bh_price_sens_s2` / `_s3` は `util_s`（`E9-15` の説明変数）に依存するが、catalog（#241）は `util_s2` / `util_s3` を `observability = :P`・`methodology = :proxy`・`role = :validation_only` と分類している（#170 §3.2-4 の本文は `D` としているが、catalog が観測分類の正本。ADR 0018 決定 3）。したがって `EB-4` は `:weakly_identified` となり、`bh_price_adj_s*` / `bh_price_sens_s*` は `W2`（範囲報告）で扱う。
 - 追加 export: `CapexIdentificationConfig` / `CAPEX_CC_IDENTIFICATION_VERSION` / `CAPEX_CC_IDENTIFICATION_RISKS` / `validate_capex_estimation_blocks` / `capex_estimation_block` / `capex_identification_to_dict` / `save_capex_identification`。
 
+**ブロック別限定推定の実装（`P-6` / #246）**: 上記スケッチに対し次を確定した。
+
+- `estimate_capex_block(block, ds, cal, diag; config)` は `diag.block === block` を要求し、`diag.status ∈ (:not_identified, :insufficient_data)` を `ArgumentError` で拒否する（§12.5-43）。区分検査は identification validator・block validator・`cal.parameter_provenance` 照合の三重防御。
+- **方程式別残差 objective は推定層に閉じたモジュール内関数**（`_ccc_resid_E5_01` 等）で二重実装し、`capex_equation_residual(id, cur, lag, p)` 経由でモデル 1 期実行の中間値との一致を回帰テストで統制する（§12.5-48・`Z-15`。E5-01/E5-02/E5-03/E5-04/E5-06/E5-07/E9-16/E10-09/E10-13/E9-06+E9-07 合成をカバー）。`src/models/` へ単一方程式 API を追加しない（ADR 0018 決定 8）。
+- **実際に点推定できるブロックは限定的**。`EB-1` の `bh_fc_pol`（`E5-01`）・`bh_lend_spread`（`E5-06`）・`bh_spread_fc`（`E5-04`）と `EB-3` の `bh_inv_adj_s`・`bh_prod_cut_s`（`E9-06`+`E9-07` を在庫恒等式 `y_s = inv_s − inv_s[t−1] + ship_s` で再構成した合成残差）、`EB-6` の `bh_wage_slope`（`E10-09`）。定常近傍では `EB-3` の必須系列が共線的で `:weakly_identified` になりやすく、その場合は `W2` 範囲報告のグリッド走査で報告する（点推定を捏造しない）。
+- **潜在 LHS のブロック（`EB-2`・`EB-5`）と proxy LHS のブロック（`EB-4`・`EB-7`）は点推定を返さず `:demoted`**。`W2` は objective の等値域をグリッドで報告（objective を構成できない場合は bounds）、`W3`（`EB-5` の `bh_alpha_capex_s1`）は `ai_exp` の 3 仕様を並置する。
+- `bh_emp_up_s`/`bh_emp_down_s` 8 個は `emp_req_s` の再構成に `EB-6` の required 集合外の系列（部門産出・S3 の CAPEX 活動）を要するため `W4`（事前適用・感応度のみ）へ降格する。
+- **弱識別対応の 2 段（§8.6）**: `W1`/`W4` は識別層が事前適用。`W2` の**事後発火**は (a) identification が `armed_actions` に置いたパラメータ、(b) 点推定後に objective 曲率が `config.weak_curvature_tol` 未満のパラメータ。閾値は config 固定で結果を見て変えない。曲率は `standard_errors_supported = false` を保持し分散推定と呼ばない。
+- bounds・符号制約は推定中に penalty で強制し、**推定後にクリップしない**（端に張り付いたら `:boundary_solution`）。許容条件 9（`bh_emp_down_s ≤ bh_emp_up_s`）・10（`0 < bh_mpc < 1`）は結果検証で確認し、破れたら `:invalid_objective`。
+- `CapexParameterSet` は `literature_default` / `calibrated` / `estimated` を別フィールドで保持し、`parameter_source`（142 パラメータ）で `:fixed` / `:calibrated` / `:estimated` / `:literature_default` / `:demoted_W1`–`:demoted_W4` を区別する。`parameter_set_hash` は `targets_hash` + block spec + config（seed 含む）+ 推定値 + `kind` の canonical hash（反復回数・所要時間を除外。§11.3）。
+- 追加 export: `CapexEstimationConfig` / `CapexBlockEstimate` / `CapexBlockEstimateStart` / `CapexParameterSet` / `CAPEX_CC_ESTIMATION_VERSION` / `CAPEX_CC_ESTIMATION_STATUSES` / `CAPEX_CC_PARAMETER_SET_KINDS` / `CAPEX_CC_EST_PARAM_BOUNDS` / `estimate_capex_block` / `capex_parameter_set` / `capex_equation_residual` / `capex_est_param_bounds` / `capex_estimation_config_to_dict` / `capex_estimation_config_from_dict` / `capex_block_estimate_to_dict` / `capex_parameter_set_to_dict` / `save_capex_parameter_set` / `save_capex_block_estimate`。
+
 ---
 
 ## 6. 失敗契約
