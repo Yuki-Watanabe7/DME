@@ -339,7 +339,7 @@ _hist_prov(layer::Symbol; derived_from::Vector{String} = String[]) =
     @testset "NC-1: 必須系列の可用性" begin
         ds_full = _hist_dataset(_hist_full_values(); specs_override = _hist_specs_override())
         ep = _hist_ep(:H1)
-        [a] = assess_capex_episodes(ds_full; specs = [ep])
+        a = only(assess_capex_episodes(ds_full; specs = [ep]))
         @test a.nc_results[:NC1] == true
         @test isempty(a.missing_keys)
 
@@ -347,7 +347,7 @@ _hist_prov(layer::Symbol; derived_from::Vector{String} = String[]) =
         v = Dict{Symbol, Any}(_hist_full_values())
         v[:wage] = fill(missing, 40)
         ds_gap = _hist_dataset(v; specs_override = _hist_specs_override())
-        [a2] = assess_capex_episodes(ds_gap; specs = [ep])
+        a2 = only(assess_capex_episodes(ds_gap; specs = [ep]))
         @test a2.nc_results[:NC1] == false
         @test :wage in a2.missing_keys
         @test a2.status == :insufficient_data
@@ -356,13 +356,13 @@ _hist_prov(layer::Symbol; derived_from::Vector{String} = String[]) =
     @testset "NC-2: 悪化開始時点の識別（G1–G4相当の深さ閾値）" begin
         ds_flat = _hist_dataset(_hist_full_values(); specs_override = _hist_specs_override())
         ep = _hist_ep(:H1)
-        [a_flat] = assess_capex_episodes(ds_flat; specs = [ep])
+        a_flat = only(assess_capex_episodes(ds_flat; specs = [ep]))
         @test a_flat.nc_results[:NC2] == false  # 変動なしなら不成立
 
         v = _hist_full_values()
         v2 = _hist_inject_nc2_breach!(v, dates40, 24)  # eval窓(position 21..28)内、2005-Q4相当
         ds_breach = _hist_dataset(v2; specs_override = _hist_specs_override())
-        [a_breach] = assess_capex_episodes(ds_breach; specs = [ep])
+        a_breach = only(assess_capex_episodes(ds_breach; specs = [ep]))
         @test a_breach.nc_results[:NC2] == true
     end
 
@@ -400,7 +400,7 @@ _hist_prov(layer::Symbol; derived_from::Vector{String} = String[]) =
             runup_quarters = 4,
             eval_quarters = 20,
         )
-        [a] = assess_capex_episodes(ds_full; specs = [ep_late])
+        a = only(assess_capex_episodes(ds_full; specs = [ep_late]))
         @test a.nc_results[:NC5] == false
         @test a.status == :insufficient_data
     end
@@ -408,14 +408,14 @@ _hist_prov(layer::Symbol; derived_from::Vector{String} = String[]) =
     @testset "NC-6: ai_exp の代替構成（実証戦略 §8.2 ID-1）" begin
         ds_full = _hist_dataset(_hist_full_values(); specs_override = _hist_specs_override())
         ep = _hist_ep(:H1)
-        [a_full] = assess_capex_episodes(ds_full; specs = [ep])
+        a_full = only(assess_capex_episodes(ds_full; specs = [ep]))
         @test a_full.nc_results[:NC6] == true
 
         v = _hist_full_values()
         delete!(v, :y_s1_proxy)
         delete!(v, :equity_val_sector)
         ds_no_alt = _hist_dataset(v; specs_override = _hist_specs_override())
-        [a_no_alt] = assess_capex_episodes(ds_no_alt; specs = [ep])
+        a_no_alt = only(assess_capex_episodes(ds_no_alt; specs = [ep]))
         @test a_no_alt.nc_results[:NC6] == false
         @test a_no_alt.status == :insufficient_data
     end
@@ -441,7 +441,7 @@ _hist_prov(layer::Symbol; derived_from::Vector{String} = String[]) =
     @testset "選定・除外の両方に理由が記録される" begin
         ds_full = _hist_dataset(_hist_full_values(); specs_override = _hist_specs_override())
         ep_bad = _hist_ep(:H1; data_definition_break_resolved = false)
-        [a] = assess_capex_episodes(ds_full; specs = [ep_bad])
+        a = only(assess_capex_episodes(ds_full; specs = [ep_bad]))
         @test a.status != :selected
         @test !isempty(a.exclusion_reason)
         @test occursin("NC4", a.exclusion_reason)
@@ -459,11 +459,11 @@ _hist_prov(layer::Symbol; derived_from::Vector{String} = String[]) =
 
         ep_a = _hist_ep(:H1)
         ep_b = _hist_ep(:H1; special_factors = [:supply_shock])
-        [ra] = assess_capex_episodes(ds; specs = [ep_a])
-        [rb] = assess_capex_episodes(ds; specs = [ep_b])
+        ra = only(assess_capex_episodes(ds; specs = [ep_a]))
+        rb = only(assess_capex_episodes(ds; specs = [ep_b]))
         @test ra.episode_hash != rb.episode_hash
 
-        [ra_again] = assess_capex_episodes(ds; specs = [ep_a])
+        ra_again = only(assess_capex_episodes(ds; specs = [ep_a]))
         @test ra.episode_hash == ra_again.episode_hash
     end
 
@@ -506,7 +506,7 @@ _hist_prov(layer::Symbol; derived_from::Vector{String} = String[]) =
         @test haskey(d, "assumptions")
 
         ds = _hist_dataset(_hist_full_values(); specs_override = _hist_specs_override())
-        [a] = assess_capex_episodes(ds; specs = [_hist_ep(:H1)])
+        a = only(assess_capex_episodes(ds; specs = [_hist_ep(:H1)]))
         ad = capex_episode_assessment_to_dict(a)
         @test ad["id"] == "H1"
         @test haskey(ad, "nc_results")
