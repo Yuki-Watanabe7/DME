@@ -179,9 +179,7 @@ struct CapexHistoricalEpisodeSpec
         expected_diagnostic_label::Symbol = :indeterminate,
     )
         id in CAPEX_CC_EPISODE_IDS || throw(
-            ArgumentError(
-                "未知の episode id :$(id)（許容: $(CAPEX_CC_EPISODE_IDS)）",
-            ),
+            ArgumentError("未知の episode id :$(id)（許容: $(CAPEX_CC_EPISODE_IDS)）"),
         )
         runup_quarters > 0 ||
             throw(ArgumentError("runup_quarters は正の整数でなければなりません"))
@@ -441,7 +439,8 @@ function _capex_hist_nc2(
     passed = length(breaches) == length(CAPEX_CC_NC2_SERIES)
     detail = if passed
         "4系列（order_s2・capex_exec_s1・spread・emp_tot）すべてが G1–G4 相当の深さ閾値を" *
-        "超える変動を示す: " * join(notes, "; ")
+        "超える変動を示す: " *
+        join(notes, "; ")
     else
         "一部系列が深さ閾値を超える変動を示さない（悪化開始時点を識別できない）: " *
         join(notes, "; ")
@@ -461,7 +460,8 @@ function _capex_hist_nc3(ep::CapexHistoricalEpisodeSpec)::Tuple{Bool, String}
     elseif n == 1
         "特殊要因1件を記録: $(ep.special_factors[1])（単独要因として許容、実証戦略 §9.1 NC-3）"
     else
-        "特殊要因が$(n)件同時に存在: " * join(string.(ep.special_factors), ", ") *
+        "特殊要因が$(n)件同時に存在: " *
+        join(string.(ep.special_factors), ", ") *
         "（NC-3 違反。実証戦略 §9.1 の「同時に2つ以上存在しない」条件を満たさない）"
     end
     return passed, detail
@@ -538,7 +538,9 @@ function _capex_hist_nc6(
     _capex_hist_key_fully_available(ds, :equity_val_sector, lo, hi, idxmap) &&
         push!(specs_ok, :equity_price)
     passed = length(specs_ok) >= 2
-    detail = "ai_exp 代替構成（実証戦略 §8.2 ID-1）: " * join(string.(specs_ok), ", ") *
+    detail =
+        "ai_exp 代替構成（実証戦略 §8.2 ID-1）: " *
+        join(string.(specs_ok), ", ") *
         "（$(length(specs_ok))/3 構成可能。2以上でNC-6充足）"
     return passed, detail
 end
@@ -589,25 +591,18 @@ function assess_capex_episodes(
             :NC5 => nc5,
             :NC6 => nc6,
         )
-        detail_by_id[ep.id] = Dict(
-            :NC1 => d1,
-            :NC2 => d2,
-            :NC3 => d3,
-            :NC4 => d4,
-            :NC5 => d5,
-            :NC6 => d6,
-        )
+        detail_by_id[ep.id] =
+            Dict(:NC1 => d1, :NC2 => d2, :NC3 => d3, :NC4 => d4, :NC5 => d5, :NC6 => d6)
         missing_by_id[ep.id] = miss1
     end
 
     by_id = Dict(ep.id => ep for ep in specs)
-    eligible =
-        sort([id for id in keys(nc_by_id) if all(values(nc_by_id[id]))]; by = string)
+    eligible = sort([id for id in keys(nc_by_id) if all(values(nc_by_id[id]))]; by = string)
     broad =
         [id for id in eligible if by_id[id].expected_diagnostic_label === :broad_downturn]
     contained = [
-        id for id in eligible if
-        by_id[id].expected_diagnostic_label === :contained_adjustment
+        id for
+        id in eligible if by_id[id].expected_diagnostic_label === :contained_adjustment
     ]
     nc7_pass = !isempty(broad) && !isempty(contained)
     nc7_detail = if nc7_pass
@@ -636,7 +631,8 @@ function assess_capex_episodes(
         else
             :excluded
         end
-        reason = status === :selected ? "" :
+        reason =
+            status === :selected ? "" :
             join(["$(k): $(detail[k])" for k in CAPEX_CC_NC_IDS if !nc[k]], " / ")
 
         lo, hi = _capex_hist_window_abs_indices(ep)
@@ -867,17 +863,17 @@ const _CAPEX_HIST_H1 = CapexHistoricalEpisodeSpec(;
             sector = :s2,
             direction = :down,
             notes = "ITバブル崩壊後の半導体・情報処理設備投資の減速局面。NBER景気循環日付は" *
-                "2001年3月を山、2001年11月を谷とする。",
+                    "2001年3月を山、2001年11月を谷とする。",
         ),
     ],
     interpretation_notes = "2000年後半に始まったIT関連設備投資の急減速。半導体・通信機器の" *
-        "過剰投資の反動という解釈が一般的（人手記録。自動生成しない）。",
+                           "過剰投資の反動という解釈が一般的（人手記録。自動生成しない）。",
     special_factors = Symbol[],
     data_definition_break_resolved = true,
     expected_diagnostic_label = :broad_downturn,
     notes = "実証戦略 §9.2 の懸念: NC-1（BEA GDP by Industry四半期系列の開始時期。" *
-        "データセンター建設区分が存在しない）。NC-4はFRB IP指数の再基準化により解消と判断" *
-        "（本ファイルの判断。上記コメント参照）。",
+            "データセンター建設区分が存在しない）。NC-4はFRB IP指数の再基準化により解消と判断" *
+            "（本ファイルの判断。上記コメント参照）。",
 )
 
 # H2: 2008Q3–2010（世界金融危機）。
@@ -902,17 +898,17 @@ const _CAPEX_HIST_H2 = CapexHistoricalEpisodeSpec(;
             sector = :unknown,
             direction = :up,
             notes = "Lehman Brothers破綻（2008年9月15日）を含む世界金融危機下の信用スプレッド" *
-                "急拡大。NBER景気循環日付は2007年12月を山、2009年6月を谷とする。",
+                    "急拡大。NBER景気循環日付は2007年12月を山、2009年6月を谷とする。",
         ),
     ],
     interpretation_notes = "金融危機による信用収縮と実体経済の同時悪化。政策対応（大規模な" *
-        "金融緩和・財政出動）が同時期に急転しており、NC-3の対象となる特殊要因が2件併存する" *
-        "（人手記録。自動生成しない）。",
+                           "金融緩和・財政出動）が同時期に急転しており、NC-3の対象となる特殊要因が2件併存する" *
+                           "（人手記録。自動生成しない）。",
     special_factors = [:financial_crisis, :policy_regime_shift],
     data_definition_break_resolved = true,
     expected_diagnostic_label = :broad_downturn,
     notes = "実証戦略 §9.2 の懸念どおりNC-3が不成立（金融危機と急激な政策転換が同時に2件）。" *
-        "ID-6の政策反応問題が最も強く出る候補。",
+            "ID-6の政策反応問題が最も強く出る候補。",
 )
 
 # H3: 2011–2012（半導体在庫調整）。
@@ -937,11 +933,11 @@ const _CAPEX_HIST_H3 = CapexHistoricalEpisodeSpec(;
             sector = :s2,
             direction = :down,
             notes = "2011年のタイ洪水によるサプライチェーン混乱と在庫調整が重なった半導体" *
-                "販売の減速局面。",
+                    "販売の減速局面。",
         ),
     ],
     interpretation_notes = "在庫調整主導の比較的軽度な減速局面。悪化幅が小さく、悪化開始" *
-        "時点の識別可否（NC-2）が実データで検証すべき論点（人手記録。自動生成しない）。",
+                           "時点の識別可否（NC-2）が実データで検証すべき論点（人手記録。自動生成しない）。",
     special_factors = Symbol[],
     data_definition_break_resolved = true,
     expected_diagnostic_label = :contained_adjustment,
@@ -970,18 +966,18 @@ const _CAPEX_HIST_H4 = CapexHistoricalEpisodeSpec(;
             sector = :s2,
             direction = :down,
             notes = "2014年11月のOPEC総会（減産見送り）を起点とする原油価格急落と、半導体" *
-                "メモリ需要減速が重なった設備投資調整局面。",
+                    "メモリ需要減速が重なった設備投資調整局面。",
         ),
     ],
     interpretation_notes = "エネルギー価格急落という半導体サイクルとは別系統の要因が同時期に" *
-        "存在するが、NC-3が数える4種の特殊要因（金融危機・供給制約・財政金融政策の急転・" *
-        "統計定義変更）のいずれにも該当しないため、NC-3の判定対象には含めない。ただし解釈上の" *
-        "confound（交絡）として記録する（人手記録。自動生成しない）。",
+                           "存在するが、NC-3が数える4種の特殊要因（金融危機・供給制約・財政金融政策の急転・" *
+                           "統計定義変更）のいずれにも該当しないため、NC-3の判定対象には含めない。ただし解釈上の" *
+                           "confound（交絡）として記録する（人手記録。自動生成しない）。",
     special_factors = Symbol[],
     data_definition_break_resolved = true,
     expected_diagnostic_label = :sectoral_downturn,
     notes = "実証戦略 §9.2 の懸念: エネルギー価格急落という別要因の併存。ただしNC-3の4種の" *
-        "定義に厳密には該当しないため special_factors には含めない（本ファイルの判断）。",
+            "定義に厳密には該当しないため special_factors には含めない（本ファイルの判断）。",
 )
 
 # H5: 2018Q4–2019（米中貿易摩擦下の半導体調整）。
@@ -999,7 +995,7 @@ const _CAPEX_HIST_H5 = CapexHistoricalEpisodeSpec(;
             source = EventSource(;
                 publisher = "Office of the U.S. Trade Representative (USTR)",
                 document_id = "Section 301 investigation of China's technology transfer, " *
-                    "intellectual property, and innovation practices",
+                              "intellectual property, and innovation practices",
                 url = "https://ustr.gov/issue-areas/enforcement/section-301-investigations/section-301-china-technology-transfer",
             ),
             provenance = _capex_hist_provenance(:observed),
@@ -1007,17 +1003,17 @@ const _CAPEX_HIST_H5 = CapexHistoricalEpisodeSpec(;
             sector = :s2,
             direction = :down,
             notes = "対中制裁関税第3弾（2018年9月24日発効、10%→2019年5月に25%へ引き上げ）に" *
-                "伴う半導体受注調整局面。信用条件は比較的安定。",
+                    "伴う半導体受注調整局面。信用条件は比較的安定。",
         ),
     ],
     interpretation_notes = "通商政策という別要因が存在するが、NC-3の4種の定義には該当しない。" *
-        "信用スプレッドが比較的安定しており、`credit-off`対照として有用（人手記録。自動生成" *
-        "しない）。",
+                           "信用スプレッドが比較的安定しており、`credit-off`対照として有用（人手記録。自動生成" *
+                           "しない）。",
     special_factors = Symbol[],
     data_definition_break_resolved = true,
     expected_diagnostic_label = :contained_adjustment,
     notes = "実証戦略 §9.2 の懸念: 通商政策という別要因。ただしNC-3の4種の定義に厳密には" *
-        "該当しないため special_factors には含めない（本ファイルの判断）。",
+            "該当しないため special_factors には含めない（本ファイルの判断）。",
 )
 
 # H6: 2022Q3–2023（メモリ・PC需要調整 + 金融引締め）。
@@ -1042,7 +1038,7 @@ const _CAPEX_HIST_H6 = CapexHistoricalEpisodeSpec(;
             sector = :unknown,
             direction = :up,
             notes = "1994年以来となる75bp利上げ（2022年6月15日FOMC）を含む急速な政策金利" *
-                "引き上げ局面。",
+                    "引き上げ局面。",
         ),
         ObservedEvent(;
             event_id = "H6-OE2",
@@ -1053,7 +1049,7 @@ const _CAPEX_HIST_H6 = CapexHistoricalEpisodeSpec(;
             source = EventSource(;
                 publisher = "Semiconductor Industry Association (SIA) / WSTS",
                 document_id = "World Semiconductor Trade Statistics — 2022H2 memory price " *
-                    "and demand decline",
+                              "and demand decline",
                 url = "https://www.semiconductors.org",
             ),
             provenance = _capex_hist_provenance(:observed),
@@ -1062,8 +1058,8 @@ const _CAPEX_HIST_H6 = CapexHistoricalEpisodeSpec(;
             direction = :down,
             magnitude = missing,
             notes = "2022年後半のメモリ（DRAM/NAND）・PC需要減速局面。magnitudeは一次資料に" *
-                "単一の数量として記載が無いため欠測のまま保持する（L1へ数値を書き戻さない、" *
-                "`Z-20`）。",
+                    "単一の数量として記載が無いため欠測のまま保持する（L1へ数値を書き戻さない、" *
+                    "`Z-20`）。",
         ),
     ],
     assumptions = [
@@ -1089,22 +1085,22 @@ const _CAPEX_HIST_H6 = CapexHistoricalEpisodeSpec(;
             target_concepts = [:demand_expectation],
             provenance = _capex_hist_provenance(:assumption; derived_from = ["H6-OE2"]),
             notes = "H6-OE2（メモリ・PC需要減速）はmagnitude非記載の観測事実。ここではNC判定・" *
-                "記録用の例示的な仮定として-10%を置く（#247は replay を実行しないため、この値は" *
-                "NC-1–NC-7のいずれの判定にも用いない）。",
+                    "記録用の例示的な仮定として-10%を置く（#247は replay を実行しないため、この値は" *
+                    "NC-1–NC-7のいずれの判定にも用いない）。",
             caveats = "この assumption を実際の履歴再生（外生パスへの適用）に使うかどうかはP-8" *
-                "（#248）が別途決定する。本ファイルは capex_run を呼ばない。",
+                      "（#248）が別途決定する。本ファイルは capex_run を呼ばない。",
         ),
     ],
     interpretation_notes = "金融引締めとメモリ需要減速が同時進行。政策金利は実現値パスで" *
-        "baseline外生へ直接与えるため（実証統合設計 §9.2 Z-18）、ここでのL3は需要側の補助的な" *
-        "仮定に限る（人手記録。自動生成しない）。",
+                           "baseline外生へ直接与えるため（実証統合設計 §9.2 Z-18）、ここでのL3は需要側の補助的な" *
+                           "仮定に限る（人手記録。自動生成しない）。",
     special_factors = [:policy_regime_shift],
     data_definition_break_resolved = true,
     expected_diagnostic_label = :sectoral_downturn,
     notes = "実証戦略 §9.2 の懸念: 金融引締めとインフレが同時（インフレ自体はNC-3の4種に" *
-        "該当しないため special_factors には金融政策の急転のみを記録する）。NC-5: 期間末が" *
-        "最新データに近く評価20四半期を確保できない可能性（`Z-30`。実データに対して機械的に" *
-        "判定する）。",
+            "該当しないため special_factors には金融政策の急転のみを記録する）。NC-5: 期間末が" *
+            "最新データに近く評価20四半期を確保できない可能性（`Z-30`。実データに対して機械的に" *
+            "判定する）。",
 )
 
 """
