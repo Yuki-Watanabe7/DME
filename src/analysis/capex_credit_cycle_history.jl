@@ -581,10 +581,22 @@ function assess_capex_episodes(
         nc4, d4 = _capex_hist_nc4(ep)
         nc5, d5 = _capex_hist_nc5(ds, ep, idxmap)
         nc6, d6 = _capex_hist_nc6(ds, ep, idxmap)
-        nc_by_id[ep.id] =
-            Dict(:NC1 => nc1, :NC2 => nc2, :NC3 => nc3, :NC4 => nc4, :NC5 => nc5, :NC6 => nc6)
-        detail_by_id[ep.id] =
-            Dict(:NC1 => d1, :NC2 => d2, :NC3 => d3, :NC4 => d4, :NC5 => d5, :NC6 => d6)
+        nc_by_id[ep.id] = Dict(
+            :NC1 => nc1,
+            :NC2 => nc2,
+            :NC3 => nc3,
+            :NC4 => nc4,
+            :NC5 => nc5,
+            :NC6 => nc6,
+        )
+        detail_by_id[ep.id] = Dict(
+            :NC1 => d1,
+            :NC2 => d2,
+            :NC3 => d3,
+            :NC4 => d4,
+            :NC5 => d5,
+            :NC6 => d6,
+        )
         missing_by_id[ep.id] = miss1
     end
 
@@ -594,7 +606,8 @@ function assess_capex_episodes(
     broad =
         [id for id in eligible if by_id[id].expected_diagnostic_label === :broad_downturn]
     contained = [
-        id for id in eligible if by_id[id].expected_diagnostic_label === :contained_adjustment
+        id for id in eligible if
+        by_id[id].expected_diagnostic_label === :contained_adjustment
     ]
     nc7_pass = !isempty(broad) && !isempty(contained)
     nc7_detail = if nc7_pass
@@ -700,7 +713,10 @@ episode spec の内容（`L1`/`L3`・window・特殊要因・データ定義断�
 から同一 identity となる（#247 受け入れ条件）。`generated_at`・`notes`・`interpretation_notes`
 等の表示専用フィールドは対象外とする。
 """
-function _capex_episode_hash(ep::CapexHistoricalEpisodeSpec, ds::CapexEmpiricalDataset)::String
+function _capex_episode_hash(
+    ep::CapexHistoricalEpisodeSpec,
+    ds::CapexEmpiricalDataset,
+)::String
     payload = Dict{String, Any}(
         "history_version" => CAPEX_CC_HISTORY_VERSION,
         "id" => String(ep.id),
@@ -769,7 +785,8 @@ function capex_episode_spec_to_dict(ep::CapexHistoricalEpisodeSpec)::Dict{String
         "special_factors" => String.(ep.special_factors),
         "data_definition_break_resolved" => ep.data_definition_break_resolved,
         "expected_diagnostic_label" => String(ep.expected_diagnostic_label),
-        "observed_events" => [_capex_hist_event_display_dict(e) for e in ep.observed_events],
+        "observed_events" =>
+            [_capex_hist_event_display_dict(e) for e in ep.observed_events],
         "assumptions" => [_capex_hist_assumption_display_dict(a) for a in ep.assumptions],
     )
 end
@@ -1064,7 +1081,11 @@ const _CAPEX_HIST_H6 = CapexHistoricalEpisodeSpec(;
                 rule = :same_quarter,
                 effective_from = Date(2022, 7, 1),
             ),
-            persistence = PersistenceSpec(; shape = :step, duration = 4, params = NamedTuple()),
+            persistence = PersistenceSpec(;
+                shape = :step,
+                duration = 4,
+                params = NamedTuple(),
+            ),
             target_concepts = [:demand_expectation],
             provenance = _capex_hist_provenance(:assumption; derived_from = ["H6-OE2"]),
             notes = "H6-OE2（メモリ・PC需要減速）はmagnitude非記載の観測事実。ここではNC判定・" *
