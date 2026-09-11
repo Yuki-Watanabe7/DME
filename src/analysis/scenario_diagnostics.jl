@@ -28,6 +28,15 @@
 # 同様の「抜粋コードブロックに無いが契約充足に必要なフィールドを追加する」判断は
 # `src/scenarios/event_scheduler.jl`（`EventSchedule.rejections`）に先例がある。
 
+"""
+    SCENARIO_TURNING_POINT_RULE_VERSION
+
+シナリオ比較診断と CCC 実証検証層が共用する、局所的な peak / trough と
+onset / duration の検出規則の版。規則を変更する場合は、この値を上げて
+両方の出力が同じ定義を使っていることを追跡可能にする。
+"""
+const SCENARIO_TURNING_POINT_RULE_VERSION = "scenario-turning-point-rule/1.0.0"
+
 # ------------------------------------------------------------
 # ScenarioDiagnosticThresholds（統合設計 §5.8）
 # ------------------------------------------------------------
@@ -368,6 +377,59 @@ function _scenario_diag_recovery(
         all(!, breach[i:(i + persistence - 1)]) && return periods[i]
     end
     return nothing
+end
+
+"""
+    _scenario_diag_turning_points(values, periods) -> (peaks, troughs)
+
+有限な連続 3 点で一次差分の符号が正から負へ変わる期を peak、負から正へ
+変わる期を trough として返す純関数。水平な差分（0）は転換点として数えないため、
+plateau を恣意的に先頭・末尾へ割り当てない。`NaN` / `Inf` を含む三点組は除外する。
+
+`SCENARIO_TURNING_POINT_RULE_VERSION` で版管理する共有規則であり、CCC 実証検証層は
+この関数を直接呼ぶ。既存の `scenario_comparison` の公開結果や数値は変更しない。
+"""
+function _scenario_diag_turning_points(
+    values::AbstractVector{<:Real},
+    periods::AbstractVector{<:Integer},
+)::NamedTuple
+    length(values) == length(periods) ||
+        throw(ArgumentError("values と periods の長さが一致しません"))
+    peaks = Int[]
+    troughs = Int[]
+    n = length(values)
+    for k in 2:(n - 1)
+        a, b, c = values[k - 1], values[k], values[k + 1]
+        (isfinite(a) && isfinite(b) && isfinite(c)) || continue
+        left = b - a
+        right = c - b
+        if left > 0.0 && right < 0.0
+            push!(peaks, Int(periods[k]))
+        elseif left < 0.0 && right > 0.0
+            push!(troughs, Int(periods[k]))
+        end
+    end
+    return (peaks = peaks, troughs = troughs)
+end
+
+"""
+    _scenario_diag_persistence_duration(breach) -> Int
+
+閾値を満たす連続区間のうち最長の長さを返す。総出現期数とは異なる、動学的な
+持続期間の定義である。空列・反応なしは `0`。
+"""
+function _scenario_diag_persistence_duration(breach::AbstractVector{Bool})::Int
+    longest = 0
+    current = 0
+    for hit in breach
+        if hit
+            current += 1
+            longest = max(longest, current)
+        else
+            current = 0
+        end
+    end
+    return longest
 end
 
 """

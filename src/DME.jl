@@ -260,6 +260,19 @@ export
     capex_replay_model,
     capex_historical_replay_run_to_dict,
     save_capex_historical_replay_run,
+    # CCC: 履歴再生の dimension 別検証（src/analysis/capex_credit_cycle_empirical_validation.jl、
+    # Issue #249 / `P-9`）
+    CAPEX_CC_EMPIRICAL_VALIDATION_VERSION,
+    CAPEX_CC_VALIDATION_DIMENSIONS,
+    CAPEX_CC_METRIC_APPLICABILITY,
+    CAPEX_CC_VALIDATION_STATUSES,
+    CAPEX_CC_PROPAGATION_PATH,
+    CAPEX_CC_EMPIRICAL_VALIDATION_CAVEATS,
+    CapexSeriesFit,
+    CapexEmpiricalValidationReport,
+    validate_capex_empirical,
+    capex_empirical_validation_report_to_dict,
+    save_capex_empirical_validation_report,
     # CCC: イベント mapping adapter（src/scenarios/adapters/capex_credit_cycle_event_adapter.jl、
     # Issue #201 / `E-5`）
     EventMappingRule,
@@ -835,6 +848,15 @@ include("./analysis/capex_credit_cycle_history.jl")
 # のため include 順序は問わない（history.jl と同じ規約、本ファイル冒頭コメント参照）。
 # `run_scenario`（scenario_runner.jl）は変更・呼び出しのいずれも行わない、独立した実証層）
 include("./analysis/capex_credit_cycle_historical_replay.jl")
+
+# 部門別 CAPEX・信用循環モデルの履歴再生検証層（Issue #249 / `P-9`。depends on
+# analysis/capex_credit_cycle_historical_replay.jl（CapexHistoricalReplayRun）・
+# data/capex_credit_cycle_measurements.jl（CapexEmpiricalDataset / evidence tier）・
+# analysis/capex_credit_cycle_diagnostics.jl（credit-off 反実仮想）・
+# analysis/scenario_diagnostics.jl（転換点・onset・持続期間の共有純関数。後段 include だが
+# 関数本体から呼ぶため module 読み込み後に解決される）。数値 fit・動学・構造を単一 score / gate
+# へ潰さない読み取り専用層であり、モデル動学・ScenarioRun API は変更しない。
+include("./analysis/capex_credit_cycle_empirical_validation.jl")
 
 # 部門別CAPEX・信用循環モデルのイベント mapping adapter（Issue #201 / `E-5`。depends on
 # CapexCreditCycleModel・scenarios/macro_events.jl・scenario_time.jl・scenario_types.jl・
