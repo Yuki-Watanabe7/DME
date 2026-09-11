@@ -235,6 +235,22 @@ export
     capex_parameter_set_to_dict,
     save_capex_parameter_set,
     save_capex_block_estimate,
+    # CCC: 履歴再生候補選定層（src/analysis/capex_credit_cycle_history.jl、Issue #247 / `P-7`）
+    CAPEX_CC_HISTORY_VERSION,
+    CAPEX_CC_EPISODE_IDS,
+    CAPEX_CC_EPISODE_STATUSES,
+    CAPEX_CC_NC_IDS,
+    CAPEX_CC_SPECIAL_FACTOR_KINDS,
+    CAPEX_CC_EXPECTED_DIAGNOSTIC_LABELS,
+    CAPEX_CC_EPISODE_REQUIRED_MODEL_VARS,
+    CAPEX_CC_NC2_SERIES,
+    CAPEX_CC_EPISODE_SPECS,
+    CapexHistoricalEpisodeSpec,
+    CapexEpisodeAssessment,
+    assess_capex_episodes,
+    capex_episode_spec_to_dict,
+    capex_episode_assessment_to_dict,
+    save_capex_episode_assessment,
     # CCC: イベント mapping adapter（src/scenarios/adapters/capex_credit_cycle_event_adapter.jl、
     # Issue #201 / `E-5`）
     EventMappingRule,
@@ -785,6 +801,16 @@ include("./analysis/capex_credit_cycle_identification.jl")
 # EB-1–EB-7 を 1 ブロックずつ限定推定し、弱識別を W1–W4 契約どおり降格させ、由来別 parameter
 # artifact を生成する読み取り専用層。残差関数は #169 の式 ID と 1:1）
 include("./analysis/capex_credit_cycle_estimation.jl")
+
+# 部門別CAPEX・信用循環モデルの履歴再生候補選定層（Issue #247 / `P-7`。depends on
+# data/capex_credit_cycle_measurements.jl（CapexEmpiricalDataset）・
+# analysis/capex_credit_cycle_diagnostics.jl（CapexDiagnosticThresholds。NC-2の深さ閾値を
+# 診断層と共有する）・scenarios/macro_events.jl（4層型）・scenarios/scenario_time.jl
+# （CalendarQuarter）。`H1`–`H6` を `NC-1`–`NC-7` で機械的に評価し `selected` / `excluded` /
+# `insufficient_data` を固定する読み取り専用層。replay の実行（capex_run 呼び出し）は行わない
+# （P-8 / #248 の責務）。`_scenario_sha256`・`_scenario_assumption_hash_dict`
+# （scenarios/scenario_provenance.jl）は関数本体からのみ参照するため include 順序は問わない）
+include("./analysis/capex_credit_cycle_history.jl")
 
 # 部門別CAPEX・信用循環モデルのイベント mapping adapter（Issue #201 / `E-5`。depends on
 # CapexCreditCycleModel・scenarios/macro_events.jl・scenario_time.jl・scenario_types.jl・
