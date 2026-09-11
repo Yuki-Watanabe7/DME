@@ -977,7 +977,17 @@ capex_historical_replay(m::CapexCreditCycleModel,
 
 ### 9.4 parameter set の比較（#248）
 
-同一 episode・同一入力条件で `:literature_default` と `:calibrated` / `:estimated` を**別 run** として実行する。`in_sample` / out-of-sample を `metadata` へ必須保存する。**calibrated が literature/default より悪化した場合は `calibrated_worse_than_literature` として明示し隠さない**（#170 §10.1）。
+同一 episode・同一入力条件で `:literature_default` と `:calibrated` / `:estimated` を**別 run** として実行する。`in_sample` / out-of-sample を `metadata` へ必須保存する。**calibrated が literature/default より悪化した場合は `calibrated_worse_than_literature` として明示し隠さない**（#170 §10.1）。この判定自体（fit 指標の算出・悪化の判定）は `CapexSeriesFit`/`CapexEmpiricalValidationReport` の責務（`P-9` / #249）であり、本節は「同一入力で2本の run を作れること」までを担保する。
+
+**履歴再生実行層の実装（`P-8` / #248）**: 上記スケッチに対し次を確定した（§5 冒頭の「戻り値の型を変えずにフィールドを追加することは許容」に沿う）。
+
+- **`price_s1` の catalog 不在**: #241（`P-1`）時点の系列 catalog（`src/data/capex_credit_cycle_catalog.jl`）には `price_s1`（AI・クラウドサービス価格相当の外生変数）に対応する系列が無く、`CAPEX_CC_PROVIDER_GAPS` にも登録されていない。実現値パスを構成する手段が無いため、`price_s1` は助走・評価の全期間で定常値に固定する（捏造しない。`ai_exp`・`capex_plan_shock_ex`・`spread_shock_ex` と同じ扱い）。この事実を `warnings` と `metadata["price_s1_realized_path"] = "unavailable_no_catalog_entry"` へ常に記録する。将来 `price_s1` の catalog エントリが追加された場合はこの実装ノートと合わせて改訂する。
+- **`ext_demand_s2`/`ext_demand_s3` の四半期再構成**: §8.3（`Z-12`）の識別仮定を四半期粒度へ一般化する。`gen_share_s = mean(order_s over full sample) / m.targets.values.y_s5`（`_capex_full_sample_mean` を再利用。`m.targets.values.y_s5` は `cal.targets.values.y_s5` そのもの）を1回だけ計算し、評価区間の各四半期で `ext_demand_s2[t] = y_s2[t] − order_cap_s2[t] − gen_share_s2·y_s5[t]`（`ext_demand_s3` は `order_inv_s3[t]` をさらに控除）を適用する。負値をクリップしない契約（§8.3）も四半期版へそのまま継承する。
+- **`y_s5` の四半期実現値**: catalog に `y_s5` 単独の系列は無い（§8.2 表項目3は baseline 窓平均からの1回限りの導出）。較正層と同一の恒等式 `y_s5 = y_tot − (va_s1+va_s2+va_s3)` を四半期ごとに適用して構成する（`_capex_replay_y_s5_value`）。新しい識別仮定を導入するものではなく、既存の恒等式を四半期粒度へ機械的に一般化したものである。
+- **`capex_replay_model(cal, ps; kind)`**: `CapexParameterSet` の `kind` から実行可能な `CapexCreditCycleModel` を再構築する公開関数を追加した（スケッチの型には無いが、`ps` から実際に走らせるモデルを組み立てる手段が必要なため。`P-5`/`P-6` が識別・推定固有の補助 export を追加したのと同じ慣行）。`cal.targets`・`cal.structural_overrides`・`cal.model.sectors` は変えず、`behavioral`（`ps.literature_default`/`ps.calibrated`/`ps.estimated` から選択）だけを差し替えて `capex_credit_cycle_model` を呼び直す。`st_` 系統の閉形式（`_ccc_calibrate_structural`）は新しい `behavioral` の下で毎回再計算されるため、`kind` によらず定常状態の整合性が保たれる（モデル層の既存契約そのもの。新しい保証を追加するわけではない）。**現状の実装では `calibrate_capex_credit_cycle` が `behavioral` を明示的に上書きしないため、`EST` パラメータについて `:literature_default` と `:calibrated` が数値的に一致しうる**（`bh_util_tgt_s*` 等7個の `CAL-SS` パラメータは `kind` によらず `cal.targets` から再計算されるため対象外）。将来 `CAL-OBS` 分類の `bh_` パラメータが分岐しても正しく動くよう、コードは一般形（`get(ps.calibrated, p, ps.literature_default[p])`）で実装する。
+- **`CapexHistoricalReplayRun` の `Union{…,Nothing}` フィールド**: `exog`・`model_run`・`result` は `status === :rejected_input` のとき `nothing` にする（fail closed。ADR 0015 / `run_scenario` と同じ規律をスケッチへ非破壊で追加した）。`event_log`・`applied_inputs`・`rejections` はそこまでに得られたものを保持する。
+- `run_scenario` は変更・呼び出しのいずれも行わない。`Scenario` は `map_event`/`schedule_events`/`event_set_hash` を再利用するための運搬容器としてのみ構築する。
+- 追加 export: `CAPEX_CC_HISTORICAL_REPLAY_VERSION`・`CAPEX_CC_REPLAY_STATUSES`・`capex_replay_model`・`capex_historical_replay_run_to_dict`・`save_capex_historical_replay_run`（後2者は他の実証層ファイルすべてが持つ `*_to_dict`/`save_*` の対を、履歴再生層にも同じ慣行で追加したもの）。
 
 ---
 
