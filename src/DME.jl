@@ -251,6 +251,15 @@ export
     capex_episode_spec_to_dict,
     capex_episode_assessment_to_dict,
     save_capex_episode_assessment,
+    # CCC: 履歴再生実行層（src/analysis/capex_credit_cycle_historical_replay.jl、Issue #248 / `P-8`）
+    CAPEX_CC_HISTORICAL_REPLAY_VERSION,
+    CAPEX_CC_REPLAY_STATUSES,
+    CapexReplayOptions,
+    CapexHistoricalReplayRun,
+    capex_historical_replay,
+    capex_replay_model,
+    capex_historical_replay_run_to_dict,
+    save_capex_historical_replay_run,
     # CCC: イベント mapping adapter（src/scenarios/adapters/capex_credit_cycle_event_adapter.jl、
     # Issue #201 / `E-5`）
     EventMappingRule,
@@ -808,9 +817,24 @@ include("./analysis/capex_credit_cycle_estimation.jl")
 # 診断層と共有する）・scenarios/macro_events.jl（4層型）・scenarios/scenario_time.jl
 # （CalendarQuarter）。`H1`–`H6` を `NC-1`–`NC-7` で機械的に評価し `selected` / `excluded` /
 # `insufficient_data` を固定する読み取り専用層。replay の実行（capex_run 呼び出し）は行わない
-# （P-8 / #248 の責務）。`_scenario_sha256`・`_scenario_assumption_hash_dict`
+# （`P-8` / #248 の責務）。`_scenario_sha256`・`_scenario_assumption_hash_dict`
 # （scenarios/scenario_provenance.jl）は関数本体からのみ参照するため include 順序は問わない）
 include("./analysis/capex_credit_cycle_history.jl")
+
+# 部門別CAPEX・信用循環モデルの履歴再生実行層（Issue #248 / `P-8`。depends on
+# analysis/capex_credit_cycle_history.jl（`CapexHistoricalEpisodeSpec`・私的ヘルパ群を再利用）・
+# analysis/capex_credit_cycle_estimation.jl（`CapexParameterSet`・`CAPEX_CC_PARAMETER_SET_KINDS`）・
+# analysis/capex_credit_cycle_calibration.jl（`CapexEmpiricalCalibration`。`capex_replay_model`
+# のみが参照する）・models/capex_credit_cycle.jl（`capex_credit_cycle_model`・
+# `_ccc_baseline_exog`・`capex_run`・`to_simulation_result`）・core/solver_options.jl
+# （`CapexCreditCycleOptions`）・analysis/capex_credit_cycle_accounting.jl・
+# analysis/capex_credit_cycle_diagnostics.jl・core/simulation_result.jl（いずれも前段で
+# include 済み）。`scenarios/adapters/capex_credit_cycle_event_adapter.jl`（`map_event`）・
+# `scenarios/scenario_provenance.jl`（`event_set_hash`・`_scenario_sha256`・
+# `_scenario_hash_encode`）は本ファイルより後に include されるが、関数本体からの参照のみ
+# のため include 順序は問わない（history.jl と同じ規約、本ファイル冒頭コメント参照）。
+# `run_scenario`（scenario_runner.jl）は変更・呼び出しのいずれも行わない、独立した実証層）
+include("./analysis/capex_credit_cycle_historical_replay.jl")
 
 # 部門別CAPEX・信用循環モデルのイベント mapping adapter（Issue #201 / `E-5`。depends on
 # CapexCreditCycleModel・scenarios/macro_events.jl・scenario_time.jl・scenario_types.jl・
