@@ -426,6 +426,7 @@ julia --project=docs docs/make.jl                        # 生成物: docs/build
 | [DataSeries / MacroDataset 利用ガイド](docs/data/data_series_guide.md) | 実データ標準型の構造と操作 |
 | [実データ前処理ユーティリティ](docs/data/preprocess.md) | 欠損値補完・対数・差分・移動平均・標準化・頻度変換 |
 | [モデル変数と実データ系列のマッピング表](docs/data/variable_mapping.md) | 各モデル変数と実データ系列の対応・単位・変換注意事項 |
+| [金融ストレス観測 利用ガイド](docs/data/financial_stress.md) | CCC OAS・広範HY OAS・SOFR・TGCR・IORB・長期金利8系列のEDP経由取得・同日整列差分/変化の派生指標（Issue #260 Part B） |
 | [日本マクロデータ接続 設計方針](docs/data/japan_macro_sources.md) | BOJ・内閣府・財務省・総務省のデータソース整理・優先順位・ライセンス |
 
 ### アーキテクチャ・LLM 層
