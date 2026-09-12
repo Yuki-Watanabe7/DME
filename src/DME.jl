@@ -153,6 +153,13 @@ export
     interpreted_signal,
     scenario_assumption,
     macro_event_dedup_key,
+    # 長期金利・funding-cost shock: 生データ分解・pass-through parameter・構築ヘルパ
+    # （src/scenarios/long_rate_funding_shock.jl、Issue #260 Part A）
+    FundingShockComponents,
+    FundingShockPassThrough,
+    FUNDING_SHOCK_PASS_THROUGH_VERSION,
+    funding_shock_magnitude_bps,
+    long_rate_funding_scenario_assumption,
     # CCC: 構築・較正（部門別CAPEX・信用循環モデル、src/models/capex_credit_cycle.jl）
     CAPEX_CREDIT_CYCLE_MODEL_VERSION,
     CapexCreditCycleTargets,
@@ -753,6 +760,11 @@ include("./scenarios/scenario_time.jl")
 include("./scenarios/scenario_types.jl")
 include("./scenarios/event_scheduler.jl")
 include("./scenarios/event_type_registry.jl")
+
+# 長期金利・funding-cost shockの生データ分解と `:LongRateFundingShock` 構築ヘルパ
+# （Issue #260 Part A）。`event_type_registry.jl` の `scenario_assumption` smart constructor に
+# 依存するため、その後に include する。
+include("./scenarios/long_rate_funding_shock.jl")
 
 # Model implementations
 include("./models/ramsey.jl")

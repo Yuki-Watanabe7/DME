@@ -170,7 +170,7 @@ end
         @test_throws ArgumentError _mev_observed(event_id = "x", event_type = :NotARealEventType)
         @test_throws ArgumentError _mev_interpreted(event_id = "x", event_type = :NotARealEventType)
         @test_throws ArgumentError _mev_assumption(assumption_id = "x", event_type = :NotARealEventType)
-        @test length(MACRO_EVENT_TYPES) == 9
+        @test length(MACRO_EVENT_TYPES) == 10  # Issue #260 で :LongRateFundingShock を追加（9→10）
     end
 
     @testset "統合設計 §10.1-8: :other が L1・L2 で許容され、L3 で unsupported_event_type になる（Y-01）" begin
@@ -274,7 +274,7 @@ end
     end
 
     @testset "version 定数6個（統合設計 §5.1）" begin
-        @test MACRO_EVENT_CONTRACT_VERSION == "macro-event-contract/1.0.2"
+        @test MACRO_EVENT_CONTRACT_VERSION == "macro-event-contract/1.0.3"  # Issue #260 で1.0.3へ
         @test SCENARIO_TIME_SEMANTICS_VERSION == "scenario-time-semantics/1.1.0"
         @test MACRO_EVENT_RUNTIME_VERSION == "macro-event-runtime/1.0.0"
         @test EVENT_RULE_VERSION isa String
@@ -351,7 +351,7 @@ end
     @testset "target_concepts: 未知concept拒否・ScenarioAssumptionは非空必須" begin
         @test_throws ArgumentError _mev_assumption(assumption_id = "x", target_concepts = Symbol[])
         @test_throws ArgumentError _mev_assumption(assumption_id = "y", target_concepts = [:not_a_real_concept])
-        @test length(MACRO_EVENT_TARGET_CONCEPTS) == 9
+        @test length(MACRO_EVENT_TARGET_CONCEPTS) == 10  # Issue #260 で :long_rate_funding_condition を追加（9→10）
     end
 
     @testset "AppliedModelInput: values/baseline_values の長さ一致・warnings語彙" begin

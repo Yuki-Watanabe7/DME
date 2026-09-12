@@ -315,6 +315,21 @@ struct _CeaDummyModel <: AbstractMacroModel end
         @test r9_add isa AppliedModelInput
         @test r9_add.target_variable === :policy_rate
         @test r9_add.application_mode === :additive
+
+        # :LongRateFundingShock（row 10、Issue #260 Part A） — 部門横断で可（spread_shock_ex）
+        a10 = _cea_assumption(;
+            id = "a-long-rate-funding",
+            event_type = :LongRateFundingShock,
+            sector = :unknown,
+            direction = :up,
+            magnitude = 45.0,
+            unit = "bp",
+            application_mode = :additive,
+            target_concepts = [:long_rate_funding_condition],
+        )
+        r10 = map_event(m, a10; map_kwargs...)
+        @test r10 isa AppliedModelInput
+        @test r10.target_variable === :spread_shock_ex
     end
 
     @testset "item 4: unmapped_target の理由と upstream_issue（D1–D4）" begin

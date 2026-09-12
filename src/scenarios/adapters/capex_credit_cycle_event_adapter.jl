@@ -303,6 +303,14 @@ const CAPEX_CC_EVENT_MAPPING_RULES = EventMappingRule[
         unit = "%pt",
         contract_row = "macro_event_contract §4.2 row 9 (:additive)",
     ),
+    EventMappingRule(;                                    # Issue #260 Part A
+        event_type = :LongRateFundingShock,
+        sector = :any,
+        target_variable = :spread_shock_ex,
+        application_mode = :additive,
+        unit = "bp",
+        contract_row = "macro_event_contract §4.2 row 10",
+    ),
 ]
 
 # ------------------------------------------------------------
