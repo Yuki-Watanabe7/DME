@@ -290,5 +290,6 @@ diag = capex_diagnostics(m, run)            # CapexDiagnostics（診断層、下
 ### 関連モデル・実行例
 
 - [統合デモ](../examples/capex_credit_cycle_demo.md): `Sc0`–`Sc4`比較・会計検証・診断・判定問題Q2–Q4の回答までを再現可能に完走するデモ。
+- [実証統合デモ](../examples/capex_credit_cycle_empirical_demo.md): 合成データでcatalog→raw observation→較正/識別/推定→履歴再生→validation→robustnessの7段を完走し、identity chain付きartifactを保存するデモ（[観測方程式・識別戦略・検証方針](capex_credit_cycle_empirical_strategy.md)・[実証統合設計](../architecture/capex_credit_cycle_empirical_integration.md)が正本）。
 - [Keenモデル](keen.md) / [最小SIM型SFCモデル](sim_sfc.md): 会計・金融不安定性の扱いが異なる関連モデル（責務境界表は[責務境界とモデル間比較契約](capex_credit_cycle_model_boundaries.md)を参照）。
 - [モデル能力・概念定義 metadata](../model_capabilities.md): `model_capabilities(:capex_credit_cycle)`で能力プロファイルを取得できる。

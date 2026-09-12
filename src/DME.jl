@@ -316,6 +316,18 @@ export
     capex_empirical_sensitivity_suite,
     capex_empirical_sensitivity_report_to_dict,
     save_capex_empirical_sensitivity_report,
+    # CCC: 実証統合デモ・artifact/report層（src/analysis/capex_credit_cycle_empirical_artifact.jl、
+    # Issue #251 / `P-11`）
+    CAPEX_CC_EMPIRICAL_ARTIFACT_VERSION,
+    capex_raw_dataset_to_dict,
+    save_capex_raw_dataset,
+    capex_measurement_manifest_to_dict,
+    save_capex_measurement_manifest,
+    capex_empirical_artifact_to_dict,
+    save_capex_empirical_artifact,
+    load_capex_empirical_artifact,
+    capex_empirical_report,
+    save_capex_empirical_report,
     # New Keynesian: 期待インフレ率パス・level 復元（Issue #159）
     nk_expected_inflation_path,
     nk_inflation_level,
@@ -918,6 +930,20 @@ include("./analysis/scenario_diagnostics.jl")
 # 直前で include 済み）・data/capex_credit_cycle_measurements.jl・models/capex_credit_cycle.jl・
 # scenarios/scenario_time.jl（すべて前段で include 済み）)
 include("./analysis/capex_credit_cycle_empirical_sensitivity.jl")
+
+# CCC: 実証統合デモ・artifact/report層（src/analysis/capex_credit_cycle_empirical_artifact.jl、
+# Issue #251 / `P-11`。depends on data/capex_credit_cycle_catalog.jl（capex_series_catalog_to_dict）・
+# data/capex_credit_cycle_provider.jl（CapexRawDataset）・data/capex_credit_cycle_measurements.jl
+# （CapexEmpiricalDataset）・capex_credit_cycle_calibration.jl（capex_calibration_to_dict）・
+# capex_credit_cycle_identification.jl（capex_identification_to_dict）・
+# capex_credit_cycle_estimation.jl（capex_parameter_set_to_dict）・capex_credit_cycle_history.jl
+# （capex_episode_spec_to_dict・capex_episode_assessment_to_dict）・
+# capex_credit_cycle_historical_replay.jl（capex_historical_replay_run_to_dict・
+# _capex_replay_json_num）・capex_credit_cycle_empirical_validation.jl
+# （capex_empirical_validation_report_to_dict・_capex_validation_json_value）・
+# capex_credit_cycle_empirical_sensitivity.jl（capex_empirical_sensitivity_report_to_dict。
+# いずれも前段で include 済み）・artifacts/json_canonical.jl（canonical_json_bytes）)
+include("./analysis/capex_credit_cycle_empirical_artifact.jl")
 
 # Minsky financing regime diagnostics (depends on KeenModel and SimulationResult)
 include("./analysis/minsky_regimes.jl")

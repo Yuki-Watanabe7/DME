@@ -247,6 +247,7 @@ response = complete_from_prompt(provider, build_explain_prompt(ctx))
 | [examples/sfc_ai_economist_demo.jl](examples/sfc_ai_economist_demo.jl) | **SFC対応 AIエコノミスト統合デモ**。baseline / 財政ショックシナリオ → SFC会計表・全期の会計恒等式検証 → モデル能力metadata → 比較API v2（合成データ）→ Keen–SFC概念対応・比較レポート → 根拠付きLLM説明 → 数値・図表・説明・provenanceのrun単位保存までを再現可能に完走する。乱数を使わず完全に決定的・API キー不要。詳細: [docs/examples/sfc_ai_economist.md](docs/examples/sfc_ai_economist.md)。 |
 | [examples/capex_credit_cycle_demo.jl](examples/capex_credit_cycle_demo.jl) | **部門別CAPEX・信用循環モデル統合デモ**。Sc0（baseline）〜Sc4（需要期待下方修正+CAPEX削減+信用ショック+金融緩和）の5シナリオ実行 → 会計恒等式検証（12項目）→ 診断（ラベル・資金繰り・ループ利得・非線形性近傍・反実仮想寄与）→ 閾値感応度 → 判定問題Q2–Q4の回答 → 比較API v2（mechanismモード）→ 可視化 → provenanceのrun単位保存までを再現可能に完走する。乱数を使わず完全に決定的・API キー不要・ネットワークアクセスなし。詳細: [docs/examples/capex_credit_cycle_demo.md](docs/examples/capex_credit_cycle_demo.md)。 |
 | [examples/event_driven_capex_scenario_demo.jl](examples/event_driven_capex_scenario_demo.jl) | **日付付き複数イベントScenario統合デモ**。8ケース（baseline / 需要見通し下方修正 / CAPEX削減+受注キャンセル / +credit spread+lending standard / +policy rate緩和 / 同一四半期の複数イベントの決定論的合成 / unmapped fixture / invalid fixture）を `run_scenario` で実行 → `Sc0`–`Sc4` との数値互換性確認 → 9イベント型カバレッジ確認 → 決定性・replay確認 → 成果物（scenario/event_log/manifest/result_summary/comparison/report）のケース単位保存までを再現可能に完走する。乱数を使わず完全に決定的・API キー不要・ネットワークアクセスなし。詳細: [docs/examples/event_driven_capex_scenario_demo.md](docs/examples/event_driven_capex_scenario_demo.md)。 |
+| [examples/capex_credit_cycle_empirical_demo.jl](examples/capex_credit_cycle_empirical_demo.jl) | **部門別CAPEX・信用循環モデル 実証統合デモ**。合成（synthetic）データで series catalog → raw observation → measurement/dataset → 定常水準較正・識別診断・限定推定（`literature_default`/`calibrated`/`estimated`）→ historical episode 選定 → 履歴再生 → dimension別validation → robustness/sensitivityの7段を完走し、identity chain付きcanonical artifact・人間可読レポートを保存する。2回実行の決定性・保存済みartifactからの再構築・会計検証12項目のacc_passを確認する。乱数を使わず完全に決定的・API キー不要・ネットワークアクセスなし。詳細: [docs/examples/capex_credit_cycle_empirical_demo.md](docs/examples/capex_credit_cycle_empirical_demo.md)。 |
 | [examples/real_rate_model_artifact_export.jl](examples/real_rate_model_artifact_export.jl) | **Real-rate model artifact 生成デモ**。New Keynesian モデル（fixture calibration）→ 期待インフレ率・model-implied実質政策金利のartifact構築 → RFC 8785正準JSONでatomic保存 → 読み込み・hash再検証までを完走する。乱数を使わず完全に決定的・API キー不要。詳細: [docs/examples/real_rate_model_artifact.md](docs/examples/real_rate_model_artifact.md)。 |
 
 ```bash
@@ -332,6 +333,18 @@ EDCS_DEMO_OUTDIR=./out julia --project=. examples/event_driven_capex_scenario_de
 
 > 日付付き複数イベントScenarioの限界: `unmapped_target`/`unsupported_model` は「影響が無い」ことを意味せず、モデルが構造上その事象を表現しないことを示す。`propagation_order` はモデル内の系列順序であり統計的因果効果ではない。`:as_of` を実装していないため「その時点で判断できた」とは述べない。本デモは投資判断・政策立案の根拠として使用することを意図しない。
 
+部門別CAPEX・信用循環モデル 実証統合デモは、外部データ取得・乱数を一切使わず完全に決定的です。入力データはすべて合成（synthetic）です。
+
+```bash
+# 唯一の経路（API キー不要・ネットワークアクセスなし・決定的）。成果物は artifacts/capex_credit_cycle_empirical_demo/ へ
+julia --project=. examples/capex_credit_cycle_empirical_demo.jl
+
+# 出力先を指定
+CCC_EMPIRICAL_DEMO_OUTDIR=./out julia --project=. examples/capex_credit_cycle_empirical_demo.jl
+```
+
+> 部門別CAPEX・信用循環モデル実証統合デモの限界: 入力データはすべて合成であり実際の米国経済データではない。fit は因果妥当性・景気後退確率・投資助言ではない。企業開示は較正入力に用いていない。`:as_of` を実装していない。本デモは投資判断・政策立案の根拠として使用することを意図しない。
+
 ## テスト
 
 ```bash
@@ -370,6 +383,7 @@ julia --project=docs docs/make.jl                        # 生成物: docs/build
 | [SFC対応 AIエコノミスト統合デモ](docs/examples/sfc_ai_economist.md) | baseline/財政ショック → SFC会計検証 → 比較API v2 → Keen–SFC比較レポート → 根拠付きLLM説明 → provenance保存の再現可能な統合デモの実行手順・成果物・設定例 |
 | [部門別CAPEX・信用循環モデル統合デモ](docs/examples/capex_credit_cycle_demo.md) | Sc0–Sc4シナリオ実行 → 会計検証 → 診断・閾値感応度 → 判定問題Q2–Q4の回答 → 比較API v2（mechanismモード）→ 可視化 → provenance保存の再現可能な統合デモの実行手順・成果物・設定例 |
 | [日付付き複数イベントScenario統合デモ](docs/examples/event_driven_capex_scenario_demo.md) | 8ケース（baseline/需要見通し/CAPEX+受注/信用+貸出/政策金利/同時イベント合成/negative fixture）の`run_scenario`実行 → Sc0–Sc4数値互換性確認 → 9イベント型カバレッジ → 決定性・replay確認 → 成果物保存の再現可能な統合デモの実行手順・成果物・Phase 1 API（`CapexShockSpec`）との使い分け |
+| [部門別CAPEX・信用循環モデル 実証統合デモ](docs/examples/capex_credit_cycle_empirical_demo.md) | 合成データでcatalog→raw observation→measurement/dataset→較正/識別/推定（3種のparameter set）→episode選定→履歴再生→validation→robustnessの7段を完走しidentity chain付きartifact・人間可読レポートを保存する再現可能な統合デモの実行手順・成果物・結果の限界 |
 | [Real-rate model artifact 生成デモ](docs/examples/real_rate_model_artifact.md) | New Keynesian モデル → 期待インフレ率・model-implied実質政策金利のartifact構築 → 検証 → atomic保存までの再現可能な実行手順・成果物・economic-data-providerへの受け渡し手順 |
 
 ### モデル解説
