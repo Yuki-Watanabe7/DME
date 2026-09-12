@@ -40,7 +40,7 @@ abstract type AbstractMacroEvent end
 # ------------------------------------------------------------
 
 "マクロイベント変換契約（属性・イベント型マッピング・合成規則）の version。"
-const MACRO_EVENT_CONTRACT_VERSION = "macro-event-contract/1.0.2"
+const MACRO_EVENT_CONTRACT_VERSION = "macro-event-contract/1.0.3"
 
 "シナリオ時間軸の意味論（内部時刻・割当規則・時間形状）の version。"
 const SCENARIO_TIME_SEMANTICS_VERSION = "scenario-time-semantics/1.1.0"
@@ -67,14 +67,17 @@ const MACRO_EVENT_LAYERS = (:observed, :interpreted, :assumption, :applied)
 """
     MACRO_EVENT_TYPES
 
-初期イベント型9種（マクロイベント変換契約 §4）。実体経済側5種（`:DemandOutlookRevision`・
+イベント型10種（マクロイベント変換契約 §4）。実体経済側5種（`:DemandOutlookRevision`・
 `:CapexGuidanceRevision`・`:OrderCancellation`・`:PriceOrMarginShock`・
-`:EmploymentPlanRevision`、Issue #199）と信用・政策側4種（`:CreditSpreadShock`・
-`:LendingStandardChange`・`:RefinancingOrRatingEvent`・`:PolicyRateChange`、Issue #200）。
+`:EmploymentPlanRevision`、Issue #199）、信用・政策側4種（`:CreditSpreadShock`・
+`:LendingStandardChange`・`:RefinancingOrRatingEvent`・`:PolicyRateChange`、Issue #200）、
+長期金利・funding条件側1種（`:LongRateFundingShock`、Issue #260。政策金利変更を伴わない
+長期金利repricing・secured funding stressを `:PolicyRateChange` と別入力として表現する。
+マクロイベント変換契約 §15）。
 
 本定数は**型シンボルの確定集合**のみを持つ。型ごとの許可部門・許可単位・既定形状・
 適用不能条件は `MacroEventTypeSpec` レジストリ（`MACRO_EVENT_TYPE_REGISTRY`、
-Issue #199/#200 が `src/scenarios/event_type_registry.jl` へ追加）が持つ。本ファイルの
+Issue #199/#200/#260 が `src/scenarios/event_type_registry.jl` へ追加）が持つ。本ファイルの
 内部コンストラクタ検証は「未登録の `event_type` を拒否する」（統合設計 §10.1 の項目7）
 という構造レベルの検査のみを行い、型別の属性検証（許可部門等）は行わない。
 """
@@ -88,6 +91,7 @@ const MACRO_EVENT_TYPES = (
     :LendingStandardChange,
     :RefinancingOrRatingEvent,
     :PolicyRateChange,
+    :LongRateFundingShock,
 )
 
 "target concept のモデル非依存語彙（マクロイベント変換契約 §3.4）。"
@@ -101,6 +105,7 @@ const MACRO_EVENT_TARGET_CONCEPTS = (
     :refinancing_condition,
     :employment_plan,
     :policy_rate,
+    :long_rate_funding_condition,
 )
 
 "`L3`/`L4` の適用方式（マクロイベント変換契約 §5.2）。"
@@ -296,7 +301,7 @@ end
 """
     _macro_event_check_event_type(event_type, allow_other) -> Nothing
 
-`event_type` が `MACRO_EVENT_TYPES` の9種、または（`allow_other=true` のとき）`:other`
+`event_type` が `MACRO_EVENT_TYPES` のいずれか、または（`allow_other=true` のとき）`:other`
 であることを検証する。`:other` は `L1`/`L2` のみで許容し（`allow_other=true`）、
 `L3`/`L4` では許容しない（`allow_other=false`。`Y-01`）。`L3`/`L4` に `:other` を渡すことは
 「そのようなレコードは構築できない」という層(1)の主張として `ArgumentError` で拒否する

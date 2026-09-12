@@ -709,11 +709,32 @@ end
 # ─────────────────────────────────────────────────────────────────
 
 """
+    _EDCS_COVERED_EVENT_TYPES
+
+本デモ（Issue #205）の8ケースが対象とする9イベント型の**凍結された**一覧。`MACRO_EVENT_TYPES`
+（生きたレジストリ）を直接使うと、後続Issueが新しいevent_typeを追加するたびに本デモへケース
+追加を要求することになり、本デモの固定された統合シナリオ（8ケース）の再現性と無関係な理由で
+`all_covered` が偽になる。Issue #260 で `:LongRateFundingShock`（10種目）が追加された際に
+この問題が顕在化したため、本デモが実際に検証範囲とする9型をここで明示的に固定する。
+"""
+const _EDCS_COVERED_EVENT_TYPES = (
+    :DemandOutlookRevision,
+    :CapexGuidanceRevision,
+    :OrderCancellation,
+    :PriceOrMarginShock,
+    :EmploymentPlanRevision,
+    :CreditSpreadShock,
+    :LendingStandardChange,
+    :RefinancingOrRatingEvent,
+    :PolicyRateChange,
+)
+
+"""
     _edcs_event_type_coverage(case_runs) -> Dict{String,Any}
 
-9イベント型（`MACRO_EVENT_TYPES`）それぞれについて、mapping可能（`AppliedModelInput` を
-生成した）ケース、または mapping不能理由が固定されている（`unmapped_target` として
-拒否/警告された）ケースを記録する。
+`_EDCS_COVERED_EVENT_TYPES`（本デモが対象とする9イベント型）それぞれについて、mapping可能
+（`AppliedModelInput` を生成した）ケース、または mapping不能理由が固定されている
+（`unmapped_target` として拒否/警告された）ケースを記録する。
 """
 function _edcs_event_type_coverage(case_runs)
     coverage = Dict{Symbol, Dict{String, Any}}()
@@ -755,8 +776,10 @@ function _edcs_event_type_coverage(case_runs)
         end
     end
     return Dict{String, Any}(
-        "types" => Dict{String, Any}(String(t) => get(coverage, t, nothing) for t in MACRO_EVENT_TYPES),
-        "all_covered" => all(haskey(coverage, t) for t in MACRO_EVENT_TYPES),
+        "types" => Dict{String, Any}(
+            String(t) => get(coverage, t, nothing) for t in _EDCS_COVERED_EVENT_TYPES
+        ),
+        "all_covered" => all(haskey(coverage, t) for t in _EDCS_COVERED_EVENT_TYPES),
     )
 end
 
@@ -812,7 +835,7 @@ function _edcs_write_markdown_report(
     println(io, "- 全9型がmapping可能またはmapping不能理由固定で登場: `$(coverage["all_covered"])`")
     println(io, "\n| event_type | status | ケース |")
     println(io, "|---|---|---|")
-    for t in MACRO_EVENT_TYPES
+    for t in _EDCS_COVERED_EVENT_TYPES
         entry = coverage["types"][String(t)]
         status = entry === nothing ? "MISSING" : entry["status"]
         case = entry === nothing ? "-" : entry["case"]

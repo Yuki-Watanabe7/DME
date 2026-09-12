@@ -1,9 +1,9 @@
 # マクロイベント変換契約
 
-> 関連 Issue: #168（本書）・#125（ロードマップ）
+> 関連 Issue: #168（本書）・#125（ロードマップ）・#260（Part A、§14 の改訂）
 > 前提: [分析契約](../models/capex_credit_cycle_analysis_contract.md)（シナリオ `Sc0`–`Sc4`・ショック指定必須 7 項目）・[因果グラフ](../models/capex_credit_cycle_causal_graph.md)（エッジ型・遅れ）・[部門境界と変数定義](../models/capex_credit_cycle_sectors_variables.md)（外生変数・`_shock_ex` 命名規則）・[ストック・フロー会計表](../models/capex_credit_cycle_stock_flow.md)（期内処理順序・CAPEX 資金調達恒等式）・[責務境界とモデル間比較契約](../models/capex_credit_cycle_model_boundaries.md)（イベント翻訳可否表・翻訳不能時の規則）
 > 対になる設計: [シナリオ時間軸の意味論](scenario_time_semantics.md)（四半期時間軸・適用時点・持続形状・vintage）
-> 決定記録: [ADR 0010](../adr/0010-macro-event-scenario-contract.md)
+> 決定記録: [ADR 0010](../adr/0010-macro-event-scenario-contract.md)・[ADR 0019](../adr/0019-long-rate-funding-shock-contract.md)（§14、Issue #260 Part A）
 > 後続設計: #169（動学方程式）・#170（観測・検証）・#171（統合）・#196（[イベント・シナリオ実行層 統合設計](macro_event_runtime_integration.md)）
 
 ---
@@ -707,10 +707,61 @@ LLM による説明生成時は、上記を [llm_safety.md](../llm_safety.md) �
 
 ---
 
-## 14. 改訂履歴
+## 14. Issue #260 による改訂（`1.0.3`）
+
+本節は Issue #260（長期金利・funding-cost shockを政策金利から分離し2026-09 financial-instability live holdoutを実装する）の shock semantics 部分（Part A）による改訂を記録する。**本節は §12・§13 とともに本書の正本であり、本文の該当箇所と矛盾する場合は本節が優先する。** 決定記録: [ADR 0019](../adr/0019-long-rate-funding-shock-contract.md)。
+
+### 14.1 `:LongRateFundingShock` をイベント型10種目として追加する
+
+**検出された差異**: §4 は初期イベント型を9種に固定する（`MACRO_EVENT_TYPES`）。政策金利変更を伴わない長期金利上昇（10年国債利回り等の repricing）や secured funding市場のストレス（SOFR/TGCRの政策アンカー対比乖離）は、既存9種のいずれにも該当しない。`:PolicyRateChange`（§4.2 row 9）は政策金利（短期・制度設定）専用であり、ここへ長期金利上昇を押し込むと、Fedの短期政策スタンスとlong-end repricingを同一視し、独立した仮説（政策金利変更を伴わない／政策金利だけでは説明できない長期金利上昇）の検証を歪める。
+
+**改訂**: イベント型を10種とし、10種目 `:LongRateFundingShock`（長期金利・funding条件ショック）を追加する。
+
+| # | `event_type` | 対象部門 | 適用先変数（`L4`） | `application_mode` | 単位 | 適用可否 |
+|---|---|---|---|---|---|---|
+| 10 | `:LongRateFundingShock` | 部門横断（`system_wide`） | `spread_shock_ex` | `:additive` | `"bp"` | **可**（§14.2 の pass-through 経由） |
+
+適用時点・持続・合成（§4.3 に準じる暫定既定値。較正は別Issue）:
+
+| # | `event_type` | 適用四半期規則 | 既定 `shape` | 既定 `duration` / `half_life` | 同種イベントの合成 |
+|---|---|---|---|---|---|
+| 10 | `:LongRateFundingShock` | `:same_quarter` | `AR1_decay` | 半減期 4 四半期（暫定既定値） | 加算合成（`:CreditSpreadShock`・`:RefinancingOrRatingEvent` と同じ `spread_shock_ex` へ加算合成される。§5.2 の固定順合成規則をそのまま適用し、本節では新しい合成規則を追加しない） |
+
+target concept 語彙（§3.4）へ `:long_rate_funding_condition` を追加する。
+
+**根拠**: `spread_shock_ex` は既に `:CreditSpreadShock`・`:RefinancingOrRatingEvent` という異なる2つの実体（信用スプレッド・格付/借換）を同じ加算スロットへ写像しており（§4.2 row 5・row 7）、複数の実体経済的な原因が同一の「実効借入コストへの加算的な上乗せ」という構造をモデルが区別しないことは既存の設計判断である。長期金利repricingとsecured funding stressも構造的に同じ性質（実効借入コストへの加算的な上乗せ）を持つため、外生変数7個（§4.1）を増やさず、既存の `spread_shock_ex` を3つ目の event_type から加算合成する方式で表現できる。新しい exogenous 変数を追加する必要はない。
+
+### 14.2 pass-throughを明示parameterとし、暗黙の1:1にしない
+
+**検出された差異**: `:LongRateFundingShock` の生データ（長期名目金利・長期実質金利・inflation compensation・secured funding spread）は、そのままでは単位が `spread_shock_ex`（実効借入コストへの加算、bp）と一致しない。観測されたbpをそのまま実効借入コストへ1:1で足し込むと、pass-through（長期金利repricingが実際に企業の借入コストへ反映される度合い）を暗黙に1と仮定したことになり、根拠のない精度を主張する。
+
+**改訂**: `FundingShockComponents`（生データ分解）と `FundingShockPassThrough`（pass-through係数、`version` 付き）を分離し、`funding_shock_magnitude_bps` が両者から `spread_shock_ex` へのmagnitudeを算出する（[長期金利・funding-cost shock](../../src/scenarios/long_rate_funding_shock.jl) 実装）。
+
+> `magnitude = long_nominal_yield_shift_bps × long_nominal_yield_pass_through + secured_funding_spread_shift_bps × secured_funding_pass_through`
+>
+> `long_real_yield_shift_bps`・`inflation_compensation_shift_bps`・`decomposition_residual_bps`（`long_nominal_yield_shift_bps - (long_real_yield_shift_bps + inflation_compensation_shift_bps)`、両方観測できるときのみ算出）は診断用の内訳であり、`magnitude` へ二重に加算しない。`credit_spread_shift_bps` は既存の `:CreditSpreadShock`（row 5）で独立入力として表現し、本event_typeには含めない（二重計上防止）。
+>
+> `decomposition_residual_bps` を `term premium` と呼ばない（根拠のない高精度推定を行わないという対象外事項）。
+
+**根拠**: pass-through係数を `1.0` にする既定は許容するが、それを**名前とversionを持つ値**として記録することで、「暗黙に1:1とみなした」のか「明示的に1:1という前提を置いた」のかを区別できる。前者は事後に検証不能だが、後者はsensitivity分析（係数を変えて再計算する）が可能になる。
+
+### 14.3 `:PolicyRateChange` との独立性
+
+**改訂**: `:LongRateFundingShock` の `allowed_target_concepts` を `[:long_rate_funding_condition]` のみとし、`:policy_rate` を含めない。逆に `:PolicyRateChange` の `allowed_target_concepts`（`[:policy_rate]`）へ `:long_rate_funding_condition` を追加しない。両者は別の `ScenarioAssumption` として独立に投入し、自動的な相殺（netting）は行わない（event_type_registry.jl の既存設計原則をそのまま踏襲する）。
+
+**根拠**: 受け入れ条件「policy-rate changeとlong-end yield shiftが別ScenarioAssumption / inputとして表現される」を、レジストリの `allowed_target_concepts` という型レベルの強制で満たす。文書の規律だけに頼らない。
+
+### 14.4 差し戻し事項 `D1`–`D4` の状態
+
+`D1`–`D4`（§8）は本改訂の対象外であり、状態は変わらない。
+
+---
+
+## 15. 改訂履歴
 
 | version | 日付 | 変更 |
 |---|---|---|
+| `macro-event-contract/1.0.3` | 2026-09-12 | Issue #260 Part A による改訂（§14）。イベント型を10種とし `:LongRateFundingShock`（長期金利・funding条件ショック）を追加。`spread_shock_ex` への加算合成先とし外生変数は増やさない。pass-throughを `FundingShockPassThrough`（versioned）として明示化し暗黙の1:1にしない。`decomposition_residual_bps` をterm premiumと呼ばないことを明記。`:PolicyRateChange` との独立性をレジストリの `allowed_target_concepts` で強制 |
 | `macro-event-contract/1.0.2` | 2026-08-05 | #196 の統合設計による改訂（§13）。`:other` を `L1`・`L2` に限定し `L3`・`L4` で拒否する。`L3` の時点指定を暦日基準とモデル期基準の 2 基準とし混在を拒否する。§5.3 の部門集約を初期実装の対象外とし `entity_weight` を属性として持たないことを明示する |
 | `macro-event-contract/1.0.1` | 2026-07-30 | #171 の統合レビューによる改訂（§12）。上位契約を `graph/1.1.0`・`vars/1.2.0`・`accounting/1.1.0` へ更新。§3.3 の許容表へ `"bn USD (2017 chained)" × :additive` を追加し §4.2 行 3b との内部矛盾を解消。§5.1 の `target_rank` の正本を §4.1 の並びに確定し、他文書の列挙から導出しないことを明記 |
 | `macro-event-contract/1.0.0` | 2026-07-30 | 初版（#168）。イベントの 4 層概念階層と層間変換の禁止事項・外部システム（`finance-checker` / `economic-data-provider`）との境界・共通イベント属性 27 項目と層別の必須性・`magnitude_source` による捏造禁止規則・target concept 語彙・適用先を外生変数 7 個に限定する決定・初期イベント型 9 種のマッピング表（対象/変数/方式/単位/適用時点/持続/合成/適用不能条件/必須 metadata）・適用先を持たないイベント型の拒否規則・決定論的全順序と合成規則（絶対→乗算→加算）・集約とカバレッジ・競合/矛盾/重複の検出・一括適用の原則・イベントログと再現契約・API 境界 6 責務と処理シーケンス・差し戻し事項 `D1`–`D4` を固定 |

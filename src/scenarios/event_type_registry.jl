@@ -1,14 +1,16 @@
-# event_type_registry.jl: イベント型レジストリと初期イベント型 9 種（Issue #199 / `E-3`・
-# Issue #200 / `E-4`）。
+# event_type_registry.jl: イベント型レジストリ（Issue #199 / `E-3`・Issue #200 / `E-4`・
+# Issue #260）。
 #
 # `MacroEventTypeSpec`（イベント型ごとの許容部門・許容単位・既定適用方式・既定 timing rule・
 # 既定 shape・適用不能条件・必須 methodology metadata・（`:RefinancingOrRatingEvent` に限り）
 # reason code 語彙を宣言的に保持するレコード型）と `MACRO_EVENT_TYPE_REGISTRY`
 # （`Dict{Symbol,MacroEventTypeSpec}`）・`macro_event_type_spec` を定義する。実体経済側 5 種
 # （`:DemandOutlookRevision`・`:CapexGuidanceRevision`・`:OrderCancellation`・
-# `:PriceOrMarginShock`・`:EmploymentPlanRevision`、Issue #199）と信用・金融政策側 4 種
+# `:PriceOrMarginShock`・`:EmploymentPlanRevision`、Issue #199）・信用・金融政策側 4 種
 # （`:CreditSpreadShock`・`:LendingStandardChange`・`:RefinancingOrRatingEvent`・
-# `:PolicyRateChange`、Issue #200）をレジストリへ登録する。
+# `:PolicyRateChange`、Issue #200）・長期金利・funding条件側 1 種（`:LongRateFundingShock`、
+# Issue #260。政策金利変更とは別入力として長期金利repricing・secured funding stressを表現する。
+# マクロイベント変換契約 §15）をレジストリへ登録する。
 #
 # 型別 smart constructor（`observed_event`・`interpreted_signal`・`scenario_assumption`）を
 # 提供する。これらはレジストリを参照して event_type 別の許容 unit・application_mode・
@@ -173,7 +175,7 @@ struct MacroEventTypeSpec
     )
         event_type in MACRO_EVENT_TYPES || throw(
             ArgumentError(
-                "MacroEventTypeSpec.event_type=$event_type は MACRO_EVENT_TYPES の9種の" *
+                "MacroEventTypeSpec.event_type=$event_type は MACRO_EVENT_TYPES の" *
                 "いずれかでなければなりません（generic event へ縮約しない、統合設計 §10.1 項目7）",
             ),
         )
@@ -279,8 +281,8 @@ end
     MACRO_EVENT_TYPE_REGISTRY
 
 `event_type => MacroEventTypeSpec` のレジストリ（統合設計 §5.3）。実体経済側 5 種
-（Issue #199）と信用・金融政策側 4 種（Issue #200）の計 9 種（`MACRO_EVENT_TYPES` と一致）を
-登録する。
+（Issue #199）・信用・金融政策側 4 種（Issue #200）・長期金利・funding条件側 1 種
+（`:LongRateFundingShock`、Issue #260）の計 10 種（`MACRO_EVENT_TYPES` と一致）を登録する。
 """
 const MACRO_EVENT_TYPE_REGISTRY = Dict{Symbol, MacroEventTypeSpec}(
     :DemandOutlookRevision => MacroEventTypeSpec(;
@@ -481,6 +483,31 @@ const MACRO_EVENT_TYPE_REGISTRY = Dict{Symbol, MacroEventTypeSpec}(
             "四半期平均への換算方式",
         ],
         contract_section = "macro_event_contract §4.2 row 9・§4.3 row 9・§4.4 row 9",
+    ),
+    :LongRateFundingShock => MacroEventTypeSpec(;
+        event_type = :LongRateFundingShock,
+        display_name = "長期金利・funding条件ショック",
+        allowed_sectors = [:out_of_model, :unknown],
+        allowed_scope = [:system_wide],
+        allowed_target_concepts = [:long_rate_funding_condition],
+        allowed_units = ["bp"],
+        allowed_application_modes = [:additive],
+        effective_from_default = :observed_at,
+        default_timing_rule = :same_quarter,
+        default_shape = :ar1_decay,
+        default_shape_params = (half_life = 4,),
+        default_duration = nothing,
+        inapplicable_conditions = [:funding_condition_scope_mismatch],
+        required_methodology_keys = [
+            "生データ内訳（long_nominal_yield_shift_bps・long_real_yield_shift_bps・" *
+            "inflation_compensation_shift_bps・secured_funding_spread_shift_bps）",
+            "pass-through parameterの版と係数（暗黙の1:1にしないことの明記）",
+            "nominal - real - inflation compensation の残差をterm premiumと呼ばないことの明記" *
+            "（根拠が無い場合）",
+            "policy_rate（:PolicyRateChange）・credit_spread（:CreditSpreadShock）との" *
+            "二重計上防止の明記",
+        ],
+        contract_section = "macro_event_contract §4.2 row 10・§4.3 row 10・§4.4 row 10・§15",
     ),
 )
 

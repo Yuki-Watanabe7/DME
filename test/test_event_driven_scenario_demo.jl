@@ -68,7 +68,7 @@ const EDCS_FIXTURE_DIR =
         dir = mktempdir()
         r = run_demo(dir)
         @test r.event_type_coverage["all_covered"]
-        for t in MACRO_EVENT_TYPES
+        for t in _EDCS_COVERED_EVENT_TYPES
             entry = r.event_type_coverage["types"][String(t)]
             @test entry !== nothing
             @test entry["status"] in ("mapped", "unmapped_target")
