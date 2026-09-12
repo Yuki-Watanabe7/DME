@@ -14,6 +14,7 @@ const DME_TEST_FILES = [
     "test_capex_credit_cycle_measurements.jl",
     "test_financial_stress_provider.jl",
     "test_financial_stress_diagnostics.jl",
+    "test_financial_instability_holdout.jl",
     "test_keen_calibration.jl",
     "test_keen_validation.jl",
     "test_ramsey.jl",
@@ -76,6 +77,7 @@ const DME_TEST_FILES = [
     "test_capex_credit_cycle_demo.jl",
     "test_capex_credit_cycle_empirical_demo.jl",
     "test_event_driven_scenario_demo.jl",
+    "test_financial_instability_holdout_demo.jl",
     "test_quality_capture.jl",
     "test_quality.jl",
 ]

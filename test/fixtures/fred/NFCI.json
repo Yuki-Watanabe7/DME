@@ -1,0 +1,14 @@
+{
+  "series": {
+    "id": "NFCI",
+    "title": "Chicago Fed National Financial Conditions Index (fixture illustrative values, not real observations)",
+    "frequency": "Monthly",
+    "units": "Index",
+    "seasonal_adjustment": "Not Seasonally Adjusted"
+  },
+  "observations": [
+    {"date": "2026-06-01", "value": "-0.32"},
+    {"date": "2026-07-01", "value": "-0.28"},
+    {"date": "2026-08-01", "value": "-0.15"}
+  ]
+}
