@@ -67,6 +67,29 @@ export
     sofr_minus_tgcr_bp,
     yield_shift_bps,
     long_rate_shift_components,
+    # 2026-09 financial-instability live holdout（Issue #260 Part D。CCC非依存）
+    FINANCIAL_INSTABILITY_HOLDOUT_VERSION,
+    FINANCIAL_INSTABILITY_RULE_VERSION,
+    FINANCIAL_INSTABILITY_STATUSES,
+    FinancialInstabilityThresholds,
+    TriggerState,
+    trigger_state,
+    WeakCreditState,
+    weak_credit_state,
+    value_on_date_spread,
+    FundingState,
+    funding_state,
+    BroadConditionsState,
+    broad_conditions_state,
+    ModelAmplificationState,
+    model_amplification_state,
+    MinskyDiagnosticState,
+    minsky_diagnostic_state,
+    FinancialInstabilityAssessment,
+    FINANCIAL_INSTABILITY_CAVEATS,
+    assess_financial_instability,
+    financial_instability_assessment_to_dict,
+    save_financial_instability_assessment,
     # CCC empirical catalog (Issue #241 / P-1)
     CAPEX_CC_EMPIRICAL_INTEGRATION_VERSION,
     CAPEX_CC_SERIES_ROLES,
@@ -856,6 +879,11 @@ include("./analysis/sfc_sim_adapter.jl")
 # data/financial_stress_provider.jl の FinancialStressSeries/FinancialStressRawDataset。
 # CCC・SFCのいずれにも依存しない、Issue #260 Part B）
 include("./analysis/financial_stress_diagnostics.jl")
+
+# 2026-09 financial-instability live holdoutの構造化診断（depends on
+# analysis/financial_stress_diagnostics.jl。CCC・Keenのモデル実行には依存しない
+# （model_amplification_state・minsky_diagnostic_stateは静的citation）、Issue #260 Part D）
+include("./analysis/financial_instability_holdout.jl")
 
 # 部門別CAPEX・信用循環モデルの会計層（depends on CapexCreditCycleModel・sfc/types.jl・
 # sfc_accounting.jl。会計表構築 + 会計恒等式検証 12 項目。`SFCResult` は返さない）
