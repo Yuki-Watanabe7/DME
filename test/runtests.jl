@@ -47,6 +47,7 @@ const DME_TEST_FILES = [
     "test_capex_credit_cycle_history.jl",
     "test_capex_credit_cycle_historical_replay.jl",
     "test_capex_credit_cycle_empirical_validation.jl",
+    "test_capex_credit_cycle_empirical_sensitivity.jl",
     "test_capex_credit_cycle_accounting.jl",
     "test_capex_credit_cycle_diagnostics.jl",
     "test_capex_credit_cycle_visualization.jl",

@@ -303,6 +303,19 @@ export
     scenario_comparison,
     scenario_timing_sensitivity,
     scenario_magnitude_sensitivity,
+    # CCC: 実証robustness/sensitivity層（src/analysis/capex_credit_cycle_empirical_sensitivity.jl、
+    # Issue #250 / `P-10`）
+    CAPEX_CC_EMPIRICAL_SENSITIVITY_VERSION,
+    CAPEX_CC_SENSITIVITY_AXES,
+    CAPEX_CC_SENSITIVITY_VARIANT_STATUSES,
+    CAPEX_CC_SENSITIVITY_STABILITY_DIMENSIONS,
+    CAPEX_CC_EMPIRICAL_SENSITIVITY_CAVEATS,
+    EmpiricalSensitivitySpec,
+    EmpiricalSensitivityVariantResult,
+    EmpiricalRobustnessReport,
+    capex_empirical_sensitivity_suite,
+    capex_empirical_sensitivity_report_to_dict,
+    save_capex_empirical_sensitivity_report,
     # New Keynesian: 期待インフレ率パス・level 復元（Issue #159）
     nk_expected_inflation_path,
     nk_inflation_level,
@@ -896,6 +909,15 @@ include("./scenarios/scenario_serialization.jl")
 # `scenario_comparison`・`scenario_timing_sensitivity`・`scenario_magnitude_sensitivity` を
 # 提供する読み取り専用層)
 include("./analysis/scenario_diagnostics.jl")
+
+# CCC: 実証robustness/sensitivity層（src/analysis/capex_credit_cycle_empirical_sensitivity.jl、
+# Issue #250 / `P-10`。depends on capex_credit_cycle_historical_replay.jl・
+# capex_credit_cycle_empirical_validation.jl・capex_credit_cycle_history.jl・
+# capex_credit_cycle_estimation.jl・capex_credit_cycle_diagnostics.jl（capex_label_sensitivity）・
+# scenario_diagnostics.jl（_scenario_shift_event_timing・_scenario_rebuild_assumption。いずれも
+# 直前で include 済み）・data/capex_credit_cycle_measurements.jl・models/capex_credit_cycle.jl・
+# scenarios/scenario_time.jl（すべて前段で include 済み）)
+include("./analysis/capex_credit_cycle_empirical_sensitivity.jl")
 
 # Minsky financing regime diagnostics (depends on KeenModel and SimulationResult)
 include("./analysis/minsky_regimes.jl")
