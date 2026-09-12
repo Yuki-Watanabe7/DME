@@ -43,9 +43,13 @@
 
 using DME
 using Dates
-using Downloads
 
+# DME 本体が既に依存として持つ stdlib を DME 経由で参照する（test/Project.toml には
+# 含まれない stdlib を examples 側で `using` すると、`Pkg.test()` が使う test 環境
+# （test/Project.toml）でロードに失敗するため。`examples/capex_credit_cycle_demo.jl:53`
+# の `const JSON3 = DME.JSON3` と同じ idiom）。
 const JSON3 = DME.JSON3
+const Downloads = DME.Downloads
 
 const FIH_NOTES = String[
     "本assessmentは危機確率・景気後退確率の推定ではない。",
