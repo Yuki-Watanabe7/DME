@@ -46,6 +46,27 @@ export
     DataProviderClient,
     fetch_provider_series,
     fetch_provider_catalog,
+    # 金融ストレス観測 catalog/provider/diagnostics（Issue #260 Part B。CCC非依存）
+    FINANCIAL_STRESS_CATALOG_VERSION,
+    FINANCIAL_STRESS_ROLES,
+    FinancialStressSeriesSpec,
+    FINANCIAL_STRESS_SERIES_CATALOG,
+    financial_stress_spec,
+    FINANCIAL_STRESS_RAW_STATUSES,
+    FinancialStressSeries,
+    value_on_date,
+    FinancialStressRawObservation,
+    FinancialStressRawDataset,
+    build_financial_stress_raw_dataset,
+    AlignedDailySpread,
+    aligned_daily_spread_bp,
+    latest_aligned,
+    ccc_minus_broad_hy_oas_bp,
+    sofr_minus_iorb_bp,
+    tgcr_minus_iorb_bp,
+    sofr_minus_tgcr_bp,
+    yield_shift_bps,
+    long_rate_shift_components,
     # CCC empirical catalog (Issue #241 / P-1)
     CAPEX_CC_EMPIRICAL_INTEGRATION_VERSION,
     CAPEX_CC_SERIES_ROLES,
@@ -732,6 +753,15 @@ include("./data/preprocess.jl")
 include("./data/fred.jl")
 include("./data/estat.jl")
 include("./data/data_provider.jl")
+
+# 金融ストレス観測（CCC OAS・broad HY OAS・SOFR・TGCR・IORB・長期名目/実質金利・
+# inflation compensation、Issue #260 Part B）。CCC非依存の独立した小さい catalog/provider
+# であり、data_provider.jl の DataProviderClient（EDP汎用REST client）を再利用するのみで
+# CCC固有型（CapexSeriesSpec 等）には依存しない。data_provider.jl の後、
+# capex_credit_cycle_catalog.jl の前に置くが、依存関係上どちらでもよい。
+include("./data/financial_stress_catalog.jl")
+include("./data/financial_stress_provider.jl")
+
 include("./data/capex_credit_cycle_catalog.jl")
 include("./data/capex_credit_cycle_provider.jl")
 include("./data/capex_credit_cycle_measurements.jl")
@@ -821,6 +851,11 @@ include("./analysis/sfc_accounting.jl")
 # SIM 型 SFC モデルの adapter（depends on SIMModel・sfc/types.jl・sfc_accounting.jl。
 # 水準系列 → SFCResult 構成 + 会計検証）
 include("./analysis/sfc_sim_adapter.jl")
+
+# 金融ストレス観測から導出する差分・変化指標（depends on
+# data/financial_stress_provider.jl の FinancialStressSeries/FinancialStressRawDataset。
+# CCC・SFCのいずれにも依存しない、Issue #260 Part B）
+include("./analysis/financial_stress_diagnostics.jl")
 
 # 部門別CAPEX・信用循環モデルの会計層（depends on CapexCreditCycleModel・sfc/types.jl・
 # sfc_accounting.jl。会計表構築 + 会計恒等式検証 12 項目。`SFCResult` は返さない）

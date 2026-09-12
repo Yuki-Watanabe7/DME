@@ -1,0 +1,45 @@
+{
+    "source_id": "T10YIE",
+    "name": "10-Year Breakeven Inflation Rate (fictional test fixture)",
+    "points": [
+        {
+            "label": "2026-08-25",
+            "value": 2.3
+        },
+        {
+            "label": "2026-08-26",
+            "value": 2.31
+        },
+        {
+            "label": "2026-08-27",
+            "value": 2.32
+        },
+        {
+            "label": "2026-08-28",
+            "value": null
+        },
+        {
+            "label": "2026-08-31",
+            "value": 2.33
+        },
+        {
+            "label": "2026-09-01",
+            "value": 2.35
+        },
+        {
+            "label": "2026-09-02",
+            "value": 2.36
+        },
+        {
+            "label": "2026-09-03",
+            "value": 2.37
+        },
+        {
+            "label": "2026-09-04",
+            "value": 2.38
+        }
+    ],
+    "id": "T10YIE",
+    "unit": "Percent",
+    "frequency": "daily"
+}

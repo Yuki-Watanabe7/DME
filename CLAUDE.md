@@ -97,6 +97,7 @@ Issue対応時の標準フロー:
 | [実データ前処理ユーティリティ](docs/data/preprocess.md) | 欠損値補完・対数・差分・移動平均・標準化・頻度変換などの使用例 |
 | [FRED API 接続ガイド](docs/data/fred.md) | FRED API クライアントの使い方・API キー設定・fixture モード |
 | [e-Stat API 接続ガイド](docs/data/estat.md) | e-Stat API クライアントの使い方・appId 設定・日本統計系列・fixture モード |
+| [金融ストレス観測 利用ガイド](docs/data/financial_stress.md) | credit-tier stress（CCC OAS・広範HY OAS）・secured funding stress（SOFR・TGCR・IORB）・長期金利（10年名目/実質/breakeven inflation）8系列のEDP経由取得・同日整列差分/変化の派生指標・欠測/失敗statusの扱い（Issue #260 Part B。判定・危機確率・投資判断ではないことの明記） |
 | [日本マクロデータ接続 設計方針](docs/data/japan_macro_sources.md) | BOJ・内閣府・財務省・総務省のデータソース整理・優先順位・ライセンス |
 | [小国開放経済モデル設計方針](docs/models/open_economy_design.md) | 候補モデル比較・最小実装選定（Mundell-Fleming）・実データ候補系列 |
 | [Minsky系金融不安定性モデル設計方針](docs/models/minsky_design.md) | 候補モデル比較（Keen / Ryoo / SFC）・初版採用モデル選定・実データ候補系列 |

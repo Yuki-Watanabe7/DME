@@ -1,0 +1,45 @@
+{
+    "source_id": "DFII10",
+    "name": "Market Yield on U.S. Treasury Inflation-Protected Securities, 10-Year (fictional test fixture)",
+    "points": [
+        {
+            "label": "2026-08-25",
+            "value": 1.92
+        },
+        {
+            "label": "2026-08-26",
+            "value": 1.94
+        },
+        {
+            "label": "2026-08-27",
+            "value": 1.95
+        },
+        {
+            "label": "2026-08-28",
+            "value": 1.93
+        },
+        {
+            "label": "2026-08-31",
+            "value": 1.97
+        },
+        {
+            "label": "2026-09-01",
+            "value": 2
+        },
+        {
+            "label": "2026-09-02",
+            "value": 2.02
+        },
+        {
+            "label": "2026-09-03",
+            "value": 2.04
+        },
+        {
+            "label": "2026-09-04",
+            "value": 2.06
+        }
+    ],
+    "id": "DFII10",
+    "unit": "Percent",
+    "frequency": "daily"
+}
