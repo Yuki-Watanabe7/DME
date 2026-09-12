@@ -11,7 +11,7 @@
 | 項目 | 内容 |
 |---|---|
 | **対象** | `CapexCreditCycleModel`（以下 `CCC`）を実データへ接続する観測層・measurement 層・較正層・推定層・履歴再生層・検証層の DME 内実装設計 |
-| **ステータス** | 整合レビュー・データフロー・公開型/API・失敗契約・標本/vintage semantics・provenance 契約・テスト戦略・作業分解を確定。Julia 実装は未着手 |
+| **ステータス** | 整合レビュー・データフロー・公開型/API・失敗契約・標本/vintage semantics・provenance 契約・テスト戦略・作業分解を確定。Julia 実装は `P-1`–`P-11`（#241–#251）まで完了し、Phase 3（実データ接続・較正・履歴再生・検証・統合デモ）は完了 |
 | **empirical integration version** | `capex-credit-cycle-empirical-integration/1.0.0` |
 | **上位契約** | `capex-credit-cycle-empirical/1.2.0`（本書の改訂を反映した版）・`capex-credit-cycle-integration/1.0.0`・`macro-event-runtime/1.0.0`・`capex-credit-cycle-equations/1.1.0`・`capex-credit-cycle-vars/1.2.0`・`capex-credit-cycle-accounting/1.1.0`・`capex-credit-cycle-boundaries/1.0.1` |
 | **継承する横断契約** | `DataSeries` / `MacroDataset`（`src/data/data_series.jl`）・データ取得 3 モード（`:fixture` / `:live` / `:rest_api`）・RFC 8785 正準化（`src/artifacts/json_canonical.jl`）・`comparison-v2/1.0.0`・`keen-empirical/1.0.0` と `keen-calibration/1.0.0` と `keen-validation/1.0.0`（先行実装パターン） |
@@ -1414,6 +1414,7 @@ P-1(#241) ─> P-2(#242) ─> P-3(#243) ─┬─> P-4(#244) ─> P-5(#245) ─>
 | version | 日付 | 変更 |
 |---|---|---|
 | `capex-credit-cycle-empirical-integration/1.0.0` | 2026-09-01 | 初版（#240）。#170・ADR 0012 と実装済みモデル層・イベント層・データ層の整合レビュー（`Z-01`–`Z-30`）・データフロー 7 段・ファイル配置 11 本・公開型 24 個と公開関数 21 個・失敗契約 3 層と段別ステータス語彙・標本/頻度/vintage semantics・6 区分の注入点と 48 target キーの観測対応・`ext_demand_s^{ss}` の識別仮定・`EST` 総数 35 への修正・履歴再生の 3 段構成・検証 7 dimension と禁止事項の型上の担保・robustness 7 軸・hash 5 種と provenance 連結・テスト 62 項目・作業分解（`P-1`–`P-11`）を確定 |
+| `capex-credit-cycle-empirical-integration/1.0.0`（実装完了記録） | 2026-09-12 | `P-1`–`P-11`（#241–#251）の実装が完了（契約の版は変更しない）。`P-7`–`P-10`（#247–#250）は §4.3 の型/関数名を一部変更して実装した（`CapexRobustnessReport`/`capex_empirical_robustness` ではなく `EmpiricalRobustnessReport`/`capex_empirical_sensitivity_suite`/`EmpiricalSensitivitySpec`/`EmpiricalSensitivityVariantResult`。実体は同じ責務であり、§10.5 の 7 axis・one-axis-at-a-time 契約は変更していない）。`P-11`（#251）は `src/analysis/capex_credit_cycle_empirical_artifact.jl`（§4.1 未記載の新規ファイル）へ §4.3 の `capex_empirical_artifact_to_dict`・`save_capex_empirical_artifact`・`load_capex_empirical_artifact`・`capex_empirical_report`・`save_capex_empirical_report` を実装し、`CapexRawDataset`・`CapexEmpiricalDataset` に to_dict が無かったため `capex_raw_dataset_to_dict`/`save_capex_raw_dataset`・`capex_measurement_manifest_to_dict`/`save_capex_measurement_manifest`（§4.3 未記載）を追加した。統合デモ（`examples/capex_credit_cycle_empirical_demo.jl`）は§3.1 の7段を**合成（synthetic）データ**で完走する（実系列取得は本フェーズの対象外）。§12.7 の4項目（fixture完走・決定性・reload一致・会計12項目 acc_pass）を [test/test_capex_credit_cycle_empirical_demo.jl](../../test/test_capex_credit_cycle_empirical_demo.jl) が検証する。合成データでは `NC-2`（`emp_tot` の深さ閾値）が僅かに届かず、本デモの合成 episode は `:excluded` となる（`assess_capex_episodes` 自体は #247 で別途検証済み）。 |
 
 ---
 
