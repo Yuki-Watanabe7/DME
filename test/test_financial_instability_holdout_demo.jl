@@ -62,4 +62,79 @@ include(FIH_DEMO_SCRIPT_PATH)
         out = run_financial_instability_holdout_demo(; outdir = dir, verbose = false)
         @test out.assessment.overall_status in FINANCIAL_INSTABILITY_STATUSES
     end
+
+    @testset "run_manifest.json（Issue #271 Part A）" begin
+        dir = mktempdir()
+        out = run_financial_instability_holdout_demo(; outdir = dir, verbose = false)
+        @test isfile(out.manifest_path)
+        @test filesize(out.manifest_path) > 0
+
+        m = out.manifest
+        @test m["data_mode"] == "fixture"
+        @test m["dme_code_revision"] isa String
+        @test !isempty(m["dme_code_revision"])
+        @test m["rule_version"] == out.assessment.thresholds.version
+        @test m["assessment_version"] == out.assessment.version
+        @test m["financial_stress_catalog_version"] isa String
+
+        d = financial_instability_assessment_to_dict(out.assessment)
+        @test m["assessment_identity_hash"] == d["identity_hash"]
+
+        window = m["observation_window"]
+        @test window["from_date"] == out.assessment.from_date
+        @test window["to_date"] == out.assessment.to_date
+        @test window["auto_selected"] == false
+        @test window["selection_rule"] isa String
+        @test !isempty(window["selection_rule"])
+
+        provenance = m["series_provenance"]
+        @test length(provenance) == 10  # EDP8系列 + NFCI + SLOOS
+        keys_seen = Set(entry["key"] for entry in provenance)
+        @test keys_seen == Set([
+            "long_nominal_yield", "long_real_yield", "inflation_compensation",
+            "ccc_oas", "broad_hy_oas", "sofr", "tgcr", "iorb", "NFCI", "DRTSCILM",
+        ])
+        for entry in provenance
+            @test entry["status"] in ("ok", "missing_series", "provider_error", "invalid_response")
+            @test entry["mode"] == "fixture"
+        end
+
+        # liveでない実行では EDP identity を取りに行かない
+        @test m["edp_identity"] === nothing
+    end
+
+    @testset "select_observation_window（Issue #271 Part A の観測ウィンドウ選定ルール）" begin
+        raw = build_financial_stress_raw_dataset(;
+            client = DataProviderClient(; mode = :fixture, fixture_dir = _fih_demo_fixture_dir()),
+        )
+
+        @testset "通常ケース: cutoffちょうどの日付が両端とも存在する" begin
+            w = select_observation_window(raw; to_date_cutoff = "2026-09-04", lookback_days = 7)
+            @test w.to_date == "2026-09-04"
+            @test w.from_date == "2026-08-28"
+        end
+
+        @testset "cutoffが非営業日: 直前の実観測日へ遡る" begin
+            w = select_observation_window(raw; to_date_cutoff = "2026-08-30", lookback_days = 1)
+            @test w.to_date == "2026-08-28"
+        end
+
+        @testset "lookback_daysが観測期間より長い場合はArgumentError" begin
+            @test_throws ArgumentError select_observation_window(
+                raw; to_date_cutoff = "2026-09-04", lookback_days = 28,
+            )
+        end
+
+        @testset "lookback_daysは正でなければならない" begin
+            @test_throws ArgumentError select_observation_window(raw; lookback_days = 0)
+        end
+    end
+
+    @testset "run_financial_instability_holdout_live_snapshot はDME_DATA_MODE=liveを要求する" begin
+        @test get(ENV, "DME_DATA_MODE", "") != "live"
+        dir = mktempdir()
+        @test_throws ArgumentError run_financial_instability_holdout_live_snapshot(;
+            outdir = dir, verbose = false,
+        )
+    end
 end
