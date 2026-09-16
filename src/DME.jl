@@ -90,6 +90,20 @@ export
     assess_financial_instability,
     financial_instability_assessment_to_dict,
     save_financial_instability_assessment,
+    # pre/post-FOMC financial-instability holdout比較・handoff（Issue #271 Part C・Part D）
+    FINANCIAL_INSTABILITY_COMPARISON_VERSION,
+    FINANCIAL_INSTABILITY_COMPARISON_CONCLUSIONS,
+    FINANCIAL_INSTABILITY_COMPARISON_CAVEATS,
+    DimensionComparison,
+    FinancialInstabilityComparison,
+    compare_financial_instability_assessments,
+    financial_instability_comparison_to_dict,
+    save_financial_instability_comparison,
+    FINANCIAL_INSTABILITY_HANDOFF_CLASSIFICATION,
+    FinancialInstabilityHandoff,
+    build_financial_instability_handoff,
+    financial_instability_handoff_to_dict,
+    save_financial_instability_handoff,
     # CCC empirical catalog (Issue #241 / P-1)
     CAPEX_CC_EMPIRICAL_INTEGRATION_VERSION,
     CAPEX_CC_SERIES_ROLES,
@@ -884,6 +898,11 @@ include("./analysis/financial_stress_diagnostics.jl")
 # analysis/financial_stress_diagnostics.jl。CCC・Keenのモデル実行には依存しない
 # （model_amplification_state・minsky_diagnostic_stateは静的citation）、Issue #260 Part D）
 include("./analysis/financial_instability_holdout.jl")
+
+# pre/post-FOMC financial-instability holdout比較 + finance-checker handoff artifact
+# （depends on analysis/financial_instability_holdout.jl の assessment dict契約のみ。新規の
+# EDP/FRED fetchを行わない読み取り専用層、Issue #271 Part C・Part D）
+include("./analysis/financial_instability_comparison.jl")
 
 # 部門別CAPEX・信用循環モデルの会計層（depends on CapexCreditCycleModel・sfc/types.jl・
 # sfc_accounting.jl。会計表構築 + 会計恒等式検証 12 項目。`SFCResult` は返さない）
