@@ -1,7 +1,8 @@
 # examples/financial_instability_holdout_demo.jl
 #
 # 2026-09 financial-instability live holdoutデモ（Issue #260 Part D）+
-# pre-FOMC canonical live snapshot（Issue #271 Part A）
+# pre-FOMC canonical live snapshot（Issue #271 Part A）+
+# post-FOMC比較・finance-checker handoff（Issue #271 Part B・Part C・Part D）
 #
 # Part A（src/scenarios/long_rate_funding_shock.jl）・Part B
 # （src/data/financial_stress_provider.jl・financial_stress_diagnostics.jl）・Part D
@@ -515,6 +516,174 @@ function run_financial_instability_holdout_live_snapshot(;
         to_date = nothing,
         lookback_days = lookback_days,
         verbose = verbose,
+    )
+end
+
+# ─────────────────────────────────────────────────────────────────
+# post-FOMC比較・finance-checker handoff（Issue #271 Part B・Part C・Part D）
+# ─────────────────────────────────────────────────────────────────
+
+"""`dir` に保存済みの `assessment.json`/`run_manifest.json`（`run_financial_instability_holdout_demo`
+が保存した形）を `Dict{String,Any}` として読み込む。新規のEDP/FRED fetchを行わない。"""
+function _fih_load_snapshot_dicts(dir::AbstractString)
+    assessment = JSON3.read(read(joinpath(dir, "assessment.json"), String), Dict{String, Any})
+    manifest = JSON3.read(read(joinpath(dir, "run_manifest.json"), String), Dict{String, Any})
+    return (assessment = assessment, manifest = manifest)
+end
+
+_fic_fmt_diff(d::Dict{String, Any}, key::String = "delta") =
+    d[key] === nothing ? "N/A" : string(round(d[key]; digits = 1))
+_fic_fmt_num(v) = v === nothing ? "N/A" : string(round(v; digits = 1))
+_fic_fmt_tuple_value(t) = t === nothing ? "N/A" : "$(round(t["value"]; digits = 1)) ($(t["date"]))"
+
+function _fih_write_comparison_report(
+    path::AbstractString,
+    comparison::FinancialInstabilityComparison,
+    handoff::FinancialInstabilityHandoff,
+)
+    open(path, "w") do io
+        println(io, "# 2026-09 Financial-Instability Live Holdout — pre/post-FOMC比較\n")
+        println(
+            io,
+            "pre: $(comparison.pre_window["from_date"]) → $(comparison.pre_window["to_date"])" *
+            "（$(comparison.pre_data_mode)）",
+        )
+        println(
+            io,
+            "post: $(comparison.post_window["from_date"]) → $(comparison.post_window["to_date"])" *
+            "（$(comparison.post_data_mode)）\n",
+        )
+        println(io, "## 結論\n")
+        println(io, "- `conclusion`: **$(comparison.conclusion)**")
+        println(io, "- 根拠: $(comparison.conclusion_reason)\n")
+        println(io, "## overall_status の遷移\n")
+        println(
+            io,
+            "- $(comparison.pre_overall_status) → $(comparison.post_overall_status)" *
+            "（changed=$(comparison.overall_status_changed)）",
+        )
+        println(io, "- pre evidence: $(join(comparison.pre_overall_evidence, ", "))")
+        println(io, "- post evidence: $(join(comparison.post_overall_evidence, ", "))\n")
+        println(io, "## version 整合性\n")
+        vc = comparison.version_consistency
+        println(io, "- all_semantic_versions_match: **$(vc["all_semantic_versions_match"])**")
+        println(
+            io,
+            "- dme_code_revision: $(vc["dme_code_revision"]["pre"]) → " *
+            "$(vc["dme_code_revision"]["post"])（match=$(vc["dme_code_revision"]["match"])）\n",
+        )
+        println(io, "## dimension別 label 遷移\n")
+        println(io, "| dimension | pre | post | changed |")
+        println(io, "|---|---|---|---|")
+        for d in comparison.dimensions
+            println(io, "| $(d.dimension) | $(d.pre_label) | $(d.post_label) | $(d.label_changed) |")
+        end
+        println(io, "\n## 主要指標の変化（bp）\n")
+        t = only(filter(d -> d.dimension == :trigger_state, comparison.dimensions)).values
+        w = only(filter(d -> d.dimension == :weak_credit_state, comparison.dimensions)).values
+        f = only(filter(d -> d.dimension == :funding_state, comparison.dimensions)).values
+        println(io, "| 指標 | pre→post | delta |")
+        println(io, "|---|---|---|")
+        println(
+            io,
+            "| long_nominal_yield_shift_bps | " *
+            "$(_fic_fmt_num(t["long_nominal_yield_shift_bps"]["pre"]))→" *
+            "$(_fic_fmt_num(t["long_nominal_yield_shift_bps"]["post"])) | " *
+            "$(_fic_fmt_diff(t["long_nominal_yield_shift_bps"])) |",
+        )
+        println(
+            io,
+            "| divergence_shift_bps（CCC-broad HY） | " *
+            "$(_fic_fmt_num(w["divergence_shift_bps"]["pre"]))→" *
+            "$(_fic_fmt_num(w["divergence_shift_bps"]["post"])) | " *
+            "$(_fic_fmt_diff(w["divergence_shift_bps"])) |",
+        )
+        println(
+            io,
+            "| sofr_minus_iorb_latest_bps | " *
+            "$(_fic_fmt_tuple_value(f["sofr_minus_iorb_latest_bps"]["pre"]))→" *
+            "$(_fic_fmt_tuple_value(f["sofr_minus_iorb_latest_bps"]["post"])) | " *
+            "$(_fic_fmt_diff(f["sofr_minus_iorb_latest_bps"], "value_delta")) |",
+        )
+        println(io, "\n## unavailable evidence\n")
+        if isempty(handoff.unavailable_evidence)
+            println(io, "（なし。全系列 status=ok）")
+        else
+            for n in handoff.unavailable_evidence
+                println(io, "- $n")
+            end
+        end
+        println(io, "\n## 注意事項\n")
+        for note in comparison.caveats
+            println(io, "- $note")
+        end
+        println(io, "\n## データの位置づけ（Issue #271 Part D）\n")
+        for (k, v) in handoff.classification
+            println(io, "- **$k**: $v")
+        end
+    end
+    return path
+end
+
+"""
+    run_financial_instability_post_fomc_comparison(; pre_dir, outdir,
+        lookback_days = FIH_DEFAULT_LOOKBACK_DAYS, verbose = true) -> NamedTuple
+
+Issue #271 Part B（post-FOMC live snapshot再実行）・Part C（pre/post比較）・Part D
+（finance-checker handoff artifact）をまとめて実行する。
+
+`pre_dir`（`run_financial_instability_holdout_live_snapshot` が保存した既存ディレクトリ、
+Part Aの成果物）を読み込み、`DME_DATA_MODE=live` の下で新たに
+`run_financial_instability_holdout_live_snapshot` を実行して post snapshot を作る。
+pre-FOMCと同じ `lookback_days`（既定 `FIH_DEFAULT_LOOKBACK_DAYS`）を使うことで、
+parameter/threshold/selection ruleを変更しない（Issue #271 Post-FOMC受け入れ条件）。
+
+保存する成果物（`outdir`）:
+- `assessment.json`/`report.md`/`run_manifest.json`（post snapshot本体、
+  `run_financial_instability_holdout_live_snapshot` と同じ形）
+- `comparison.json`（Part C、`financial_instability_comparison_to_dict`）
+- `handoff.json`（Part D、`financial_instability_handoff_to_dict`）
+- `comparison_report.md`（人が読むpre/post比較サマリー）
+"""
+function run_financial_instability_post_fomc_comparison(;
+    pre_dir::AbstractString,
+    outdir::AbstractString,
+    lookback_days::Int = FIH_DEFAULT_LOOKBACK_DAYS,
+    verbose::Bool = true,
+)
+    pre = _fih_load_snapshot_dicts(pre_dir)
+
+    post = run_financial_instability_holdout_live_snapshot(;
+        outdir = outdir, lookback_days = lookback_days, verbose = verbose,
+    )
+    post_assessment = financial_instability_assessment_to_dict(post.assessment)
+    post_manifest = post.manifest
+
+    comparison = compare_financial_instability_assessments(
+        pre.assessment, pre.manifest, post_assessment, post_manifest,
+    )
+    comparison_path = save_financial_instability_comparison(joinpath(outdir, "comparison.json"), comparison)
+
+    handoff = build_financial_instability_handoff(pre.assessment, pre.manifest, post_assessment, post_manifest)
+    handoff_path = save_financial_instability_handoff(joinpath(outdir, "handoff.json"), handoff)
+
+    report_path = _fih_write_comparison_report(
+        joinpath(outdir, "comparison_report.md"), comparison, handoff,
+    )
+
+    verbose && println(
+        "conclusion = $(comparison.conclusion)（$(comparison.pre_overall_status) → " *
+        "$(comparison.post_overall_status)）",
+    )
+
+    return (
+        outdir = outdir,
+        post = post,
+        comparison = comparison,
+        comparison_path = comparison_path,
+        handoff = handoff,
+        handoff_path = handoff_path,
+        comparison_report_path = report_path,
     )
 end
 

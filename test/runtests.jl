@@ -15,6 +15,7 @@ const DME_TEST_FILES = [
     "test_financial_stress_provider.jl",
     "test_financial_stress_diagnostics.jl",
     "test_financial_instability_holdout.jl",
+    "test_financial_instability_comparison.jl",
     "test_keen_calibration.jl",
     "test_keen_validation.jl",
     "test_ramsey.jl",

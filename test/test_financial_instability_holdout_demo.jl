@@ -137,4 +137,55 @@ include(FIH_DEMO_SCRIPT_PATH)
             outdir = dir, verbose = false,
         )
     end
+
+    @testset "post-FOMC比較（Issue #271 Part B・C・D）" begin
+        @testset "run_financial_instability_post_fomc_comparison もDME_DATA_MODE=liveを要求する" begin
+            @test get(ENV, "DME_DATA_MODE", "") != "live"
+            pre_dir = mktempdir()
+            run_financial_instability_holdout_demo(; outdir = pre_dir, verbose = false)
+            @test_throws ArgumentError run_financial_instability_post_fomc_comparison(;
+                pre_dir = pre_dir, outdir = mktempdir(), verbose = false,
+            )
+        end
+
+        @testset "_fih_load_snapshot_dicts は保存済みassessment.json/run_manifest.jsonを読める" begin
+            dir = mktempdir()
+            out = run_financial_instability_holdout_demo(; outdir = dir, verbose = false)
+            loaded = _fih_load_snapshot_dicts(dir)
+            @test loaded.assessment["identity_hash"] == out.manifest["assessment_identity_hash"]
+            @test loaded.manifest["dme_code_revision"] == out.manifest["dme_code_revision"]
+        end
+
+        @testset "compare_financial_instability_assessments + handoff + report（2つの保存済みsnapshotから）" begin
+            pre_dir = mktempdir()
+            post_dir = mktempdir()
+            run_financial_instability_holdout_demo(;
+                outdir = pre_dir, from_date = "2026-08-25", to_date = "2026-08-28", verbose = false,
+            )
+            post_out = run_financial_instability_holdout_demo(;
+                outdir = post_dir, from_date = "2026-08-25", to_date = "2026-09-04", verbose = false,
+            )
+            pre = _fih_load_snapshot_dicts(pre_dir)
+            post_assessment = financial_instability_assessment_to_dict(post_out.assessment)
+            comparison = compare_financial_instability_assessments(
+                pre.assessment, pre.manifest, post_assessment, post_out.manifest,
+            )
+            @test comparison.conclusion in FINANCIAL_INSTABILITY_COMPARISON_CONCLUSIONS
+            @test comparison.pre_window["to_date"] == "2026-08-28"
+            @test comparison.post_window["to_date"] == "2026-09-04"
+
+            handoff = build_financial_instability_handoff(
+                pre.assessment, pre.manifest, post_assessment, post_out.manifest,
+            )
+            report_path = _fih_write_comparison_report(
+                joinpath(post_dir, "comparison_report.md"), comparison, handoff,
+            )
+            @test isfile(report_path)
+            report = read(report_path, String)
+            @test occursin("危機確率", report)
+            @test occursin("投資判断", report)
+            @test occursin(string(comparison.conclusion), report)
+            @test occursin("unverified_economic_interpretation", report)
+        end
+    end
 end
