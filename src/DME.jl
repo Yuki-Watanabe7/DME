@@ -218,6 +218,46 @@ export
     FUNDING_SHOCK_PASS_THROUGH_VERSION,
     funding_shock_magnitude_bps,
     long_rate_funding_scenario_assumption,
+    # Japan Fiscal Scenario Lab: scenario family × model capability / mapping contract
+    # （src/scenarios/japan_fiscal_capability.jl、Issue #274）
+    JAPAN_FISCAL_CAPABILITY_CONTRACT_VERSION,
+    JAPAN_FISCAL_SCENARIO_FAMILIES,
+    JAPAN_FISCAL_ASSUMPTION_CONCEPTS,
+    JAPAN_FISCAL_OUTPUT_CONCEPTS,
+    JAPAN_FISCAL_REPRESENTABILITY,
+    JAPAN_FISCAL_ADOPTIONS,
+    JAPAN_FISCAL_INPUT_KINDS,
+    JAPAN_FISCAL_HORIZONS,
+    JAPAN_FISCAL_CALIBRATION_BASES,
+    JAPAN_FISCAL_CLAIM_LEVELS,
+    JAPAN_FISCAL_GAP_RESOLUTIONS,
+    JAPAN_FISCAL_CANDIDATE_MODELS,
+    JAPAN_FISCAL_FRE_CONTEXT_ROLE,
+    JAPAN_FISCAL_FORBIDDEN_MAGNITUDE_SOURCES,
+    JAPAN_FISCAL_FORBIDDEN_MAGNITUDE_INPUT_FIELDS,
+    JAPAN_FISCAL_ASSUMPTION_CONCEPT_REGISTRY,
+    JAPAN_FISCAL_FAMILY_REGISTRY,
+    JAPAN_FISCAL_MODEL_MAPPINGS,
+    JAPAN_FISCAL_GAP_REGISTER,
+    JapanFiscalAssumptionConcept,
+    JapanFiscalInputMapping,
+    JapanFiscalModelMapping,
+    JapanFiscalScenarioFamilySpec,
+    JapanFiscalGap,
+    japan_fiscal_scenario_families,
+    japan_fiscal_family_spec,
+    japan_fiscal_assumption_concept,
+    japan_fiscal_magnitude_source_allowed,
+    japan_fiscal_accepted_concepts,
+    japan_fiscal_unsupported_concepts,
+    japan_fiscal_unsupported_outputs,
+    japan_fiscal_model_mappings,
+    japan_fiscal_model_mapping,
+    japan_fiscal_representability,
+    japan_fiscal_implementation_candidates,
+    japan_fiscal_capability_matrix,
+    japan_fiscal_gaps,
+    japan_fiscal_gap,
     # CCC: 構築・較正（部門別CAPEX・信用循環モデル、src/models/capex_credit_cycle.jl）
     CAPEX_CREDIT_CYCLE_MODEL_VERSION,
     CapexCreditCycleTargets,
@@ -857,6 +897,13 @@ include("./core/model_capabilities.jl")
 # 比較 API v2（#150 / Phase 5。日付・単位・概念対応・比較可能性を明示。
 # model_capabilities.jl の概念定義 registry に依存。v1 compare.jl は非破壊）
 include("./core/compare_v2.jl")
+
+# Japan Fiscal Scenario Lab の capability / mapping contract（Issue #274 / Phase 3）。
+# 宣言のみ（scenario catalog・adapter・runner は後続 Issue）。
+# scenarios/macro_events.jl の語彙定数（MACRO_EVENT_TARGET_CONCEPTS・
+# MACRO_EVENT_MAGNITUDE_SOURCES）と to_dict/to_json 規約に依存するため、
+# core/model_capabilities.jl と同じ並びのここで include する。
+include("./scenarios/japan_fiscal_capability.jl")
 
 # DME real-rate model artifact（Issue #159 / economic-data-provider ADR 006 準拠。
 # depends on NewKeynesianModel, JSON3, SHA）
