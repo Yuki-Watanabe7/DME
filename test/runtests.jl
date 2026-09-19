@@ -58,6 +58,7 @@ const DME_TEST_FILES = [
     "test_capex_credit_cycle_visualization.jl",
     "test_capex_event_adapter.jl",
     "test_japan_fiscal_capability.jl",
+    "test_japan_fiscal_claim_contract.jl",
     "test_scenario_runner.jl",
     "test_scenario_serialization.jl",
     "test_scenario_diagnostics.jl",

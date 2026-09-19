@@ -258,6 +258,40 @@ export
     japan_fiscal_capability_matrix,
     japan_fiscal_gaps,
     japan_fiscal_gap,
+    # Japan Fiscal Scenario Lab: claim-level / coverage 契約（downstream 伝播）
+    # （src/scenarios/japan_fiscal_claim_contract.jl、Issue #285）
+    JAPAN_FISCAL_CLAIM_CONTRACT_VERSION,
+    JAPAN_FISCAL_DIAGNOSTICS,
+    JAPAN_FISCAL_NUMERIC_SEMANTICS,
+    JAPAN_FISCAL_CALIBRATION_GEOGRAPHIES,
+    JAPAN_FISCAL_CHANNEL_STATUSES,
+    JAPAN_FISCAL_FORBIDDEN_CLAIM_KINDS,
+    JAPAN_FISCAL_FORBIDDEN_CLAIM_REASONS,
+    JAPAN_FISCAL_HANDOFF_AUDIENCES,
+    JAPAN_FISCAL_CLAIM_VIOLATION_CODES,
+    JAPAN_FISCAL_CLAIM_LEVEL_REGISTRY,
+    JAPAN_FISCAL_CHANNEL_REGISTRY,
+    JAPAN_FISCAL_HANDOFF_REQUIREMENTS,
+    JAPAN_FISCAL_CLAIM_UPGRADE_RULE,
+    JapanFiscalClaimLevelSpec,
+    JapanFiscalChannel,
+    JapanFiscalCoverage,
+    JapanFiscalClaimViolation,
+    JapanFiscalHandoffRequirement,
+    JapanFiscalClaimUpgradeRule,
+    japan_fiscal_claim_level_spec,
+    japan_fiscal_claim_level_permits,
+    japan_fiscal_forbidden_diagnostics,
+    japan_fiscal_calibration_geography,
+    japan_fiscal_channels,
+    japan_fiscal_channel,
+    japan_fiscal_coverage,
+    japan_fiscal_coverages,
+    japan_fiscal_numeric_semantics_rank,
+    japan_fiscal_forbidden_claims,
+    japan_fiscal_validate_claims,
+    japan_fiscal_handoff_requirements,
+    japan_fiscal_downstream_contract,
     # CCC: 構築・較正（部門別CAPEX・信用循環モデル、src/models/capex_credit_cycle.jl）
     CAPEX_CREDIT_CYCLE_MODEL_VERSION,
     CapexCreditCycleTargets,
@@ -904,6 +938,12 @@ include("./core/compare_v2.jl")
 # MACRO_EVENT_MAGNITUDE_SOURCES）と to_dict/to_json 規約に依存するため、
 # core/model_capabilities.jl と同じ並びのここで include する。
 include("./scenarios/japan_fiscal_capability.jl")
+
+# #274 の capability findings を downstream（#275 の scenario schema・#276 の result
+# artifact・Market Analyzer consumer）へ伝播する claim-level / coverage 契約
+# （Issue #285）。japan_fiscal_capability.jl の registry・照会 API に依存するため、
+# その直後に include する。
+include("./scenarios/japan_fiscal_claim_contract.jl")
 
 # DME real-rate model artifact（Issue #159 / economic-data-provider ADR 006 準拠。
 # depends on NewKeynesianModel, JSON3, SHA）
