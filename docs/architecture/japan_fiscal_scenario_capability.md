@@ -6,6 +6,7 @@ Japan Fiscal Scenario Lab（[Issue #273](https://github.com/Yuki-Watanabe7/DME/i
 model adapter / runner（#276）・E2E / consumer artifact（#277）はこの判定を前提に進める。
 
 > 関連: [ADR 0020](../adr/0020-japan-fiscal-scenario-capability-contract.md)（決定記録）・
+> [claim-level / coverage 契約](japan_fiscal_claim_level_contract.md)（本判定の downstream 伝播。Issue #285）・
 > [モデル能力・概念定義 metadata](../model_capabilities.md)・
 > [マクロイベント変換契約](macro_event_contract.md)・
 > [ADR 0019](../adr/0019-long-rate-funding-shock-contract.md)（長期金利・funding-cost shock）・
@@ -414,6 +415,10 @@ Phase 3 では解消しない。`followup_issue` は後続 Issue の候補、`ou
 
 `japan_fiscal_capability_matrix()` は契約全体を 1 つの `Dict{String,Any}` として返す。
 Market Analyzer は Julia 内部型を import せず、この matrix と #276 の result artifact のみを consume する。
+
+本判定が artifact と consumer へ届くことは、[claim-level / coverage 契約](japan_fiscal_claim_level_contract.md)
+（Issue #285）が `claim_level` の意味論・因果チャネルの被覆・downstream handoff requirements 22 件・
+実行時検証（`japan_fiscal_validate_claims`）として固定する。
 
 ---
 
