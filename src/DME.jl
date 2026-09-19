@@ -292,6 +292,27 @@ export
     japan_fiscal_validate_claims,
     japan_fiscal_handoff_requirements,
     japan_fiscal_downstream_contract,
+    # Japan Fiscal Scenario Lab: scenario catalog・explicit assumption schema・
+    # FRE context contract（src/scenarios/japan_fiscal_scenario_schema.jl、Issue #275）
+    JAPAN_FISCAL_SCENARIO_SCHEMA_VERSION,
+    JAPAN_FISCAL_FRE_REGIME_DETERMINATIONS,
+    JAPAN_FISCAL_ASSUMPTION_SOURCES,
+    JapanFiscalFREContext,
+    JapanFiscalScenarioAssumption,
+    JapanFiscalScenarioProvenance,
+    JapanFiscalScenario,
+    JapanFiscalScenarioCatalogEntry,
+    japan_fiscal_assumption_direction,
+    japan_fiscal_assumption_unit,
+    japan_fiscal_fre_context_identity,
+    japan_fiscal_assumption_set_hash,
+    japan_fiscal_scenario_content_hash,
+    japan_fiscal_scenario_catalog_entry,
+    japan_fiscal_scenario_catalog,
+    japan_fiscal_scenario_schema_contract,
+    japan_fiscal_fre_context_from_dict,
+    japan_fiscal_assumption_from_dict,
+    japan_fiscal_scenario_from_dict,
     # CCC: 構築・較正（部門別CAPEX・信用循環モデル、src/models/capex_credit_cycle.jl）
     CAPEX_CREDIT_CYCLE_MODEL_VERSION,
     CapexCreditCycleTargets,
@@ -948,6 +969,13 @@ include("./scenarios/japan_fiscal_claim_contract.jl")
 # DME real-rate model artifact（Issue #159 / economic-data-provider ADR 006 準拠。
 # depends on NewKeynesianModel, JSON3, SHA）
 include("./artifacts/json_canonical.jl")
+
+# Japan Fiscal Scenario Lab: scenario catalog・explicit assumption schema・FRE context
+# contract（Issue #275 / Phase 3）。japan_fiscal_capability.jl（#274）・
+# japan_fiscal_claim_contract.jl（#285）の registry・照会 API と、
+# artifacts/json_canonical.jl（sha256_hex_of_canonical）に依存するため、その直後に include する。
+include("./scenarios/japan_fiscal_scenario_schema.jl")
+
 include("./artifacts/real_rate_model_artifact.jl")
 include("./artifacts/real_rate_model_artifact_export.jl")
 
