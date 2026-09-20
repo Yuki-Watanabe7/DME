@@ -12,7 +12,10 @@
 using Test
 using DME
 using Dates
-using JSON3
+# JSON3 は test/Project.toml の直接依存ではない（DME 本体のみが依存する）ため、
+# `using JSON3` ではなく `DME.JSON3` を alias する（test_scenario_serialization.jl・
+# test_quality_export.jl と同じ idiom）。
+const JSON3 = DME.JSON3
 
 @testset "Japan fiscal scenario catalog / assumption schema / FRE context 契約（Issue #275）" begin
 

@@ -71,8 +71,11 @@ const JAPAN_FISCAL_ASSUMPTION_SOURCES = (:user, :preset, :fixture, :analysis)
 # ===========================================================================
 
 function _jf_require_nonempty(label::AbstractString, value::AbstractString)
-    isempty(value) &&
-        throw(ArgumentError("$label は空文字であってはいけません（Japan fiscal scenario schema契約）"))
+    isempty(value) && throw(
+        ArgumentError(
+            "$label は空文字であってはいけません（Japan fiscal scenario schema契約）",
+        ),
+    )
     return nothing
 end
 
@@ -354,10 +357,7 @@ struct JapanFiscalScenarioProvenance
         created_by::AbstractString = "",
     )
         _jf_check(assumption_source, JAPAN_FISCAL_ASSUMPTION_SOURCES, "assumption_source")
-        _jf_require_nonempty(
-            "JapanFiscalScenarioProvenance.schema_version",
-            schema_version,
-        )
+        _jf_require_nonempty("JapanFiscalScenarioProvenance.schema_version", schema_version)
         return new(
             String(schema_version),
             String(capability_contract_version),
@@ -487,8 +487,9 @@ function japan_fiscal_scenario_content_hash(scenario::JapanFiscalScenario)::Stri
         "scenario_id" => scenario.scenario_id,
         "family" => String(scenario.family),
         "name" => scenario.name,
-        "fre_context_identity" => scenario.fre_context === nothing ? nothing :
-                                   japan_fiscal_fre_context_identity(scenario.fre_context),
+        "fre_context_identity" =>
+            scenario.fre_context === nothing ? nothing :
+            japan_fiscal_fre_context_identity(scenario.fre_context),
         "assumption_set_hash" => japan_fiscal_assumption_set_hash(scenario),
         "provenance" => Dict{String, Any}(
             "schema_version" => p.schema_version,
@@ -549,7 +550,9 @@ end
 
 `family` の catalog entry を #274/#285 の registry から構築する。
 """
-function japan_fiscal_scenario_catalog_entry(family::Symbol)::JapanFiscalScenarioCatalogEntry
+function japan_fiscal_scenario_catalog_entry(
+    family::Symbol,
+)::JapanFiscalScenarioCatalogEntry
     _jf_check(family, JAPAN_FISCAL_SCENARIO_FAMILIES, "scenario family")
     spec = japan_fiscal_family_spec(family)
     concept_units = Dict{String, String}(
@@ -565,8 +568,10 @@ function japan_fiscal_scenario_catalog_entry(family::Symbol)::JapanFiscalScenari
             inp.horizon in horizons || push!(horizons, inp.horizon)
         end
     end
-    unsupported_ids =
-        Symbol[c.channel_id for c in japan_fiscal_channels(; family = family, status = :unsupported)]
+    unsupported_ids = Symbol[
+        c.channel_id for
+        c in japan_fiscal_channels(; family = family, status = :unsupported)
+    ]
     return JapanFiscalScenarioCatalogEntry(
         family,
         spec.display_name,
@@ -661,8 +666,9 @@ to_dict(p::JapanFiscalScenarioProvenance) = Dict{String, Any}(
     "capability_contract_version" => p.capability_contract_version,
     "claim_contract_version" => p.claim_contract_version,
     "assumption_source" => String(p.assumption_source),
-    "created_at" => p.created_at === nothing ? nothing :
-                    Dates.format(p.created_at, dateformat"yyyy-mm-ddTHH:MM:SS") * "Z",
+    "created_at" =>
+        p.created_at === nothing ? nothing :
+        Dates.format(p.created_at, dateformat"yyyy-mm-ddTHH:MM:SS") * "Z",
     "created_by" => p.created_by,
 )
 
@@ -673,8 +679,9 @@ function to_dict(s::JapanFiscalScenario)
         "name" => s.name,
         "notes" => s.notes,
         "fre_context" => s.fre_context === nothing ? nothing : to_dict(s.fre_context),
-        "fre_context_identity" => s.fre_context === nothing ? nothing :
-                                   japan_fiscal_fre_context_identity(s.fre_context),
+        "fre_context_identity" =>
+            s.fre_context === nothing ? nothing :
+            japan_fiscal_fre_context_identity(s.fre_context),
         "assumptions" => [to_dict(a) for a in s.assumptions],
         "assumption_set_hash" => japan_fiscal_assumption_set_hash(s),
         "provenance" => to_dict(s.provenance),
@@ -719,9 +726,8 @@ function _jf_check_keys(label::AbstractString, d::AbstractDict, required)
     expected = Set(String(k) for k in required)
     missing_keys = sort(collect(setdiff(expected, present)))
     extra_keys = sort(collect(setdiff(present, expected)))
-    isempty(missing_keys) || throw(
-        ArgumentError("$(label): 必須フィールドが欠落しています: $(missing_keys)"),
-    )
+    isempty(missing_keys) ||
+        throw(ArgumentError("$(label): 必須フィールドが欠落しています: $(missing_keys)"))
     isempty(extra_keys) ||
         throw(ArgumentError("$(label): 未知のキーが含まれています: $(extra_keys)"))
     return nothing
@@ -756,10 +762,21 @@ function japan_fiscal_fre_context_from_dict(d::AbstractDict)::JapanFiscalFRECont
         "JapanFiscalFREContext",
         d,
         (
-            "snapshot_id", "as_of", "vintage_basis", "regime_determination",
-            "primary_regime", "regime_affinity", "regime_share", "regime_confidence",
-            "dimension_score", "constraint_pressure", "dominant_drivers",
-            "data_quality_score", "methodology_version", "policy_version", "notes",
+            "snapshot_id",
+            "as_of",
+            "vintage_basis",
+            "regime_determination",
+            "primary_regime",
+            "regime_affinity",
+            "regime_share",
+            "regime_confidence",
+            "dimension_score",
+            "constraint_pressure",
+            "dominant_drivers",
+            "data_quality_score",
+            "methodology_version",
+            "policy_version",
+            "notes",
             "context_identity",
         ),
     )
@@ -771,13 +788,18 @@ function japan_fiscal_fre_context_from_dict(d::AbstractDict)::JapanFiscalFRECont
             d["regime_determination"],
             "regime_determination",
         ),
-        primary_regime = _jf_as_optional(_jf_as_string, d["primary_regime"], "primary_regime"),
+        primary_regime = _jf_as_optional(
+            _jf_as_string,
+            d["primary_regime"],
+            "primary_regime",
+        ),
         regime_affinity = Dict{String, Float64}(
             String(k) => _jf_as_float(v, "regime_affinity[$k]") for
             (k, v) in d["regime_affinity"]
         ),
         regime_share = Dict{String, Float64}(
-            String(k) => _jf_as_float(v, "regime_share[$k]") for (k, v) in d["regime_share"]
+            String(k) => _jf_as_float(v, "regime_share[$k]") for
+            (k, v) in d["regime_share"]
         ),
         regime_confidence = _jf_as_optional(
             _jf_as_float,
@@ -830,7 +852,15 @@ function japan_fiscal_assumption_from_dict(d::AbstractDict)::JapanFiscalScenario
     _jf_check_keys(
         "JapanFiscalScenarioAssumption",
         d,
-        ("assumption_id", "concept", "unit", "magnitude", "direction", "magnitude_source", "notes"),
+        (
+            "assumption_id",
+            "concept",
+            "unit",
+            "magnitude",
+            "direction",
+            "magnitude_source",
+            "notes",
+        ),
     )
     a = JapanFiscalScenarioAssumption(;
         assumption_id = _jf_as_string(d["assumption_id"], "assumption_id"),
@@ -861,8 +891,12 @@ function _jf_provenance_from_dict(d::AbstractDict)::JapanFiscalScenarioProvenanc
         "JapanFiscalScenarioProvenance",
         d,
         (
-            "schema_version", "capability_contract_version", "claim_contract_version",
-            "assumption_source", "created_at", "created_by",
+            "schema_version",
+            "capability_contract_version",
+            "claim_contract_version",
+            "assumption_source",
+            "created_at",
+            "created_by",
         ),
     )
     return JapanFiscalScenarioProvenance(;
@@ -894,12 +928,21 @@ function japan_fiscal_scenario_from_dict(d::AbstractDict)::JapanFiscalScenario
         "JapanFiscalScenario",
         d,
         (
-            "scenario_id", "family", "name", "notes", "fre_context", "fre_context_identity",
-            "assumptions", "assumption_set_hash", "provenance", "content_hash",
+            "scenario_id",
+            "family",
+            "name",
+            "notes",
+            "fre_context",
+            "fre_context_identity",
+            "assumptions",
+            "assumption_set_hash",
+            "provenance",
+            "content_hash",
         ),
     )
-    fre_context = d["fre_context"] === nothing ? nothing :
-                  japan_fiscal_fre_context_from_dict(d["fre_context"])
+    fre_context =
+        d["fre_context"] === nothing ? nothing :
+        japan_fiscal_fre_context_from_dict(d["fre_context"])
     assumptions_d = d["assumptions"]
     assumptions_d isa AbstractVector ||
         throw(ArgumentError("JapanFiscalScenario.assumptions は配列でなければなりません"))
@@ -916,26 +959,24 @@ function japan_fiscal_scenario_from_dict(d::AbstractDict)::JapanFiscalScenario
         notes = _jf_as_string(d["notes"], "notes"),
     )
 
-    expected_fre_identity = _jf_as_optional(
-        _jf_as_string,
-        d["fre_context_identity"],
-        "fre_context_identity",
-    )
-    recomputed_fre_identity = scenario.fre_context === nothing ? nothing :
-                               japan_fiscal_fre_context_identity(scenario.fre_context)
+    expected_fre_identity =
+        _jf_as_optional(_jf_as_string, d["fre_context_identity"], "fre_context_identity")
+    recomputed_fre_identity =
+        scenario.fre_context === nothing ? nothing :
+        japan_fiscal_fre_context_identity(scenario.fre_context)
     expected_fre_identity == recomputed_fre_identity || throw(
         ArgumentError("JapanFiscalScenario: fre_context_identity が内容と一致しません"),
     )
 
-    expected_assumption_hash = _jf_as_string(d["assumption_set_hash"], "assumption_set_hash")
+    expected_assumption_hash =
+        _jf_as_string(d["assumption_set_hash"], "assumption_set_hash")
     expected_assumption_hash == japan_fiscal_assumption_set_hash(scenario) || throw(
         ArgumentError("JapanFiscalScenario: assumption_set_hash が内容と一致しません"),
     )
 
     expected_content_hash = _jf_as_string(d["content_hash"], "content_hash")
-    expected_content_hash == japan_fiscal_scenario_content_hash(scenario) || throw(
-        ArgumentError("JapanFiscalScenario: content_hash が内容と一致しません"),
-    )
+    expected_content_hash == japan_fiscal_scenario_content_hash(scenario) ||
+        throw(ArgumentError("JapanFiscalScenario: content_hash が内容と一致しません"))
 
     return scenario
 end
