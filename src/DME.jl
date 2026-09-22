@@ -313,6 +313,21 @@ export
     japan_fiscal_fre_context_from_dict,
     japan_fiscal_assumption_from_dict,
     japan_fiscal_scenario_from_dict,
+    # Japan Fiscal Scenario Lab: model adapter・scenario runner・result artifact
+    # （src/scenarios/adapters/japan_fiscal_model_adapters.jl・
+    # src/scenarios/japan_fiscal_result.jl、Issue #276）
+    JAPAN_FISCAL_ADAPTER_CONTRACT_VERSION,
+    JAPAN_FISCAL_DEFAULT_HORIZON,
+    JapanFiscalAppliedInput,
+    JAPAN_FISCAL_MODEL_ADAPTERS,
+    JAPAN_FISCAL_RESULT_ARTIFACT_SCHEMA_VERSION,
+    JapanFiscalComparisonDiagnostics,
+    JapanFiscalScenarioResult,
+    JapanFiscalScenarioRejection,
+    japan_fiscal_run,
+    japan_fiscal_scenario_result_from_dict,
+    japan_fiscal_result_artifact_contract,
+    save_japan_fiscal_scenario_result,
     # CCC: 構築・較正（部門別CAPEX・信用循環モデル、src/models/capex_credit_cycle.jl）
     CAPEX_CREDIT_CYCLE_MODEL_VERSION,
     CapexCreditCycleTargets,
@@ -1202,5 +1217,22 @@ include("./llm/cross_model_reasoning.jl")
 # core/model_capabilities.jl（能力・概念定義 metadata）, core/compare_v2.jl（比較可能性判定）,
 # analysis/sfc_accounting.jl（会計 check）, llm/cross_model_reasoning.jl（ADR 0006 の型・context））
 include("./analysis/keen_sfc_comparison.jl")
+
+# Japan Fiscal Scenario Lab: model-specific adapter層（Issue #276。depends on
+# scenarios/japan_fiscal_capability.jl（JapanFiscalModelMapping等、#274）・
+# scenarios/japan_fiscal_scenario_schema.jl（JapanFiscalScenario、#275）・
+# scenarios/scenario_time.jl（shock_shape_path・PersistenceSpec）・models/*.jl（全11モデル）。
+# 一般macro-eventレイヤー（Scenario/run_scenario/map_event）は経由しない（ADR 0023）。
+# 9モデル分の adapter 関数と JAPAN_FISCAL_MODEL_ADAPTERS registry を提供する)
+include("./scenarios/adapters/japan_fiscal_model_adapters.jl")
+
+# Japan Fiscal Scenario Lab: scenario runner・result artifact（Issue #276。depends on
+# scenarios/adapters/japan_fiscal_model_adapters.jl（JAPAN_FISCAL_MODEL_ADAPTERS）・
+# scenarios/japan_fiscal_claim_contract.jl（japan_fiscal_coverage・japan_fiscal_validate_claims、
+# #285）・analysis/scenario_diagnostics.jl（_scenario_diag_* 診断プリミティブ）・
+# artifacts/json_canonical.jl（canonical_json_bytes・sha256_hex_of_canonical）。
+# `japan_fiscal_run`・`JapanFiscalScenarioResult`/`JapanFiscalScenarioRejection`・
+# serialization・atomic save を提供する)
+include("./scenarios/japan_fiscal_result.jl")
 
 end
