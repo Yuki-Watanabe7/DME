@@ -1,15 +1,19 @@
 # pne_fixture_builders.jl: PNE `production-network-sector-output-path/v1` 形式の**テスト用**
 # artifact を決定的に組み立てるヘルパ（Issue #281）。
 #
-# test/test_cross_model_compatibility.jl と test/fixtures/pne/regenerate.jl の両方が include する。
+# test/test_cross_model_compatibility.jl・test/test_pne_cross_repo_e2e.jl と
+# test/fixtures/pne/regenerate.jl が include する。
 #
 # ここで作る文書は PNE の producer 経路で生成したものではない。PNE が生成した fixture
 # （`sector_output_path/v1/`、vendor コピー）を**基にして**、DME 側の互換性判定の規則
 # （geography・classification・時間軸・部門割当）を 1 事実ずつ検査するために DME 側で派生させた
 # テスト入力である。値はすべて架空であり、実在の経済・部門・企業・公式統計を表さない。
-# PNE の producer 経路で生成した cross-repository fixture は #283 が扱う。
+# PNE の producer 経路で生成した cross-repository fixture（`producer/`・`official_jp/`、Issue #283）を
+# 読むヘルパは末尾にある。
 
 const PNE_FIXTURE_DIR = joinpath(@__DIR__, "sector_output_path", "v1")
+const PNE_PRODUCER_DIR = joinpath(@__DIR__, "producer")
+const PNE_OFFICIAL_JP_DIR = joinpath(@__DIR__, "official_jp")
 
 "vendor した PNE の representative fixture を plain `Dict` として読む。"
 function pne_representative_dict()
@@ -208,3 +212,56 @@ jp_like_dict() = pne_test_artifact_dict(;
         ("JP-TEST-003", [1.0, 0.8, 0.8, 1.0, 1.0, 1.0], 400.0, "observed"),
     ],
 )
+
+# ---------------------------------------------------------------------------
+# cross-repository fixture（Issue #283）
+# ---------------------------------------------------------------------------
+
+"producer fixture の MANIFEST（`producer/MANIFEST.json`）を plain `Dict` として読む。"
+pne_producer_manifest() =
+    DME._scenario_json_to_plain(DME.JSON3.read(read(joinpath(PNE_PRODUCER_DIR, "MANIFEST.json"), String)))
+
+"PNE の実 producer 経路で生成した artifact（`producer/v1/<case_id>.json`）のパス。"
+pne_producer_path(case_id::AbstractString) = joinpath(PNE_PRODUCER_DIR, "v1", "$(case_id).json")
+
+"PNE の実 producer 経路で生成した artifact を plain `Dict` として読む。"
+pne_producer_dict(case_id::AbstractString) =
+    DME._scenario_json_to_plain(DME.JSON3.read(read(pne_producer_path(case_id), String)))
+
+"official Japan 由来 bridge artifact の identity metadata（`official_jp/bridge_identity.json`）。"
+pne_official_jp_identity() = DME._scenario_json_to_plain(
+    DME.JSON3.read(read(joinpath(PNE_OFFICIAL_JP_DIR, "bridge_identity.json"), String)),
+)
+
+"""
+    official_jp_reconstructed_dict(; n_sectors = 3)
+
+official Japan 由来 bridge artifact の identity（geography・classification・time・source・
+source_provenance・producer・warnings 等は**実データの実行から得た値そのまま**）に、架空の
+placeholder 部門（`DME-WITHHELD-001` …）を付けて decode 可能な文書に戻す。公式の部門 ID・
+ラベル・baseline・産出パスは commit していないため、部門の値はすべて架空であり、実在の部門を
+表さない。placeholder 部門の `source_data_status` は実データの部門構成（`sector_summary`）の
+最頻値、パスは低下して horizon 末までに回復する架空の値である。
+"""
+function official_jp_reconstructed_dict(; n_sectors::Int = 3)
+    identity = pne_official_jp_identity()
+    d = deepcopy(identity["bridge"])
+    summary = identity["sector_summary"]
+    counts = summary["source_data_status_counts"]
+    status = first(sort(collect(keys(counts)); by = k -> (-counts[k], k)))
+    unit = first(summary["baseline_output_units"])
+    n = d["time"]["available_periods"]
+    ratios = [k == 1 ? 0.8 : k == 2 ? 0.9 : 1.0 for k in 1:n]
+    d["sectors"] = Any[
+        Dict{String, Any}(
+            "sector_id" => "DME-WITHHELD-" * lpad(i, 3, '0'),
+            "source_label" => "Withheld official sector placeholder $(i)",
+            "source_label_semantics" => "presentation_only",
+            "source_data_status" => status,
+            "baseline_output" => Dict{String, Any}("value" => 100.0, "unit" => unit),
+            "periods" => _pne_points(ratios),
+        ) for i in 1:n_sectors
+    ]
+    d["aggregate_path"] = nothing
+    return d
+end

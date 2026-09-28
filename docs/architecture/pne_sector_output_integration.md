@@ -21,7 +21,7 @@ production-network-engine（以下 PNE）が出力する `production-network-sec
 |---|---|
 | 文書 version | `1.0.0` |
 | 本書が定める契約 version | `cross-model-input/1.0.0`（実装時に `CROSS_MODEL_INPUT_CONTRACT_VERSION` として定義する。§14） |
-| ステータス | 確定（設計のみ。実装は #281・#282・#283） |
+| ステータス | 確定。#281・#282・#283 で実装済み（実装時の明確化は §19–§21） |
 | 関連 Issue | #280（本書）・#281・#282・#283・#125（ロードマップ）・PNE #2 Phase 1.5・PNE #32（producer 契約）・PNE #33（producer fixture） |
 | 上流契約（PNE 側が正本） | [`contracts/production-network-sector-output-path-v1.schema.json`](https://github.com/Yuki-Watanabe7/production-network-engine/blob/30beab183ef7f2387ce469ae19ad9885f9f55d71/contracts/production-network-sector-output-path-v1.schema.json)・[`docs/sector-output-path-contract.md`](https://github.com/Yuki-Watanabe7/production-network-engine/blob/30beab183ef7f2387ce469ae19ad9885f9f55d71/docs/sector-output-path-contract.md)・[PNE ADR 14](https://github.com/Yuki-Watanabe7/production-network-engine/blob/30beab183ef7f2387ce469ae19ad9885f9f55d71/docs/decisions/0014-macro-boundary-is-native-sector-output-not-dynamic-state.md) |
 | 参照した PNE コミット | `30beab183ef7f2387ce469ae19ad9885f9f55d71` |
@@ -1059,3 +1059,25 @@ horizon 後の持続仮定）は、コード変更と同時に本書の改訂節
 | 11 | 保存 | `save_cross_model_scenario_artifact(dir, run; mappings, reports)` は入力が参照する mapping・report を呼び出し側から受け取り、不足は `provenance_chain_broken`。拒否された実行も保存でき、`result_summary.json` の `variables` は `null` |
 | 12 | replay | report の hash は保存された dict から `upstream.source_bytes_sha256` を除いて再計算し、入力の参照と照合する。再導出検証（`upstream_artifacts`）は PNE artifact から `X1`–`X3` を再実行し、`values` の bit 一致を確認する |
 | 13 | 要約 | `cross_model_input_summary(run)` が入力ごとの member・unmapped sector・被覆率・target 変数・配置期（`placed_periods`）・適用期（`applied_periods`、値が 0 でない期）・パスの最小値・provenance chain（PNE dynamic artifact / scenario / input の hash まで）を返す（#282 Scope 6） |
+
+---
+
+## 21. 実装への反映（#283 / `PN-3`）
+
+#283 は cross-repository の fixture・drift 検出・provenance / replay / negative E2E を本書 §15・§16.3 に従って
+固定した。`src/` は変更していない（受理範囲・拒否/警告コード・metadata 予約キー・保存形式は #281・#282 の
+ままである）。実装時に本書の記述を具体化・明確化した点を記録する（いずれも受理範囲を広げない）。
+
+| # | 事項 | 実装 |
+|---|---|---|
+| 1 | producer fixture の出自 | `test/fixtures/pne/producer/` に置く。入力（`inputs/`: 架空 network・四半期/月次の PNE dynamic scenario・export config）は DME 所有の架空文書、出力（`v1/*.json`）は PNE CLI（`production-network dynamic-simulate` → `export-sector-output-path`）が書いたバイト列そのもの。`MANIFEST.json`（`dme.pne-producer-fixture-manifest/1.0.0`）に PNE の commit・入出力の SHA-256・DME の `content_hash`・`producer_record` を記録する。PNE の dynamic artifact は runtime timestamp と PNE 内部 state を含むため commit せず、その id と hash を `producer_record` に残す |
+| 2 | dynamic artifact hash の記録 | `producer_record.dynamic_artifact_hash` は生成時に PNE 自身のコード（`hash_document(canonical_payload())`）で計算した値である。DME は PNE の hash を再計算しない（§5.3・`PG-09` を維持）。テストは bridge の `source.dynamic_artifact_hash` と `producer_record` の一致、および出力が commit 済みの入力（network の node・scenario の calendar/horizon・export config の geography/classification）から導出されていることを検査する |
+| 3 | positive E2E の構成 | 架空 network では 2 つの組立部門（CCC のモデル外顧客）が producer set（`chip_fab`）と他の架空 supplier から調達し、supplier 側の capacity shock で組立部門の実現産出だけが下がって horizon 末までに回復する（producer set は全期 1.0。`DD-6`・`DD-8` を満たす）。`:hypothetical_override` の mapping（`mappings/ccc_producer_hypothetical_{quarterly,monthly}.json`）で `ext_demand_s2_customers` へ入れ、`X1`→`X7` を完走する。四半期（恒等）と月次（3 か月平均、anchor 2025-04-01）の 2 経路を持つ。fixture の geography は `dme-fictional-economy/v1` / `DME-FICTIONAL-A` であり、US へ偽装しない（§16.3 明確化 1） |
+| 4 | official Japan の negative E2E | EDP（`fetch-jp-io` → `export-production-network`）と PNE（PNE の実データ受け入れ検証と同じ規則で選んだ中央次数部門の staged recovery、period_unit `year`）で公式 2020 Japan IO から bridge artifact を実際に生成し、**identity metadata だけ**を `test/fixtures/pne/official_jp/bridge_identity.json`（`dme.pne-bridge-identity/1.0.0`）として commit する。`sectors`・`aggregate_path` は除き（公式の部門 ID・ラベル・baseline・パスを含めない）、部門構成は件数と推定ステータス別件数のみを残す。公式 workbook・network・scenario（shock 対象の部門 ID を含む）・bridge 本体はリポジトリ外の scratch に置く |
+| 5 | official Japan の判定の固定 | 生成時に DME が full artifact に対して計算した 3 mode の判定（`dme_observation.modes`）を identity に記録し、テストは identity + placeholder 部門（`DME-WITHHELD-*`、値は架空）から組み立て直した文書が同じ拒否コード列になることを検査する。geography の判定コードは mode ごとに `geography_mismatch`・`cross_economy_transmission_unavailable`・`hypothetical_override_requires_synthetic_source` のいずれか 1 つだけ（§6.5）。年次 IO の 1 期間（`year`）は四半期へ整列できないため、いずれの mode でも `unsupported_source_period_unit` を併せて報告する。中央次数部門への shock では 108 部門すべての産出が低下するため、negative 用 mapping は producer set を主張せず `producer_set_absent_reason` を宣言する（`DD-6` による拒否を geography 判定と混ぜない） |
+| 6 | contract drift の検出 | (a) vendor schema から contract surface（必須キー・閉じた語彙・固定値・数値範囲・文字列制約・`x-semantic-invariants`）をテスト側で抽出し `golden/pne_contract_surface_v1.json` と照合する。(b) surface の各制約を 1 つだけ破った文書（約 340 件）を DME の decoder がすべて `PNE_DECODE_ERROR_CODES` で拒否し、メッセージに該当フィールド名が現れることを検査する。(c) producer fixture の `content_hash`・mapping hash・report hash・`cross_model_input_set_hash`・`ModelDerivedInput` を `golden/e2e_producer_inputs.json` で固定する。schema の読み取りはテストのみで行い、`src/` に汎用 JSON Schema バリデータを置かない方針（ADR 0008・ADR 0024 決定 3）は変えない |
+| 7 | PNE 側との照合 | `test/fixtures/pne/regenerate_cross_repo.jl check --pne-repo <checkout>` が PNE checkout で producer fixture を再生成してバイト列と `producer_record` を比較し、vendor した `sector_output_path/v1/` を PNE 側の `upstream_path` と比較する（不一致は非 0 終了）。DME のテスト（`Pkg.test()`）は PNE・EDP・Python・ネットワークを必要としない。PNE 側の同一 version への breaking change は、再 vendor 時に (a) の golden、または本スクリプトの `check` で検出する |
+| 8 | provenance の辿り方 | 保存済み成果物だけで、`result_summary.json` の `metadata.cross_model_inputs` → `event_log.json` の `L4` → `cross_model_scenario.json` の `ModelDerivedInput` → `mappings.json`（hash 再計算）→ `compatibility_reports.json`（hash 再計算）→ PNE bridge（`content_hash`）→ `producer_record`（PNE dynamic artifact の id / hash・scenario hash・input hash）と辿れる。DME の model version と契約 version は `manifest.json` にある。§12.3 の `cross_model_inputs` の「`applied_input_ids`」は、CCC では 1 つの `ModelDerivedInput` が 1 つの `AppliedModelInput` になるため単数の `applied_input_id` として保存されている（配列形は `cross_model_input_summary` の `provenance_chain` が持つ） |
+| 9 | replay の環境非依存 | 保存済み成果物に保存先・作業ディレクトリ・ホームディレクトリの絶対パスが現れないこと、別の場所へ移した成果物から PNE bytes と API key なしで replay できること、replay 結果を再保存した成果物が元の成果物とバイト単位で一致することを検査する |
+| 10 | failure fixture | producer fixture から 1 事実だけを変えた入力で、schema version・period semantics の欠落・比の不正（範囲外・NaN・Infinity・損失比不整合）を `X1` の例外、geography・classification・unmapped sector・unknown sector・`DD-6`・未回復・target variable（供給能力・price group）・target model を `X2` の構造化拒否（`ModelDerivedInput` を構築できない）、表現しない概念の `ModelDerivedInput` を実行前の `:rejected_mapping`、保存済み成果物の改ざんと別の PNE bytes を `provenance_chain_broken` として fail closed で拒否することを検査する |
+| 11 | pin した PNE commit | producer fixture と official identity は PNE `fc4c9a9`（PNE #33 の完了時点。PNE main に含まれる）で生成した。vendor した contract（`sector_output_path/v1/`）の記録 commit は `30beab1` のままであり、`check` により `fc4c9a9` でもバイト列が同一であることを確認した |

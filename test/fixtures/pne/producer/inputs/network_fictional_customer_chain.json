@@ -1,0 +1,242 @@
+{
+  "as_of": "2024-12-31",
+  "edges": [
+    {
+      "estimation_status": "synthetic",
+      "provenance": {
+        "notes": "Fabricated for the DME cross-repository contract fixture. Describes no real economy, firm, product or transaction.",
+        "observation_period": {
+          "end": "2024-12-31",
+          "start": "2024-01-01"
+        },
+        "source": "dme-fictional-fixture",
+        "source_version": "dme-pne-cross-repo-1",
+        "transform": [
+          "synthesize:handcrafted"
+        ]
+      },
+      "source": "metal_supply",
+      "target": "harness_maker",
+      "weight": 0.3
+    },
+    {
+      "estimation_status": "synthetic",
+      "provenance": {
+        "notes": "Fabricated for the DME cross-repository contract fixture. Describes no real economy, firm, product or transaction.",
+        "observation_period": {
+          "end": "2024-12-31",
+          "start": "2024-01-01"
+        },
+        "source": "dme-fictional-fixture",
+        "source_version": "dme-pne-cross-repo-1",
+        "transform": [
+          "synthesize:handcrafted"
+        ]
+      },
+      "source": "harness_maker",
+      "target": "vehicle_assembly",
+      "weight": 0.2
+    },
+    {
+      "estimation_status": "synthetic",
+      "provenance": {
+        "notes": "Fabricated for the DME cross-repository contract fixture. Describes no real economy, firm, product or transaction.",
+        "observation_period": {
+          "end": "2024-12-31",
+          "start": "2024-01-01"
+        },
+        "source": "dme-fictional-fixture",
+        "source_version": "dme-pne-cross-repo-1",
+        "transform": [
+          "synthesize:handcrafted"
+        ]
+      },
+      "source": "chip_fab",
+      "target": "vehicle_assembly",
+      "weight": 0.1
+    },
+    {
+      "estimation_status": "synthetic",
+      "provenance": {
+        "notes": "Fabricated for the DME cross-repository contract fixture. Describes no real economy, firm, product or transaction.",
+        "observation_period": {
+          "end": "2024-12-31",
+          "start": "2024-01-01"
+        },
+        "source": "dme-fictional-fixture",
+        "source_version": "dme-pne-cross-repo-1",
+        "transform": [
+          "synthesize:handcrafted"
+        ]
+      },
+      "source": "chip_fab",
+      "target": "handset_assembly",
+      "weight": 0.25
+    },
+    {
+      "estimation_status": "synthetic",
+      "provenance": {
+        "notes": "Fabricated for the DME cross-repository contract fixture. Describes no real economy, firm, product or transaction.",
+        "observation_period": {
+          "end": "2024-12-31",
+          "start": "2024-01-01"
+        },
+        "source": "dme-fictional-fixture",
+        "source_version": "dme-pne-cross-repo-1",
+        "transform": [
+          "synthesize:handcrafted"
+        ]
+      },
+      "source": "panel_maker",
+      "target": "handset_assembly",
+      "weight": 0.2
+    }
+  ],
+  "metadata": {
+    "description": "Two fictional assembly industries buy from one fictional producer (chip_fab) and from other fictional suppliers. A capacity shock on the other suppliers lowers the assemblers' realized output while the producer's own output stays at baseline. It describes no real economy.",
+    "is_synthetic": true,
+    "tags": [
+      "synthetic",
+      "fixture",
+      "dme-cross-repository"
+    ],
+    "title": "DME cross-repository fixture: fictional customers of an unconstrained producer"
+  },
+  "network_id": "dme-fictional-customer-chain",
+  "nodes": [
+    {
+      "baseline_output": {
+        "unit": "index_units",
+        "value": 40.0
+      },
+      "estimation_status": "synthetic",
+      "kind": "industry",
+      "label": "Fictional chip fabrication",
+      "node_id": "chip_fab",
+      "provenance": {
+        "notes": "Fabricated for the DME cross-repository contract fixture. Describes no real economy, firm, product or transaction.",
+        "observation_period": {
+          "end": "2024-12-31",
+          "start": "2024-01-01"
+        },
+        "source": "dme-fictional-fixture",
+        "source_version": "dme-pne-cross-repo-1",
+        "transform": [
+          "synthesize:handcrafted"
+        ]
+      }
+    },
+    {
+      "baseline_output": {
+        "unit": "index_units",
+        "value": 80.0
+      },
+      "estimation_status": "synthetic",
+      "kind": "industry",
+      "label": "Fictional handset assembly",
+      "node_id": "handset_assembly",
+      "provenance": {
+        "notes": "Fabricated for the DME cross-repository contract fixture. Describes no real economy, firm, product or transaction.",
+        "observation_period": {
+          "end": "2024-12-31",
+          "start": "2024-01-01"
+        },
+        "source": "dme-fictional-fixture",
+        "source_version": "dme-pne-cross-repo-1",
+        "transform": [
+          "synthesize:handcrafted"
+        ]
+      }
+    },
+    {
+      "baseline_output": {
+        "unit": "index_units",
+        "value": 30.0
+      },
+      "estimation_status": "synthetic",
+      "kind": "industry",
+      "label": "Fictional wire-harness maker",
+      "node_id": "harness_maker",
+      "provenance": {
+        "notes": "Fabricated for the DME cross-repository contract fixture. Describes no real economy, firm, product or transaction.",
+        "observation_period": {
+          "end": "2024-12-31",
+          "start": "2024-01-01"
+        },
+        "source": "dme-fictional-fixture",
+        "source_version": "dme-pne-cross-repo-1",
+        "transform": [
+          "synthesize:handcrafted"
+        ]
+      }
+    },
+    {
+      "baseline_output": {
+        "unit": "index_units",
+        "value": 20.0
+      },
+      "estimation_status": "synthetic",
+      "kind": "industry",
+      "label": "Fictional metal supply",
+      "node_id": "metal_supply",
+      "provenance": {
+        "notes": "Fabricated for the DME cross-repository contract fixture. Describes no real economy, firm, product or transaction.",
+        "observation_period": {
+          "end": "2024-12-31",
+          "start": "2024-01-01"
+        },
+        "source": "dme-fictional-fixture",
+        "source_version": "dme-pne-cross-repo-1",
+        "transform": [
+          "synthesize:handcrafted"
+        ]
+      }
+    },
+    {
+      "baseline_output": {
+        "unit": "index_units",
+        "value": 25.0
+      },
+      "estimation_status": "synthetic",
+      "kind": "industry",
+      "label": "Fictional display-panel maker",
+      "node_id": "panel_maker",
+      "provenance": {
+        "notes": "Fabricated for the DME cross-repository contract fixture. Describes no real economy, firm, product or transaction.",
+        "observation_period": {
+          "end": "2024-12-31",
+          "start": "2024-01-01"
+        },
+        "source": "dme-fictional-fixture",
+        "source_version": "dme-pne-cross-repo-1",
+        "transform": [
+          "synthesize:handcrafted"
+        ]
+      }
+    },
+    {
+      "baseline_output": {
+        "unit": "index_units",
+        "value": 120.0
+      },
+      "estimation_status": "synthetic",
+      "kind": "industry",
+      "label": "Fictional vehicle assembly",
+      "node_id": "vehicle_assembly",
+      "provenance": {
+        "notes": "Fabricated for the DME cross-repository contract fixture. Describes no real economy, firm, product or transaction.",
+        "observation_period": {
+          "end": "2024-12-31",
+          "start": "2024-01-01"
+        },
+        "source": "dme-fictional-fixture",
+        "source_version": "dme-pne-cross-repo-1",
+        "transform": [
+          "synthesize:handcrafted"
+        ]
+      }
+    }
+  ],
+  "schema_version": "production-network-input/v1",
+  "weight_semantics": "input_coefficient"
+}

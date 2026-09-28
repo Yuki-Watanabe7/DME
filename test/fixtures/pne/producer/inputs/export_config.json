@@ -1,0 +1,17 @@
+{
+  "assumptions": [
+    "No sector aggregation or calendar-frequency conversion was performed."
+  ],
+  "classification": {
+    "level": "native-node",
+    "sector_id_semantics": "opaque",
+    "system": "dme-fictional-industries",
+    "version": "1"
+  },
+  "geography": {
+    "economy_id": "DME-FICTIONAL-A",
+    "name": "Fictional economy A (DME cross-repository fixture)",
+    "system": "dme-fictional-economy/v1"
+  },
+  "provenance_note": "Fabricated DME cross-repository contract fixture. It describes no real economy, sector, company, transaction, forecast, or observed disruption."
+}

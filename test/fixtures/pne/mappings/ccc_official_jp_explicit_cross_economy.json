@@ -1,0 +1,83 @@
+{
+    "schema_version": "dme.cross-model-mapping/1.0.0",
+    "mapping_id": "dme-negative-official-jp-ccc-explicit-cross-economy",
+    "mapping_version": "1.0.0",
+    "source_contract": "production-network-sector-output-path/v1",
+    "source_geography": {
+        "system": "ISO 3166-1 alpha-2",
+        "economy_id": "JP"
+    },
+    "target_geography": {
+        "system": "ISO 3166-1 alpha-2",
+        "economy_id": "US"
+    },
+    "source_classification": {
+        "system": "Japan 2020 IO sector classification",
+        "version": "2020",
+        "level": "integrated-middle"
+    },
+    "target_model": "capex_credit_cycle",
+    "target_model_mapping_version": "ccc-cross-model-mapping/1.0.0",
+    "transmission": {
+        "mode": "explicit_cross_economy",
+        "justification": "",
+        "transmission_ref": {
+            "contract_version": "dme-negative-cross-economy-transmission/0.0.0",
+            "artifact_id": "xet-dme-negative-official-jp-000001",
+            "content_hash": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+            "source_economy": {
+                "system": "ISO 3166-1 alpha-2",
+                "economy_id": "JP"
+            },
+            "target_economy": {
+                "system": "ISO 3166-1 alpha-2",
+                "economy_id": "US"
+            },
+            "target_model": "capex_credit_cycle",
+            "mechanism": "placeholder for a negative test; no such transmission artifact exists",
+            "evidence": [
+                "no-evidence: negative test placeholder"
+            ]
+        }
+    },
+    "groups": [
+        {
+            "target_group": "ext_demand_s2_customers",
+            "target_concept": "derived_out_of_model_demand",
+            "weight_basis": "declared_target_share",
+            "members": [
+                {
+                    "sector_id": "DME-WITHHELD-001",
+                    "weight": 0.1
+                }
+            ],
+            "producer_set": [],
+            "producer_set_absent_reason": "Negative cross-economy check only: no DME product producer set is asserted for the official Japan network.",
+            "customer_scope": "out_of_model",
+            "weight_provenance": {
+                "source": "negative test placeholder weight",
+                "version": "1",
+                "method": "not an estimate; exists only so the mapping is well-formed",
+                "data_hash": null
+            },
+            "identifying_assumptions": [
+                "Negative test placeholder: no identifying assumption about real Japanese or US demand is made."
+            ]
+        }
+    ],
+    "declared_unmapped_source_sectors": [
+        "DME-WITHHELD-002",
+        "DME-WITHHELD-003"
+    ],
+    "time": {
+        "expected_source_period_unit": "quarter",
+        "target_frequency": "quarter",
+        "aggregation_rule": "identity",
+        "partial_quarter": "reject",
+        "post_horizon": "require_recovered"
+    },
+    "assumptions": [
+        "Negative test: the official Japan PNE result must be rejected by US CCC under every transmission mode (design 6.5)."
+    ],
+    "notes": "Cross-repository negative golden (Issue #283). DME-WITHHELD-* are placeholders; when regenerate_cross_repo.jl evaluates the real bridge artifact it substitutes the official sector ids in memory and never writes them."
+}

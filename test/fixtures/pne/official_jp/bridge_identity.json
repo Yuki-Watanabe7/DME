@@ -1,0 +1,227 @@
+{
+    "bridge": {
+        "aggregate_path_definition": {
+            "loss_semantics": "one_minus_aggregate_output_ratio",
+            "missing_baseline_treatment": "aggregate_path_absent",
+            "ratio_semantics": "baseline_output_weighted_mean_of_sector_realized_output_ratio",
+            "weighting": "source_baseline_output"
+        },
+        "aggregation": {
+            "baseline_output_weighting": null,
+            "coverage": 1,
+            "mapping_artifact_hash": null,
+            "status": "native_sector_path",
+            "unmapped_sector_treatment": null,
+            "weighted_aggregation_rule": null
+        },
+        "artifact_id": "sop-31013107a0f5f33f9b6ab2ad",
+        "classification": {
+            "level": "integrated-middle",
+            "sector_id_semantics": "opaque",
+            "system": "Japan 2020 IO sector classification",
+            "version": "2020"
+        },
+        "export_assumptions": [
+            "No sector aggregation or calendar-frequency conversion was performed."
+        ],
+        "geography": {
+            "economy_id": "JP",
+            "name": "Japan",
+            "system": "ISO 3166-1 alpha-2"
+        },
+        "geography_compatibility": {
+            "compatible_economy_ids": [
+                "JP"
+            ],
+            "explicitly_modeled_cross_economy": false,
+            "mode": "same_economy_only",
+            "model_reference": null
+        },
+        "model_assumptions": [
+            "The source dynamic artifact identified by source.dynamic_artifact_hash defines the PNE model mechanisms. This bridge does not reproduce inventory, binding-input, external-supply, or critical-input state.",
+            "The exporter copies realized native-sector output ratios without temporal rescaling or downstream sector aggregation."
+        ],
+        "producer": {
+            "algorithm_versions": {
+                "dynamic.multi_period_propagation": "1.4.0",
+                "propagation.leontief_supply_constraint": "1.0.0"
+            },
+            "engine": "production-network-engine",
+            "engine_version": "0.1.0",
+            "exporter_version": "1.0.0"
+        },
+        "result_semantics": "Each value is a PNE model-derived, scenario-conditional endogenous result: realized output relative to that sector's source-network baseline for one period. It is not observed output, a forecast, a probability, or a downstream DME result.",
+        "result_type_boundary": {
+            "downstream_application": "not_present",
+            "output_path": "pne_model_derived_endogenous_result",
+            "pne_scenario": "pne_scenario_assumption",
+            "source_network_data": "source_data_with_declared_estimation_status"
+        },
+        "scenario_assumptions": [
+            "The capacity path is stated, not estimated: nothing here says how long a real disruption would last.",
+            "The shocked sector is chosen mechanically by median edge degree, not for any claim about its real-world importance."
+        ],
+        "schema_version": "production-network-sector-output-path/v1",
+        "source": {
+            "dynamic_artifact_hash": "sha256:f2e273c2d64e42df9b8ecf6ca4ac5da393245cb4db5df7514b8fbd1024d01308",
+            "dynamic_artifact_id": "dyn-382cf9c57ee3543272e8c7fa",
+            "export_config_hash": "sha256:9bca189741c8265c5f0313f5e8d4222b28be03ca8f08fa89029a097072a401fd",
+            "network_id": "jp-io-2020-integrated-middle-producer-price-8115f7f605e0c8df",
+            "scenario_config_hash": "sha256:2190b22489ac691d506ba3f8598c93d44093418c25c9acf730c0f05b2b6dbf5d",
+            "scenario_hash": "sha256:a0aba7daf541895a527b70128378aee07f235f3be5dcf38abbff3dcf493858cc",
+            "scenario_policy_hash": "sha256:685b50a849854ae01618c033f6e2030acd3aa09541b134425cc35170462455b6",
+            "source_input_hash": "sha256:895507dc159aa30d5a506bee3e8a5a35b7494d41411d306634981bbfa2a6c420"
+        },
+        "source_provenance": {
+            "edge_estimation_status_counts": {
+                "observed": 6147
+            },
+            "is_synthetic": false,
+            "network_as_of": "2020-12-31",
+            "node_estimation_status_counts": {
+                "observed": 108
+            },
+            "note": "Derived from the official 2020 Japan Input-Output Tables (e-Stat) through economic-data-provider and PNE for a DME negative cross-economy check. DME commits only this bridge artifact's identity metadata; sector identifiers, labels, baseline outputs and output paths are not committed.",
+            "references": [
+                {
+                    "available_at": "2025-07-11T14:00:00+09:00",
+                    "observation_end": "2020-12-31",
+                    "observation_start": "2020-01-01",
+                    "source": "Government of Japan, 2020 Input-Output Tables",
+                    "source_version": "estat:000040187026;release:2025-07-11T14:00:00+09:00"
+                }
+            ]
+        },
+        "status": "complete",
+        "time": {
+            "available_periods": 8,
+            "calendar_anchor": null,
+            "frequency": 1,
+            "horizon_periods": 8,
+            "interval_semantics": "start_inclusive_end_exclusive",
+            "period_index_origin": 0,
+            "period_unit": "year",
+            "rescaled_by_exporter": false,
+            "value_semantics": "period_total_realized_output_ratio"
+        },
+        "unsupported_reasons": [
+        ],
+        "warnings": [
+            {
+                "code": "period_unit_not_rescaled",
+                "context": {
+                    "period_unit": "year"
+                },
+                "message": "the scenario labels one period as 'year', which asserts that this network's baseline flows are measured over that period. The engine did not rescale anything: every ratio here is against one baseline period of the input document, whatever that turns out to be",
+                "severity": "info",
+                "source": "source_dynamic_artifact"
+            }
+        ]
+    },
+    "description": "Identity metadata of a production-network-sector-output-path/v1 artifact that PNE exported from the official 2020 Japan Input-Output Tables. The sectors and aggregate_path members are withheld: the redistribution terms of the official table have not been reviewed, so no sector identifier, label, baseline output or output path derived from it is committed.",
+    "dme_observation": {
+        "decoded": true,
+        "dme_content_hash": "sha256:f58ba1526d514c15e7e01e48f0b91f738e96fbf7c762070e391d88545b5ef104",
+        "modes": {
+            "explicit_cross_economy": {
+                "decision": "rejected",
+                "geography_status": "rejected",
+                "rejection_codes": [
+                    "cross_economy_transmission_unavailable",
+                    "unsupported_source_period_unit"
+                ]
+            },
+            "hypothetical_override": {
+                "decision": "rejected",
+                "geography_status": "rejected",
+                "rejection_codes": [
+                    "hypothetical_override_requires_synthetic_source",
+                    "unsupported_source_period_unit"
+                ]
+            },
+            "same_economy": {
+                "decision": "rejected",
+                "geography_status": "rejected",
+                "rejection_codes": [
+                    "geography_mismatch",
+                    "unsupported_source_period_unit"
+                ]
+            }
+        },
+        "note": "Compatibility decisions DME computed on the full official bridge artifact with the committed mappings/ccc_official_jp_*.json, their placeholder sector ids replaced in memory by the official ones.",
+        "source_bytes_sha256": "sha256:bd0f63774a77028a768665f0b573f230a6cf655169ea81560aeb2ccb8974516d",
+        "target_model": "capex_credit_cycle"
+    },
+    "generation": {
+        "command": "julia --project=. test/fixtures/pne/regenerate_cross_repo.jl official-jp --pne-repo <PNE> --edp-repo <EDP> --scratch <outside repo>",
+        "dynamic_record": {
+            "algorithm_versions": {
+                "dynamic.multi_period_propagation": "1.4.0",
+                "propagation.leontief_supply_constraint": "1.0.0"
+            },
+            "completed_periods": 8,
+            "dynamic_artifact_hash": "sha256:f2e273c2d64e42df9b8ecf6ca4ac5da393245cb4db5df7514b8fbd1024d01308",
+            "dynamic_artifact_id": "dyn-382cf9c57ee3543272e8c7fa",
+            "engine_version": "0.1.0",
+            "horizon_periods": 8,
+            "network_id": "jp-io-2020-integrated-middle-producer-price-8115f7f605e0c8df",
+            "scenario_hash": "sha256:a0aba7daf541895a527b70128378aee07f235f3be5dcf38abbff3dcf493858cc",
+            "schema_version": "production-network-dynamic-analysis/v1",
+            "source_input_hash": "sha256:895507dc159aa30d5a506bee3e8a5a35b7494d41411d306634981bbfa2a6c420"
+        },
+        "edp": {
+            "commit": "ff22de5f6b07198f30492df5907e768b003769ff",
+            "repository": "Yuki-Watanabe7/economic-data-provider",
+            "tree_dirty": false
+        },
+        "export_config": {
+            "path": "test/fixtures/pne/official_jp/export_config.json",
+            "sha256": "sha256:285e8d2c637bb3738f2802c87b5f837ee2e5582e9e047a0c546486d919eb13a2"
+        },
+        "network": {
+            "edge_count": 6147,
+            "network_id": "jp-io-2020-integrated-middle-producer-price-8115f7f605e0c8df",
+            "node_count": 108
+        },
+        "official_source": {
+            "collection": "2020 Input-Output Tables",
+            "estat_table_id": "000040187026",
+            "publisher": "Government of Japan",
+            "release_or_revision": "2025-07-11T14:00:00+09:00",
+            "table_year": "2020",
+            "workbook_sha256": "sha256:8115f7f605e0c8dfa546bad1655a171b3c21a353a245a3af5e40c5924a2e5607"
+        },
+        "pne": {
+            "commit": "fc4c9a9fcd823827439e2722de9e73a0cabaac91",
+            "repository": "Yuki-Watanabe7/production-network-engine",
+            "tree_dirty": false
+        },
+        "scenario": {
+            "calendar_unit": "year",
+            "duration_periods": 3,
+            "horizon_periods": 8,
+            "magnitude": 0.5,
+            "median_degree": 115.5,
+            "recovery_periods": 3,
+            "scenario_id": "dme-official-jp-staged-recovery-median-degree",
+            "shock_target_degree": 118,
+            "shock_target_rule": "the node whose total in+out edge degree is closest to the network median (ties: smallest node_id); its id is withheld",
+            "start_period": 0
+        }
+    },
+    "schema_version": "dme.pne-bridge-identity/1.0.0",
+    "sector_summary": {
+        "aggregate_path_present": true,
+        "baseline_output_units": [
+            "jpy_billion"
+        ],
+        "count": 108,
+        "source_data_status_counts": {
+            "observed": 108
+        }
+    },
+    "withheld_members": [
+        "aggregate_path",
+        "sectors"
+    ]
+}

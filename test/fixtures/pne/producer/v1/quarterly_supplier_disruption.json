@@ -1,0 +1,474 @@
+{
+  "aggregate_path": [
+    {
+      "output_loss_ratio": 0.0,
+      "period_index": 0,
+      "realized_output_ratio": 1.0
+    },
+    {
+      "output_loss_ratio": 0.269841269841,
+      "period_index": 1,
+      "realized_output_ratio": 0.730158730159
+    },
+    {
+      "output_loss_ratio": 0.369841269841,
+      "period_index": 2,
+      "realized_output_ratio": 0.630158730159
+    },
+    {
+      "output_loss_ratio": 0.134920634921,
+      "period_index": 3,
+      "realized_output_ratio": 0.865079365079
+    },
+    {
+      "output_loss_ratio": 0.0,
+      "period_index": 4,
+      "realized_output_ratio": 1.0
+    },
+    {
+      "output_loss_ratio": 0.0,
+      "period_index": 5,
+      "realized_output_ratio": 1.0
+    },
+    {
+      "output_loss_ratio": 0.0,
+      "period_index": 6,
+      "realized_output_ratio": 1.0
+    },
+    {
+      "output_loss_ratio": 0.0,
+      "period_index": 7,
+      "realized_output_ratio": 1.0
+    }
+  ],
+  "aggregate_path_definition": {
+    "loss_semantics": "one_minus_aggregate_output_ratio",
+    "missing_baseline_treatment": "aggregate_path_absent",
+    "ratio_semantics": "baseline_output_weighted_mean_of_sector_realized_output_ratio",
+    "weighting": "source_baseline_output"
+  },
+  "aggregation": {
+    "baseline_output_weighting": null,
+    "coverage": 1.0,
+    "mapping_artifact_hash": null,
+    "status": "native_sector_path",
+    "unmapped_sector_treatment": null,
+    "weighted_aggregation_rule": null
+  },
+  "artifact_id": "sop-fe13cf82be2aa8dcb60882d2",
+  "classification": {
+    "level": "native-node",
+    "sector_id_semantics": "opaque",
+    "system": "dme-fictional-industries",
+    "version": "1"
+  },
+  "export_assumptions": [
+    "No sector aggregation or calendar-frequency conversion was performed."
+  ],
+  "geography": {
+    "economy_id": "DME-FICTIONAL-A",
+    "name": "Fictional economy A (DME cross-repository fixture)",
+    "system": "dme-fictional-economy/v1"
+  },
+  "geography_compatibility": {
+    "compatible_economy_ids": [
+      "DME-FICTIONAL-A"
+    ],
+    "explicitly_modeled_cross_economy": false,
+    "mode": "same_economy_only",
+    "model_reference": null
+  },
+  "model_assumptions": [
+    "The source dynamic artifact identified by source.dynamic_artifact_hash defines the PNE model mechanisms. This bridge does not reproduce inventory, binding-input, external-supply, or critical-input state.",
+    "The exporter copies realized native-sector output ratios without temporal rescaling or downstream sector aggregation."
+  ],
+  "producer": {
+    "algorithm_versions": {
+      "dynamic.multi_period_propagation": "1.4.0",
+      "propagation.leontief_supply_constraint": "1.0.0"
+    },
+    "engine": "production-network-engine",
+    "engine_version": "0.1.0",
+    "exporter_version": "1.0.0"
+  },
+  "result_semantics": "Each value is a PNE model-derived, scenario-conditional endogenous result: realized output relative to that sector's source-network baseline for one period. It is not observed output, a forecast, a probability, or a downstream DME result.",
+  "result_type_boundary": {
+    "downstream_application": "not_present",
+    "output_path": "pne_model_derived_endogenous_result",
+    "pne_scenario": "pne_scenario_assumption",
+    "source_network_data": "source_data_with_declared_estimation_status"
+  },
+  "scenario_assumptions": [
+    "The capacity paths are stated, not estimated: nothing here says how long a real disruption would last.",
+    "No supplier outside this fictional network can be called on in any period."
+  ],
+  "schema_version": "production-network-sector-output-path/v1",
+  "sectors": [
+    {
+      "baseline_output": {
+        "unit": "index_units",
+        "value": 40.0
+      },
+      "periods": [
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 0,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 1,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 2,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 3,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 4,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 5,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 6,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 7,
+          "realized_output_ratio": 1.0
+        }
+      ],
+      "sector_id": "chip_fab",
+      "source_data_status": "synthetic",
+      "source_label": "Fictional chip fabrication",
+      "source_label_semantics": "presentation_only"
+    },
+    {
+      "baseline_output": {
+        "unit": "index_units",
+        "value": 80.0
+      },
+      "periods": [
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 0,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 1,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.3,
+          "period_index": 2,
+          "realized_output_ratio": 0.7
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 3,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 4,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 5,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 6,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 7,
+          "realized_output_ratio": 1.0
+        }
+      ],
+      "sector_id": "handset_assembly",
+      "source_data_status": "synthetic",
+      "source_label": "Fictional handset assembly",
+      "source_label_semantics": "presentation_only"
+    },
+    {
+      "baseline_output": {
+        "unit": "index_units",
+        "value": 30.0
+      },
+      "periods": [
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 0,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.5,
+          "period_index": 1,
+          "realized_output_ratio": 0.5
+        },
+        {
+          "output_loss_ratio": 0.5,
+          "period_index": 2,
+          "realized_output_ratio": 0.5
+        },
+        {
+          "output_loss_ratio": 0.25,
+          "period_index": 3,
+          "realized_output_ratio": 0.75
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 4,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 5,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 6,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 7,
+          "realized_output_ratio": 1.0
+        }
+      ],
+      "sector_id": "harness_maker",
+      "source_data_status": "synthetic",
+      "source_label": "Fictional wire-harness maker",
+      "source_label_semantics": "presentation_only"
+    },
+    {
+      "baseline_output": {
+        "unit": "index_units",
+        "value": 20.0
+      },
+      "periods": [
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 0,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.5,
+          "period_index": 1,
+          "realized_output_ratio": 0.5
+        },
+        {
+          "output_loss_ratio": 0.5,
+          "period_index": 2,
+          "realized_output_ratio": 0.5
+        },
+        {
+          "output_loss_ratio": 0.25,
+          "period_index": 3,
+          "realized_output_ratio": 0.75
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 4,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 5,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 6,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 7,
+          "realized_output_ratio": 1.0
+        }
+      ],
+      "sector_id": "metal_supply",
+      "source_data_status": "synthetic",
+      "source_label": "Fictional metal supply",
+      "source_label_semantics": "presentation_only"
+    },
+    {
+      "baseline_output": {
+        "unit": "index_units",
+        "value": 25.0
+      },
+      "periods": [
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 0,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 1,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.3,
+          "period_index": 2,
+          "realized_output_ratio": 0.7
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 3,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 4,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 5,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 6,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 7,
+          "realized_output_ratio": 1.0
+        }
+      ],
+      "sector_id": "panel_maker",
+      "source_data_status": "synthetic",
+      "source_label": "Fictional display-panel maker",
+      "source_label_semantics": "presentation_only"
+    },
+    {
+      "baseline_output": {
+        "unit": "index_units",
+        "value": 120.0
+      },
+      "periods": [
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 0,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.5,
+          "period_index": 1,
+          "realized_output_ratio": 0.5
+        },
+        {
+          "output_loss_ratio": 0.5,
+          "period_index": 2,
+          "realized_output_ratio": 0.5
+        },
+        {
+          "output_loss_ratio": 0.25,
+          "period_index": 3,
+          "realized_output_ratio": 0.75
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 4,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 5,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 6,
+          "realized_output_ratio": 1.0
+        },
+        {
+          "output_loss_ratio": 0.0,
+          "period_index": 7,
+          "realized_output_ratio": 1.0
+        }
+      ],
+      "sector_id": "vehicle_assembly",
+      "source_data_status": "synthetic",
+      "source_label": "Fictional vehicle assembly",
+      "source_label_semantics": "presentation_only"
+    }
+  ],
+  "source": {
+    "dynamic_artifact_hash": "sha256:5505dd177878dce4078ec9418c281f15efcf7a825f1899da6915c4a71aedc8fb",
+    "dynamic_artifact_id": "dyn-1dbfa6b9501a69cc312670d4",
+    "export_config_hash": "sha256:3152844e1c1d27b882d662671e1b3425bce221d78b5ed242c66195c2311d9634",
+    "network_id": "dme-fictional-customer-chain",
+    "scenario_config_hash": "sha256:2190b22489ac691d506ba3f8598c93d44093418c25c9acf730c0f05b2b6dbf5d",
+    "scenario_hash": "sha256:5fb1340ec3f267bf2b426429f6cb445266836e4624cbee28d4967754ece96d57",
+    "scenario_policy_hash": "sha256:685b50a849854ae01618c033f6e2030acd3aa09541b134425cc35170462455b6",
+    "source_input_hash": "sha256:46bac695d8b83898dfd611a0aef12a44c9bd30814203b05ac6958ea80afe3c31"
+  },
+  "source_provenance": {
+    "edge_estimation_status_counts": {
+      "synthetic": 5
+    },
+    "is_synthetic": true,
+    "network_as_of": "2024-12-31",
+    "node_estimation_status_counts": {
+      "synthetic": 6
+    },
+    "note": "Fabricated DME cross-repository contract fixture. It describes no real economy, sector, company, transaction, forecast, or observed disruption.",
+    "references": [
+      {
+        "available_at": null,
+        "observation_end": "2024-12-31",
+        "observation_start": "2024-01-01",
+        "source": "dme-fictional-fixture",
+        "source_version": "dme-pne-cross-repo-1"
+      }
+    ]
+  },
+  "status": "complete",
+  "time": {
+    "available_periods": 8,
+    "calendar_anchor": "2025-01-01",
+    "frequency": 1,
+    "horizon_periods": 8,
+    "interval_semantics": "start_inclusive_end_exclusive",
+    "period_index_origin": 0,
+    "period_unit": "quarter",
+    "rescaled_by_exporter": false,
+    "value_semantics": "period_total_realized_output_ratio"
+  },
+  "unsupported_reasons": [],
+  "warnings": [
+    {
+      "code": "period_unit_not_rescaled",
+      "context": {
+        "period_unit": "quarter"
+      },
+      "message": "the scenario labels one period as 'quarter', which asserts that this network's baseline flows are measured over that period. The engine did not rescale anything: every ratio here is against one baseline period of the input document, whatever that turns out to be",
+      "severity": "info",
+      "source": "source_dynamic_artifact"
+    }
+  ]
+}
