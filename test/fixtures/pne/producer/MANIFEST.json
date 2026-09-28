@@ -1,0 +1,88 @@
+{
+    "cases": [
+        {
+            "case_id": "quarterly_supplier_disruption",
+            "dme_content_hash": "sha256:2ad3cfc298ac5ddb5e153d5efb57d040d765d1ee189ae7e768d09ad24c17921c",
+            "export_config": "test/fixtures/pne/producer/inputs/export_config.json",
+            "network": "test/fixtures/pne/producer/inputs/network_fictional_customer_chain.json",
+            "output": {
+                "path": "test/fixtures/pne/producer/v1/quarterly_supplier_disruption.json",
+                "sha256": "sha256:779fc9664f8f58394691d6990f9c4ab6017295784e7634ceac9b38e36d290e2f"
+            },
+            "producer_record": {
+                "algorithm_versions": {
+                    "dynamic.multi_period_propagation": "1.4.0",
+                    "propagation.leontief_supply_constraint": "1.0.0"
+                },
+                "completed_periods": 8,
+                "dynamic_artifact_hash": "sha256:5505dd177878dce4078ec9418c281f15efcf7a825f1899da6915c4a71aedc8fb",
+                "dynamic_artifact_id": "dyn-1dbfa6b9501a69cc312670d4",
+                "engine_version": "0.1.0",
+                "horizon_periods": 8,
+                "network_id": "dme-fictional-customer-chain",
+                "scenario_hash": "sha256:5fb1340ec3f267bf2b426429f6cb445266836e4624cbee28d4967754ece96d57",
+                "schema_version": "production-network-dynamic-analysis/v1",
+                "source_input_hash": "sha256:46bac695d8b83898dfd611a0aef12a44c9bd30814203b05ac6958ea80afe3c31"
+            },
+            "scenario": "test/fixtures/pne/producer/inputs/scenario_quarterly_supplier_disruption.json"
+        },
+        {
+            "case_id": "monthly_supplier_disruption",
+            "dme_content_hash": "sha256:3bdccf9aae393069ac8cfd81383c46dca0b85ac3c948f6274466c654d71c0d6f",
+            "export_config": "test/fixtures/pne/producer/inputs/export_config.json",
+            "network": "test/fixtures/pne/producer/inputs/network_fictional_customer_chain.json",
+            "output": {
+                "path": "test/fixtures/pne/producer/v1/monthly_supplier_disruption.json",
+                "sha256": "sha256:222275d29576d095df30266eb7c2b71b4cef6a84c0b6c93b6a44bdbc3d6b14b5"
+            },
+            "producer_record": {
+                "algorithm_versions": {
+                    "dynamic.multi_period_propagation": "1.4.0",
+                    "propagation.leontief_supply_constraint": "1.0.0"
+                },
+                "completed_periods": 12,
+                "dynamic_artifact_hash": "sha256:860cbcd3aafcecde09e912355cc1770e6af4a0c8508e38494abec96c4fc4abf5",
+                "dynamic_artifact_id": "dyn-365075f9a5da650396b3cf7f",
+                "engine_version": "0.1.0",
+                "horizon_periods": 12,
+                "network_id": "dme-fictional-customer-chain",
+                "scenario_hash": "sha256:236a30d8ccd83ef5f735f43198071486b086aba8fbc5912ded6c28b62ea17b97",
+                "schema_version": "production-network-dynamic-analysis/v1",
+                "source_input_hash": "sha256:46bac695d8b83898dfd611a0aef12a44c9bd30814203b05ac6958ea80afe3c31"
+            },
+            "scenario": "test/fixtures/pne/producer/inputs/scenario_monthly_supplier_disruption.json"
+        }
+    ],
+    "generator": {
+        "command": "julia --project=. test/fixtures/pne/regenerate_cross_repo.jl producer --pne-repo <PNE checkout>",
+        "path": "test/fixtures/pne/regenerate_cross_repo.jl"
+    },
+    "inputs": [
+        {
+            "path": "test/fixtures/pne/producer/inputs/export_config.json",
+            "sha256": "sha256:fbb0ffa1f0faa947bffefa1be1541305d86b4ee86d0c14524c0928a4856e64fd"
+        },
+        {
+            "path": "test/fixtures/pne/producer/inputs/network_fictional_customer_chain.json",
+            "sha256": "sha256:69d864c02944db8a99a54666df277cff96a8d987f3ceec3a68fcd7413d8d76e4"
+        },
+        {
+            "path": "test/fixtures/pne/producer/inputs/scenario_monthly_supplier_disruption.json",
+            "sha256": "sha256:eb76094fadeb29131b6a57552e1d26946c59180ae91c9de7551f8015588a1da8"
+        },
+        {
+            "path": "test/fixtures/pne/producer/inputs/scenario_quarterly_supplier_disruption.json",
+            "sha256": "sha256:04f0e150f8af7a2cc5ffed0409e103a40e353f50217b71ce1959123db86c2b3b"
+        }
+    ],
+    "note": "Outputs are byte-for-byte what the PNE CLI wrote; do not edit them by hand. Inputs are DME-owned fictional documents. The PNE dynamic artifacts are not committed; producer_record keeps their identity as computed by PNE itself.",
+    "producer_commands": [
+        "production-network dynamic-simulate <network> <scenario> --out <dynamic>",
+        "production-network export-sector-output-path <network> <dynamic> --config <export_config> --out <output>"
+    ],
+    "schema_version": "dme.pne-producer-fixture-manifest/1.0.0",
+    "upstream_commit": "fc4c9a9fcd823827439e2722de9e73a0cabaac91",
+    "upstream_contract": "production-network-sector-output-path/v1",
+    "upstream_repository": "Yuki-Watanabe7/production-network-engine",
+    "upstream_tree_dirty": false
+}

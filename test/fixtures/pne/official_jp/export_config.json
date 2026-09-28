@@ -1,0 +1,17 @@
+{
+  "assumptions": [
+    "No sector aggregation or calendar-frequency conversion was performed."
+  ],
+  "classification": {
+    "level": "integrated-middle",
+    "sector_id_semantics": "opaque",
+    "system": "Japan 2020 IO sector classification",
+    "version": "2020"
+  },
+  "geography": {
+    "economy_id": "JP",
+    "name": "Japan",
+    "system": "ISO 3166-1 alpha-2"
+  },
+  "provenance_note": "Derived from the official 2020 Japan Input-Output Tables (e-Stat) through economic-data-provider and PNE for a DME negative cross-economy check. DME commits only this bridge artifact's identity metadata; sector identifiers, labels, baseline outputs and output paths are not committed."
+}

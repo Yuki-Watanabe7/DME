@@ -1,0 +1,74 @@
+{
+    "schema_version": "dme.cross-model-mapping/1.0.0",
+    "mapping_id": "dme-xrepo-ccc-producer-quarterly",
+    "mapping_version": "1.0.0",
+    "source_contract": "production-network-sector-output-path/v1",
+    "source_geography": {
+        "system": "dme-fictional-economy/v1",
+        "economy_id": "DME-FICTIONAL-A"
+    },
+    "target_geography": {
+        "system": "ISO 3166-1 alpha-2",
+        "economy_id": "US"
+    },
+    "source_classification": {
+        "system": "dme-fictional-industries",
+        "version": "1",
+        "level": "native-node"
+    },
+    "target_model": "capex_credit_cycle",
+    "target_model_mapping_version": "ccc-cross-model-mapping/1.0.0",
+    "transmission": {
+        "mode": "hypothetical_override",
+        "justification": "Fictional cross-repository E2E input: carries a PNE-produced synthetic supply-network result into the CCC derived out-of-model demand channel. It asserts no transmission between real economies; no US-economy PNE profile exists (PG-02).",
+        "transmission_ref": null
+    },
+    "groups": [
+        {
+            "target_group": "ext_demand_s2_customers",
+            "target_concept": "derived_out_of_model_demand",
+            "weight_basis": "declared_target_share",
+            "members": [
+                {
+                    "sector_id": "vehicle_assembly",
+                    "weight": 0.2
+                },
+                {
+                    "sector_id": "handset_assembly",
+                    "weight": 0.15
+                }
+            ],
+            "producer_set": [
+                "chip_fab"
+            ],
+            "producer_set_absent_reason": null,
+            "customer_scope": "out_of_model",
+            "weight_provenance": {
+                "source": "fabricated cross-repository fixture weights",
+                "version": "1",
+                "method": "declared share of baseline ext_demand_s2 attributed to each fictional customer",
+                "data_hash": null
+            },
+            "identifying_assumptions": [
+                "The fictional assemblers' purchases belong to ext_demand_s2, not to CCC's modeled S1/S3/S5 demand.",
+                "Input coefficients are fixed, so a customer's derived demand moves one-for-one with its realized output."
+            ]
+        }
+    ],
+    "declared_unmapped_source_sectors": [
+        "harness_maker",
+        "metal_supply",
+        "panel_maker"
+    ],
+    "time": {
+        "expected_source_period_unit": "quarter",
+        "target_frequency": "quarter",
+        "aggregation_rule": "identity",
+        "partial_quarter": "reject",
+        "post_horizon": "require_recovered"
+    },
+    "assumptions": [
+        "Fictional mapping for the PNE -> DME cross-repository E2E only."
+    ],
+    "notes": "Cross-repository E2E fixture (Issue #283) for producer/v1/quarterly_supplier_disruption.json. Weights are fabricated."
+}
