@@ -963,9 +963,11 @@ horizon 後の持続仮定）は、コード変更と同時に本書の改訂節
 
 ### 16.2 `PN-2`（#282）
 
-- **配置**: `src/scenarios/adapters/capex_credit_cycle_cross_model_adapter.jl`（`CCC_CROSS_MODEL_MAPPING_RULES`・
-  `map_model_derived_input`）・`src/scenarios/cross_model_runner.jl`（`ModelDerivedInput` 構築・
-  `run_cross_model_scenario`・保存・replay）。`PN-1` のファイルの後に include する。
+- **配置**: `src/scenarios/cross_model_input.jl`（`ModelDerivedInput` の型・構築・シリアライズ）・
+  `src/scenarios/adapters/capex_credit_cycle_cross_model_adapter.jl`（`CCC_CROSS_MODEL_MAPPING_RULES`・
+  `map_model_derived_input`）・`src/scenarios/cross_model_runner.jl`（`run_cross_model_scenario`・保存・
+  replay）。`PN-1` のファイルの後に include する（adapter が `ModelDerivedInput` 型に依存するため、型を
+  runner から分けた。§20）。
 - **本書による #282 からの明確化**:
   1. CCC の適用先は `ext_demand_s2` / `ext_demand_s3` の派生中間需要チャネルのみ（§7.3・§7.4）。
      CCC 対応部門自身の供給制約は `unmapped_target_concept` で拒否し、新しい外生変数を追加しない（`PG-01`）。
@@ -1034,3 +1036,26 @@ horizon 後の持続仮定）は、コード変更と同時に本書の改訂節
 | 8 | decode の失敗コード | PNE artifact は `PNE_DECODE_ERROR_CODES`（`unsupported_upstream_schema_version`・`upstream_schema_violation`・`upstream_semantic_invariant_violation`）、mapping artifact は `invalid_cross_model_mapping`・`unsupported_cross_model_mapping_schema_version` でメッセージを始める |
 | 9 | `DD-5` の宣言 | `target_concept = :derived_out_of_model_demand` の群は `customer_scope = "out_of_model"` と 1 件以上の `identifying_assumptions` を decode 時に必須とする（層(1)） |
 | 10 | vendor | PNE の schema を `docs/contract/pne/`、fixture を `test/fixtures/pne/sector_output_path/v1/` に置き、`MANIFEST.json` の SHA-256 とファイルの一致をテストで検査する。DME 側の mapping fixture・golden は `test/fixtures/pne/mappings/`・`golden/`（`regenerate.jl` で再生成） |
+
+---
+
+## 20. 実装への反映（#282 / `PN-2`）
+
+#282 は `X4`–`X7` を本書に従って実装した。実装時に本書の記述を具体化・明確化した点を記録する
+（いずれも受理範囲を広げない）。
+
+| # | 事項 | 実装 |
+|---|---|---|
+| 1 | ファイル配置 | `ModelDerivedInput` の型・構築（`build_model_derived_inputs`）・シリアライズは `cross_model_input.jl` に置いた。adapter（`map_model_derived_input` のシグネチャ）が型に依存するため、§16.2 の当初案（runner に同居）から分けた |
+| 2 | 構築経路 | `build_model_derived_inputs(artifact, mapping, report; timing_basis, t_start)` は `apply_cross_model_mapping` を経由し、accepted かつ再計算と一致する report からのみ入力を作る（`UM-4`）。`input_id` は `"xm-" * <mapping_id> * ":" * <target_group>` |
+| 3 | 配置基準 | `ModelDerivedInput.timing_basis` は宣言値として保持し、実行時に `Scenario.period_zero` の有無と照合する（不一致は `timing_basis_conflict`、§9.5）。`:calendar` は `anchor_quarter` 必須・`t_start` 不可、`:period` は `t_start` 必須（構築時検査） |
+| 4 | 構築時不変条件 | `values` は有限・非空。`:target_relative_change` は `[-1, 0]`（符号規約 `:non_positive`）、`:group_realized_output_ratio` は `[0, 1]`。`claim_scope` は `transmission_mode` から一意に決まる値でなければならない。`:explicit_cross_economy` は v1 では構築できない |
+| 5 | `map_model_derived_input` の戻り値 | `(Union{AppliedModelInput,CrossModelRejection}, Vector{CrossModelWarning})`。`AppliedModelInput.warnings` は `MACRO_EVENT_WARNING_CODES` のみとし、cross-model 警告（`upstream_calendar_anchor_unused`・`upstream_path_truncated`）は第 2 要素で返す |
+| 6 | 値の計算 | `persistence = PersistenceSpec(shape = :path, params = (values = 100 · x.values,))` とし、`AppliedModelInput.values` は event 層と同じ `shock_shape_path` で導く。PNE horizon 後は 0（X2 が回復を保証） |
+| 7 | 評価区間の外 | 末尾が評価区間を超える場合は切り捨てて `upstream_path_truncated` を出す。パス全体が評価区間の後に置かれる場合も拒否せず、`schedule_events` の `out_of_horizon`（event 層と同じ扱い）で適用対象から外れる |
+| 8 | 外生 7 変数の受理表 | `CCC_CROSS_MODEL_EXOGENOUS_COVERAGE` として §7.3 の変数行を data で持ち、`:accepted` の変数が registry の受理行の適用先と一致することをテストで検査する |
+| 9 | 実行前検証 | `input_id` の重複と `Scenario.assumptions` の `assumption_id` との衝突は `duplicate_input_id`、`target_model` の不一致は `unsupported_target_model`（`stage = :run_validation`）。配置（`timing_basis_conflict`・`upstream_path_in_runup`）も実行前に検査し、いずれも `:rejected_validation` とする |
+| 10 | provenance | cross-model 実行の `ScenarioProvenance.contract_versions` に `cross_model_input_contract_version` を加える。cross-model 固有の identity は `CrossModelProvenance`（set hash・upstream/mapping/report の hash 一覧）に持つ |
+| 11 | 保存 | `save_cross_model_scenario_artifact(dir, run; mappings, reports)` は入力が参照する mapping・report を呼び出し側から受け取り、不足は `provenance_chain_broken`。拒否された実行も保存でき、`result_summary.json` の `variables` は `null` |
+| 12 | replay | report の hash は保存された dict から `upstream.source_bytes_sha256` を除いて再計算し、入力の参照と照合する。再導出検証（`upstream_artifacts`）は PNE artifact から `X1`–`X3` を再実行し、`values` の bit 一致を確認する |
+| 13 | 要約 | `cross_model_input_summary(run)` が入力ごとの member・unmapped sector・被覆率・target 変数・配置期（`placed_periods`）・適用期（`applied_periods`、値が 0 でない期）・パスの最小値・provenance chain（PNE dynamic artifact / scenario / input の hash まで）を返す（#282 Scope 6） |

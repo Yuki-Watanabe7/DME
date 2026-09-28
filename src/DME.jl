@@ -403,6 +403,33 @@ export
     MappedGroupPath,
     apply_cross_model_mapping,
     mapped_group_path_to_dict,
+    # 上流モデル由来入力・CCC cross-model adapter・cross-model 実行/保存/replay
+    # （src/scenarios/cross_model_input.jl・
+    # src/scenarios/adapters/capex_credit_cycle_cross_model_adapter.jl・
+    # src/scenarios/cross_model_runner.jl、Issue #282 / `PN-2`）
+    MODEL_DERIVED_INPUT_ORIGIN,
+    MODEL_DERIVED_INPUT_ID_PREFIX,
+    MODEL_DERIVED_INPUT_TIMING_BASES,
+    MODEL_DERIVED_INPUT_POST_HORIZON,
+    ModelDerivedInput,
+    build_model_derived_inputs,
+    upstream_artifact_ref_from_dict,
+    model_derived_input_to_dict,
+    model_derived_input_from_dict,
+    cross_model_input_set_hash,
+    CrossModelMappingRule,
+    CCC_CROSS_MODEL_MAPPING_RULES,
+    CCC_CROSS_MODEL_EXOGENOUS_COVERAGE,
+    map_model_derived_input,
+    CROSS_MODEL_SCENARIO_ARTIFACT_SCHEMA_VERSION,
+    CROSS_MODEL_METADATA_KEYS,
+    CrossModelProvenance,
+    CrossModelScenarioRun,
+    run_cross_model_scenario,
+    cross_model_input_summary,
+    save_cross_model_scenario_artifact,
+    load_cross_model_scenario,
+    replay_cross_model_scenario,
     # CCC: 構築・較正（部門別CAPEX・信用循環モデル、src/models/capex_credit_cycle.jl）
     CAPEX_CREDIT_CYCLE_MODEL_VERSION,
     CapexCreditCycleTargets,
@@ -1221,6 +1248,16 @@ include("./scenarios/scenario_serialization.jl")
 include("./scenarios/pne_sector_output_path.jl")
 include("./scenarios/cross_model_mapping.jl")
 include("./scenarios/cross_model_compatibility.jl")
+
+# 上流モデル由来入力（X4）・CCC cross-model adapter（X5）・cross-model 実行と保存/replay
+# （X6/X7）（Issue #282 / `PN-2`）。depends on 上記 #281 の 3 ファイル・
+# scenarios/scenario_runner.jl（Scenario 検証・map_event 適用・警告・metadata の内部関数）・
+# scenarios/scenario_provenance.jl・scenarios/scenario_serialization.jl・models/capex_credit_cycle.jl
+# （CAPEX_CC_EXOGENOUS_VARIABLES・_ccc_baseline_exog・capex_run）。run_scenario・map_event・
+# Scenario・AppliedModelInput は変更しない。
+include("./scenarios/cross_model_input.jl")
+include("./scenarios/adapters/capex_credit_cycle_cross_model_adapter.jl")
+include("./scenarios/cross_model_runner.jl")
 
 # シナリオ比較診断（Issue #204 / `E-8`。depends on scenarios/scenario_types.jl・
 # scenarios/scenario_runner.jl（ScenarioRun・run_scenario・ScenarioRunOptions）・
