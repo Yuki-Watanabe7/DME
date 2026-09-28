@@ -63,6 +63,7 @@ const DME_TEST_FILES = [
     "test_japan_fiscal_result.jl",
     "test_scenario_runner.jl",
     "test_scenario_serialization.jl",
+    "test_cross_model_compatibility.jl",
     "test_scenario_diagnostics.jl",
     "test_analysis_context.jl",
     "test_keen_empirical_context.jl",

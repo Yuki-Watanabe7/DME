@@ -1,0 +1,868 @@
+{
+  "$defs": {
+    "AggregatePathDefinition": {
+      "additionalProperties": false,
+      "description": "How the optional economy-wide path is formed and when it is withheld.",
+      "properties": {
+        "loss_semantics": {
+          "const": "one_minus_aggregate_output_ratio",
+          "title": "Loss Semantics",
+          "type": "string"
+        },
+        "missing_baseline_treatment": {
+          "const": "aggregate_path_absent",
+          "title": "Missing Baseline Treatment",
+          "type": "string"
+        },
+        "ratio_semantics": {
+          "const": "baseline_output_weighted_mean_of_sector_realized_output_ratio",
+          "title": "Ratio Semantics",
+          "type": "string"
+        },
+        "weighting": {
+          "const": "source_baseline_output",
+          "title": "Weighting",
+          "type": "string"
+        }
+      },
+      "required": [
+        "weighting",
+        "ratio_semantics",
+        "loss_semantics",
+        "missing_baseline_treatment"
+      ],
+      "title": "AggregatePathDefinition",
+      "type": "object"
+    },
+    "AggregationBoundary": {
+      "additionalProperties": false,
+      "description": "Proof that no DME-specific aggregation was performed by this export.",
+      "properties": {
+        "baseline_output_weighting": {
+          "title": "Baseline Output Weighting",
+          "type": "null"
+        },
+        "coverage": {
+          "maximum": 1.0,
+          "minimum": 1.0,
+          "title": "Coverage",
+          "type": "number"
+        },
+        "mapping_artifact_hash": {
+          "title": "Mapping Artifact Hash",
+          "type": "null"
+        },
+        "status": {
+          "const": "native_sector_path",
+          "title": "Status",
+          "type": "string"
+        },
+        "unmapped_sector_treatment": {
+          "title": "Unmapped Sector Treatment",
+          "type": "null"
+        },
+        "weighted_aggregation_rule": {
+          "title": "Weighted Aggregation Rule",
+          "type": "null"
+        }
+      },
+      "required": [
+        "status",
+        "mapping_artifact_hash",
+        "weighted_aggregation_rule",
+        "baseline_output_weighting",
+        "unmapped_sector_treatment",
+        "coverage"
+      ],
+      "title": "AggregationBoundary",
+      "type": "object"
+    },
+    "ArtifactStatus": {
+      "description": "Whether the bridge result is safe for a consumer to apply.",
+      "enum": [
+        "complete",
+        "unsupported"
+      ],
+      "title": "ArtifactStatus",
+      "type": "string"
+    },
+    "EstimationStatus": {
+      "description": "How a node or edge came to exist in the dataset.\n\nThis is a first-class domain semantic, not metadata. An estimated edge must never\nbe silently promoted to an observed one: downstream consumers such as\n``finance-checker`` weigh evidence by how it was produced, and an analysis run\nover mostly-``ESTIMATED`` edges warrants a different reading than one over\nobserved transactions.",
+      "enum": [
+        "observed",
+        "estimated",
+        "inferred",
+        "synthetic"
+      ],
+      "title": "EstimationStatus",
+      "type": "string"
+    },
+    "GeographyCompatibility": {
+      "additionalProperties": false,
+      "description": "The geographic transmission PNE actually modelled for this path.\n\nVersion 1 exports native PNE results only and therefore supports the source economy\nitself.  A different economy is incompatible unless a future contract explicitly\nnames a cross-economy transmission model.  Similar sector labels never establish\ngeographic compatibility.",
+      "properties": {
+        "compatible_economy_ids": {
+          "items": {
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/+-]*$",
+            "type": "string"
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "title": "Compatible Economy Ids",
+          "type": "array"
+        },
+        "explicitly_modeled_cross_economy": {
+          "const": false,
+          "title": "Explicitly Modeled Cross Economy",
+          "type": "boolean"
+        },
+        "mode": {
+          "const": "same_economy_only",
+          "title": "Mode",
+          "type": "string"
+        },
+        "model_reference": {
+          "title": "Model Reference",
+          "type": "null"
+        }
+      },
+      "required": [
+        "mode",
+        "compatible_economy_ids",
+        "explicitly_modeled_cross_economy",
+        "model_reference"
+      ],
+      "title": "GeographyCompatibility",
+      "type": "object"
+    },
+    "GeographyIdentity": {
+      "additionalProperties": false,
+      "description": "The economy whose production network the output path describes.",
+      "properties": {
+        "economy_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/+-]*$",
+          "title": "Economy Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "system": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "System",
+          "type": "string"
+        }
+      },
+      "required": [
+        "economy_id",
+        "system",
+        "name"
+      ],
+      "title": "GeographyIdentity",
+      "type": "object"
+    },
+    "OutputPathPoint": {
+      "additionalProperties": false,
+      "description": "One period's endogenous result; loss is exactly one minus output.",
+      "properties": {
+        "output_loss_ratio": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Output Loss Ratio",
+          "type": "number"
+        },
+        "period_index": {
+          "minimum": 0,
+          "title": "Period Index",
+          "type": "integer"
+        },
+        "realized_output_ratio": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Realized Output Ratio",
+          "type": "number"
+        }
+      },
+      "required": [
+        "period_index",
+        "realized_output_ratio",
+        "output_loss_ratio"
+      ],
+      "title": "OutputPathPoint",
+      "type": "object"
+    },
+    "OutputPathTimeAxis": {
+      "additionalProperties": false,
+      "description": "Time and value semantics shared by every series in the artifact.",
+      "properties": {
+        "available_periods": {
+          "minimum": 0,
+          "title": "Available Periods",
+          "type": "integer"
+        },
+        "calendar_anchor": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Calendar Anchor"
+        },
+        "frequency": {
+          "const": 1,
+          "title": "Frequency",
+          "type": "integer"
+        },
+        "horizon_periods": {
+          "minimum": 1,
+          "title": "Horizon Periods",
+          "type": "integer"
+        },
+        "interval_semantics": {
+          "const": "start_inclusive_end_exclusive",
+          "title": "Interval Semantics",
+          "type": "string"
+        },
+        "period_index_origin": {
+          "const": 0,
+          "title": "Period Index Origin",
+          "type": "integer"
+        },
+        "period_unit": {
+          "$ref": "#/$defs/PeriodUnit"
+        },
+        "rescaled_by_exporter": {
+          "const": false,
+          "title": "Rescaled By Exporter",
+          "type": "boolean"
+        },
+        "value_semantics": {
+          "const": "period_total_realized_output_ratio",
+          "title": "Value Semantics",
+          "type": "string"
+        }
+      },
+      "required": [
+        "period_unit",
+        "frequency",
+        "period_index_origin",
+        "horizon_periods",
+        "available_periods",
+        "calendar_anchor",
+        "interval_semantics",
+        "value_semantics",
+        "rescaled_by_exporter"
+      ],
+      "title": "OutputPathTimeAxis",
+      "type": "object"
+    },
+    "PeriodUnit": {
+      "description": "What one simulation period is called.\n\nA label, not a conversion factor. See :class:`PeriodCalendar`.",
+      "enum": [
+        "baseline_period",
+        "day",
+        "week",
+        "month",
+        "quarter",
+        "year"
+      ],
+      "title": "PeriodUnit",
+      "type": "string"
+    },
+    "ProducerIdentity": {
+      "additionalProperties": false,
+      "description": "Engine and algorithm versions that can change the exported numbers.",
+      "properties": {
+        "algorithm_versions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Algorithm Versions",
+          "type": "object"
+        },
+        "engine": {
+          "const": "production-network-engine",
+          "title": "Engine",
+          "type": "string"
+        },
+        "engine_version": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Engine Version",
+          "type": "string"
+        },
+        "exporter_version": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Exporter Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "engine",
+        "engine_version",
+        "algorithm_versions",
+        "exporter_version"
+      ],
+      "title": "ProducerIdentity",
+      "type": "object"
+    },
+    "Quantity": {
+      "additionalProperties": false,
+      "description": "A measured level with its unit.\n\nThe engine does no unit conversion. ``unit`` is carried so that a consumer can\ndetect a mismatch rather than silently combining incompatible magnitudes.",
+      "properties": {
+        "unit": {
+          "maxLength": 50,
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "value": {
+          "minimum": 0.0,
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "unit"
+      ],
+      "title": "Quantity",
+      "type": "object"
+    },
+    "ResultTypeBoundary": {
+      "additionalProperties": false,
+      "description": "Machine-readable separation of the four result roles.",
+      "properties": {
+        "downstream_application": {
+          "const": "not_present",
+          "title": "Downstream Application",
+          "type": "string"
+        },
+        "output_path": {
+          "const": "pne_model_derived_endogenous_result",
+          "title": "Output Path",
+          "type": "string"
+        },
+        "pne_scenario": {
+          "const": "pne_scenario_assumption",
+          "title": "Pne Scenario",
+          "type": "string"
+        },
+        "source_network_data": {
+          "const": "source_data_with_declared_estimation_status",
+          "title": "Source Network Data",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_network_data",
+        "pne_scenario",
+        "output_path",
+        "downstream_application"
+      ],
+      "title": "ResultTypeBoundary",
+      "type": "object"
+    },
+    "SectorClassification": {
+      "additionalProperties": false,
+      "description": "Identity of the native sector classification carried by the path.",
+      "properties": {
+        "level": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Level",
+          "type": "string"
+        },
+        "sector_id_semantics": {
+          "const": "opaque",
+          "title": "Sector Id Semantics",
+          "type": "string"
+        },
+        "system": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "System",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "system",
+        "version",
+        "level",
+        "sector_id_semantics"
+      ],
+      "title": "SectorClassification",
+      "type": "object"
+    },
+    "SectorOutputPathWarning": {
+      "additionalProperties": false,
+      "description": "A caveat copied from the source run or raised by the exporter.",
+      "properties": {
+        "code": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "context": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Context",
+          "type": "object"
+        },
+        "message": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "source": {
+          "enum": [
+            "source_dynamic_artifact",
+            "sector_output_exporter"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "severity",
+        "source"
+      ],
+      "title": "SectorOutputPathWarning",
+      "type": "object"
+    },
+    "SectorOutputSeries": {
+      "additionalProperties": false,
+      "description": "Native PNE sector identity and its realized output path.",
+      "properties": {
+        "baseline_output": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Quantity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "periods": {
+          "items": {
+            "$ref": "#/$defs/OutputPathPoint"
+          },
+          "title": "Periods",
+          "type": "array"
+        },
+        "sector_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/+-]*$",
+          "title": "Sector Id",
+          "type": "string"
+        },
+        "source_data_status": {
+          "$ref": "#/$defs/EstimationStatus"
+        },
+        "source_label": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Source Label",
+          "type": "string"
+        },
+        "source_label_semantics": {
+          "const": "presentation_only",
+          "title": "Source Label Semantics",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sector_id",
+        "source_label",
+        "source_label_semantics",
+        "source_data_status",
+        "periods"
+      ],
+      "title": "SectorOutputSeries",
+      "type": "object"
+    },
+    "Severity": {
+      "enum": [
+        "info",
+        "warning",
+        "error"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "SourceArtifactReference": {
+      "additionalProperties": false,
+      "description": "Content-addressed references to the network, scenario and dynamic result.",
+      "properties": {
+        "dynamic_artifact_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Dynamic Artifact Hash",
+          "type": "string"
+        },
+        "dynamic_artifact_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/+-]*$",
+          "title": "Dynamic Artifact Id",
+          "type": "string"
+        },
+        "export_config_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Export Config Hash",
+          "type": "string"
+        },
+        "network_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/+-]*$",
+          "title": "Network Id",
+          "type": "string"
+        },
+        "scenario_config_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Scenario Config Hash",
+          "type": "string"
+        },
+        "scenario_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Scenario Hash",
+          "type": "string"
+        },
+        "scenario_policy_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Scenario Policy Hash",
+          "type": "string"
+        },
+        "source_input_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Source Input Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "network_id",
+        "source_input_hash",
+        "dynamic_artifact_id",
+        "dynamic_artifact_hash",
+        "scenario_hash",
+        "scenario_policy_hash",
+        "scenario_config_hash",
+        "export_config_hash"
+      ],
+      "title": "SourceArtifactReference",
+      "type": "object"
+    },
+    "SourceProvenanceSummary": {
+      "additionalProperties": false,
+      "description": "Provenance needed to qualify the path without copying the source document.",
+      "properties": {
+        "edge_estimation_status_counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/EstimationStatus"
+          },
+          "title": "Edge Estimation Status Counts",
+          "type": "object"
+        },
+        "is_synthetic": {
+          "title": "Is Synthetic",
+          "type": "boolean"
+        },
+        "network_as_of": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Network As Of",
+          "type": "string"
+        },
+        "node_estimation_status_counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/EstimationStatus"
+          },
+          "title": "Node Estimation Status Counts",
+          "type": "object"
+        },
+        "note": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Note",
+          "type": "string"
+        },
+        "references": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SourceReference"
+          },
+          "title": "References",
+          "type": "array"
+        }
+      },
+      "required": [
+        "network_as_of",
+        "is_synthetic",
+        "node_estimation_status_counts",
+        "edge_estimation_status_counts",
+        "note"
+      ],
+      "title": "SourceProvenanceSummary",
+      "type": "object"
+    },
+    "SourceReference": {
+      "additionalProperties": false,
+      "description": "Deduplicated provenance reference from a source node or edge.",
+      "properties": {
+        "available_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Available At"
+        },
+        "observation_end": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Observation End",
+          "type": "string"
+        },
+        "observation_start": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Observation Start",
+          "type": "string"
+        },
+        "source": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
+        },
+        "source_version": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Source Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "source_version",
+        "observation_start",
+        "observation_end"
+      ],
+      "title": "SourceReference",
+      "type": "object"
+    },
+    "UnsupportedReason": {
+      "additionalProperties": false,
+      "description": "Why a consumer must not apply this artifact as a macro scenario input.",
+      "properties": {
+        "code": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "UnsupportedReason",
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/Yuki-Watanabe7/production-network-engine/production-network-sector-output-path/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Versioned, deterministic PNE-to-macro sector output path.",
+  "properties": {
+    "aggregate_path": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/OutputPathPoint"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Aggregate Path"
+    },
+    "aggregate_path_definition": {
+      "$ref": "#/$defs/AggregatePathDefinition"
+    },
+    "aggregation": {
+      "$ref": "#/$defs/AggregationBoundary"
+    },
+    "artifact_id": {
+      "maxLength": 200,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/+-]*$",
+      "title": "Artifact Id",
+      "type": "string"
+    },
+    "classification": {
+      "$ref": "#/$defs/SectorClassification"
+    },
+    "export_assumptions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Export Assumptions",
+      "type": "array"
+    },
+    "geography": {
+      "$ref": "#/$defs/GeographyIdentity"
+    },
+    "geography_compatibility": {
+      "$ref": "#/$defs/GeographyCompatibility"
+    },
+    "model_assumptions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Model Assumptions",
+      "type": "array"
+    },
+    "producer": {
+      "$ref": "#/$defs/ProducerIdentity"
+    },
+    "result_semantics": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Result Semantics",
+      "type": "string"
+    },
+    "result_type_boundary": {
+      "$ref": "#/$defs/ResultTypeBoundary"
+    },
+    "scenario_assumptions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Scenario Assumptions",
+      "type": "array"
+    },
+    "schema_version": {
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "sectors": {
+      "items": {
+        "$ref": "#/$defs/SectorOutputSeries"
+      },
+      "minItems": 1,
+      "title": "Sectors",
+      "type": "array"
+    },
+    "source": {
+      "$ref": "#/$defs/SourceArtifactReference"
+    },
+    "source_provenance": {
+      "$ref": "#/$defs/SourceProvenanceSummary"
+    },
+    "status": {
+      "$ref": "#/$defs/ArtifactStatus"
+    },
+    "time": {
+      "$ref": "#/$defs/OutputPathTimeAxis"
+    },
+    "unsupported_reasons": {
+      "items": {
+        "$ref": "#/$defs/UnsupportedReason"
+      },
+      "title": "Unsupported Reasons",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/SectorOutputPathWarning"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "status",
+    "source",
+    "producer",
+    "result_type_boundary",
+    "geography",
+    "geography_compatibility",
+    "classification",
+    "aggregation",
+    "time",
+    "source_provenance",
+    "scenario_assumptions",
+    "model_assumptions",
+    "export_assumptions",
+    "sectors",
+    "aggregate_path_definition",
+    "aggregate_path",
+    "warnings",
+    "unsupported_reasons",
+    "result_semantics"
+  ],
+  "title": "SectorOutputPathArtifact",
+  "type": "object",
+  "x-contract-version": "production-network-sector-output-path/v1",
+  "x-generated-by": "Generated from production_network_engine.domain.sector_output.SectorOutputPathArtifact by scripts/generate_schema.py; do not edit by hand. The schema fixes the portable JSON shape. Arithmetic and ordering invariants in x-semantic-invariants are also enforced by the producer model and pinned by the negative fixtures; consumers must enforce them independently and do not import PNE.",
+  "x-semantic-invariants": [
+    "output_loss_ratio equals 1 - realized_output_ratio",
+    "sectors are unique and sorted by opaque sector_id",
+    "every sector and aggregate path covers period indexes 0 through available_periods - 1",
+    "complete status covers the full horizon and has no unsupported_reasons",
+    "unsupported status carries at least one unsupported_reason",
+    "same_economy_only compatibility names exactly geography.economy_id"
+  ]
+}

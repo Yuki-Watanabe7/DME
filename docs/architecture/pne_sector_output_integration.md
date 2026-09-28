@@ -821,7 +821,7 @@ dynamic artifact を読まず、再計算もしない（UM-8）。
 |---|---|---|
 | `upstream.content_hash` | PNE artifact 全体（§5.3） | なし（`source_bytes_sha256` は hash ではなく監査属性） |
 | `mapping_hash` | mapping artifact（§8.2） | `notes` |
-| `compatibility_report_hash` | report 全体（§11.4） | なし（生成時刻を持たない） |
+| `compatibility_report_hash` | report 全体（§11.4。生成時刻を持たない） | `upstream.source_bytes_sha256`（監査属性。§3.3・§19） |
 | `cross_model_input_set_hash` | `ModelDerivedInput` 全件（`input_id` 昇順） | `notes`・`upstream.source_bytes_sha256` |
 
 いずれも ASCII snake_case キー・RFC 8785 正準化（既存の `canonical_json_bytes` を変更せずに再利用し、前段に
@@ -946,9 +946,10 @@ horizon 後の持続仮定）は、コード変更と同時に本書の改訂節
 ### 16.1 `PN-1`（#281）
 
 - **配置**: `src/scenarios/` 直下に `pne_sector_output_path.jl`（受理・`UpstreamModelArtifactRef`）・
-  `cross_model_mapping.jl`（mapping artifact・target profile・`X3`）・`cross_model_compatibility.jl`（`X2`・
-  report・拒否/警告語彙）を置き、`src/DME.jl` で `scenarios/scenario_serialization.jl` の後に include する
-  （新規サブディレクトリを作らないため `docs/make.jl` の変更は不要）。
+  `cross_model_mapping.jl`（mapping artifact・target profile）・`cross_model_compatibility.jl`（`X2`・
+  report・拒否/警告語彙・`X3`）を置き、`src/DME.jl` で `scenarios/scenario_serialization.jl` の後に include する
+  （新規サブディレクトリを作らないため `docs/make.jl` の変更は不要）。`X3`（`apply_cross_model_mapping`）は
+  report 型に依存するため `cross_model_compatibility.jl` に置いた（§19）。
 - **vendor**: PNE の schema を `docs/contract/pne/`、`representative.json`・`rejected/`・`export_config.json` を
   `test/fixtures/pne/sector_output_path/v1/` へコピーし、PNE commit と各ファイルの SHA-256 を `MANIFEST.json`
   に記録する。
@@ -1013,3 +1014,23 @@ horizon 後の持続仮定）は、コード変更と同時に本書の改訂節
 - [部門別CAPEX・信用循環モデル 動学方程式と数値計算契約](../models/capex_credit_cycle_equations.md)（`ycap_s` の内生性）
 - [クロスモデル推論層の設計](cross_model_reasoning.md)（概念対応の明示・同名変数の非同一視）
 - PNE: [sector output path contract](https://github.com/Yuki-Watanabe7/production-network-engine/blob/30beab183ef7f2387ce469ae19ad9885f9f55d71/docs/sector-output-path-contract.md)・[ADR 14](https://github.com/Yuki-Watanabe7/production-network-engine/blob/30beab183ef7f2387ce469ae19ad9885f9f55d71/docs/decisions/0014-macro-boundary-is-native-sector-output-not-dynamic-state.md)
+
+---
+
+## 19. 実装への反映（#281 / `PN-1`）
+
+#281 は `X1`–`X3` を本書に従って実装した。実装時に本書の記述を具体化・明確化した点を記録する
+（いずれも受理範囲を広げない）。
+
+| # | 事項 | 実装 |
+|---|---|---|
+| 1 | ファイル配置 | `X3` の `apply_cross_model_mapping` は report 型（`CrossModelCompatibilityReport`）に依存するため、§16.1 の当初案（`cross_model_mapping.jl`）ではなく `cross_model_compatibility.jl` に置いた |
+| 2 | report hash の対象 | `compatibility_report_hash` は `upstream.source_bytes_sha256`（監査属性、§3.3）を除いて計算する。同じ内容を別のバイト列で受け取っても同じ hash になる（§12.2 の表を改訂） |
+| 3 | 非有限の weight | JSON で表せず hash も計算できないため、`CrossModelGroupMember` の構築時に拒否する（層(1)）。`invalid_weights` は欠落・非正・`Σw > 1`・`weight_provenance` 欠落を扱う |
+| 4 | geography の未判定 | target profile が無い（`unsupported_target_model`）場合、geography は判定できないため `geography_status = :not_evaluated` とする |
+| 5 | 期間単位の不一致 | PNE artifact の `period_unit` が mapping の `expected_source_period_unit` と異なる場合も `unsupported_source_period_unit` で拒否する（新しいコードを追加しない） |
+| 6 | registry version の不一致 | mapping の `target_model_mapping_version` が target profile の version と異なる場合も `unsupported_target_model` で拒否する |
+| 7 | `X3` の前提 | `apply_cross_model_mapping` は渡された report を artifact・mapping から再計算した report と hash で照合し、不一致は `provenance_chain_broken`、`decision = :rejected` は `cross_model_mapping_rejected` の `ArgumentError` とする（`UM-4`） |
+| 8 | decode の失敗コード | PNE artifact は `PNE_DECODE_ERROR_CODES`（`unsupported_upstream_schema_version`・`upstream_schema_violation`・`upstream_semantic_invariant_violation`）、mapping artifact は `invalid_cross_model_mapping`・`unsupported_cross_model_mapping_schema_version` でメッセージを始める |
+| 9 | `DD-5` の宣言 | `target_concept = :derived_out_of_model_demand` の群は `customer_scope = "out_of_model"` と 1 件以上の `identifying_assumptions` を decode 時に必須とする（層(1)） |
+| 10 | vendor | PNE の schema を `docs/contract/pne/`、fixture を `test/fixtures/pne/sector_output_path/v1/` に置き、`MANIFEST.json` の SHA-256 とファイルの一致をテストで検査する。DME 側の mapping fixture・golden は `test/fixtures/pne/mappings/`・`golden/`（`regenerate.jl` で再生成） |
