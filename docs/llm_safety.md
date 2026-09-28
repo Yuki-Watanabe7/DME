@@ -143,6 +143,26 @@ DME または個別モデルの位置づけを、実装が持たない能力を�
 
 ---
 
+### 2.9 上流モデル由来入力（PNE sector-output-path）固有の禁止解釈
+
+production-network-engine（PNE）の部門産出パスを DME へ入れたシナリオでは、上流モデルの導出結果・DME 側の mapping 仮定・DME の応答を異なる根拠として扱う。
+詳細は [ADR 0024](adr/0024-pne-sector-output-cross-model-input-contract.md)・
+[PNE sector-output-path 受け入れ契約](architecture/pne_sector_output_integration.md) §13 を正本とする。
+
+| 禁止する解釈 | 必要な限定 |
+|---|---|
+| PNE 由来の産出比を観測された産出・実績値・予測として述べる | PNE のシナリオ条件付きのモデル導出結果であり、観測でも予測でもないと述べる |
+| 日本の PNE 結果を米国（他の経済圏）への影響として述べる | geography は同一経済圏でのみ受理される。cross-economy transmission は実装されておらず、Japan-PNE → US-CCC は拒否される |
+| `:hypothetical_override`（`claim_scope = hypothetical_fictional`）の結果を実在の経済・部門・企業の途絶の影響として述べる | 架空（synthetic）の供給網入力による仮想シナリオであると述べる |
+| 派生需要入力を `ext_demand_s` 全体の変化として述べる / カバーされない需要（uncovered share）は影響を受けないと述べる | mapping がカバーする顧客の割合に限った寄与であり、uncovered share は本入力の対象外であると述べる（「影響が無い」とは述べない） |
+| mapping の weight（`:declared_target_share`）や顧客区分を推定値・観測値として述べる | 識別仮定であると述べる（`ext_demand_s` の顧客別構成は識別されない） |
+| 部門ラベル・経済圏名の一致を部門・経済圏の対応の根拠として述べる | 対応は mapping artifact の宣言であり、ラベルは presentation only であると述べる |
+| CCC 対応部門自身の供給制約（例: 半導体部門の産出制約）を CCC が表現したかのように述べる | CCC は供給能力の外生入力を持たず、その制約を表現しないと述べる（`PG-01`） |
+| 適用されなかった PNE 由来入力（`cross_model_rejections`）がある実行を「上流の結果がすべて反映された」と述べる | cross-model の拒否があればモデルは実行されない。部分的な適用は存在しないと述べる |
+| `estimated` / `inferred` を含む network 由来の結果を観測された取引網の結果として述べる | source network の推定ステータス（`upstream_estimated_inputs`）を併記する |
+
+---
+
 ## 3. 必須表現・必須記載事項
 
 LLM 出力には以下の情報を必ず含める。プロンプトテンプレートに組み込むことで確実に反映する。
@@ -397,6 +417,16 @@ LLM が生成した出力を評価・レビューする際の確認項目。
 - [ ] `confidence` がショック規模の説明へ流用されていないか
 - [ ] 波及順序を統計的因果効果・寄与率と呼んでいないか
 
+### 5.6 上流モデル由来入力（PNE）説明チェック
+
+- [ ] PNE 由来の値をモデル導出結果として述べ、観測・実績・予測と呼んでいないか
+- [ ] 他の経済圏への影響（Japan → US 等）として述べていないか
+- [ ] `hypothetical_fictional` の結果を実在の途絶の影響として述べていないか
+- [ ] 派生需要入力が covered share に限った寄与であり、uncovered share が「本入力の対象外」であることを併記しているか
+- [ ] weight・顧客区分を識別仮定として述べ、推定値・観測値と呼んでいないか
+- [ ] CCC 対応部門自身の供給制約を CCC が表現したかのように述べていないか
+- [ ] source network の推定ステータス（`upstream_estimated_inputs`）を必要に応じて併記しているか
+
 ---
 
 ## 6. 統合デモへの反映方針
@@ -444,6 +474,7 @@ LLM が生成した出力を評価・レビューする際の確認項目。
 | [ADR 0005: Keen 実証結果の AI 説明契約](adr/0005-keen-ai-explanation-contract.md) | Keen 固有の根拠 category、source reference、必須 section、warning severity、parser fallback の正本 |
 | [Keen モデル実証化戦略](models/keen_empirical_strategy.md) | 観測方程式、限定推定、in/out-of-sample 検証、regime 診断、感応度の根拠となる実証層契約 |
 | [ADR 0014: Digital Twin / Digital Shadow の名称使用条件](adr/0014-digital-twin-naming-conditions.md) | 2.7 節の禁止名称・8 条件（`DS-1`–`DS-4`・`DT-1`–`DT-4`）・緩和表現の禁止の正本 |
+| [ADR 0024: PNE sector-output-path の cross-model input 契約](adr/0024-pne-sector-output-cross-model-input-contract.md) | 2.9 節・5.6 節（上流モデル由来入力の禁止解釈・claim scope・geography の fail closed）の正本 |
 
 ---
 
