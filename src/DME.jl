@@ -328,6 +328,81 @@ export
     japan_fiscal_scenario_result_from_dict,
     japan_fiscal_result_artifact_contract,
     save_japan_fiscal_scenario_result,
+    # PNE sector-output-path の受理・cross-model mapping artifact・互換性判定
+    # （src/scenarios/pne_sector_output_path.jl・cross_model_mapping.jl・
+    # cross_model_compatibility.jl、Issue #281 / `PN-1`。設計 docs/architecture/
+    # pne_sector_output_integration.md・ADR 0024）
+    CROSS_MODEL_INPUT_CONTRACT_VERSION,
+    PNE_SECTOR_OUTPUT_PATH_CONTRACT,
+    PNE_SECTOR_OUTPUT_PATH_ACCEPTED_SCHEMA_VERSIONS,
+    PNE_RATIO_ABS_TOL,
+    PNE_PERIOD_UNITS,
+    PNE_ESTIMATION_STATUSES,
+    PNE_ARTIFACT_STATUSES,
+    PNE_WARNING_SEVERITIES,
+    PNE_DECODE_ERROR_CODES,
+    UPSTREAM_MODEL_DERIVED_RESULT_ROLE,
+    PNEGeography,
+    PNEClassification,
+    PNEQuantity,
+    PNESectorSeries,
+    PNETimeAxis,
+    PNEWarning,
+    PNEUnsupportedReason,
+    PNESourceReference,
+    PNEProducer,
+    PNESourceProvenance,
+    PNESectorOutputPath,
+    pne_sector_output_path_from_dict,
+    load_pne_sector_output_path,
+    pne_sector,
+    pne_sector_ids,
+    pne_is_synthetic_source,
+    UpstreamModelArtifactRef,
+    upstream_artifact_ref,
+    upstream_artifact_ref_to_dict,
+    CROSS_MODEL_MAPPING_SCHEMA_VERSION,
+    CROSS_MODEL_TARGET_PROFILE_VERSION,
+    CCC_CROSS_MODEL_MAPPING_VERSION,
+    CROSS_MODEL_TRANSMISSION_MODES,
+    ACCEPTED_CROSS_ECONOMY_TRANSMISSION_CONTRACTS,
+    CROSS_MODEL_TARGET_CONCEPTS,
+    CROSS_MODEL_WEIGHT_BASES,
+    CROSS_MODEL_VALUE_SEMANTICS,
+    CROSS_MODEL_CLAIM_SCOPES,
+    CROSS_MODEL_AGGREGATION_RULES,
+    CROSS_MODEL_UNCOVERED_SHARE_TREATMENT,
+    CrossModelGeographyRef,
+    CrossModelClassificationRef,
+    CrossEconomyTransmissionRef,
+    CrossModelTransmission,
+    CrossModelGroupMember,
+    CrossModelWeightProvenance,
+    CrossModelMappingGroup,
+    CrossModelTimeMapping,
+    CrossModelMapping,
+    cross_model_mapping_from_dict,
+    load_cross_model_mapping,
+    cross_model_mapping_to_dict,
+    cross_model_mapping_hash,
+    CrossModelTargetProfile,
+    CROSS_MODEL_TARGET_PROFILES,
+    cross_model_target_profile,
+    cross_model_accepted_concepts,
+    CROSS_MODEL_COMPATIBILITY_REPORT_SCHEMA_VERSION,
+    CROSS_MODEL_REJECTION_CODES,
+    CROSS_MODEL_WARNING_CODES,
+    CROSS_MODEL_STAGES,
+    CrossModelRejection,
+    CrossModelWarning,
+    CrossModelGroupCoverage,
+    CrossModelCompatibilityReport,
+    check_cross_model_compatibility,
+    cross_model_compatibility_report_to_dict,
+    cross_model_compatibility_report_hash,
+    MappedGroupPath,
+    apply_cross_model_mapping,
+    mapped_group_path_to_dict,
     # CCC: 構築・較正（部門別CAPEX・信用循環モデル、src/models/capex_credit_cycle.jl）
     CAPEX_CREDIT_CYCLE_MODEL_VERSION,
     CapexCreditCycleTargets,
@@ -1136,6 +1211,16 @@ include("./scenarios/scenario_runner.jl")
 # `scenario_to_dict`/`scenario_from_dict`・`save_scenario_artifact`・`load_scenario`・
 # `replay_scenario` を提供する)
 include("./scenarios/scenario_serialization.jl")
+
+# PNE sector-output-path の受理（X1）・cross-model mapping artifact と target profile・互換性判定
+# と mapping 適用（X2/X3）（Issue #281 / `PN-1`。設計 docs/architecture/
+# pne_sector_output_integration.md・ADR 0024）。depends on artifacts/json_canonical.jl
+# （sha256_hex_of_canonical）・scenarios/scenario_time.jl（CalendarQuarter・quarter_of・
+# quarter_label）・scenarios/scenario_serialization.jl（_scenario_json_to_plain）・JSON3・SHA。
+# モデル・イベント層・run_scenario には依存しない（モデルへの適用は #282）。
+include("./scenarios/pne_sector_output_path.jl")
+include("./scenarios/cross_model_mapping.jl")
+include("./scenarios/cross_model_compatibility.jl")
 
 # シナリオ比較診断（Issue #204 / `E-8`。depends on scenarios/scenario_types.jl・
 # scenarios/scenario_runner.jl（ScenarioRun・run_scenario・ScenarioRunOptions）・

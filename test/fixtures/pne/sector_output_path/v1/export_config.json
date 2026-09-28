@@ -1,0 +1,17 @@
+{
+  "assumptions": [
+    "No sector aggregation or calendar-frequency conversion was performed."
+  ],
+  "classification": {
+    "level": "native-node",
+    "sector_id_semantics": "opaque",
+    "system": "pne-synthetic-industries",
+    "version": "1"
+  },
+  "geography": {
+    "economy_id": "TEST-ECONOMY-A",
+    "name": "Fabricated economy A",
+    "system": "pne-synthetic-economy/v1"
+  },
+  "provenance_note": "Fabricated contract fixture. It describes no real economy, sector, company, transaction, forecast, or observed disruption."
+}

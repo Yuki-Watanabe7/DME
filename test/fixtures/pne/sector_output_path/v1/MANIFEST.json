@@ -1,0 +1,60 @@
+{
+  "files": [
+    {
+      "path": "docs/contract/pne/production-network-sector-output-path-v1.schema.json",
+      "sha256": "sha256:0f44f9808d05d8353b447ab3edb48867d8b9101c27239934b0010bb8199720e5",
+      "upstream_path": "contracts/production-network-sector-output-path-v1.schema.json"
+    },
+    {
+      "path": "test/fixtures/pne/sector_output_path/v1/README.md",
+      "sha256": "sha256:ed1b910d1e06b0036c2c0a7d6ae2ec1f810a2e9755249513711861e5b923b40b",
+      "upstream_path": "tests/fixtures/sector_output_path/README.md"
+    },
+    {
+      "path": "test/fixtures/pne/sector_output_path/v1/export_config.json",
+      "sha256": "sha256:eeb0b3d2fc5423edde46c8f87dea95ad9abd7361094bc42b3de7deb87d8a6008",
+      "upstream_path": "tests/fixtures/sector_output_path/export_config.json"
+    },
+    {
+      "path": "test/fixtures/pne/sector_output_path/v1/rejected/classification_missing.json",
+      "sha256": "sha256:fc5d9583e3a331d0e256297e321f5615c75e15d70819e6c29f2be5b7b519940a",
+      "upstream_path": "tests/fixtures/sector_output_path/rejected/classification_missing.json"
+    },
+    {
+      "path": "test/fixtures/pne/sector_output_path/v1/rejected/geography_missing.json",
+      "sha256": "sha256:a604988c84ac2b8dbf5434a91ee2396977a97602b171ba7f273e5c4a27e2fb59",
+      "upstream_path": "tests/fixtures/sector_output_path/rejected/geography_missing.json"
+    },
+    {
+      "path": "test/fixtures/pne/sector_output_path/v1/rejected/inconsistent_output_ratio.json",
+      "sha256": "sha256:22c18f2d2bacc30806a05bd5f6cabbe9a388f8bb0d1b945c9e73c02bd8b5f37a",
+      "upstream_path": "tests/fixtures/sector_output_path/rejected/inconsistent_output_ratio.json"
+    },
+    {
+      "path": "test/fixtures/pne/sector_output_path/v1/rejected/infinite_output_ratio.json",
+      "sha256": "sha256:acf5c92868fb99892dacdb97984b877787389b61c03fc7b6327fa025628fddc6",
+      "upstream_path": "tests/fixtures/sector_output_path/rejected/infinite_output_ratio.json"
+    },
+    {
+      "path": "test/fixtures/pne/sector_output_path/v1/rejected/not_a_number_output_ratio.json",
+      "sha256": "sha256:1df65a5cb1e209df385538ec59687d8cd66715bdccb23e031f6c2a944d64e117",
+      "upstream_path": "tests/fixtures/sector_output_path/rejected/not_a_number_output_ratio.json"
+    },
+    {
+      "path": "test/fixtures/pne/sector_output_path/v1/rejected/unsupported_period_semantics.json",
+      "sha256": "sha256:5ab753552d128576a57c20d69d8efa30475935153fad69ea29a24455919dff5e",
+      "upstream_path": "tests/fixtures/sector_output_path/rejected/unsupported_period_semantics.json"
+    },
+    {
+      "path": "test/fixtures/pne/sector_output_path/v1/representative.json",
+      "sha256": "sha256:1fb813daa88fe4688109c2d316d5885dafcf1ce21cb74a992ceabaf7059503ea",
+      "upstream_path": "tests/fixtures/sector_output_path/representative.json"
+    }
+  ],
+  "note": "Byte-for-byte copies of PNE-owned contract files. Do not edit by hand; re-copy from the upstream commit and update this manifest.",
+  "schema_version": "dme.vendor-manifest/1.0.0",
+  "upstream_commit": "30beab183ef7f2387ce469ae19ad9885f9f55d71",
+  "upstream_contract": "production-network-sector-output-path/v1",
+  "upstream_generator": "scripts/generate_sector_output_contract_fixtures.py",
+  "upstream_repository": "Yuki-Watanabe7/production-network-engine"
+}
