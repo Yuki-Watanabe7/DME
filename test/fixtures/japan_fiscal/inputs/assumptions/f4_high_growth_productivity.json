@@ -1,0 +1,15 @@
+{
+  "assumptions": [
+    {
+      "assumption_id": "f4-productivity",
+      "concept": "productivity_growth",
+      "direction": "up",
+      "magnitude": 0.5,
+      "magnitude_source": "assumed_default",
+      "notes": "fixture の既定値（観測値ではない）。年率 %pt。",
+      "unit": "%pt (annualized growth rate) または level index"
+    }
+  ],
+  "description": "高成長 / 生産性: 生産性成長率の上昇。",
+  "set_id": "f4_high_growth_productivity"
+}

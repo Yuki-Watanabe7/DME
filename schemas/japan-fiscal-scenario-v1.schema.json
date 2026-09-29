@@ -1,0 +1,357 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Yuki-Watanabe7/DME/blob/develop/schemas/japan-fiscal-scenario-v1.schema.json",
+  "title": "Japan fiscal scenario (japan-fiscal-scenario-schema/1.0.0)",
+  "description": "DME の Japan Fiscal Scenario（to_dict(::JapanFiscalScenario)）。family・explicit assumption 集合・FRE context（任意）・provenance。content_hash は fre_context identity・assumption_set_hash・identity 対象 provenance の正準 JSON の SHA-256、assumption_set_hash は assumption 集合（assumption_id 昇順）のみの SHA-256。詳細は docs/architecture/japan_fiscal_scenario_schema_contract.md。",
+  "x-contract-version": "japan-fiscal-scenario-schema/1.0.0",
+  "x-semantic-invariants": [
+    "assumptions[].unit は concept の単位（#274 の assumption concept registry）と一致し、direction は magnitude の符号（正: up・負: down・0: none）と一致する。",
+    "assumptions[].concept は family の required_concepts ∪ optional_concepts に含まれ、同一 concept は高々 1 件。",
+    "fre_context.context_identity・fre_context_identity・assumption_set_hash・content_hash は内容からの再計算値と一致する。",
+    "fre_context の affinity・share・confidence・dimension score・constraint pressure・data quality score は shock magnitude の導出に使わない。"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "assumption_set_hash",
+    "assumptions",
+    "content_hash",
+    "family",
+    "fre_context",
+    "fre_context_identity",
+    "name",
+    "notes",
+    "provenance",
+    "scenario_id"
+  ],
+  "properties": {
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "family": {
+      "$ref": "#/$defs/family"
+    },
+    "name": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "fre_context": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/freContext"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "fre_context_identity": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sha256"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/assumption"
+      },
+      "description": "concept ごとに高々 1 件。assumption が無い concept は『未指定』であり 0 ではない。"
+    },
+    "assumption_set_hash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assumption_source",
+        "capability_contract_version",
+        "claim_contract_version",
+        "created_at",
+        "created_by",
+        "schema_version"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "japan-fiscal-scenario-schema/1.0.0"
+        },
+        "capability_contract_version": {
+          "const": "japan-fiscal-scenario-capability/1.0.0"
+        },
+        "claim_contract_version": {
+          "const": "japan-fiscal-claim-contract/1.0.0"
+        },
+        "assumption_source": {
+          "type": "string",
+          "enum": [
+            "user",
+            "preset",
+            "fixture",
+            "analysis"
+          ]
+        },
+        "created_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/utcDateTime"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_by": {
+          "type": "string"
+        }
+      }
+    },
+    "content_hash": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "RFC 8785 正準 JSON（またはファイルのバイト列）の SHA-256。"
+    },
+    "utcDateTime": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "family": {
+      "type": "string",
+      "enum": [
+        "low_growth_high_rates",
+        "fiscal_consolidation",
+        "financial_repression",
+        "high_growth_productivity",
+        "jgb_funding_cost"
+      ]
+    },
+    "model": {
+      "type": "string",
+      "enum": [
+        "ramsey",
+        "rbc",
+        "solow",
+        "islm",
+        "adas",
+        "new_keynesian",
+        "var",
+        "mundell_fleming",
+        "keen",
+        "sim",
+        "capex_credit_cycle"
+      ]
+    },
+    "assumptionConcept": {
+      "type": "string",
+      "enum": [
+        "growth_path",
+        "productivity_growth",
+        "policy_rate",
+        "long_rate_funding_condition",
+        "government_spending",
+        "tax",
+        "primary_balance",
+        "inflation",
+        "cb_jgb_absorption"
+      ]
+    },
+    "outputConcept": {
+      "type": "string",
+      "enum": [
+        "output",
+        "output_gap",
+        "inflation",
+        "price_level",
+        "nominal_rate",
+        "real_rate",
+        "private_borrowing_cost",
+        "private_debt",
+        "employment",
+        "consumption",
+        "investment",
+        "capital_stock",
+        "government_balance",
+        "government_debt_stock",
+        "money_stock",
+        "exchange_rate",
+        "net_exports"
+      ]
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "up",
+        "down",
+        "none"
+      ]
+    },
+    "assumption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assumption_id",
+        "concept",
+        "direction",
+        "magnitude",
+        "magnitude_source",
+        "notes",
+        "unit"
+      ],
+      "properties": {
+        "assumption_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "concept": {
+          "$ref": "#/$defs/assumptionConcept"
+        },
+        "unit": {
+          "type": "string",
+          "description": "concept から導出される単位（#274 の assumption concept registry）。consumer は読み替えない。"
+        },
+        "magnitude": {
+          "type": "number",
+          "description": "明示的な数値。0 は『変化なし』の主張であり、未指定（assumption が存在しない）とは区別される。"
+        },
+        "direction": {
+          "$ref": "#/$defs/direction"
+        },
+        "magnitude_source": {
+          "type": "string",
+          "enum": [
+            "observed",
+            "disclosed",
+            "derived",
+            "assumed_default"
+          ],
+          "description": "external_belief は受理しない（FRE の score が外部 belief を経由して magnitude へ入る経路を塞ぐ。H-04）。"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "description": "explicit Scenario Assumption 1 件（observed context ではない）。"
+    },
+    "freContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "as_of",
+        "constraint_pressure",
+        "context_identity",
+        "data_quality_score",
+        "dimension_score",
+        "dominant_drivers",
+        "methodology_version",
+        "notes",
+        "policy_version",
+        "primary_regime",
+        "regime_affinity",
+        "regime_confidence",
+        "regime_determination",
+        "regime_share",
+        "snapshot_id",
+        "vintage_basis"
+      ],
+      "properties": {
+        "snapshot_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "as_of": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "vintage_basis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "regime_determination": {
+          "type": "string",
+          "enum": [
+            "primary",
+            "ambiguous",
+            "unavailable"
+          ]
+        },
+        "primary_regime": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "regime_affinity": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "archetype => affinity。評価できない archetype はキーごと欠く（0 で埋めない）。確率ではなく、shock magnitude の入力でもない。"
+        },
+        "regime_share": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "archetype => share。shock magnitude の入力ではない。"
+        },
+        "regime_confidence": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dimension_score": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "dimension => score。評価できない dimension はキーごと欠く。"
+        },
+        "constraint_pressure": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dominant_drivers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "整列済み（並び順は意味を持たない）。"
+        },
+        "data_quality_score": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "methodology_version": {
+          "type": "string"
+        },
+        "policy_version": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "context_identity": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "description": "FRE current snapshot（observed context のみ。JAPAN_FISCAL_FRE_CONTEXT_ROLE = observed_context_only）。どのフィールドも shock magnitude の導出に使わない。"
+    }
+  }
+}

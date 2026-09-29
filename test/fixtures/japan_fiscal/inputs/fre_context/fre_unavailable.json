@@ -1,0 +1,21 @@
+{
+  "as_of": "2026-09-30",
+  "constraint_pressure": null,
+  "context_identity": "sha256:7c122c3f7a4783d83f409cacdf280246219c1bc6698dc735a3cc16ee780ad707",
+  "data_quality_score": null,
+  "dimension_score": {
+    "debt_dynamics": 0.6,
+    "fiscal_space": 0.5
+  },
+  "dominant_drivers": [],
+  "methodology_version": "fixture-fre-methodology/1.0.0",
+  "notes": "架空の fixture snapshot。fiscal-regime-engine の実際の出力ではない。observed context としてのみ使い、shock magnitude の導出には使わない。regime 判定ができない snapshot。評価できない archetype・dimension はキーごと欠く（0 で埋めない）。regime_confidence・constraint_pressure・data_quality_score は null。",
+  "policy_version": "fixture-fre-policy/1.0.0",
+  "primary_regime": null,
+  "regime_affinity": {},
+  "regime_confidence": null,
+  "regime_determination": "unavailable",
+  "regime_share": {},
+  "snapshot_id": "fre-fixture-jp-2026-09-30-unavailable",
+  "vintage_basis": "fixture:as-released"
+}

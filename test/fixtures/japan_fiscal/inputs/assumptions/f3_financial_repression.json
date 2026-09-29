@@ -1,0 +1,33 @@
+{
+  "assumptions": [
+    {
+      "assumption_id": "f3-policy-rate",
+      "concept": "policy_rate",
+      "direction": "down",
+      "magnitude": -0.25,
+      "magnitude_source": "assumed_default",
+      "notes": "fixture の既定値（観測値ではない）。",
+      "unit": "%pt (annualized)"
+    },
+    {
+      "assumption_id": "f3-inflation",
+      "concept": "inflation",
+      "direction": "up",
+      "magnitude": 1.0,
+      "magnitude_source": "assumed_default",
+      "notes": "fixture の既定値（観測値ではない）。",
+      "unit": "%pt (annualized)"
+    },
+    {
+      "assumption_id": "f3-cb-absorption",
+      "concept": "cb_jgb_absorption",
+      "direction": "up",
+      "magnitude": 2.0,
+      "magnitude_source": "assumed_default",
+      "notes": "fixture の既定値（観測値ではない）。保有比率の上昇（どのモデルも受け取らない。G-04）。",
+      "unit": "level（残高）または ratio to outstanding JGB"
+    }
+  ],
+  "description": "金融抑圧: 政策金利の低位据え置き・インフレ上昇・中央銀行の JGB 吸収を独立な 3 assumption として置く。",
+  "set_id": "f3_financial_repression"
+}

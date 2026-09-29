@@ -1,0 +1,15 @@
+{
+  "assumptions": [
+    {
+      "assumption_id": "f5-long-rate",
+      "concept": "long_rate_funding_condition",
+      "direction": "up",
+      "magnitude": 50.0,
+      "magnitude_source": "assumed_default",
+      "notes": "fixture の既定値（観測値ではない）。",
+      "unit": "bp"
+    }
+  ],
+  "description": "JGB funding-cost: 長期金利・funding 条件の上昇（政策金利は置かない）。",
+  "set_id": "f5_jgb_funding_cost"
+}

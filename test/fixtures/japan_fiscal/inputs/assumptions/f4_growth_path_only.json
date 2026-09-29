@@ -1,0 +1,15 @@
+{
+  "assumptions": [
+    {
+      "assumption_id": "f4-growth",
+      "concept": "growth_path",
+      "direction": "up",
+      "magnitude": 1.0,
+      "magnitude_source": "assumed_default",
+      "notes": "fixture の既定値（観測値ではない）。",
+      "unit": "%pt (annualized growth rate)"
+    }
+  ],
+  "description": "GDP 成長率パスだけを置いた集合。GDP 成長率を生産性成長率へ自動変換しない（G-03）ことの検証用。",
+  "set_id": "f4_growth_path_only"
+}

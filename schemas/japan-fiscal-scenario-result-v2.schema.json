@@ -1,0 +1,1464 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Yuki-Watanabe7/DME/blob/develop/schemas/japan-fiscal-scenario-result-v2.schema.json",
+  "title": "Japan fiscal scenario result / rejection artifact (japan-fiscal-scenario-result/2.0.0)",
+  "description": "DME が所有する Japan Fiscal Scenario Lab の result / rejection artifact。artifact_kind で判別する。Market Analyzer は DME の Julia 型を import せず、この schema と artifact だけを consume する。fail closed: schema_version・契約 version の不一致、content hash の不一致（generated_at と自身を除いた RFC 8785 正準 JSON の SHA-256）は拒否する。詳細は docs/architecture/japan_fiscal_scenario_handoff.md と docs/architecture/japan_fiscal_scenario_result_contract.md。",
+  "x-contract-version": "japan-fiscal-scenario-result/2.0.0",
+  "x-semantic-invariants": [
+    "result_content_hash（result）/ rejection_content_hash（rejection）は、artifact から generated_at と自身を除いた RFC 8785 正準 JSON の SHA-256 と一致する。不一致は改変・破損として拒否する。",
+    "coverage は DME の japan_fiscal_coverage(family, model)（同じ契約 version）と一致する。consumer は coverage を書き換えず、claim_level を昇格させない。",
+    "diagnostics.claim_level・diagnostics.numeric_semantics・model_implied.baseline/scenario.numeric_semantics は coverage の claim_level・numeric_semantics と一致する。",
+    "timing 診断（relative_delta・peak・trough・onset_period・duration_periods・recovery_period・thresholds）は result_shape = time_path かつ claim_level = direction_and_relative_timing のときだけ存在する。",
+    "assumption_disposition は family の required_concepts・optional_concepts をこの順で 1 件ずつ持ち、model_input = applied の概念の集合は applied_inputs の概念の集合と一致する。",
+    "funding_cost_legs は family = jgb_funding_cost のときだけ非 null。",
+    "rejection_code = not_adopted と adoption = not_adopted は同値。"
+  ],
+  "oneOf": [
+    {
+      "$ref": "#/$defs/result"
+    },
+    {
+      "$ref": "#/$defs/rejection"
+    }
+  ],
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "RFC 8785 正準 JSON（またはファイルのバイト列）の SHA-256。"
+    },
+    "utcDateTime": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "family": {
+      "type": "string",
+      "enum": [
+        "low_growth_high_rates",
+        "fiscal_consolidation",
+        "financial_repression",
+        "high_growth_productivity",
+        "jgb_funding_cost"
+      ]
+    },
+    "model": {
+      "type": "string",
+      "enum": [
+        "ramsey",
+        "rbc",
+        "solow",
+        "islm",
+        "adas",
+        "new_keynesian",
+        "var",
+        "mundell_fleming",
+        "keen",
+        "sim",
+        "capex_credit_cycle"
+      ]
+    },
+    "assumptionConcept": {
+      "type": "string",
+      "enum": [
+        "growth_path",
+        "productivity_growth",
+        "policy_rate",
+        "long_rate_funding_condition",
+        "government_spending",
+        "tax",
+        "primary_balance",
+        "inflation",
+        "cb_jgb_absorption"
+      ]
+    },
+    "outputConcept": {
+      "type": "string",
+      "enum": [
+        "output",
+        "output_gap",
+        "inflation",
+        "price_level",
+        "nominal_rate",
+        "real_rate",
+        "private_borrowing_cost",
+        "private_debt",
+        "employment",
+        "consumption",
+        "investment",
+        "capital_stock",
+        "government_balance",
+        "government_debt_stock",
+        "money_stock",
+        "exchange_rate",
+        "net_exports"
+      ]
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "up",
+        "down",
+        "none"
+      ]
+    },
+    "assumption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assumption_id",
+        "concept",
+        "direction",
+        "magnitude",
+        "magnitude_source",
+        "notes",
+        "unit"
+      ],
+      "properties": {
+        "assumption_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "concept": {
+          "$ref": "#/$defs/assumptionConcept"
+        },
+        "unit": {
+          "type": "string",
+          "description": "concept から導出される単位（#274 の assumption concept registry）。consumer は読み替えない。"
+        },
+        "magnitude": {
+          "type": "number",
+          "description": "明示的な数値。0 は『変化なし』の主張であり、未指定（assumption が存在しない）とは区別される。"
+        },
+        "direction": {
+          "$ref": "#/$defs/direction"
+        },
+        "magnitude_source": {
+          "type": "string",
+          "enum": [
+            "observed",
+            "disclosed",
+            "derived",
+            "assumed_default"
+          ],
+          "description": "external_belief は受理しない（FRE の score が外部 belief を経由して magnitude へ入る経路を塞ぐ。H-04）。"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "description": "explicit Scenario Assumption 1 件（observed context ではない）。"
+    },
+    "freContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "as_of",
+        "constraint_pressure",
+        "context_identity",
+        "data_quality_score",
+        "dimension_score",
+        "dominant_drivers",
+        "methodology_version",
+        "notes",
+        "policy_version",
+        "primary_regime",
+        "regime_affinity",
+        "regime_confidence",
+        "regime_determination",
+        "regime_share",
+        "snapshot_id",
+        "vintage_basis"
+      ],
+      "properties": {
+        "snapshot_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "as_of": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "vintage_basis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "regime_determination": {
+          "type": "string",
+          "enum": [
+            "primary",
+            "ambiguous",
+            "unavailable"
+          ]
+        },
+        "primary_regime": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "regime_affinity": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "archetype => affinity。評価できない archetype はキーごと欠く（0 で埋めない）。確率ではなく、shock magnitude の入力でもない。"
+        },
+        "regime_share": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "archetype => share。shock magnitude の入力ではない。"
+        },
+        "regime_confidence": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dimension_score": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "dimension => score。評価できない dimension はキーごと欠く。"
+        },
+        "constraint_pressure": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dominant_drivers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "整列済み（並び順は意味を持たない）。"
+        },
+        "data_quality_score": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "methodology_version": {
+          "type": "string"
+        },
+        "policy_version": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "context_identity": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "description": "FRE current snapshot（observed context のみ。JAPAN_FISCAL_FRE_CONTEXT_ROLE = observed_context_only）。どのフィールドも shock magnitude の導出に使わない。"
+    },
+    "diagnostic": {
+      "type": "string",
+      "enum": [
+        "direction",
+        "sign_of_delta",
+        "relative_ordering",
+        "peak",
+        "trough",
+        "onset",
+        "duration",
+        "recovery",
+        "contribution_decomposition",
+        "relative_delta",
+        "absolute_delta",
+        "level_path"
+      ]
+    },
+    "channelId": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "resultCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accepted_concepts",
+        "adoption",
+        "calibration_basis",
+        "calibration_geography",
+        "cannot_state",
+        "capability_contract_version",
+        "claim_contract_version",
+        "claim_level",
+        "covered_channels",
+        "family",
+        "family_complete",
+        "forbidden_diagnostics",
+        "gap_ids",
+        "major_caveats",
+        "model",
+        "numeric_semantics",
+        "permitted_diagnostics",
+        "produced_outputs",
+        "representability",
+        "required_concepts",
+        "required_outputs",
+        "uncovered_channels",
+        "unsupported_concepts",
+        "unsupported_outputs"
+      ],
+      "properties": {
+        "capability_contract_version": {
+          "const": "japan-fiscal-scenario-capability/1.0.0"
+        },
+        "claim_contract_version": {
+          "const": "japan-fiscal-claim-contract/1.0.0"
+        },
+        "family": {
+          "$ref": "#/$defs/family"
+        },
+        "model": {
+          "$ref": "#/$defs/model"
+        },
+        "representability": {
+          "type": "string",
+          "enum": [
+            "representable",
+            "partial"
+          ]
+        },
+        "adoption": {
+          "type": "string",
+          "enum": [
+            "primary",
+            "supporting"
+          ]
+        },
+        "claim_level": {
+          "type": "string",
+          "enum": [
+            "direction_only",
+            "direction_and_relative_timing"
+          ]
+        },
+        "numeric_semantics": {
+          "type": "string",
+          "enum": [
+            "model_unit_relative",
+            "normalized_deviation"
+          ]
+        },
+        "permitted_diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diagnostic"
+          }
+        },
+        "forbidden_diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diagnostic"
+          }
+        },
+        "required_concepts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assumptionConcept"
+          }
+        },
+        "accepted_concepts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assumptionConcept"
+          }
+        },
+        "unsupported_concepts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assumptionConcept"
+          }
+        },
+        "required_outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outputConcept"
+          }
+        },
+        "produced_outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outputConcept"
+          }
+        },
+        "unsupported_outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outputConcept"
+          }
+        },
+        "covered_channels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/channelId"
+          }
+        },
+        "uncovered_channels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/channelId"
+          }
+        },
+        "family_complete": {
+          "const": false,
+          "description": "現在の契約では全セルで false。family 名だけの要約を生成しない（H-12・H-20）。"
+        },
+        "calibration_basis": {
+          "type": "string",
+          "enum": [
+            "japan_calibrated",
+            "non_japan_calibrated",
+            "structural_illustrative",
+            "not_applicable"
+          ]
+        },
+        "calibration_geography": {
+          "type": "string",
+          "enum": [
+            "jp",
+            "us",
+            "none"
+          ]
+        },
+        "cannot_state": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "major_caveats": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "gap_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^G-[0-9]{2}$"
+          }
+        }
+      },
+      "description": "japan_fiscal_coverage(family, model) の全フィールド（H-06）。result では claim_level = magnitude・numeric_semantics = japan_magnitude・representability = not_representable・adoption = not_adopted を取らない。"
+    },
+    "rejectionCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "accepted_concepts",
+        "adoption",
+        "calibration_basis",
+        "calibration_geography",
+        "cannot_state",
+        "capability_contract_version",
+        "claim_contract_version",
+        "claim_level",
+        "covered_channels",
+        "family",
+        "family_complete",
+        "forbidden_diagnostics",
+        "gap_ids",
+        "major_caveats",
+        "model",
+        "numeric_semantics",
+        "permitted_diagnostics",
+        "produced_outputs",
+        "representability",
+        "required_concepts",
+        "required_outputs",
+        "uncovered_channels",
+        "unsupported_concepts",
+        "unsupported_outputs"
+      ],
+      "properties": {
+        "capability_contract_version": {
+          "const": "japan-fiscal-scenario-capability/1.0.0"
+        },
+        "claim_contract_version": {
+          "const": "japan-fiscal-claim-contract/1.0.0"
+        },
+        "family": {
+          "$ref": "#/$defs/family"
+        },
+        "model": {
+          "$ref": "#/$defs/model"
+        },
+        "representability": {
+          "type": "string",
+          "enum": [
+            "representable",
+            "partial",
+            "not_representable"
+          ]
+        },
+        "adoption": {
+          "type": "string",
+          "enum": [
+            "primary",
+            "supporting",
+            "not_adopted"
+          ]
+        },
+        "claim_level": {
+          "type": "string",
+          "enum": [
+            "none",
+            "direction_only",
+            "direction_and_relative_timing"
+          ]
+        },
+        "numeric_semantics": {
+          "type": "string",
+          "enum": [
+            "none",
+            "model_unit_relative",
+            "normalized_deviation"
+          ]
+        },
+        "permitted_diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diagnostic"
+          }
+        },
+        "forbidden_diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diagnostic"
+          }
+        },
+        "required_concepts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assumptionConcept"
+          }
+        },
+        "accepted_concepts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assumptionConcept"
+          }
+        },
+        "unsupported_concepts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assumptionConcept"
+          }
+        },
+        "required_outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outputConcept"
+          }
+        },
+        "produced_outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outputConcept"
+          }
+        },
+        "unsupported_outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outputConcept"
+          }
+        },
+        "covered_channels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/channelId"
+          }
+        },
+        "uncovered_channels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/channelId"
+          }
+        },
+        "family_complete": {
+          "const": false,
+          "description": "現在の契約では全セルで false。family 名だけの要約を生成しない（H-12・H-20）。"
+        },
+        "calibration_basis": {
+          "type": "string",
+          "enum": [
+            "japan_calibrated",
+            "non_japan_calibrated",
+            "structural_illustrative",
+            "not_applicable"
+          ]
+        },
+        "calibration_geography": {
+          "type": "string",
+          "enum": [
+            "jp",
+            "us",
+            "none"
+          ]
+        },
+        "cannot_state": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "major_caveats": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "gap_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^G-[0-9]{2}$"
+          }
+        }
+      },
+      "description": "拒否されたセルの被覆情報。claim_level = none は実行対象外のセル。"
+    },
+    "appliedInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assumption_id",
+        "concept",
+        "conversion",
+        "input_kind",
+        "magnitude_model_units",
+        "model",
+        "notes",
+        "target",
+        "unit"
+      ],
+      "properties": {
+        "assumption_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "concept": {
+          "$ref": "#/$defs/assumptionConcept"
+        },
+        "model": {
+          "$ref": "#/$defs/model"
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1,
+          "description": "適用先のモデル変数・パラメータ名（ギリシャ文字を含みうる）。"
+        },
+        "input_kind": {
+          "type": "string",
+          "enum": [
+            "exogenous_path",
+            "model_parameter",
+            "structural_parameter",
+            "shock_process",
+            "initial_state",
+            "requires_structural_conversion",
+            "not_accepted"
+          ]
+        },
+        "unit": {
+          "type": "string"
+        },
+        "magnitude_model_units": {
+          "type": "number",
+          "description": "単位換算後にモデルへ加えた大きさ（モデル単位）。日本の量ではない。"
+        },
+        "conversion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "description": "assumption → applied model input の traceability。"
+    },
+    "assumptionDisposition": {
+      "description": "family の概念 1 つについての assumption の有無とモデル入力としての扱い。result では、explicit assumption の黙殺・未指定の 0 化・必須概念の未指定を表す組は現れない。",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "assumption_id",
+            "assumption_state",
+            "concept",
+            "model_input",
+            "requirement",
+            "target"
+          ],
+          "properties": {
+            "concept": {
+              "$ref": "#/$defs/assumptionConcept"
+            },
+            "requirement": {
+              "type": "string",
+              "enum": [
+                "required",
+                "optional"
+              ]
+            },
+            "assumption_state": {
+              "const": "explicit"
+            },
+            "assumption_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "model_input": {
+              "const": "applied"
+            },
+            "target": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "description": "explicit assumption を適用した。"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "assumption_id",
+            "assumption_state",
+            "concept",
+            "model_input",
+            "requirement",
+            "target"
+          ],
+          "properties": {
+            "concept": {
+              "$ref": "#/$defs/assumptionConcept"
+            },
+            "requirement": {
+              "type": "string",
+              "enum": [
+                "required",
+                "optional"
+              ]
+            },
+            "assumption_state": {
+              "const": "explicit"
+            },
+            "assumption_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "model_input": {
+              "const": "not_accepted"
+            },
+            "target": {
+              "type": "null"
+            }
+          },
+          "description": "explicit assumption があるがモデルが受け取れない（開示のみ・代理へ寄せない）。"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "assumption_id",
+            "assumption_state",
+            "concept",
+            "model_input",
+            "requirement",
+            "target"
+          ],
+          "properties": {
+            "concept": {
+              "$ref": "#/$defs/assumptionConcept"
+            },
+            "requirement": {
+              "const": "optional"
+            },
+            "assumption_state": {
+              "const": "not_specified"
+            },
+            "assumption_id": {
+              "type": "null"
+            },
+            "model_input": {
+              "type": "string",
+              "enum": [
+                "held_at_baseline",
+                "conversion_not_implemented"
+              ]
+            },
+            "target": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "description": "任意概念が未指定。モデル入力は baseline 値のまま（0 の assumption ではない）。"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "assumption_id",
+            "assumption_state",
+            "concept",
+            "model_input",
+            "requirement",
+            "target"
+          ],
+          "properties": {
+            "concept": {
+              "$ref": "#/$defs/assumptionConcept"
+            },
+            "requirement": {
+              "type": "string",
+              "enum": [
+                "required",
+                "optional"
+              ]
+            },
+            "assumption_state": {
+              "const": "not_specified"
+            },
+            "assumption_id": {
+              "type": "null"
+            },
+            "model_input": {
+              "const": "not_accepted"
+            },
+            "target": {
+              "type": "null"
+            }
+          },
+          "description": "未指定で、モデルも受け取れない。"
+        }
+      ]
+    },
+    "taggedSeries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "numeric_semantics",
+        "series"
+      ],
+      "properties": {
+        "numeric_semantics": {
+          "type": "string",
+          "enum": [
+            "model_unit_relative",
+            "normalized_deviation"
+          ],
+          "description": "系列の提示のしかたの上限。model_unit_relative は符号のみ、normalized_deviation は baseline 比の偏差として提示する。系列はモデル単位の水準のまま保持され、日本の量ではない。"
+        },
+        "series": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/outputConcept"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "directionMap": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/outputConcept"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/direction"
+      }
+    },
+    "extremum": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "period",
+        "sign",
+        "value"
+      ],
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "period": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "sign": {
+          "type": "integer",
+          "enum": [
+            -1,
+            0,
+            1
+          ]
+        }
+      }
+    },
+    "periodMap": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/outputConcept"
+      },
+      "additionalProperties": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      }
+    },
+    "diagnosticsDirectionOnly": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_level",
+        "direction",
+        "numeric_semantics",
+        "sign_of_delta",
+        "variables"
+      ],
+      "properties": {
+        "claim_level": {
+          "const": "direction_only"
+        },
+        "numeric_semantics": {
+          "const": "model_unit_relative"
+        },
+        "variables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outputConcept"
+          }
+        },
+        "direction": {
+          "$ref": "#/$defs/directionMap"
+        },
+        "sign_of_delta": {
+          "$ref": "#/$defs/directionMap"
+        }
+      },
+      "description": "claim_level = direction_only。peak / onset / duration / relative_delta はキーとして存在しない（H-17）。direction は評価区間最終期の baseline 比の符号。"
+    },
+    "diagnosticsTiming": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_level",
+        "direction",
+        "duration_periods",
+        "numeric_semantics",
+        "onset_period",
+        "peak",
+        "recovery_period",
+        "relative_delta",
+        "sign_of_delta",
+        "thresholds",
+        "trough",
+        "variables"
+      ],
+      "properties": {
+        "claim_level": {
+          "const": "direction_and_relative_timing"
+        },
+        "numeric_semantics": {
+          "const": "normalized_deviation"
+        },
+        "variables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outputConcept"
+          }
+        },
+        "direction": {
+          "$ref": "#/$defs/directionMap"
+        },
+        "sign_of_delta": {
+          "$ref": "#/$defs/directionMap"
+        },
+        "relative_delta": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/outputConcept"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "description": "(scenario − baseline) / baseline。分母が閾値未満の期は null（0 で埋めない）。"
+        },
+        "peak": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/outputConcept"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/extremum"
+          }
+        },
+        "trough": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/outputConcept"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/extremum"
+          }
+        },
+        "onset_period": {
+          "$ref": "#/$defs/periodMap"
+        },
+        "duration_periods": {
+          "$ref": "#/$defs/periodMap"
+        },
+        "recovery_period": {
+          "$ref": "#/$defs/periodMap"
+        },
+        "thresholds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "onset_abs",
+            "onset_persistence",
+            "onset_rel",
+            "rel_denominator_floor",
+            "version"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "onset_abs": {
+              "type": "number"
+            },
+            "onset_rel": {
+              "type": "number"
+            },
+            "onset_persistence": {
+              "type": "integer"
+            },
+            "rel_denominator_floor": {
+              "type": "number"
+            }
+          }
+        },
+        "contribution_decomposition": {
+          "type": "object",
+          "description": "反実仮想による寄与分解（CCC で 2 概念を同時に適用した場合のみ）。"
+        }
+      },
+      "description": "claim_level = direction_and_relative_timing。時点は『ショック後 n 期』であり暦上の予測時期ではない。"
+    },
+    "fundingCostLegs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "private_pass_through",
+        "sovereign"
+      ],
+      "properties": {
+        "private_pass_through": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "note",
+            "status",
+            "target"
+          ],
+          "properties": {
+            "status": {
+              "const": "modeled"
+            },
+            "target": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        },
+        "sovereign": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "gap_ids",
+            "note",
+            "status"
+          ],
+          "properties": {
+            "status": {
+              "const": "unsupported"
+            },
+            "gap_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "note": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "description": "jgb_funding_cost のみ。sovereign leg は常に unsupported（H-11）。"
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter_contract_version",
+        "applied_inputs",
+        "artifact_kind",
+        "assumed",
+        "assumption_disposition",
+        "assumption_set_hash",
+        "capability_contract_version",
+        "claim_contract_version",
+        "coverage",
+        "diagnostics",
+        "execution_status",
+        "family",
+        "fre_context_identity",
+        "funding_cost_legs",
+        "generated_at",
+        "horizon",
+        "model",
+        "model_implied",
+        "model_name",
+        "observed",
+        "parameter_identity_hash",
+        "periods",
+        "result_content_hash",
+        "result_shape",
+        "scenario_content_hash",
+        "scenario_id",
+        "scenario_schema_version",
+        "schema_version",
+        "sensitivity",
+        "termination_reason",
+        "warnings"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "japan-fiscal-scenario-result/2.0.0"
+        },
+        "adapter_contract_version": {
+          "const": "japan-fiscal-scenario-adapter/1.0.0"
+        },
+        "capability_contract_version": {
+          "const": "japan-fiscal-scenario-capability/1.0.0"
+        },
+        "claim_contract_version": {
+          "const": "japan-fiscal-claim-contract/1.0.0"
+        },
+        "scenario_schema_version": {
+          "const": "japan-fiscal-scenario-schema/1.0.0"
+        },
+        "artifact_kind": {
+          "const": "result"
+        },
+        "family": {
+          "$ref": "#/$defs/family"
+        },
+        "model": {
+          "$ref": "#/$defs/model"
+        },
+        "scenario_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scenario_content_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "assumption_set_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "fre_context_identity": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "observed context の identity。FRE context が無い scenario では null。"
+        },
+        "model_name": {
+          "$ref": "#/$defs/model"
+        },
+        "parameter_identity_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "horizon": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "要求された horizon。static_point のモデルでは計算に使われない。"
+        },
+        "periods": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 1
+        },
+        "result_shape": {
+          "type": "string",
+          "enum": [
+            "time_path",
+            "static_point"
+          ]
+        },
+        "applied_inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/appliedInput"
+          }
+        },
+        "assumption_disposition": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assumptionDisposition"
+          },
+          "minItems": 1
+        },
+        "observed": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/freContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "observed context（FRE snapshot）。assumed・model_implied と混ぜない（H-10）。"
+        },
+        "assumed": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assumption"
+          },
+          "description": "explicit assumption（assumption_id 昇順）。observed fact ではない。"
+        },
+        "model_implied": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "baseline",
+            "scenario"
+          ],
+          "properties": {
+            "baseline": {
+              "$ref": "#/$defs/taggedSeries"
+            },
+            "scenario": {
+              "$ref": "#/$defs/taggedSeries"
+            }
+          },
+          "description": "model-implied counterfactual。forecast でも probability でも観測でもない。"
+        },
+        "diagnostics": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/diagnosticsDirectionOnly"
+            },
+            {
+              "$ref": "#/$defs/diagnosticsTiming"
+            }
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/resultCoverage"
+        },
+        "funding_cost_legs": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/fundingCostLegs"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sensitivity": {
+          "type": "object",
+          "description": "代表出力の ±50% 感応度などモデル別の補助情報。"
+        },
+        "execution_status": {
+          "const": "ok"
+        },
+        "termination_reason": {
+          "type": "null"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "generated_at": {
+          "$ref": "#/$defs/utcDateTime"
+        },
+        "result_content_hash": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "description": "実行された scenario × model の model-implied result。"
+    },
+    "rejection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter_contract_version",
+        "adoption",
+        "artifact_kind",
+        "assumption_set_hash",
+        "capability_contract_version",
+        "claim_contract_version",
+        "concepts",
+        "coverage",
+        "doc_ref",
+        "family",
+        "fre_context_identity",
+        "generated_at",
+        "horizon",
+        "model",
+        "reason",
+        "rejection_code",
+        "rejection_content_hash",
+        "representability",
+        "scenario_content_hash",
+        "scenario_id",
+        "scenario_schema_version",
+        "schema_version",
+        "status"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "japan-fiscal-scenario-result/2.0.0"
+        },
+        "adapter_contract_version": {
+          "const": "japan-fiscal-scenario-adapter/1.0.0"
+        },
+        "capability_contract_version": {
+          "const": "japan-fiscal-scenario-capability/1.0.0"
+        },
+        "claim_contract_version": {
+          "const": "japan-fiscal-claim-contract/1.0.0"
+        },
+        "scenario_schema_version": {
+          "const": "japan-fiscal-scenario-schema/1.0.0"
+        },
+        "artifact_kind": {
+          "const": "rejection"
+        },
+        "rejection_code": {
+          "type": "string",
+          "enum": [
+            "not_adopted",
+            "missing_required_assumption",
+            "conversion_not_implemented"
+          ]
+        },
+        "status": {
+          "const": "not_executed"
+        },
+        "family": {
+          "$ref": "#/$defs/family"
+        },
+        "model": {
+          "$ref": "#/$defs/model"
+        },
+        "representability": {
+          "type": "string",
+          "enum": [
+            "representable",
+            "partial",
+            "not_representable"
+          ]
+        },
+        "adoption": {
+          "type": "string",
+          "enum": [
+            "primary",
+            "supporting",
+            "not_adopted"
+          ]
+        },
+        "concepts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assumptionConcept"
+          },
+          "description": "拒否の原因となった概念（not_adopted では空）。"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "doc_ref": {
+          "type": "string"
+        },
+        "scenario_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scenario_content_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "assumption_set_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "fre_context_identity": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "horizon": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "coverage": {
+          "$ref": "#/$defs/rejectionCoverage"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/utcDateTime"
+        },
+        "rejection_content_hash": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "description": "実行しなかった（model-implied result を生成しなかった）scenario × model。成功結果として表示しない。"
+    }
+  }
+}

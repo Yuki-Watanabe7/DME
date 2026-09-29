@@ -106,6 +106,8 @@ Pressure・5 dimensions・dominant drivers・data quality・methodology・policy
 `japan_fiscal_fre_context_identity(context)` が `"sha256:…"` 形式の identity を返す。
 RFC 8785 正準 JSON（`artifacts/json_canonical.jl`）+ SHA-256 であり、`notes` を除く全フィールドを
 対象とする。`dominant_drivers` は整列してから正準化するため入力順に依存しない。
+`to_dict` も `dominant_drivers` を整列して出力する（#277。result artifact の `observed` がこの dict を埋め込むため、
+入力順が result の content hash を変えないようにする）。
 
 ---
 

@@ -1,0 +1,24 @@
+{
+  "assumptions": [
+    {
+      "assumption_id": "f2-spending",
+      "concept": "government_spending",
+      "direction": "down",
+      "magnitude": -2.0,
+      "magnitude_source": "assumed_default",
+      "notes": "fixture の既定値（観測値ではない）。モデル単位の水準変化。",
+      "unit": "level または ratio to GDP"
+    },
+    {
+      "assumption_id": "f2-tax",
+      "concept": "tax",
+      "direction": "up",
+      "magnitude": 0.01,
+      "magnitude_source": "assumed_default",
+      "notes": "fixture の既定値（観測値ではない）。SIM では比例税率 θ、IS-LM / AD-AS / Mundell-Fleming では定額税 T の変化として適用される（自動変換しない）。",
+      "unit": "ratio（税率）または level（定額税）"
+    }
+  ],
+  "description": "財政再建: 政府支出の削減と増税。",
+  "set_id": "f2_fiscal_consolidation"
+}

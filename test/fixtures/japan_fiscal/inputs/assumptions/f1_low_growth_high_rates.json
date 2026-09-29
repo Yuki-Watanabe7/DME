@@ -1,0 +1,33 @@
+{
+  "assumptions": [
+    {
+      "assumption_id": "f1-growth",
+      "concept": "growth_path",
+      "direction": "down",
+      "magnitude": -0.5,
+      "magnitude_source": "assumed_default",
+      "notes": "fixture の既定値（観測値ではない）。GDP 成長率パス（どのモデルも受け取らない。G-03）。",
+      "unit": "%pt (annualized growth rate)"
+    },
+    {
+      "assumption_id": "f1-policy-rate",
+      "concept": "policy_rate",
+      "direction": "up",
+      "magnitude": 0.5,
+      "magnitude_source": "assumed_default",
+      "notes": "fixture の既定値（観測値ではない）。",
+      "unit": "%pt (annualized)"
+    },
+    {
+      "assumption_id": "f1-long-rate",
+      "concept": "long_rate_funding_condition",
+      "direction": "up",
+      "magnitude": 30.0,
+      "magnitude_source": "assumed_default",
+      "notes": "fixture の既定値（観測値ではない）。",
+      "unit": "bp"
+    }
+  ],
+  "description": "低成長 + 高金利: GDP 成長率の低下・政策金利と長期金利の上昇を別々の assumption として置く。",
+  "set_id": "f1_low_growth_high_rates"
+}

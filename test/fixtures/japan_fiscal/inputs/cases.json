@@ -1,0 +1,490 @@
+{
+  "description": "Japan Fiscal Scenario Lab の deterministic E2E fixture の manifest（Issue #277）。scenario は family × explicit assumption 集合（inputs/assumptions/）× FRE context（inputs/fre_context/）の組、case は scenario × model × horizon。FRE context は observed context としてのみ使い、magnitude は assumption 集合だけが決める。",
+  "generated_at": "2026-09-30T00:00:00Z",
+  "negative_source_case_id": "f2-sim",
+  "scenarios": [
+    {
+      "scenario_id": "jf-f1-base",
+      "family": "low_growth_high_rates",
+      "name": "低成長 + 高金利（基準ケース）",
+      "assumption_set": "f1_low_growth_high_rates",
+      "fre_context": "fre_primary",
+      "notes": ""
+    },
+    {
+      "scenario_id": "jf-f1-missing-long-rate",
+      "family": "low_growth_high_rates",
+      "name": "低成長 + 高金利（長期金利 assumption 未指定）",
+      "assumption_set": "f1_missing_long_rate",
+      "fre_context": "fre_primary",
+      "notes": ""
+    },
+    {
+      "scenario_id": "jf-f2-base",
+      "family": "fiscal_consolidation",
+      "name": "財政再建（基準ケース）",
+      "assumption_set": "f2_fiscal_consolidation",
+      "fre_context": "fre_primary",
+      "notes": ""
+    },
+    {
+      "scenario_id": "jf-f2-no-fre",
+      "family": "fiscal_consolidation",
+      "name": "財政再建（FRE context なし）",
+      "assumption_set": "f2_fiscal_consolidation",
+      "fre_context": null,
+      "notes": "observed context を持たない scenario。"
+    },
+    {
+      "scenario_id": "jf-f2-fre-unavailable",
+      "family": "fiscal_consolidation",
+      "name": "財政再建（FRE 判定不能）",
+      "assumption_set": "f2_fiscal_consolidation",
+      "fre_context": "fre_unavailable",
+      "notes": ""
+    },
+    {
+      "scenario_id": "jf-f2-fre-shifted",
+      "family": "fiscal_consolidation",
+      "name": "財政再建（FRE score だけを変えた context）",
+      "assumption_set": "f2_fiscal_consolidation",
+      "fre_context": "fre_primary_shifted",
+      "notes": ""
+    },
+    {
+      "scenario_id": "jf-f2-missing-tax",
+      "family": "fiscal_consolidation",
+      "name": "財政再建（税 assumption 未指定）",
+      "assumption_set": "f2_missing_tax",
+      "fre_context": "fre_primary",
+      "notes": ""
+    },
+    {
+      "scenario_id": "jf-f2-explicit-zero-tax",
+      "family": "fiscal_consolidation",
+      "name": "財政再建（税は変化なしと明示）",
+      "assumption_set": "f2_explicit_zero_tax",
+      "fre_context": "fre_primary",
+      "notes": ""
+    },
+    {
+      "scenario_id": "jf-f2-primary-balance",
+      "family": "fiscal_consolidation",
+      "name": "財政再建（PB 目標つき）",
+      "assumption_set": "f2_with_primary_balance",
+      "fre_context": "fre_primary",
+      "notes": ""
+    },
+    {
+      "scenario_id": "jf-f3-base",
+      "family": "financial_repression",
+      "name": "金融抑圧（基準ケース）",
+      "assumption_set": "f3_financial_repression",
+      "fre_context": "fre_primary",
+      "notes": ""
+    },
+    {
+      "scenario_id": "jf-f3-missing-inflation",
+      "family": "financial_repression",
+      "name": "金融抑圧（インフレ assumption 未指定）",
+      "assumption_set": "f3_missing_inflation",
+      "fre_context": "fre_primary",
+      "notes": ""
+    },
+    {
+      "scenario_id": "jf-f4-base",
+      "family": "high_growth_productivity",
+      "name": "高成長 / 生産性（基準ケース）",
+      "assumption_set": "f4_high_growth_productivity",
+      "fre_context": "fre_primary",
+      "notes": ""
+    },
+    {
+      "scenario_id": "jf-f4-growth-path-only",
+      "family": "high_growth_productivity",
+      "name": "高成長（GDP 成長率パスのみ）",
+      "assumption_set": "f4_growth_path_only",
+      "fre_context": "fre_primary",
+      "notes": ""
+    },
+    {
+      "scenario_id": "jf-f5-base",
+      "family": "jgb_funding_cost",
+      "name": "JGB funding-cost（基準ケース）",
+      "assumption_set": "f5_jgb_funding_cost",
+      "fre_context": "fre_primary",
+      "notes": ""
+    },
+    {
+      "scenario_id": "jf-f5-no-fre",
+      "family": "jgb_funding_cost",
+      "name": "JGB funding-cost（FRE context なし）",
+      "assumption_set": "f5_jgb_funding_cost",
+      "fre_context": null,
+      "notes": "observed context を持たない scenario。"
+    },
+    {
+      "scenario_id": "jf-f5-missing-long-rate",
+      "family": "jgb_funding_cost",
+      "name": "JGB funding-cost（長期金利 assumption 未指定）",
+      "assumption_set": "f5_missing_long_rate",
+      "fre_context": "fre_primary",
+      "notes": ""
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "f1-ccc",
+      "scenario_id": "jf-f1-base",
+      "model": "capex_credit_cycle",
+      "horizon": 20,
+      "tags": [
+        "partial",
+        "explicit_assumption_not_accepted"
+      ],
+      "purpose": "F1 の primary セル（partial）。GDP 成長率 assumption はどのモデルも受け取らず開示のみ（G-03）。"
+    },
+    {
+      "case_id": "f1-nk",
+      "scenario_id": "jf-f1-base",
+      "model": "new_keynesian",
+      "horizon": 20,
+      "tags": [
+        "partial",
+        "explicit_assumption_not_accepted",
+        "optional_concept_held_at_baseline"
+      ],
+      "purpose": "F1 の supporting セル（partial）。長期金利を受け取らず、未指定のインフレ目標は baseline のまま。"
+    },
+    {
+      "case_id": "f1-keen",
+      "scenario_id": "jf-f1-base",
+      "model": "keen",
+      "horizon": 20,
+      "tags": [
+        "partial",
+        "explicit_assumption_not_accepted"
+      ],
+      "purpose": "F1 の supporting セル（partial・direction_only・static_point）。"
+    },
+    {
+      "case_id": "f1-solow-not-representable",
+      "scenario_id": "jf-f1-base",
+      "model": "solow",
+      "horizon": 20,
+      "tags": [
+        "not_representable"
+      ],
+      "purpose": "F1 の not_representable セル。モデルを実行せず拒否を返す。"
+    },
+    {
+      "case_id": "f1-ccc-missing-long-rate",
+      "scenario_id": "jf-f1-missing-long-rate",
+      "model": "capex_credit_cycle",
+      "horizon": 20,
+      "tags": [
+        "missing_required_assumption"
+      ],
+      "purpose": "必須概念（長期金利・funding 条件）が未指定。0 とみなして実行せず拒否する。"
+    },
+    {
+      "case_id": "f2-sim",
+      "scenario_id": "jf-f2-base",
+      "model": "sim",
+      "horizon": 20,
+      "tags": [
+        "representable",
+        "fre_context_variant"
+      ],
+      "purpose": "F2 の primary セル（representable）。representable の通常ケース。"
+    },
+    {
+      "case_id": "f2-islm",
+      "scenario_id": "jf-f2-base",
+      "model": "islm",
+      "horizon": 20,
+      "tags": [
+        "partial"
+      ],
+      "purpose": "F2 の supporting セル（partial・direction_only・static_point）。"
+    },
+    {
+      "case_id": "f2-adas",
+      "scenario_id": "jf-f2-base",
+      "model": "adas",
+      "horizon": 20,
+      "tags": [
+        "partial"
+      ],
+      "purpose": "F2 の supporting セル（partial・direction_only・static_point）。"
+    },
+    {
+      "case_id": "f2-mundell-fleming",
+      "scenario_id": "jf-f2-base",
+      "model": "mundell_fleming",
+      "horizon": 20,
+      "tags": [
+        "partial"
+      ],
+      "purpose": "F2 の supporting セル（partial・direction_only・static_point）。"
+    },
+    {
+      "case_id": "f2-nk-not-representable",
+      "scenario_id": "jf-f2-base",
+      "model": "new_keynesian",
+      "horizon": 20,
+      "tags": [
+        "not_representable"
+      ],
+      "purpose": "F2 の not_representable セル（需要ショックを財政緊縮の代理にしない）。"
+    },
+    {
+      "case_id": "f2-sim-no-fre",
+      "scenario_id": "jf-f2-no-fre",
+      "model": "sim",
+      "horizon": 20,
+      "tags": [
+        "representable",
+        "missing_fre_context",
+        "fre_context_variant"
+      ],
+      "purpose": "FRE context 無し。observed は null のままで、model-implied 結果は基準ケースと同一。"
+    },
+    {
+      "case_id": "f2-sim-fre-unavailable",
+      "scenario_id": "jf-f2-fre-unavailable",
+      "model": "sim",
+      "horizon": 20,
+      "tags": [
+        "representable",
+        "fre_unavailable",
+        "fre_context_variant"
+      ],
+      "purpose": "FRE が判定不能（unavailable）。null / 欠けたキーを 0 で埋めない。"
+    },
+    {
+      "case_id": "f2-sim-fre-shifted",
+      "scenario_id": "jf-f2-fre-shifted",
+      "model": "sim",
+      "horizon": 20,
+      "tags": [
+        "representable",
+        "fre_context_variant"
+      ],
+      "purpose": "FRE の affinity / share / confidence / score だけを変えた context。shock magnitude と結果は変わらない。"
+    },
+    {
+      "case_id": "f2-sim-missing-tax",
+      "scenario_id": "jf-f2-missing-tax",
+      "model": "sim",
+      "horizon": 20,
+      "tags": [
+        "missing_required_assumption"
+      ],
+      "purpose": "必須概念（税）が未指定。0 とみなして実行せず拒否する。"
+    },
+    {
+      "case_id": "f2-sim-explicit-zero-tax",
+      "scenario_id": "jf-f2-explicit-zero-tax",
+      "model": "sim",
+      "horizon": 20,
+      "tags": [
+        "representable",
+        "explicit_zero_assumption"
+      ],
+      "purpose": "税を magnitude = 0.0 と明示した scenario。未指定（拒否）とは区別され、実行される。"
+    },
+    {
+      "case_id": "f2-sim-primary-balance",
+      "scenario_id": "jf-f2-primary-balance",
+      "model": "sim",
+      "horizon": 20,
+      "tags": [
+        "conversion_not_implemented"
+      ],
+      "purpose": "PB 目標の explicit assumption。変換（閉じ変数の選択）が未実装のため黙って無視せず拒否する。"
+    },
+    {
+      "case_id": "f3-nk",
+      "scenario_id": "jf-f3-base",
+      "model": "new_keynesian",
+      "horizon": 20,
+      "tags": [
+        "partial",
+        "explicit_assumption_not_accepted"
+      ],
+      "purpose": "F3 の primary セル（partial）。中央銀行の JGB 吸収はどのモデルも受け取らない（G-04）。"
+    },
+    {
+      "case_id": "f3-ccc-partial-not-adopted",
+      "scenario_id": "jf-f3-base",
+      "model": "capex_credit_cycle",
+      "horizon": 20,
+      "tags": [
+        "partial_not_adopted"
+      ],
+      "purpose": "partial だが #274 が採用しなかったセル。実行せず拒否する。"
+    },
+    {
+      "case_id": "f3-islm-not-representable",
+      "scenario_id": "jf-f3-base",
+      "model": "islm",
+      "horizon": 20,
+      "tags": [
+        "not_representable"
+      ],
+      "purpose": "F3 の not_representable セル。"
+    },
+    {
+      "case_id": "f3-nk-missing-inflation",
+      "scenario_id": "jf-f3-missing-inflation",
+      "model": "new_keynesian",
+      "horizon": 20,
+      "tags": [
+        "missing_required_assumption"
+      ],
+      "purpose": "必須概念（インフレ）が未指定。0 とみなして実行せず拒否する。"
+    },
+    {
+      "case_id": "f4-solow",
+      "scenario_id": "jf-f4-base",
+      "model": "solow",
+      "horizon": 20,
+      "tags": [
+        "representable"
+      ],
+      "purpose": "F4 の primary セル（representable）。"
+    },
+    {
+      "case_id": "f4-rbc",
+      "scenario_id": "jf-f4-base",
+      "model": "rbc",
+      "horizon": 20,
+      "tags": [
+        "representable"
+      ],
+      "purpose": "F4 の supporting セル（representable）。TFP ショックは平均回帰する。"
+    },
+    {
+      "case_id": "f4-adas",
+      "scenario_id": "jf-f4-base",
+      "model": "adas",
+      "horizon": 20,
+      "tags": [
+        "partial"
+      ],
+      "purpose": "F4 の supporting セル（partial・direction_only・static_point）。"
+    },
+    {
+      "case_id": "f4-keen",
+      "scenario_id": "jf-f4-base",
+      "model": "keen",
+      "horizon": 20,
+      "tags": [
+        "partial"
+      ],
+      "purpose": "F4 の supporting セル（partial・direction_only・static_point）。"
+    },
+    {
+      "case_id": "f4-ccc-not-representable",
+      "scenario_id": "jf-f4-base",
+      "model": "capex_credit_cycle",
+      "horizon": 20,
+      "tags": [
+        "not_representable"
+      ],
+      "purpose": "F4 の not_representable セル（ai_exp を生産性の代理にしない）。"
+    },
+    {
+      "case_id": "f4-solow-growth-path-only",
+      "scenario_id": "jf-f4-growth-path-only",
+      "model": "solow",
+      "horizon": 20,
+      "tags": [
+        "missing_required_assumption"
+      ],
+      "purpose": "GDP 成長率パスだけを置いた scenario。生産性成長率へ自動変換せず、必須概念の未指定として拒否する（G-03）。"
+    },
+    {
+      "case_id": "f5-ccc",
+      "scenario_id": "jf-f5-base",
+      "model": "capex_credit_cycle",
+      "horizon": 20,
+      "tags": [
+        "partial",
+        "optional_concept_held_at_baseline",
+        "fre_context_variant"
+      ],
+      "purpose": "F5 の primary セル（partial）。sovereign leg は unsupported。未指定の政策金利は baseline のまま。"
+    },
+    {
+      "case_id": "f5-keen",
+      "scenario_id": "jf-f5-base",
+      "model": "keen",
+      "horizon": 20,
+      "tags": [
+        "partial"
+      ],
+      "purpose": "F5 の supporting セル（partial・direction_only・static_point）。"
+    },
+    {
+      "case_id": "f5-ccc-no-fre",
+      "scenario_id": "jf-f5-no-fre",
+      "model": "capex_credit_cycle",
+      "horizon": 20,
+      "tags": [
+        "partial",
+        "missing_fre_context",
+        "optional_concept_held_at_baseline",
+        "fre_context_variant"
+      ],
+      "purpose": "FRE context 無しの F5。model-implied 結果は基準ケースと同一。"
+    },
+    {
+      "case_id": "f5-nk-not-representable",
+      "scenario_id": "jf-f5-base",
+      "model": "new_keynesian",
+      "horizon": 20,
+      "tags": [
+        "not_representable"
+      ],
+      "purpose": "F5 の not_representable セル（期間構造を持たない）。"
+    },
+    {
+      "case_id": "f5-ccc-missing-long-rate",
+      "scenario_id": "jf-f5-missing-long-rate",
+      "model": "capex_credit_cycle",
+      "horizon": 20,
+      "tags": [
+        "missing_required_assumption"
+      ],
+      "purpose": "必須概念（長期金利・funding 条件）が未指定。政策金利だけで代理しない。"
+    }
+  ],
+  "input_errors": [
+    {
+      "case_id": "f2-sim-horizon-zero",
+      "scenario_id": "jf-f2-base",
+      "model": "sim",
+      "horizon": 0,
+      "expected_error": "horizon は1以上",
+      "description": "horizon = 0（未対応の horizon）。artifact を生成しない。"
+    },
+    {
+      "case_id": "f5-ccc-horizon-negative",
+      "scenario_id": "jf-f5-base",
+      "model": "capex_credit_cycle",
+      "horizon": -4,
+      "expected_error": "horizon は1以上",
+      "description": "負の horizon。artifact を生成しない。"
+    },
+    {
+      "case_id": "f2-unknown-model",
+      "scenario_id": "jf-f2-base",
+      "model": "dsge",
+      "horizon": 20,
+      "expected_error": "dsge",
+      "description": "候補モデルに無いモデル。artifact を生成しない。"
+    }
+  ]
+}

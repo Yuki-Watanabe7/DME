@@ -122,7 +122,7 @@ _jf_result_adopted_mappings() =
     # ---- 契約 version ---------------------------------------------------
     @testset "契約 version" begin
         @test JAPAN_FISCAL_ADAPTER_CONTRACT_VERSION == "japan-fiscal-scenario-adapter/1.0.0"
-        @test JAPAN_FISCAL_RESULT_ARTIFACT_SCHEMA_VERSION == "japan-fiscal-scenario-result/1.0.0"
+        @test JAPAN_FISCAL_RESULT_ARTIFACT_SCHEMA_VERSION == "japan-fiscal-scenario-result/2.0.0"
         @test JAPAN_FISCAL_DEFAULT_HORIZON >= 1
     end
 
@@ -278,11 +278,24 @@ _jf_result_adopted_mappings() =
                     magnitude = -20.0,
                     magnitude_source = :derived,
                 ),
+                sc.assumptions[2],
             ];
             scenario_id = "test-fiscal_consolidation-diff",
         )
         r_diff = japan_fiscal_run(:sim, sc_diff; horizon = 6)
+        @test r_diff isa JapanFiscalScenarioResult
         @test r_diff.result_content_hash != r1.result_content_hash
+
+        # 必須概念（tax）を未指定にすると 0 とみなして実行せず、構造化された拒否を返す（#277）
+        sc_missing = _jf_result_test_scenario(
+            :fiscal_consolidation,
+            [sc_diff.assumptions[1]];
+            scenario_id = "test-fiscal_consolidation-missing",
+        )
+        rej = japan_fiscal_run(:sim, sc_missing; horizon = 6)
+        @test rej isa JapanFiscalScenarioRejection
+        @test rej.rejection_code == :missing_required_assumption
+        @test rej.concepts == [:tax]
     end
 
     # ---- no secrets / local paths in identity --------------------------------
@@ -334,9 +347,16 @@ _jf_result_adopted_mappings() =
         d = to_dict(rej)
         @test d["status"] == "not_executed"
         @test d["adoption"] == "not_adopted"
+        @test d["artifact_kind"] == "rejection"
+        @test d["rejection_code"] == "not_adopted"
         s = to_json(rej)
         @test s isa AbstractString
         @test !isempty(s)
+        back = japan_fiscal_scenario_rejection_from_dict(d)
+        @test back.rejection_content_hash == rej.rejection_content_hash
+        tampered = copy(d)
+        tampered["reason"] = "tampered"
+        @test_throws ArgumentError japan_fiscal_scenario_rejection_from_dict(tampered)
     end
 
     # ---- 機械可読 contract export ---------------------------------------------

@@ -320,14 +320,40 @@ export
     JAPAN_FISCAL_DEFAULT_HORIZON,
     JapanFiscalAppliedInput,
     JAPAN_FISCAL_MODEL_ADAPTERS,
+    JAPAN_FISCAL_ADAPTER_IMPLEMENTED_CONCEPTS,
     JAPAN_FISCAL_RESULT_ARTIFACT_SCHEMA_VERSION,
+    JAPAN_FISCAL_RESULT_ARTIFACT_JSON_SCHEMA,
+    JAPAN_FISCAL_ARTIFACT_KINDS,
+    JAPAN_FISCAL_REJECTION_CODES,
+    JAPAN_FISCAL_ASSUMPTION_STATES,
+    JAPAN_FISCAL_MODEL_INPUT_TREATMENTS,
+    JapanFiscalAssumptionDisposition,
     JapanFiscalComparisonDiagnostics,
     JapanFiscalScenarioResult,
     JapanFiscalScenarioRejection,
+    japan_fiscal_assumption_disposition,
     japan_fiscal_run,
     japan_fiscal_scenario_result_from_dict,
+    japan_fiscal_scenario_rejection_from_dict,
+    japan_fiscal_artifact_from_dict,
     japan_fiscal_result_artifact_contract,
     save_japan_fiscal_scenario_result,
+    # Japan Fiscal Scenario Lab: deterministic E2E・consumer handoff bundle・replay
+    # （src/scenarios/japan_fiscal_handoff.jl、Issue #277）
+    JAPAN_FISCAL_HANDOFF_SCHEMA_VERSION,
+    JAPAN_FISCAL_HANDOFF_JSON_SCHEMA,
+    JAPAN_FISCAL_SCENARIO_JSON_SCHEMA,
+    JAPAN_FISCAL_HANDOFF_NEGATIVE_KINDS,
+    JAPAN_FISCAL_HANDOFF_CASE_TAGS,
+    JapanFiscalHandoffCase,
+    JapanFiscalHandoffBundle,
+    JapanFiscalReplayReport,
+    japan_fiscal_handoff_case_summary,
+    japan_fiscal_handoff_negative_artifacts,
+    build_japan_fiscal_handoff,
+    write_japan_fiscal_handoff,
+    load_japan_fiscal_handoff,
+    replay_japan_fiscal_handoff_case,
     # PNE sector-output-path の受理・cross-model mapping artifact・互換性判定
     # （src/scenarios/pne_sector_output_path.jl・cross_model_mapping.jl・
     # cross_model_compatibility.jl、Issue #281 / `PN-1`。設計 docs/architecture/
@@ -1356,5 +1382,13 @@ include("./scenarios/adapters/japan_fiscal_model_adapters.jl")
 # `japan_fiscal_run`・`JapanFiscalScenarioResult`/`JapanFiscalScenarioRejection`・
 # serialization・atomic save を提供する)
 include("./scenarios/japan_fiscal_result.jl")
+
+# Japan Fiscal Scenario Lab: deterministic E2E・Market Analyzer handoff bundle・replay
+# （Issue #277。depends on scenarios/japan_fiscal_result.jl（japan_fiscal_run・
+# japan_fiscal_artifact_from_dict）・scenarios/japan_fiscal_scenario_schema.jl（scenario decode・
+# catalog / schema contract export）・scenarios/japan_fiscal_claim_contract.jl（downstream contract）・
+# artifacts/json_canonical.jl（canonical_json_bytes）。versioned consumer bundle の生成・
+# fail closed load・replay を提供する)
+include("./scenarios/japan_fiscal_handoff.jl")
 
 end
