@@ -1,6 +1,6 @@
 # ADR 0023: Japan Fiscal Scenario Lab の model adapter・scenario runner・result artifact contract
 
-- **ステータス**: 採用
+- **ステータス**: 採用（result artifact の schema は [ADR 0025](0025-japan-fiscal-scenario-handoff-contract.md) で 2.0.0 に改訂）
 - **日付**: 2026-09-22
 - **関連Issue**: [#273](https://github.com/Yuki-Watanabe7/DME/issues/273)（Japan Fiscal Scenario Lab ロードマップ）・[#274](https://github.com/Yuki-Watanabe7/DME/issues/274)（capability audit。本決定の前提）・[#285](https://github.com/Yuki-Watanabe7/DME/issues/285)（claim-level / coverage 契約。本決定の前提）・[#275](https://github.com/Yuki-Watanabe7/DME/issues/275)（scenario schema。本決定の前提）・[#276](https://github.com/Yuki-Watanabe7/DME/issues/276)（本決定）・downstream [#277](https://github.com/Yuki-Watanabe7/DME/issues/277)
 - **前提ADR**: [ADR 0020](0020-japan-fiscal-scenario-capability-contract.md)（55セルのrepresentability・9 assumption concept）・[ADR 0021](0021-japan-fiscal-claim-level-contract.md)（claim-level / coverage・downstream handoff requirements 22件）・[ADR 0022](0022-japan-fiscal-scenario-schema-contract.md)（`JapanFiscalScenario`・`JapanFiscalFREContext`・2種のhash）・[ADR 0011](0011-capex-credit-cycle-dynamics-contract.md)（CCCの動学契約）・[ADR 0018](0018-capex-credit-cycle-empirical-runtime-contract.md)（`compose_exogenous_paths`+`capex_run`による`run_scenario`非経由のシナリオ合成の先例）・[ADR 0008](0008-real-rate-model-artifact-export.md)（hash自己参照排除・RFC 8785正準化・atomic write）

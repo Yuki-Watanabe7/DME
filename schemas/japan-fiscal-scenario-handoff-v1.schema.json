@@ -1,0 +1,781 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Yuki-Watanabe7/DME/blob/develop/schemas/japan-fiscal-scenario-handoff-v1.schema.json",
+  "title": "Japan fiscal scenario handoff bundle index (japan-fiscal-scenario-handoff/1.0.0)",
+  "description": "DME が Market Analyzer へ渡す Japan Fiscal Scenario Lab の versioned consumer bundle の入口（index.json）。各ファイルの SHA-256（ファイルのバイト列）を保持し、bundle_content_hash は index から generated_at と自身を除いた RFC 8785 正準 JSON の SHA-256。artifact は japan-fiscal-scenario-result-v2、scenario は japan-fiscal-scenario-v1 の schema に従う。詳細は docs/architecture/japan_fiscal_scenario_handoff.md。",
+  "x-contract-version": "japan-fiscal-scenario-handoff/1.0.0",
+  "x-semantic-invariants": [
+    "bundle_content_hash は index から generated_at と自身を除いた RFC 8785 正準 JSON の SHA-256 と一致する。各ファイルの sha256 はファイルのバイト列の SHA-256 と一致する。",
+    "bundle には index.json と index に列挙されたファイル以外を置かない。",
+    "cases[].summary は artifact から機械的に導出した値と一致し、cases[].tags は artifact・scenario の内容と整合する。",
+    "cases[] の artifact の scenario_id・scenario_content_hash・assumption_set_hash・fre_context_identity は scenarios[] の scenario と一致する。",
+    "negative_artifacts[] は consumer が必ず拒否しなければならない（受理した時点で fail closed 違反）。"
+  ],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifact_kind",
+    "bundle_content_hash",
+    "cases",
+    "contract_versions",
+    "contracts",
+    "families",
+    "generated_at",
+    "json_schemas",
+    "negative_artifacts",
+    "producer",
+    "scenarios",
+    "schema_version"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "japan-fiscal-scenario-handoff/1.0.0"
+    },
+    "artifact_kind": {
+      "const": "handoff_index"
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "repository"
+      ],
+      "properties": {
+        "repository": {
+          "const": "Yuki-Watanabe7/DME"
+        },
+        "component": {
+          "const": "japan_fiscal_scenario_lab"
+        }
+      }
+    },
+    "contract_versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter",
+        "capability",
+        "claim",
+        "handoff",
+        "result_artifact",
+        "scenario_schema"
+      ],
+      "properties": {
+        "handoff": {
+          "const": "japan-fiscal-scenario-handoff/1.0.0"
+        },
+        "result_artifact": {
+          "const": "japan-fiscal-scenario-result/2.0.0"
+        },
+        "scenario_schema": {
+          "const": "japan-fiscal-scenario-schema/1.0.0"
+        },
+        "capability": {
+          "const": "japan-fiscal-scenario-capability/1.0.0"
+        },
+        "claim": {
+          "const": "japan-fiscal-claim-contract/1.0.0"
+        },
+        "adapter": {
+          "const": "japan-fiscal-scenario-adapter/1.0.0"
+        }
+      }
+    },
+    "json_schemas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoff_index",
+        "result_artifact",
+        "scenario"
+      ],
+      "properties": {
+        "handoff_index": {
+          "const": "schemas/japan-fiscal-scenario-handoff-v1.schema.json"
+        },
+        "result_artifact": {
+          "const": "schemas/japan-fiscal-scenario-result-v2.schema.json"
+        },
+        "scenario": {
+          "const": "schemas/japan-fiscal-scenario-v1.schema.json"
+        }
+      }
+    },
+    "families": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "display_name",
+          "family",
+          "implementation_candidates",
+          "optional_concepts",
+          "representability",
+          "required_concepts"
+        ],
+        "properties": {
+          "family": {
+            "$ref": "#/$defs/family"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "required_concepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/assumptionConcept"
+            }
+          },
+          "optional_concepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/assumptionConcept"
+            }
+          },
+          "implementation_candidates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/model"
+            }
+          },
+          "representability": {
+            "type": "object",
+            "propertyNames": {
+              "$ref": "#/$defs/model"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "representable",
+                "partial",
+                "not_representable"
+              ]
+            }
+          }
+        }
+      },
+      "minItems": 5
+    },
+    "contracts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "capability_matrix",
+              "downstream_contract",
+              "scenario_schema_contract",
+              "result_artifact_contract"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^contracts/[a-z_]+\\.json$"
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        }
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assumption_set_hash",
+          "explicit_assumption_concepts",
+          "family",
+          "fre_context_identity",
+          "fre_regime_determination",
+          "name",
+          "path",
+          "scenario_content_hash",
+          "scenario_id",
+          "sha256"
+        ],
+        "properties": {
+          "scenario_id": {
+            "$ref": "#/$defs/id"
+          },
+          "family": {
+            "$ref": "#/$defs/family"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^scenarios/[a-z0-9][a-z0-9._-]*\\.json$"
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "scenario_content_hash": {
+            "$ref": "#/$defs/sha256"
+          },
+          "assumption_set_hash": {
+            "$ref": "#/$defs/sha256"
+          },
+          "fre_context_identity": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/sha256"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fre_regime_determination": {
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "primary",
+                  "ambiguous",
+                  "unavailable"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "explicit_assumption_concepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/assumptionConcept"
+            }
+          }
+        }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "horizon",
+          "model",
+          "path",
+          "purpose",
+          "scenario_id",
+          "sha256",
+          "summary",
+          "tags"
+        ],
+        "properties": {
+          "case_id": {
+            "$ref": "#/$defs/id"
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/caseTag"
+            }
+          },
+          "scenario_id": {
+            "$ref": "#/$defs/id"
+          },
+          "model": {
+            "$ref": "#/$defs/model"
+          },
+          "horizon": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^artifacts/[a-z0-9][a-z0-9._-]*\\.json$"
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          },
+          "summary": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/resultSummary"
+              },
+              {
+                "$ref": "#/$defs/rejectionSummary"
+              }
+            ]
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "negative_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "description",
+          "expected_failure",
+          "name",
+          "path",
+          "sha256",
+          "source_case_id"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "content_hash_mismatch",
+              "unsupported_schema_version",
+              "missing_required_field",
+              "claim_level_exceeds_contract",
+              "not_representable_presented_as_result",
+              "missing_assumption_presented_as_zero"
+            ]
+          },
+          "expected_failure": {
+            "type": "string",
+            "enum": [
+              "content_hash_mismatch",
+              "unsupported_schema_version",
+              "missing_required_field",
+              "claim_level_exceeds_contract",
+              "not_representable_presented_as_result",
+              "missing_assumption_presented_as_zero"
+            ]
+          },
+          "source_case_id": {
+            "$ref": "#/$defs/id"
+          },
+          "description": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^negative/[a-z_]+\\.json$"
+          },
+          "sha256": {
+            "$ref": "#/$defs/sha256"
+          }
+        },
+        "description": "consumer が必ず拒否しなければならない artifact（fail closed の検証用）。"
+      }
+    },
+    "generated_at": {
+      "$ref": "#/$defs/utcDateTime"
+    },
+    "bundle_content_hash": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "RFC 8785 正準 JSON（またはファイルのバイト列）の SHA-256。"
+    },
+    "utcDateTime": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "family": {
+      "type": "string",
+      "enum": [
+        "low_growth_high_rates",
+        "fiscal_consolidation",
+        "financial_repression",
+        "high_growth_productivity",
+        "jgb_funding_cost"
+      ]
+    },
+    "model": {
+      "type": "string",
+      "enum": [
+        "ramsey",
+        "rbc",
+        "solow",
+        "islm",
+        "adas",
+        "new_keynesian",
+        "var",
+        "mundell_fleming",
+        "keen",
+        "sim",
+        "capex_credit_cycle"
+      ]
+    },
+    "assumptionConcept": {
+      "type": "string",
+      "enum": [
+        "growth_path",
+        "productivity_growth",
+        "policy_rate",
+        "long_rate_funding_condition",
+        "government_spending",
+        "tax",
+        "primary_balance",
+        "inflation",
+        "cb_jgb_absorption"
+      ]
+    },
+    "outputConcept": {
+      "type": "string",
+      "enum": [
+        "output",
+        "output_gap",
+        "inflation",
+        "price_level",
+        "nominal_rate",
+        "real_rate",
+        "private_borrowing_cost",
+        "private_debt",
+        "employment",
+        "consumption",
+        "investment",
+        "capital_stock",
+        "government_balance",
+        "government_debt_stock",
+        "money_stock",
+        "exchange_rate",
+        "net_exports"
+      ]
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "up",
+        "down",
+        "none"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "caseTag": {
+      "type": "string",
+      "enum": [
+        "representable",
+        "partial",
+        "not_representable",
+        "partial_not_adopted",
+        "missing_required_assumption",
+        "conversion_not_implemented",
+        "missing_fre_context",
+        "fre_unavailable",
+        "fre_context_variant",
+        "explicit_zero_assumption",
+        "optional_concept_held_at_baseline",
+        "explicit_assumption_not_accepted"
+      ]
+    },
+    "resultSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adoption",
+        "artifact_content_hash",
+        "artifact_kind",
+        "claim_level",
+        "direction",
+        "explicit_concepts",
+        "explicit_not_accepted_concepts",
+        "family",
+        "family_complete",
+        "fre_context_identity",
+        "has_funding_cost_legs",
+        "has_timing_diagnostics",
+        "held_at_baseline_concepts",
+        "model",
+        "n_periods",
+        "numeric_semantics",
+        "representability",
+        "result_shape",
+        "scenario_id",
+        "uncovered_channels",
+        "unsupported_concepts",
+        "unsupported_outputs",
+        "variables",
+        "warning_count"
+      ],
+      "properties": {
+        "artifact_kind": {
+          "const": "result"
+        },
+        "family": {
+          "$ref": "#/$defs/family"
+        },
+        "model": {
+          "$ref": "#/$defs/model"
+        },
+        "scenario_id": {
+          "$ref": "#/$defs/id"
+        },
+        "representability": {
+          "type": "string",
+          "enum": [
+            "representable",
+            "partial"
+          ]
+        },
+        "adoption": {
+          "type": "string",
+          "enum": [
+            "primary",
+            "supporting"
+          ]
+        },
+        "claim_level": {
+          "type": "string",
+          "enum": [
+            "direction_only",
+            "direction_and_relative_timing"
+          ]
+        },
+        "numeric_semantics": {
+          "type": "string",
+          "enum": [
+            "model_unit_relative",
+            "normalized_deviation"
+          ]
+        },
+        "family_complete": {
+          "type": "boolean"
+        },
+        "unsupported_concepts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assumptionConcept"
+          }
+        },
+        "unsupported_outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outputConcept"
+          }
+        },
+        "uncovered_channels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fre_context_identity": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "artifact_content_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "result_shape": {
+          "type": "string",
+          "enum": [
+            "time_path",
+            "static_point"
+          ]
+        },
+        "n_periods": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "variables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outputConcept"
+          }
+        },
+        "direction": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/outputConcept"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/direction"
+          }
+        },
+        "has_timing_diagnostics": {
+          "type": "boolean"
+        },
+        "explicit_concepts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assumptionConcept"
+          }
+        },
+        "held_at_baseline_concepts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assumptionConcept"
+          }
+        },
+        "explicit_not_accepted_concepts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assumptionConcept"
+          }
+        },
+        "has_funding_cost_legs": {
+          "type": "boolean"
+        },
+        "warning_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "description": "artifact から機械的に導出した要約（新しい主張を追加しない）。"
+    },
+    "rejectionSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adoption",
+        "artifact_content_hash",
+        "artifact_kind",
+        "claim_level",
+        "concepts",
+        "family",
+        "family_complete",
+        "fre_context_identity",
+        "model",
+        "numeric_semantics",
+        "rejection_code",
+        "representability",
+        "scenario_id",
+        "uncovered_channels",
+        "unsupported_concepts",
+        "unsupported_outputs"
+      ],
+      "properties": {
+        "artifact_kind": {
+          "const": "rejection"
+        },
+        "family": {
+          "$ref": "#/$defs/family"
+        },
+        "model": {
+          "$ref": "#/$defs/model"
+        },
+        "scenario_id": {
+          "$ref": "#/$defs/id"
+        },
+        "representability": {
+          "type": "string",
+          "enum": [
+            "representable",
+            "partial",
+            "not_representable"
+          ]
+        },
+        "adoption": {
+          "type": "string",
+          "enum": [
+            "primary",
+            "supporting",
+            "not_adopted"
+          ]
+        },
+        "claim_level": {
+          "type": "string",
+          "enum": [
+            "none",
+            "direction_only",
+            "direction_and_relative_timing"
+          ]
+        },
+        "numeric_semantics": {
+          "type": "string",
+          "enum": [
+            "none",
+            "model_unit_relative",
+            "normalized_deviation"
+          ]
+        },
+        "family_complete": {
+          "type": "boolean"
+        },
+        "unsupported_concepts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assumptionConcept"
+          }
+        },
+        "unsupported_outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outputConcept"
+          }
+        },
+        "uncovered_channels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fre_context_identity": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "artifact_content_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "rejection_code": {
+          "type": "string",
+          "enum": [
+            "not_adopted",
+            "missing_required_assumption",
+            "conversion_not_implemented"
+          ]
+        },
+        "concepts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/assumptionConcept"
+          }
+        }
+      }
+    },
+    "fileEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    }
+  }
+}

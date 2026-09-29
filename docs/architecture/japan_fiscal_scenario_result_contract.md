@@ -14,7 +14,8 @@ E2E / consumer fixture（#277）はこの artifact を前提に進める。
 実装ファイル: [`src/scenarios/adapters/japan_fiscal_model_adapters.jl`](../../src/scenarios/adapters/japan_fiscal_model_adapters.jl)・
 [`src/scenarios/japan_fiscal_result.jl`](../../src/scenarios/japan_fiscal_result.jl)。
 契約 version: `JAPAN_FISCAL_ADAPTER_CONTRACT_VERSION = "japan-fiscal-scenario-adapter/1.0.0"`・
-`JAPAN_FISCAL_RESULT_ARTIFACT_SCHEMA_VERSION = "japan-fiscal-scenario-result/1.0.0"`。
+`JAPAN_FISCAL_RESULT_ARTIFACT_SCHEMA_VERSION = "japan-fiscal-scenario-result/2.0.0"`（#277 で 1.0.0 から改訂。§10）。
+JSON Schema: [`schemas/japan-fiscal-scenario-result-v2.schema.json`](../../schemas/japan-fiscal-scenario-result-v2.schema.json)。
 
 ---
 
@@ -155,7 +156,8 @@ peak/onset/duration/recovery の計算は `analysis/scenario_diagnostics.jl` の
 | scenario identity | `scenario_id`・`scenario_content_hash`・`assumption_set_hash` | #275の2種のhashをそのまま複製 |
 | observed context identity | `fre_context_identity` | nullable |
 | model identity | `model_name`・`parameter_identity_hash` | baseline paramsのhash（決定11、値配列化） |
-| traceability | `applied_inputs` | assumption_id→target→conversion |
+| 判別子 | `artifact_kind`（`"result"`） | rejection と discriminated union を成す（#277） |
+| traceability | `applied_inputs`・`assumption_disposition` | assumption_id→target→conversion・family の全概念の explicit / 未指定とモデル入力としての扱い（#277） |
 | 3分類（H-10） | `observed`（FRE context）・`assumed`（scenario assumptions）・`model_implied`（baseline/scenario系列、numeric_semanticsタグ付き） | |
 | coverage（H-06） | `coverage` | `to_dict(japan_fiscal_coverage(family,model))` を丸ごと埋め込む |
 | F5 leg分離（H-11） | `funding_cost_legs` | jgb_funding_costのみ非null。sovereignは常に`"unsupported"` |
@@ -169,19 +171,32 @@ artifact自体を生成しない（H-07）。
 
 ---
 
-## 6. not_adopted セルの扱い
+## 6. 実行しない場合（rejection）の扱い
 
 `adoption === :not_adopted`（not_representable 40件 + partial-but-not_adopted 1件、計41件）は
-モデルを実行せず `JapanFiscalScenarioRejection`（`status=:not_executed`）を返す。
+モデルを実行せず `JapanFiscalScenarioRejection`（`status=:not_executed`・`rejection_code=:not_adopted`）を返す。
 `japan_fiscal_run` の戻り値は `Union{JapanFiscalScenarioResult,JapanFiscalScenarioRejection}`
 であり、呼び出し側は型で分岐しなければならない（ADR 0023決定5）。
+
+#277 で次の 2 種を加えた（ADR 0025 決定 1・2）。いずれもモデルを実行しない。
+
+| `rejection_code` | 条件 |
+|---|---|
+| `:missing_required_assumption` | family の必須概念のうちモデルが受理する概念に explicit assumption が無い（未指定を 0 へ丸めない） |
+| `:conversion_not_implemented` | mapping 上は受理されるが adapter が変換を実装していない概念（`:primary_balance`）に explicit assumption がある |
+
+rejection は `concepts`（原因となった概念）・scenario identity・`horizon`・`coverage`・`rejection_content_hash` を持ち、
+`japan_fiscal_scenario_rejection_from_dict` で fail closed に round trip する。
 
 ---
 
 ## 7. determinism・no secrets
 
 - 同一 `family`/`model`/`scenario`（同一`scenario_content_hash`）・同一`horizon` は同一
-  `result_content_hash` を生成する。
+  `result_content_hash` を生成する。assumption の入力順・FRE context の `dominant_drivers` の順序・Dict の挿入順には
+  依存しない（#277。`assumed` は `assumption_id` 昇順、`dominant_drivers` は整列して出力する）。
+- `japan_fiscal_run(...; generated_at)` で volatile な `generated_at` を固定でき、固定すれば artifact のバイト列まで
+  一致する（fixture 用。#277）。
 - `fre_context` だけを変えた2つの scenario は、同一の `model_implied`/`diagnostics` を生成する
   （`assumption_set_hash` が不変であるため。#275 H-05と同型の保証）。
 - `save_japan_fiscal_scenario_result` の `base_dir`（ファイルシステムパス）は identity（hash
@@ -205,18 +220,24 @@ sc = JapanFiscalScenario(;
             assumption_id = "a1", concept = :government_spending,
             magnitude = -10.0, magnitude_source = :derived,
         ),
+        # 必須概念 :tax を置かないと rejection_code=:missing_required_assumption になる。
+        # 「税は変えない」なら magnitude=0.0 を明示する（未指定と 0 は別物）。
+        JapanFiscalScenarioAssumption(;
+            assumption_id = "a2", concept = :tax,
+            magnitude = 0.0, magnitude_source = :assumed_default,
+        ),
     ],
 )
 
 result = japan_fiscal_run(:sim, sc; horizon = 20)
-# => JapanFiscalScenarioResult （adoption != :not_adopted のとき）
-# => JapanFiscalScenarioRejection（adoption == :not_adopted のとき）
+# => JapanFiscalScenarioResult （実行したとき）
+# => JapanFiscalScenarioRejection（adoption == :not_adopted・必須概念の未指定・変換未実装のとき）
 
 result isa JapanFiscalScenarioResult && result.diagnostics.direction[:output]
 # => :down
 
 d = to_dict(result)
-result2 = japan_fiscal_scenario_result_from_dict(d)  # fail-closed round trip
+result2 = japan_fiscal_artifact_from_dict(d)  # artifact_kind で判別する fail-closed round trip
 
 save_japan_fiscal_scenario_result(result, "artifacts/")  # atomic write
 
@@ -230,8 +251,25 @@ japan_fiscal_result_artifact_contract()
 
 | Issue | 本契約から引き継ぐもの |
 |---|---|
-| #277（E2E / consumer fixture） | `japan_fiscal_run`・`JapanFiscalScenarioResult`/`JapanFiscalScenarioRejection`・`japan_fiscal_result_artifact_contract()`（Market Analyzer が読む機械可読 export）・14セルの result 実例 |
+| #277（E2E / consumer fixture） | `japan_fiscal_run`・`JapanFiscalScenarioResult`/`JapanFiscalScenarioRejection`・`japan_fiscal_result_artifact_contract()`（Market Analyzer が読む機械可読 export）・14セルの result 実例。実装済み: [deterministic E2E・handoff 契約](japan_fiscal_scenario_handoff.md) |
 
 `japan_fiscal_result_artifact_contract()` は #276 の artifact contract 全体を1つの
 `Dict{String,Any}` として返す。Market Analyzer は Julia 内部型を import せず、この Dict と
 実際の `to_dict(result)` のみを consume する。
+
+---
+
+## 10. 改訂（Issue #277）
+
+[deterministic E2E・handoff 契約](japan_fiscal_scenario_handoff.md) §4.1 と [ADR 0025](../adr/0025-japan-fiscal-scenario-handoff-contract.md)
+に従い、result artifact を `2.0.0` に上げた。本書の該当節は改訂済みであり、変更の一覧と理由は同書を正本とする。
+
+- `artifact_kind`・`assumption_disposition`（`JapanFiscalAssumptionDisposition`）の追加。
+- 必須概念の未指定（`:missing_required_assumption`）・変換未実装（`:conversion_not_implemented`）を拒否として返す
+  （1.0.0 は前者を baseline のまま実行し、後者を黙って無視していた）。
+- `JapanFiscalScenarioRejection` を構造化し（`rejection_code`・`concepts`・scenario identity・`horizon`・`coverage`・
+  `rejection_content_hash`）、`japan_fiscal_scenario_rejection_from_dict`・`japan_fiscal_artifact_from_dict` を追加。
+- decode が schema / 契約 version の完全一致・coverage と #285 registry の一致・claim_level と timing 診断の整合・
+  disposition の整合を検査する。
+- 入力順非依存（`assumed` の整列・`dominant_drivers` の整列）・`generated_at` の注入・`parameter_identity_hash` の
+  `"sha256:"` 接頭辞・timing 診断を持つ場合の `diagnostics.thresholds`。

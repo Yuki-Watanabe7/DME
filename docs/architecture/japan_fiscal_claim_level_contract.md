@@ -212,6 +212,8 @@ family 名（例「JGB funding-cost ショック」）だけを見ると全チ�
 
 ### #277 E2E / fixture
 
+#277 で実装済み（`test/test_japan_fiscal_e2e.jl` の「handoff requirements H-13–H-16」ほか。[deterministic E2E・handoff 契約](japan_fiscal_scenario_handoff.md) §7）。
+
 | ID | 要件 | 検証 |
 |---|---|---|
 | `H-13` | 現在の 55 セルに `claim_level = :magnitude` が 0 件であることを E2E でも検査する。 | E2E fixture の実行結果に `:magnitude` の coverage が現れないことをテストする。 |

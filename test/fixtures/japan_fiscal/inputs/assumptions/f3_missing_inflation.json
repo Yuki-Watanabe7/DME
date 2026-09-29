@@ -1,0 +1,24 @@
+{
+  "assumptions": [
+    {
+      "assumption_id": "f3-policy-rate",
+      "concept": "policy_rate",
+      "direction": "down",
+      "magnitude": -0.25,
+      "magnitude_source": "assumed_default",
+      "notes": "fixture の既定値（観測値ではない）。",
+      "unit": "%pt (annualized)"
+    },
+    {
+      "assumption_id": "f3-cb-absorption",
+      "concept": "cb_jgb_absorption",
+      "direction": "up",
+      "magnitude": 2.0,
+      "magnitude_source": "assumed_default",
+      "notes": "fixture の既定値（観測値ではない）。",
+      "unit": "level（残高）または ratio to outstanding JGB"
+    }
+  ],
+  "description": "金融抑圧のうちインフレの assumption を置いていない集合（未指定を 0 と扱わないことの検証用）。",
+  "set_id": "f3_missing_inflation"
+}

@@ -1,0 +1,24 @@
+{
+  "assumptions": [
+    {
+      "assumption_id": "f1-growth",
+      "concept": "growth_path",
+      "direction": "down",
+      "magnitude": -0.5,
+      "magnitude_source": "assumed_default",
+      "notes": "fixture の既定値（観測値ではない）。",
+      "unit": "%pt (annualized growth rate)"
+    },
+    {
+      "assumption_id": "f1-policy-rate",
+      "concept": "policy_rate",
+      "direction": "up",
+      "magnitude": 0.5,
+      "magnitude_source": "assumed_default",
+      "notes": "fixture の既定値（観測値ではない）。",
+      "unit": "%pt (annualized)"
+    }
+  ],
+  "description": "低成長 + 高金利のうち長期金利・funding 条件の assumption を置いていない集合（未指定を 0 と扱わないことの検証用）。",
+  "set_id": "f1_missing_long_rate"
+}

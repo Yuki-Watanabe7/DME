@@ -13,7 +13,12 @@
 #     `*_shock`/`*_comparison` 比較ヘルパ）を直接呼ぶ。モデル方程式・`run_scenario`・`map_event`
 #     はいずれも変更しない。
 #   - `mapping.inputs` が受け付けない concept の assumption は無視する（禁止代理を作らない）。
-#     受け付けない事実は `japan_fiscal_coverage`（#285）が mapping registry から機械的に導出する。
+#     受け付けない事実は `japan_fiscal_coverage`（#285）が mapping registry から機械的に導出し、
+#     assumption ごとの扱いは `JapanFiscalAssumptionDisposition`（#277）が artifact へ開示する。
+#   - 受理する concept の assumption が無い場合、adapter はそのモデル入力を baseline 値のまま
+#     保持する。これは「0 の assumption を置いた」ことではない。必須概念（family の
+#     `required_concepts` のうちモデルが受理するもの）が未指定のときは、そもそも adapter を
+#     呼ばない（`japan_fiscal_run` が `:missing_required_assumption` として拒否する、#277）。
 #   - baseline は各モデルの既存 example/illustrative パラメータ（`examples/`・`docs/models/` で
 #     使われている値と同一）を用いる。日本較正は行わない（G-02）。
 #   - 単位換算は `JapanFiscalInputMapping.conversion`（#274）に記述された式をそのまま実行する。
@@ -259,7 +264,8 @@ end
 # ===========================================================================
 
 "IS-LM/AD-AS/Mundell-Flemingで共通の `government_spending`/`tax` assumption 読み取り。
-値が無い concept は baseline のまま（0シフト）とする。"
+assumption が無い concept のモデル入力は baseline 値のまま保持する（`japan_fiscal_run` が必須概念の
+未指定を実行前に拒否するため、ここに来るのは任意概念の未指定だけである。#277）。"
 function _jf_fiscal_shift(scenario::JapanFiscalScenario, mapping::JapanFiscalModelMapping)
     applied = _jf_applied(scenario, mapping)
     g_shift = 0.0
@@ -1135,3 +1141,49 @@ const JAPAN_FISCAL_MODEL_ADAPTERS = Dict{Symbol, Function}(
     :sim => _japan_fiscal_adapt_sim,
     :capex_credit_cycle => _japan_fiscal_adapt_capex_credit_cycle,
 )
+
+"""
+    JAPAN_FISCAL_ADAPTER_IMPLEMENTED_CONCEPTS
+
+`model::Symbol => adapter が実際にモデル入力へ変換する assumption 概念` の宣言的 registry
+（Issue #277）。#274 の mapping が受理する（`:not_accepted` でない）概念のうち、ここに無いものは
+「mapping 上は受理されるが adapter が変換を実装していない」概念である。現時点では
+`:primary_balance`（IS-LM / AD-AS / SIM。`:requires_structural_conversion`。閉じ変数の選択
+（#274 §5.3）が未実装）がこれに当たる。
+
+`japan_fiscal_run` はこの registry を実行前に引き、明示的 assumption が未実装の変換を要求する
+場合はモデルを実行せず `JapanFiscalScenarioRejection`（`rejection_code=:conversion_not_implemented`）
+を返す（黙って無視しない）。adapter の実装とこの registry の一致は、実行後に `applied_inputs` と
+突き合わせて検査する（不一致は実装の誤りとして `ArgumentError`）。
+"""
+const JAPAN_FISCAL_ADAPTER_IMPLEMENTED_CONCEPTS = Dict{Symbol, Vector{Symbol}}(
+    :islm => [:government_spending, :tax],
+    :adas => [:government_spending, :tax, :productivity_growth],
+    :mundell_fleming => [:government_spending, :tax],
+    :keen => [:long_rate_funding_condition, :productivity_growth],
+    :solow => [:productivity_growth],
+    :rbc => [:productivity_growth],
+    :new_keynesian => [:policy_rate, :inflation],
+    :sim => [:government_spending, :tax],
+    :capex_credit_cycle => [:policy_rate, :long_rate_funding_condition],
+)
+
+# load 時 invariant: registry のキーは adapter registry と一致し、実装済み概念は採用セルの mapping が
+# 受理する概念の部分集合である（mapping が受理しない概念を adapter が勝手に受け取らない）。
+let
+    Set(keys(JAPAN_FISCAL_ADAPTER_IMPLEMENTED_CONCEPTS)) ==
+    Set(keys(JAPAN_FISCAL_MODEL_ADAPTERS)) || error(
+        "JAPAN_FISCAL_ADAPTER_IMPLEMENTED_CONCEPTS のキーが JAPAN_FISCAL_MODEL_ADAPTERS と一致しません",
+    )
+    for (model, concepts) in JAPAN_FISCAL_ADAPTER_IMPLEMENTED_CONCEPTS
+        accepted = Set{Symbol}()
+        for m in japan_fiscal_model_mappings(; model = model)
+            m.adoption === :not_adopted && continue
+            union!(accepted, japan_fiscal_accepted_concepts(m))
+        end
+        issubset(Set(concepts), accepted) || error(
+            "JAPAN_FISCAL_ADAPTER_IMPLEMENTED_CONCEPTS[$(repr(model))] が採用セルの mapping で受理されない概念を含みます: " *
+            "$(sort(collect(setdiff(Set(concepts), accepted))))",
+        )
+    end
+end

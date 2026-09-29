@@ -1,0 +1,38 @@
+{
+  "as_of": "2026-09-30",
+  "constraint_pressure": 0.96,
+  "context_identity": "sha256:b323b4ba7c78c6222284d4f1a1b827c611328135397c766f528659fa40ddbfdc",
+  "data_quality_score": 0.99,
+  "dimension_score": {
+    "debt_dynamics": 0.97,
+    "fiscal_space": 0.91,
+    "interest_burden": 0.88,
+    "jgb_absorption": 0.94,
+    "monetary_fiscal_dominance": 0.35
+  },
+  "dominant_drivers": [
+    "debt_to_gdp",
+    "effective_debt_rate",
+    "interest_to_revenue"
+  ],
+  "methodology_version": "fixture-fre-methodology/1.0.0",
+  "notes": "架空の fixture snapshot。fiscal-regime-engine の実際の出力ではない。observed context としてのみ使い、shock magnitude の導出には使わない。fre_primary と assumption 集合を共有し、affinity / share / confidence / dimension score / constraint pressure だけを大きく変えた検証用 snapshot。",
+  "policy_version": "fixture-fre-policy/1.0.0",
+  "primary_regime": "FISCAL_STRESS",
+  "regime_affinity": {
+    "FINANCIAL_REPRESSION": 0.41,
+    "FISCAL_CONSOLIDATION": 0.12,
+    "FISCAL_STRESS": 0.97,
+    "GROWTH_NORMALIZATION": 0.05
+  },
+  "regime_confidence": 0.95,
+  "regime_determination": "primary",
+  "regime_share": {
+    "FINANCIAL_REPRESSION": 0.27,
+    "FISCAL_CONSOLIDATION": 0.08,
+    "FISCAL_STRESS": 0.62,
+    "GROWTH_NORMALIZATION": 0.03
+  },
+  "snapshot_id": "fre-fixture-jp-2026-09-30-shifted",
+  "vintage_basis": "fixture:as-released"
+}

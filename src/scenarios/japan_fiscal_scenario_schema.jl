@@ -632,6 +632,9 @@ end
 # to_dict / to_json
 # ===========================================================================
 
+# `dominant_drivers` は identity（`japan_fiscal_fre_context_identity`）と同じく整列して出力する。
+# identity が並び順を意味に含めない以上、serialization も並び順に依存させない（#277。result
+# artifact の `observed` がこの dict を埋め込むため、入力順が result_content_hash を変えない）。
 to_dict(c::JapanFiscalFREContext) = Dict{String, Any}(
     "snapshot_id" => c.snapshot_id,
     "as_of" => Dates.format(c.as_of, "yyyy-mm-dd"),
@@ -643,7 +646,7 @@ to_dict(c::JapanFiscalFREContext) = Dict{String, Any}(
     "regime_confidence" => c.regime_confidence,
     "dimension_score" => c.dimension_score,
     "constraint_pressure" => c.constraint_pressure,
-    "dominant_drivers" => c.dominant_drivers,
+    "dominant_drivers" => sort(copy(c.dominant_drivers)),
     "data_quality_score" => c.data_quality_score,
     "methodology_version" => c.methodology_version,
     "policy_version" => c.policy_version,
