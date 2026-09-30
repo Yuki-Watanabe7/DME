@@ -225,7 +225,9 @@ OpenSSL・libcurl・libgit2・libssh2・zlib は ECR basic scan の対象外で�
   は 1.13.1 でも警告のみである。
 - **品質 lane.** 1.13.1 の `Pkg.test()`（fast lane、Coverage 込み）は 37116 件すべて pass し、Aqua.jl の7検査と
   JuliaFormatter も通る。同じ commit で JET slow lane の finding（234 件）と Documenter docs lane の warning は 1.12.6 と
-  一致する。benchmark slow lane は environment key が `…|julia1.13` に変わるため、CI の baseline を取り直す。
+  一致し、GitHub Actions（ubuntu-latest）でも JET・Documenter・benchmark の各 lane が success になる。benchmark slow lane は
+  environment key が `github-linux-x64|linux|x86_64|julia1.13` に変わるため、`benchmarks/baseline.json` にこの key の baseline を
+  workflow_dispatch run 36744285483 の結果から追加した（`julia1.12` の entry は履歴として残す）。
 - **浮動小数点.** commit 済みの Japan fiscal handoff fixture（1.12.6 で生成）を 1.13.1 で replay すると、31 case すべてが
   許容誤差内で、hash の完全一致は 30/31（`f4-rbc` のみ、最大絶対差 6.9e-18）になる。1.12.6 では 31/31 が完全一致する。
   ADR 0025 のとおり replay は許容誤差で成立し、hash の完全一致は `exact_match` として別に報告されるので、fixture は再生成しない。
