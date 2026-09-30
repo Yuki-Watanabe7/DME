@@ -22,6 +22,8 @@ const DME_TEST_FILES = [
     "test_rbc.jl",
     "test_solow.jl",
     "test_cli.jl",
+    "test_batch_run.jl",
+    "test_image_scan_decision.jl",
     "test_islm.jl",
     "test_adas.jl",
     "test_new_keynesian.jl",

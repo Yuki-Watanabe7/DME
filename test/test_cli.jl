@@ -23,6 +23,14 @@ const _DME_CLI_TEST_OUTDIR_ENV = "DME_ARTIFACT_OUTDIR"
             @test artifact["model"]["id"] == "solow"
             @test artifact["run"]["periods"] == 4
             @test length(artifact["variables"]["k"]) == 4
+
+            # Issue #252: the run manifest is written last, next to the artifact.
+            manifest_path = joinpath(dir, "simulation", "solow", "run-manifest.json")
+            @test isfile(manifest_path)
+            manifest = DME._qe_to_plain(DME.JSON3.read(read(manifest_path, String)))
+            @test manifest["manifest_schema"] == DME.DME_RUN_MANIFEST_SCHEMA
+            @test manifest["status"] == "succeeded"
+            @test only(manifest["artifacts"])["path"] == "simulation/solow/simulation.json"
         end
     end
 
@@ -71,6 +79,25 @@ const _DME_CLI_TEST_OUTDIR_ENV = "DME_ARTIFACT_OUTDIR"
             @test code == 0
             @test isfile(path)
             @test load_quality_export(path).export_schema == QUALITY_EXPORT_SCHEMA
+        end
+    end
+
+    @testset "Run options are validated as input errors" begin
+        mktempdir() do dir
+            for arguments in (
+                ["--run-id", "bad/id"],
+                ["--artifact-sink", "file:///tmp/x"],
+                ["--artifact-sink", "s3://pap-dme"],  # no AWS_REGION
+            )
+                @test dme_main(
+                    ["quality-export", "--out", dir, arguments...];
+                    stdout = IOBuffer(),
+                    stderr = IOBuffer(),
+                    env = Dict{String, String}(),
+                ) == 2
+            end
+            # Nothing ran, so nothing was written.
+            @test !isdir(joinpath(dir, "quality"))
         end
     end
 

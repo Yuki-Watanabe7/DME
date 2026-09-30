@@ -112,7 +112,7 @@ const DME_API_GROUPS = [
     ("data", "実データ層", ["data"]),
     ("analysis", "分析・診断層", ["analysis", "sfc"]),
     ("llm", "LLM層", ["llm"]),
-    ("artifacts", "Artifact・品質Export層", ["artifacts", "quality"]),
+    ("artifacts", "Artifact・品質Export・batch run 層", ["artifacts", "quality", "batch"]),
 ]
 
 #: `@autodocs` ブロックの `Pages` として参照される（`Pages` は `Main` 上で評価される）。

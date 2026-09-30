@@ -1,9 +1,12 @@
 # syntax=docker/dockerfile:1
 
-# Keep this value aligned with the Julia version used by CI and recorded in
-# Manifest.toml. The versioned official image gives ECS tasks a reproducible
-# Julia runtime rather than inheriting a host installation.
-FROM julia:1.12.6-bookworm AS build
+# Base image policy (PAP ADR 0017, Julia profile; ADR 0026 in this repository):
+# the official Julia image on the current Debian stable release, with the OS
+# release named in the tag (A4). The Julia patch version is pinned to match CI
+# and Manifest.toml; the frozen tag is made current by the upgrade step in the
+# runtime stage (A5). Build and runtime stages must use the same tag so the
+# package images compiled below match the runtime Julia binary.
+FROM julia:1.12.6-trixie AS build
 
 ENV JULIA_DEPOT_PATH=/opt/julia-depot \
     JULIA_PKG_PRECOMPILE_AUTO=0 \
@@ -21,29 +24,40 @@ RUN julia --compiled-modules=no --project=. \
 COPY src ./src
 
 # Load and execute the representative task in the same project and depot paths
-# used at runtime. `using DME` writes Julia's package cache, and this warm-up
-# compiles the stable CLI and Solow execution path without loading Pkg at task
-# startup.
+# used at runtime. `using DME` writes Julia's package cache, so the runtime
+# never compiles into the (read-only) depot and does not load Pkg at startup.
 RUN julia --project=. -e 'using DME; exit(DME.dme_main(["simulate", "solow", "--periods", "4", "--out", "/tmp/dme-build-artifacts"]))'
 
-FROM julia:1.12.6-bookworm AS runtime
+FROM julia:1.12.6-trixie AS runtime
+
+# A5: install every update published in trixie's own repositories on the
+# freshly pulled base. Nothing is installed from another release.
+RUN apt-get update \
+    && apt-get upgrade --yes --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV JULIA_PROJECT=/opt/dme \
     JULIA_DEPOT_PATH=/opt/julia-depot \
     JULIA_PKG_PRECOMPILE_AUTO=0 \
     DME_ARTIFACT_OUTDIR=/var/lib/dme/artifacts
 
+# The runtime user owns only the artifact directory. The project source and the
+# Julia depot stay root-owned, so the image works with readonlyRootFilesystem
+# and the process cannot modify its own code even when the root is writable.
 RUN groupadd --gid 10001 dme \
     && useradd --uid 10001 --gid dme --create-home --shell /usr/sbin/nologin dme \
-    && mkdir --parents /opt/dme /opt/julia-depot /var/lib/dme/artifacts \
-    && chown --recursive dme:dme /opt/dme /opt/julia-depot /var/lib/dme/artifacts
+    && install --directory --owner dme --group dme --mode 0755 /var/lib/dme/artifacts
 
 WORKDIR /opt/dme
 
-COPY --from=build --chown=dme:dme /opt/dme/Project.toml /opt/dme/Manifest.toml ./
-COPY --from=build --chown=dme:dme /opt/dme/src ./src
-COPY --from=build --chown=dme:dme /opt/julia-depot /opt/julia-depot
+COPY --from=build /opt/dme/Project.toml /opt/dme/Manifest.toml ./
+COPY --from=build /opt/dme/src ./src
+COPY --from=build /opt/julia-depot /opt/julia-depot
 COPY --chmod=755 bin/dme /usr/local/bin/dme
+
+# The artifact directory is the only path DME writes. A task definition mounts
+# a volume here (or passes --out / DME_ARTIFACT_OUTDIR to another volume).
+VOLUME ["/var/lib/dme/artifacts"]
 
 USER 10001:10001
 
@@ -52,3 +66,16 @@ USER 10001:10001
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["dme"]
 CMD ["simulate", "solow"]
+
+# Provenance comes last so that a new commit does not invalidate the layers
+# above. The run manifest reads DME_SOURCE_COMMIT and DME_IMAGE_VERSION, and the
+# OCI labels carry the same values for ECR, PAP admission (A1) and A8 evidence.
+ARG DME_SOURCE_COMMIT=unknown
+ARG DME_IMAGE_VERSION=0.1.0-dev
+LABEL org.opencontainers.image.source="https://github.com/Yuki-Watanabe7/DME" \
+    org.opencontainers.image.revision="${DME_SOURCE_COMMIT}" \
+    org.opencontainers.image.version="${DME_IMAGE_VERSION}" \
+    org.opencontainers.image.title="dme" \
+    org.opencontainers.image.description="DME batch CLI (dme simulate / dme quality-export)"
+ENV DME_SOURCE_COMMIT=${DME_SOURCE_COMMIT} \
+    DME_IMAGE_VERSION=${DME_IMAGE_VERSION}

@@ -1,0 +1,201 @@
+name: Publish batch image
+
+# Builds, verifies and publishes the DME batch image to the ECR repository that
+# personal-analytics-platform (PAP) owns (Issue #252, ADR 0026). DME owns the
+# Dockerfile, the image contract and the evidence; PAP owns the repository, the push
+# role and the admission of a digest (PAP ADR 0017).
+#
+# Trigger: manual dispatch on main only, naming the reviewed main commit to publish.
+# The job authenticates with GitHub OIDC only. Do not add a GitHub `environment:` to
+# the publish job: it would change the OIDC subject from
+# `repo:Yuki-Watanabe7/DME:ref:refs/heads/main`, which PAP's push-role trust policy
+# expects (docs/deployment/batch_container.md §"Publication").
+#
+# Repository variables (set from PAP's Terraform outputs; none is a secret):
+#   PAP_AWS_REGION          e.g. ap-northeast-1
+#   PAP_ECR_REPOSITORY_URL  <account>.dkr.ecr.<region>.amazonaws.com/<repository>
+#   PAP_ECR_PUSH_ROLE_ARN   arn:aws:iam::<account>:role/<push role>
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_commit:
+        description: Reviewed main commit SHA to publish (40 hex characters; must be the main HEAD)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dme-batch-image-publish
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Pkg.test() (tests, Aqua.jl, JuliaFormatter)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Confirm the approved source
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = Yuki-Watanabe7/DME
+          test "$GITHUB_REF" = refs/heads/main
+          [[ "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$GITHUB_SHA" = "$SOURCE_COMMIT"
+
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1.12.6'
+
+      - uses: julia-actions/cache@v3
+
+      - name: Install dependencies
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate()'
+
+      - name: Test
+        run: julia --project=. -e 'using Pkg; Pkg.test()'
+
+  publish:
+    name: Build, verify, push and evaluate (linux/amd64)
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: ${{ vars.PAP_AWS_REGION }}
+      ECR_REPOSITORY_URL: ${{ vars.PAP_ECR_REPOSITORY_URL }}
+      ECR_PUSH_ROLE_ARN: ${{ vars.PAP_ECR_PUSH_ROLE_ARN }}
+      PLATFORM: linux/amd64
+      BASE_IMAGE: julia:1.12.6-trixie
+    steps:
+      - name: Confirm the approved source and PAP destination
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          test "$GITHUB_SHA" = "$SOURCE_COMMIT"
+          if [ -z "$AWS_REGION" ] || [ -z "$ECR_REPOSITORY_URL" ] || [ -z "$ECR_PUSH_ROLE_ARN" ]; then
+            echo "PAP_AWS_REGION, PAP_ECR_REPOSITORY_URL and PAP_ECR_PUSH_ROLE_ARN must be set from PAP's outputs" >&2
+            exit 1
+          fi
+          [[ "$AWS_REGION" =~ ^[a-z]{2}(-[a-z]+)+-[0-9]+$ ]]
+          [[ "$ECR_REPOSITORY_URL" =~ ^([0-9]{12})\.dkr\.ecr\.([a-z0-9-]+)\.amazonaws\.com/([a-z0-9][a-z0-9._/-]*)$ ]]
+          repository_account="${BASH_REMATCH[1]}"
+          test "${BASH_REMATCH[2]}" = "$AWS_REGION"
+          echo "ECR_REPOSITORY_NAME=${BASH_REMATCH[3]}" >> "$GITHUB_ENV"
+          [[ "$ECR_PUSH_ROLE_ARN" =~ ^arn:aws:iam::([0-9]{12}):role/[A-Za-z0-9+=,.@_/-]+$ ]]
+          test "${BASH_REMATCH[1]}" = "$repository_account"
+          echo "ECR_ACCOUNT_ID=$repository_account" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Derive the image version
+        run: |
+          set -euo pipefail
+          project_version="$(sed -n 's/^version = "\(.*\)"$/\1/p' Project.toml | head -1)"
+          echo "IMAGE_VERSION=${project_version}+${GITHUB_SHA:0:12}" >> "$GITHUB_ENV"
+
+      # A5: every publish builds on a freshly pulled base and the Dockerfile's
+      # runtime stage upgrades it. The build reuses this pulled base, so the
+      # evidence records the digest the image was actually built from.
+      - name: Pull the base image
+        run: docker pull --platform "$PLATFORM" "$BASE_IMAGE"
+
+      - name: Build and verify the image contract
+        run: |
+          scripts/verify_batch_container.sh --image dme-batch:publish \
+            --platform "$PLATFORM" --revision "$GITHUB_SHA" --version "$IMAGE_VERSION"
+
+      - name: Assume the PAP ECR push role through GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.ECR_PUSH_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          allowed-account-ids: ${{ env.ECR_ACCOUNT_ID }}
+
+      - name: Log in to PAP ECR
+        run: |
+          set -euo pipefail
+          aws ecr get-login-password --region "$AWS_REGION" | docker login \
+            --username AWS --password-stdin "${ECR_REPOSITORY_URL%%/*}"
+
+      - name: Check whether this source commit was already published
+        id: existing
+        run: |
+          set -euo pipefail
+          error_file="$(mktemp)"
+          trap 'rm -f "$error_file"' EXIT
+          if digest="$(aws ecr describe-images --repository-name "$ECR_REPOSITORY_NAME" \
+            --image-ids "imageTag=${GITHUB_SHA}" --region "$AWS_REGION" \
+            --query 'imageDetails[0].imageDigest' --output text 2>"$error_file")"; then
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          elif grep -q ImageNotFoundException "$error_file"; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            cat "$error_file" >&2
+            exit 1
+          fi
+
+      # The tag is the source commit and the repository is immutable, so a repeat
+      # dispatch never overwrites: it re-verifies the digest already published.
+      - name: Push the immutable source-commit tag
+        id: push
+        env:
+          IMAGE_EXISTS: ${{ steps.existing.outputs.exists }}
+          EXISTING_DIGEST: ${{ steps.existing.outputs.digest }}
+        run: |
+          set -euo pipefail
+          if [ "$IMAGE_EXISTS" = true ]; then
+            digest="$EXISTING_DIGEST"
+            echo "${ECR_REPOSITORY_URL}:${GITHUB_SHA} already exists; verifying it instead of pushing"
+          else
+            docker tag dme-batch:publish "${ECR_REPOSITORY_URL}:${GITHUB_SHA}"
+            docker push "${ECR_REPOSITORY_URL}:${GITHUB_SHA}"
+            digest="$(aws ecr describe-images --repository-name "$ECR_REPOSITORY_NAME" \
+              --image-ids "imageTag=${GITHUB_SHA}" --region "$AWS_REGION" \
+              --query 'imageDetails[0].imageDigest' --output text)"
+          fi
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "IMAGE_DIGEST=$digest" >> "$GITHUB_ENV"
+          echo "image_reference=${ECR_REPOSITORY_URL}@${digest}" >> "$GITHUB_OUTPUT"
+
+      # The smoke runs on the digest pulled back from ECR, not on the local build.
+      - name: Verify the image pulled from ECR by digest
+        env:
+          IMAGE_REFERENCE: ${{ steps.push.outputs.image_reference }}
+        run: |
+          set -euo pipefail
+          docker image rm dme-batch:publish "${ECR_REPOSITORY_URL}:${GITHUB_SHA}" >/dev/null 2>&1 || true
+          docker pull --platform "$PLATFORM" "$IMAGE_REFERENCE"
+          scripts/verify_batch_container.sh --image "$IMAGE_REFERENCE" --existing \
+            --platform "$PLATFORM" --revision "$GITHUB_SHA" --version "$IMAGE_VERSION"
+
+      # Publication and admission are separate facts: the digest is published at
+      # this point, and this step records whether PAP may admit it (A7/A8).
+      - name: Wait for the ECR scan and record the evidence
+        if: steps.push.outcome == 'success'
+        run: scripts/record_image_publication.sh
+
+      - name: Upload publication evidence
+        if: always() && steps.push.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: dme-batch-image-publication-${{ github.sha }}-${{ github.run_attempt }}
+          path: image-publication.json
+          if-no-files-found: error
+          retention-days: 90
