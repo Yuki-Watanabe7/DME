@@ -249,7 +249,9 @@ PAP's ECR) or §5 exception records.
   S3-compatible server in step 9 and the SigV4 test vectors.
 - Debian 13 is likely to carry HIGH/CRITICAL findings that Debian has not fixed.
   If the first ECR scan reports them, the digest is `blocked` until the PAP ADR
-  0017 §4 step 2 comparison or §5 exception records are done.
+  0017 §4 step 2 comparison or §5 exception records are done
+  ([#296](https://github.com/Yuki-Watanabe7/DME/issues/296)).
 - Julia `1.12.6` is pinned. `1.12.7` and the `1.13` series exist; moving Julia is a
   separate change aligned with CI and every `Manifest.toml`, and PAP ADR 0017 A3
-  (runtime support window) must be judged for the version in use.
+  (runtime support window) must be judged for the version in use
+  ([#295](https://github.com/Yuki-Watanabe7/DME/issues/295)).

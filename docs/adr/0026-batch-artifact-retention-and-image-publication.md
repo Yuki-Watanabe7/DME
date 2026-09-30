@@ -177,9 +177,10 @@ Julia の version を上げる場合は CI・`Manifest.toml`（root / test / doc
 - ECS では `/tmp` の scratch volume が必要になる（artifact volume に加えて2つ目の書き込み先）。
 - Debian 13 には Debian が未修正の HIGH/CRITICAL が残りやすい。本 image（upgrade 後の Debian 13.7）を Trivy で
   scan すると、trixie に修正版の無い HIGH が 12 CVE 残った（2026-09-30、ECR の判定とは feed が異なる）。最初の publish が
-  `blocked` になる可能性が高く、その場合は PAP ADR 0017 §4 step 2 の比較か §5 の exception record が必要になる。
+  `blocked` になる可能性が高く、その場合は PAP ADR 0017 §4 step 2 の比較か §5 の exception record が必要になる
+  （[#296](https://github.com/Yuki-Watanabe7/DME/issues/296)）。
 - publish の build は cache を使わない（upgrade layer を必ず作り直すため）。depot layer も毎回別物になり、1回の publish で
   圧縮後約 0.7 GB が ECR に増える。PAP の Job cost envelope（PAP ADR 0015 §7。DME の ECR 0.5 GB）を超えるため、PAP #41 で保持数と
   envelope を実測に合わせる必要がある。
 - Julia 1.12.6 は最新 patch（1.12.7）でも現行 stable（1.13）でもない。A3（runtime の support 残期間）の判断は
-  別途必要になる。
+  1.13 系への更新（[#295](https://github.com/Yuki-Watanabe7/DME/issues/295)）で行う。
