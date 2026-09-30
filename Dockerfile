@@ -3,10 +3,12 @@
 # Base image policy (PAP ADR 0017, Julia profile; ADR 0026 in this repository):
 # the official Julia image on the current Debian stable release, with the OS
 # release named in the tag (A4). The Julia patch version is pinned to match CI
-# and Manifest.toml; the frozen tag is made current by the upgrade step in the
+# and every Manifest.toml (ADR 0026 revision 1; step 3 of
+# scripts/verify_batch_container.sh fails on a mismatch with Manifest.toml); the
+# frozen tag is made current by the upgrade step in the
 # runtime stage (A5). Build and runtime stages must use the same tag so the
 # package images compiled below match the runtime Julia binary.
-FROM julia:1.12.6-trixie AS build
+FROM julia:1.13.1-trixie AS build
 
 ENV JULIA_DEPOT_PATH=/opt/julia-depot \
     JULIA_PKG_PRECOMPILE_AUTO=0 \
@@ -28,7 +30,7 @@ COPY src ./src
 # never compiles into the (read-only) depot and does not load Pkg at startup.
 RUN julia --project=. -e 'using DME; exit(DME.dme_main(["simulate", "solow", "--periods", "4", "--out", "/tmp/dme-build-artifacts"]))'
 
-FROM julia:1.12.6-trixie AS runtime
+FROM julia:1.13.1-trixie AS runtime
 
 # A5: install every update published in trixie's own repositories on the
 # freshly pulled base. Nothing is installed from another release.

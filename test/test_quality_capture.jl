@@ -1034,27 +1034,27 @@ end
 # マイナーバージョン更新で壊れうる、準内部 API への依存の回帰テスト。
 # src/quality/quality_capture.jl 冒頭コメント・test/quality_capture_runner.jl 冒頭コメント参照）。
 #
-# 検証のため意図的に失敗する @test を1件実行するが、`Test.push_testset`/`pop_testset` で
+# 検証のため意図的に失敗する @test を1件実行するが、`Test.@with_testset` で
 # 現在のテストセットスタックから完全に隔離した使い捨てルート（`fresh_root`）の中で実行する
 # ため、この意図的な失敗はこのファイル自身のテスト結果には一切影響しない（下の
 # "isolated harness root" 配下の Pass/Total には現れるが、それを包む
 # "Test.jl assumptions..." 自体は影響を受けない。このブロックだけで独立に検証済み:
 # 隔離しない場合、深さ0まで伝播してこのテストファイル自体を失敗させてしまう）。
+# `Test.@with_testset` は、Julia 1.13 で testset スタックが ScopedValue になった際に
+# `Test.push_testset`/`pop_testset`（1.12 まで）を置き換えた非公開 API であり、これが
+# 変わった場合もこのテストセットで検出される。
 # 下に1行、赤い "Test Failed" が印字されるのは意図的なもの（Test.jl は `record` 時に
 # 即座に印字するため。`Test.finish(fresh_root)` は呼ばないので集計・throw には影響しない）。
 @info "以下の1件の Test Failed は意図的（isolated harness root の検証用）: このテストセット自体は成功する"
 @testset "Test.jl assumptions used by quality_capture_runner.jl" begin
     fresh_root = Test.DefaultTestSet("isolated harness root")
-    Test.push_testset(fresh_root)
-    try
+    Test.@with_testset fresh_root begin
         @testset "synthetic check A" begin
             @test 1 == 1
         end
         @testset "synthetic check B (deliberately fails; isolated from the real suite)" begin
             @test 1 == 2
         end
-    finally
-        Test.pop_testset()
     end
 
     # 1) 親テストセットを持つ（深さ>0の）テストセットは、子が失敗しても例外を投げず、

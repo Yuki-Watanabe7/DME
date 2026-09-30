@@ -65,5 +65,9 @@ julia --project=. scripts/update_benchmark_baseline.jl \
 
 `status != success` の export（timeout・crash）は baseline にできない（スクリプトが拒否する）。
 
+Julia の minor version を上げると `environment_key` が変わり、既存の baseline とは比較されなくなる
+（`baseline_environment_mismatch`）。minor を上げる変更では、CI の baseline を上の手順で取り直す
+（Julia 1.13 への更新は [#295](https://github.com/Yuki-Watanabe7/DME/issues/295)）。
+
 ローカルで測る場合は `DME_BENCHMARK_RUNNER_LABEL` を必ず指定すること。既定の `local` のままだと、
 異なるマシンで測った値が同じ `environment_key` の下に混ざり、意味のない delta が出る。

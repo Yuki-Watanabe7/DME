@@ -2,7 +2,7 @@
 
 - **ステータス**: 採用
 - **日付**: 2026-09-30
-- **関連Issue**: [#252](https://github.com/Yuki-Watanabe7/DME/issues/252)（本決定）・前提 [#220](https://github.com/Yuki-Watanabe7/DME/issues/220)（stable CLI と batch container）。PAP 側: Yuki-Watanabe7/personal-analytics-platform#37（短命 Job の roadmap）・#38 / ADR 0015（RunTask Job 境界）・#156 / ADR 0017（production image admission 要件 A1–A9）・#41（DME の RunTask 実行。本決定の consumer）
+- **関連Issue**: [#252](https://github.com/Yuki-Watanabe7/DME/issues/252)（本決定）・[#295](https://github.com/Yuki-Watanabe7/DME/issues/295)（改訂 1: Julia 1.13.1）・前提 [#220](https://github.com/Yuki-Watanabe7/DME/issues/220)（stable CLI と batch container）。PAP 側: Yuki-Watanabe7/personal-analytics-platform#37（短命 Job の roadmap）・#38 / ADR 0015（RunTask Job 境界）・#156 / ADR 0017（production image admission 要件 A1–A9）・#41（DME の RunTask 実行。本決定の consumer）
 - **前提ADR**: [ADR 0008](0008-real-rate-model-artifact-export.md)（正準 JSON・atomic write・UTC 固定）・[ADR 0016](0016-julia-quality-export-contract.md)（DME 所有の versioned contract と `schemas/`）
 - **関連ドキュメント**: [batch container guide](../deployment/batch_container.md)（運用契約・検証・publish 手順・PAP への handoff）・[CLI contract](../cli.md)（run manifest・run identity・artifact sink の CLI 仕様）・[`schemas/dme-run-manifest-v1.schema.json`](../../schemas/dme-run-manifest-v1.schema.json)
 
@@ -104,8 +104,9 @@ run prefix を列挙し、manifest の `status` と `finished_at` で選ぶ。
 
 ### 6. image は PAP ADR 0017 の Julia profile に従う
 
-- 両 stage を `julia:1.12.6-trixie`（Debian 13。Julia patch は CI・Manifest と揃えて固定）にし、runtime stage で
-  `apt-get update && apt-get upgrade`（trixie 自身の repository のみ）を実行する（A3–A5）。
+- 両 stage を `julia:1.13.1-trixie`（Debian 13。Julia patch は CI・Manifest と揃えて固定）にし、runtime stage で
+  `apt-get update && apt-get upgrade`（trixie 自身の repository のみ）を実行する（A3–A5）。Julia version・patch 固定の
+  理由・A3 の判断は末尾の「改訂 1」による。
 - `/opt/dme` と `/opt/julia-depot` は root 所有にし、runtime user（UID/GID 10001）が書けるのは artifact volume
   （`/var/lib/dme/artifacts`）だけにする。filesystem のみの run は `readonlyRootFilesystem` で artifact volume だけを
   書く。HTTP を使う run（sink・ECS metadata・credential）は Julia の HTTP client が SSH known-hosts の一時ファイルを
@@ -182,5 +183,59 @@ Julia の version を上げる場合は CI・`Manifest.toml`（root / test / doc
 - publish の build は cache を使わない（upgrade layer を必ず作り直すため）。depot layer も毎回別物になり、1回の publish で
   圧縮後約 0.7 GB が ECR に増える。PAP の Job cost envelope（PAP ADR 0015 §7。DME の ECR 0.5 GB）を超えるため、PAP #41 で保持数と
   envelope を実測に合わせる必要がある。
-- Julia 1.12.6 は最新 patch（1.12.7）でも現行 stable（1.13）でもない。A3（runtime の support 残期間）の判断は
-  1.13 系への更新（[#295](https://github.com/Yuki-Watanabe7/DME/issues/295)）で行う。
+- Julia の patch は自動では上がらない。Julia 本体と同梱ライブラリの security fix は、CI・Dockerfile・3つの
+  `Manifest.toml` を揃えて上げる変更でしか入らない（改訂 1）。
+
+## 改訂
+
+### 改訂 1（2026-10-01、[#295](https://github.com/Yuki-Watanabe7/DME/issues/295)）: Julia 1.13.1 への更新
+
+**背景.** Julia 1.12.6 は現行 stable（1.13.0 = 2026-09-10、1.13.1 = 2026-09-26）でも 1.12 系の最新 patch（1.12.7）でも
+なかった。1.12 は 1.13.0 の時点で旧 minor になり、1.11 の実績（1.12.0 の後は 1.11.8・1.11.9 の約4か月だけ patch が出た）から
+すると、2026-10-01 の build から 180 日後（2027-03-30）まで patch が続く見込みは低く、A3 を満たせない。Julia 同梱の
+OpenSSL・libcurl・libgit2・libssh2・zlib は ECR basic scan の対象外で、更新する手段も Julia の更新しかない（§8）。
+
+**決定.**
+
+1. Julia を 1.13.1 に上げ、全 workflow の `setup-julia`・Dockerfile の2 stage・3つの `Manifest.toml`（root / test / docs）を
+   同じ patch に揃える。
+2. patch 固定を続け、minor tag（`julia:1.13-trixie`）にしない。minor tag は patch release のたびに動くため、同じ commit の
+   再 build が、Manifest を解決しテストを通した Julia とは別の Julia で動きうる。Julia の patch 更新（同梱ライブラリの修正を
+   含む）は上の全箇所を揃えて上げる変更として行い、OS の更新は従来どおり build ごとの `apt-get upgrade` で入る（A5）。
+3. image の Julia が `Manifest.toml` の `julia_version` と異なる場合、`scripts/verify_batch_container.sh` の step 3 を失敗させる
+   （Dockerfile だけが取り残される drift を build 時に検出する）。
+4. **A3 は満たすと判断する。** Julia は LTS 以外の support 終了日を公表していないため、release 履歴で判断する。1.13 は現行
+   stable で、1.14 は pre-release も無い。minor は 11〜12 か月間隔（1.11.0 = 2024-10-08、1.12.0 = 2025-10-08、
+   1.13.0 = 2026-09-10）で出ており、旧 minor にも次の minor の後に約4か月 patch が出ている。したがって 1.13 は 2027-03-30 より
+   後まで patch を受ける見込みである（Julia の約束ではなく履歴に基づく見込み）。Julia 1.14.0 の release 時に A3 を判断し直し、
+   1.14 への更新を別の変更として行う。
+5. 同梱ライブラリの version は evidence（`image-publication.json` の `runtime.bundled_libraries`）に digest ごとに記録される。
+   1.12.6 → 1.13.1 で `OpenSSL_jll` 3.5.4+0 → 3.5.6+0、`LibCURL_jll` 8.15.0+0 → 8.18.0+1、`LibGit2_jll` 1.9.0+0 → 1.9.1+0、
+   `LibSSH2_jll` 1.11.3+1 → 1.11.104+0 になり、`Zlib_jll` は 1.3.1+2 のまま。
+
+**確認した挙動の差.**
+
+- **依存.** `Pkg.resolve()` で再解決し、registry パッケージの version は変わらない。変わったのは stdlib と Julia 同梱の JLL
+  だけである。1.13 の `SHA` stdlib は 1.0.0 のため、`[compat] SHA` を `"0.7, 1"` に広げた。Pkg 1.13 は Manifest を format 2.1
+  （`registries` フィールド付き）で書き、`docs/Project.toml` に `[sources] DME = {path = ".."}` を記録する。JET 0.12.1 は
+  1.13 で解決・precompile でき、`[compat] JET = "0.12"` は変えない。
+- **Test stdlib.** testset のスタックが ScopedValue になり、`Test.push_testset` / `pop_testset` が削除された。これを使っていた
+  回帰テスト（`test/test_quality_capture.jl`）を `Test.@with_testset` に置き換えた。quality capture が依存する
+  `Test.get_test_counts` と `Test.TestSetException` のフィールドは変わらない。world age の警告（`test/quality_capture_runner.jl`）
+  は 1.13.1 でも警告のみである。
+- **品質 lane.** 1.13.1 の `Pkg.test()`（fast lane、Coverage 込み）は 37116 件すべて pass し、Aqua.jl の7検査と
+  JuliaFormatter も通る。同じ commit で JET slow lane の finding（234 件）と Documenter docs lane の warning は 1.12.6 と
+  一致し、GitHub Actions（ubuntu-latest）でも JET・Documenter・benchmark の各 lane が success になる。benchmark slow lane は
+  environment key が `github-linux-x64|linux|x86_64|julia1.13` に変わるため、`benchmarks/baseline.json` にこの key の baseline を
+  workflow_dispatch run 36744285483 の結果から追加した（`julia1.12` の entry は履歴として残す）。
+- **浮動小数点.** commit 済みの Japan fiscal handoff fixture（1.12.6 で生成）を 1.13.1 で replay すると、31 case すべてが
+  許容誤差内で、hash の完全一致は 30/31（`f4-rbc` のみ、最大絶対差 6.9e-18）になる。1.12.6 では 31/31 が完全一致する。
+  ADR 0025 のとおり replay は許容誤差で成立し、hash の完全一致は `exact_match` として別に報告されるので、fixture は再生成しない。
+- **batch image.** 1.13.1 の image は native `linux/arm64` で `scripts/verify_batch_container.sh` の全10段を pass した
+  （2026-10-01）。SIGTERM は 17 回の試行（起動 0.3 秒後から 367 MB の artifact 書き込み終盤まで）すべてで exit 143 になり、
+  SIGKILL を要した回は無かった（1.12.6 では10回中1回、書き込み中に exit 経路が block して 137 になった）。17 回では block を
+  否定できないため、137 を通常の停止として扱う運用は変えない。HTTP を使う run が `/tmp` を要する理由（NetworkOptions が
+  同梱の SSH known-hosts をプロセスごとに1回 `mktemp` へ書き出す）も 1.13.1 で変わらない。
+- **Apple Silicon 上の `linux/amd64`.** Docker Desktop は amd64 を Rosetta で動かし、Julia が既定の interactive thread を持つ
+  状態では GC safepoint で SIGSEGV になる（build 中の `Pkg.instantiate` で再現。1.12.6 でも同じで、`JULIA_NUM_THREADS=1,0`
+  なら通る）。このため `linux/amd64` の検証は local では行わず、publish workflow が native runner で push 前に行う。
