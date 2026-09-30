@@ -44,7 +44,7 @@
 #     `Aqua`/`JuliaFormatter`（同ファイルの `using`）を新しい world で定義する。ループの外側
 #     （`run_quality_capture` 自体）は古い world のまま実行され続けるため、それらを読む
 #     残りの処理をそのまま呼ぶと `"access to binding ... in a world prior to its definition
-#     world"` という警告が出る（Julia 1.12 時点では警告のみで動作はするが、将来の
+#     world"` という警告が出る（Julia 1.12・1.13.1 では警告のみで動作はするが、将来の
 #     バージョンではエラーになると明記されている）。そのため tools 構築以降は
 #     `Base.invokelatest` 越しに呼び、最新の world で解決させる（`_qc_finish`）。
 

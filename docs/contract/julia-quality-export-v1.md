@@ -1168,7 +1168,8 @@ Node.js 20 ランタイムの deprecation（旧バージョンは Node20 固定�
 `julia-actions/setup-julia@v3`）へ更新した。`julia-actions/setup-julia` の v2→v3 は
 `version: min`/`min-minor`/`min-patch` の解決結果変更と Apple Silicon macOS 上での
 `x86_64` バイナリ要求時の挙動（警告→エラー）が breaking change だが、本 workflow は
-`version: '1.12.6'`（厳密指定）かつ `runs-on: ubuntu-latest` のため非該当。
+patch までの厳密指定（現在は `version: '1.13.1'`。`Manifest.toml` と Dockerfile の Julia と揃える。ADR 0026 改訂 1）
+かつ `runs-on: ubuntu-latest` のため非該当。
 `claude.yml`/`claude-code-review.yml` は本更新の対象外（別途の更新が必要であれば別 Issue/PR で扱う）。
 
 ## 8.2 JET.jl slow lane の GitHub Actions Artifact 公開（Issue #211）

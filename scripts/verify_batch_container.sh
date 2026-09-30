@@ -16,8 +16,9 @@
 #   2. image configuration: numeric non-root user, exec-form `dme` entrypoint,
 #      SIGTERM stop signal, declared artifact volume, OCI source/revision/version
 #      labels, architecture, no credentials in the image environment
-#   3. base: Debian 13 (trixie) with Julia; after a fresh build, no pending OS
-#      update in trixie's own repositories (A3-A5)
+#   3. base: Debian 13 (trixie) with the Julia version Manifest.toml was resolved
+#      with; after a fresh build, no pending OS update in trixie's own
+#      repositories (A3-A5)
 #   4. uid/gid 10001; the project and Julia depot are not writable by it; /bin/sh,
 #      chown and chmod exist for PAP's volume-prep init container (A6)
 #   5. no repository-only content (tests, docs, .git, .env) in the image
@@ -139,6 +140,10 @@ step "3. base OS and runtime"
 os_release="$(dme_run --entrypoint /bin/sh "$image" -c '. /etc/os-release; echo "$ID $VERSION_ID $VERSION_CODENAME"')"
 [[ "$os_release" == "debian 13 trixie" ]] || fail "base OS is '$os_release', expected Debian 13 (trixie)"
 julia_version="$(dme_run --entrypoint julia "$image" --startup-file=no --version)"
+# CI, the Dockerfile and every Manifest.toml pin one Julia patch version (ADR 0026).
+manifest_julia="$(sed -n 's/^julia_version = "\(.*\)"$/\1/p' "$repo_root/Manifest.toml")"
+[ "$julia_version" = "julia version $manifest_julia" ] ||
+    fail "image runtime is '$julia_version', but Manifest.toml was resolved with Julia $manifest_julia"
 echo "OS: $os_release; runtime: $julia_version"
 if [ "$existing" = false ]; then
     # A fresh build ran `apt-get upgrade` on a freshly pulled base (A5), so trixie

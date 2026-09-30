@@ -29,7 +29,7 @@ jobs:
       - uses: julia-actions/setup-julia@v2
         if: ${{ !contains(toJson(github.event.issue.labels), 'docs-only') }}
         with:
-          version: '1.12.6'
+          version: '1.13.1'
 
       - name: Install dependencies
         if: ${{ !contains(toJson(github.event.issue.labels), 'docs-only') }}

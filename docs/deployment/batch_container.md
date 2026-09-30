@@ -16,7 +16,7 @@ ADR 0017). The decisions behind this guide are
 
 | Concern | Implementation |
 |---|---|
-| Base image (PAP ADR 0017 Julia profile) | `julia:1.12.6-trixie` in both stages: the official Julia image on Debian 13, with the OS release in the tag (A4). Julia `1.12.6` matches CI and `Manifest.toml`. |
+| Base image (PAP ADR 0017 Julia profile) | `julia:1.13.1-trixie` in both stages: the official Julia image on Debian 13, with the OS release in the tag (A4). Julia `1.13.1` matches CI and every `Manifest.toml`, and the verification script fails when the image's Julia differs from the version `Manifest.toml` was resolved with. See [Julia version](#julia-version) for why the patch is pinned and for the A3 judgement. |
 | OS updates (A5) | The runtime stage runs `apt-get update && apt-get upgrade` against trixie's own repositories on the base the build pulled. A rebuild is the fix path for an OS finding. |
 | Julia and package reproducibility | The root `Project.toml` plus tracked `Manifest.toml` are copied before `Pkg.instantiate()`. |
 | No startup dependency resolution | Packages are installed and precompiled at build time; `JULIA_PKG_PRECOMPILE_AUTO=0` at runtime. The runtime never writes the depot. |
@@ -33,12 +33,45 @@ No source bind mount is required. The final image contains only the project
 source, the resolved Julia depot and the `dme` launcher; `.dockerignore` keeps
 tests, docs, examples, `.git` and credentials out of the build context.
 
+## Julia version
+
+Julia `1.13.1` is pinned to the same patch everywhere: the `setup-julia` step of
+every workflow, both `FROM` lines of the Dockerfile, and the `julia_version` of
+`Manifest.toml`, `test/Manifest.toml` and `docs/Manifest.toml`.
+The rationale is recorded in
+[ADR 0026, revision 1](../adr/0026-batch-artifact-retention-and-image-publication.md#改訂).
+
+- **Patch tag, not the minor tag.** `julia:1.13-trixie` moves to every new patch,
+  so a rebuild of the same commit could run a Julia that neither resolved the
+  Manifests nor ran the tests. A Julia patch update (including fixes to its bundled
+  libraries) is a reviewed change to all of the places above; OS updates still come
+  from `apt-get upgrade` on every build (A5).
+- **A3 (runtime support of at least 180 days at build time).** Julia publishes no
+  end-of-support date for non-LTS releases, so the judgement uses its release
+  history: 1.13 is the current stable release (1.13.0 on 2026-09-10, 1.13.1 on
+  2026-09-26), no 1.14 pre-release exists, minor releases have come 11–12 months
+  apart, and the previous minor kept receiving patches for about four months
+  after the next one (1.11.8 and 1.11.9 followed 1.12.0). 1.13 is therefore
+  expected to receive patches beyond 2027-03-30, 180 days after 2026-10-01. Judge A3
+  again when Julia 1.14.0 is released: from then on, 1.13 is expected to receive
+  patches only for a few months, and the next change moves to 1.14.
+- **Bundled libraries.** ECR basic scanning does not see Julia or the libraries it
+  ships. The publish evidence records their versions per digest; for Julia 1.13.1:
+
+  | Library | Julia 1.12.6 | Julia 1.13.1 |
+  |---|---|---|
+  | `OpenSSL_jll` | 3.5.4+0 | 3.5.6+0 |
+  | `LibCURL_jll` | 8.15.0+0 | 8.18.0+1 |
+  | `LibGit2_jll` | 1.9.0+0 | 1.9.1+0 |
+  | `LibSSH2_jll` | 1.11.3+1 | 1.11.104+0 |
+  | `Zlib_jll` | 1.3.1+2 | 1.3.1+2 |
+
 ## Writable paths
 
 | Path | Needed by | On ECS |
 |---|---|---|
 | `/var/lib/dme/artifacts` (or the `--out` / `DME_ARTIFACT_OUTDIR` path) | every command | a task volume at this path, writable by UID 10001 |
-| `/tmp` | runs that make HTTP calls: the artifact sink, the ECS task metadata, and the task-role credentials. Julia's HTTP client (Downloads.jl / NetworkOptions) writes a small SSH known-hosts temp file on every request. | a scratch task volume at `/tmp` (Fargate has no tmpfs) |
+| `/tmp` | runs that make HTTP calls: the artifact sink, the ECS task metadata, and the task-role credentials. On the first request of each process, Julia's HTTP client (Downloads.jl / NetworkOptions) writes its bundled SSH known-hosts list to a temp file; without a writable `/tmp` the request fails with `SystemError: mktemp: Read-only file system` (unchanged in Julia 1.13.1). | a scratch task volume at `/tmp` (Fargate has no tmpfs) |
 
 Nothing else is written. A filesystem-only run (no sink, outside ECS) works with
 `readonlyRootFilesystem` and only the artifact volume; on ECS always provide both,
@@ -80,16 +113,25 @@ There is no mutable "latest" object.
 ## Stopping a task
 
 DME has no graceful-shutdown work: a stopped run is simply incomplete. Julia
-handles SIGTERM itself. In trials on this image it exited `143` within about a
-second in most cases. When the signal landed while Julia's own exit path was
-blocked, the process did not exit until SIGKILL (`137`): this was seen once in ten
-timed trials (during the large artifact write of a 5-million-period run) and once
-in a verification run under heavy CPU load. A signal during Julia's first
-half second of startup ended it with `139`. In every case no run manifest is
-written and a final artifact file is never partial (artifacts are written to
-`*.tmp` and renamed), so a stop never corrupts a run bundle. ECS sends SIGKILL
-after the task definition's `stopTimeout`; because nothing needs to finish, a short
-value such as 10 seconds is safe.
+handles SIGTERM itself.
+
+- **Julia 1.13.1 (current image).** In 17 timed trials on 2026-10-01 (native
+  `linux/arm64`, `simulate solow --periods 5000000`, the signal landing from 0.3
+  seconds after start through the computation and the 367 MB artifact write), every
+  run exited `143` after SIGTERM: within 0.4–0.8 seconds in 15 trials, and after
+  3.5–4.4 seconds in the two signalled late in the artifact write. None needed
+  SIGKILL.
+- **Julia 1.12.6 (earlier image).** The process usually exited `143` within about a
+  second, but when the signal landed while Julia's own exit path was blocked it did
+  not exit until SIGKILL (`137`): once in ten trials (during the large artifact
+  write) and once in a verification run under heavy CPU load. A signal during the
+  first half second of startup ended it with `139`.
+
+Seventeen trials do not rule the blocked exit path out, so treat `137` as a normal
+stop. In every case no run manifest is written and a final artifact file is never
+partial (artifacts are written to `*.tmp` and renamed), so a stop never corrupts a
+run bundle. ECS sends SIGKILL after the task definition's `stopTimeout`; because
+nothing needs to finish, a short value such as 10 seconds is safe.
 
 ## Build and run locally
 
@@ -103,6 +145,14 @@ docker build \
 Use `--platform linux/amd64` for the published architecture. Every PAP task
 definition declares `X86_64`; do not deploy an image built for the local host
 architecture.
+
+On Apple Silicon, Docker Desktop runs `linux/amd64` containers under Rosetta,
+where Julia crashes with a segmentation fault in its GC safepoint while it runs
+with its default interactive thread (observed with both 1.12.6 and 1.13.1, for
+example in `Pkg.instantiate` during the build). With `JULIA_NUM_THREADS=1,0` the
+same step succeeds. Build and verify natively there (`--platform linux/arm64`);
+the unmodified `linux/amd64` image is verified by the publish workflow on a native
+runner before it is pushed.
 
 ```bash
 mkdir -p ./artifacts-from-container
@@ -126,8 +176,9 @@ scripts/verify_batch_container.sh --image <ref> --existing --revision <sha> --ve
 The script needs Docker and `jq`. It checks, in order: (1) the build or the named
 image; (2) the numeric non-root user, exec-form entrypoint, SIGTERM stop signal,
 declared artifact volume, OCI labels, architecture, and that no credential-like
-variable is in the image environment; (3) Debian 13 and the Julia version, and
-after a fresh build that trixie has no pending update; (4) UID/GID 10001, a
+variable is in the image environment; (3) Debian 13, a Julia version equal to
+the `julia_version` of `Manifest.toml`, and after a fresh build that trixie has
+no pending update; (4) UID/GID 10001, a
 read-only project and depot for that user, and `/bin/sh`, `chown` and `chmod` for
 PAP's volume-prep init container; (5) no tests, docs, examples, `.git` or `.env`
 in the image; (6) `--help` with stdin closed; (7) `simulate solow --periods 120`
@@ -212,11 +263,12 @@ reporting only.
 
 ## Representative resource profile
 
-Measured on 2026-09-30 with the image built from this Dockerfile on Docker
-Desktop's Linux ARM64 runtime (8 vCPU, 7.75 GiB). They are sizing inputs, not
-guarantees: the published `linux/amd64` image, Fargate CPU allocation, image pull
-time and volume latency differ. PAP #41 should confirm them on the task size it
-chooses.
+Measured on 2026-09-30 with the Julia 1.12.6 image built from this Dockerfile on
+Docker Desktop's Linux ARM64 runtime (8 vCPU, 7.75 GiB). The Julia 1.13.1 image
+built on the same runtime on 2026-10-01 is 3.29 GB uncompressed; the other rows
+were not re-measured. They are sizing inputs, not guarantees: the published
+`linux/amd64` image, Fargate CPU allocation, image pull time and volume latency
+differ. PAP #41 should confirm them on the task size it chooses.
 
 | Metric | Measurement |
 |---|---|
@@ -251,7 +303,12 @@ PAP's ECR) or §5 exception records.
   If the first ECR scan reports them, the digest is `blocked` until the PAP ADR
   0017 §4 step 2 comparison or §5 exception records are done
   ([#296](https://github.com/Yuki-Watanabe7/DME/issues/296)).
-- Julia `1.12.6` is pinned. `1.12.7` and the `1.13` series exist; moving Julia is a
-  separate change aligned with CI and every `Manifest.toml`, and PAP ADR 0017 A3
-  (runtime support window) must be judged for the version in use
-  ([#295](https://github.com/Yuki-Watanabe7/DME/issues/295)).
+- Julia patch releases, including fixes to its bundled libraries, are not picked
+  up by a rebuild; they need a change that moves CI, the Dockerfile and every
+  `Manifest.toml` together. A3 is to be judged again when Julia 1.14.0 is released
+  ([Julia version](#julia-version)).
+- The `linux/amd64` image has not been verified locally for Julia 1.13.1: Apple
+  Silicon runs it under Rosetta, where Julia crashes (see
+  [Build and run locally](#build-and-run-locally)). The native `linux/arm64` image
+  passed every verification step, and the publish workflow verifies the
+  `linux/amd64` image on a native runner before pushing it.
