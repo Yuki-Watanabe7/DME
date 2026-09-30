@@ -1132,6 +1132,14 @@ include("./quality/quality_export.jl")
 # （quality_capture.jl 冒頭コメント参照）。depends on quality_export.jl（redact_secrets 等）
 include("./quality/quality_capture.jl")
 
+# Batch run bundle (Issue #252, ADR 0026): run identity/provenance and the run
+# manifest, then the S3 artifact sink.  cli.jl stores their types in its run state,
+# so they are included first; they refer to the CLI error types only inside
+# function bodies.  artifact_sink.jl is the only AWS-specific code in DME, and no
+# model/domain code depends on either file.
+include("./batch/run_manifest.jl")
+include("./batch/artifact_sink.jl")
+
 # Stable non-interactive CLI for orchestrators.  It is included after the quality
 # export API because `dme quality-export` delegates persistence to that API.
 include("./cli.jl")

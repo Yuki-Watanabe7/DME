@@ -1,6 +1,7 @@
-# Artifact・品質Export層
+# Artifact・品質Export・batch run 層
 
-正準 JSON・real-rate model artifact・Julia品質Export Contract（`src/artifacts/` / `src/quality/`）。
+正準 JSON・real-rate model artifact・Julia品質Export Contract・batch run の run manifest と
+artifact sink（`src/artifacts/` / `src/quality/` / `src/batch/`）。
 
 !!! note "対象ファイル一覧について"
     このページに載る docstring の対象ファイルは `docs/make.jl` が `src/` を走査して

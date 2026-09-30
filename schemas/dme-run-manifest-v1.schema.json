@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Yuki-Watanabe7/DME/blob/develop/schemas/dme-run-manifest-v1.schema.json",
+  "title": "DME run manifest (dme-run-manifest/v1)",
+  "description": "DME が所有する batch run の manifest。1ファイル=1回の dme コマンド実行（run）を表し、コマンドの artifact ディレクトリ（simulation/solow/ や quality/）に最後に書かれる。artifact sink（S3）では <prefix>/runs/<run_id>/ 配下に artifact の後に置かれ、run の commit marker になる（manifest の無い run prefix は未完了で canonical ではない）。パスは出力ディレクトリからの相対パスのみで、ホストの絶対パス・secret・自由記述のエラーメッセージを含まない。DME 側の実装は src/batch/run_manifest.jl。詳細は docs/deployment/batch_container.md と docs/adr/0026-batch-artifact-retention-and-image-publication.md を参照。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_schema",
+    "run_id",
+    "run_id_source",
+    "status",
+    "exit_code",
+    "failure",
+    "started_at",
+    "finished_at",
+    "command",
+    "source",
+    "image",
+    "execution",
+    "publication",
+    "artifacts"
+  ],
+  "properties": {
+    "manifest_schema": {
+      "const": "dme-run-manifest/v1"
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "run_id_source": {
+      "description": "run_id の出所。優先順位は cli（--run-id）> environment（DME_RUN_ID）> ecs_task（ECS task ARN の task id）> generated（local-<UTC>-<suffix>）。",
+      "enum": ["cli", "environment", "ecs_task", "generated"]
+    },
+    "status": {
+      "description": "DME コマンドの結果。publication の成否は含まない（sink 上では manifest の存在が published を意味する）。",
+      "enum": ["succeeded", "failed"]
+    },
+    "exit_code": {
+      "description": "dme の終了コード（docs/cli.md）。succeeded のとき 0、failed のとき 1・3・4 のいずれか。",
+      "enum": [0, 1, 3, 4]
+    },
+    "failure": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["category"],
+          "properties": {
+            "category": {
+              "enum": ["model_error", "artifact_io_error", "unexpected_error"]
+            }
+          }
+        }
+      ]
+    },
+    "started_at": {
+      "$ref": "#/$defs/utcTimestamp"
+    },
+    "finished_at": {
+      "$ref": "#/$defs/utcTimestamp"
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "model", "arguments"],
+      "properties": {
+        "name": {
+          "enum": ["simulate", "quality-export"]
+        },
+        "model": {
+          "oneOf": [{"type": "null"}, {"enum": ["solow"]}]
+        },
+        "arguments": {
+          "description": "実効オプション値（既定値を含む）。キーは CLI のオプション名。--out・--run-id・--artifact-sink は環境固有のため含めない。",
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-z][a-z-]*$"
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "commit", "commit_origin", "dme_version", "julia_version"],
+      "properties": {
+        "repository": {
+          "const": "https://github.com/Yuki-Watanabe7/DME"
+        },
+        "commit": {
+          "oneOf": [{"type": "null"}, {"type": "string", "pattern": "^[0-9a-f]{40}$"}]
+        },
+        "commit_origin": {
+          "description": "environment は image が build arg から設定する DME_SOURCE_COMMIT（OCI revision label と同じ値）。git はローカル checkout の HEAD。",
+          "oneOf": [{"type": "null"}, {"enum": ["environment", "git"]}]
+        },
+        "dme_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "julia_version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "digest"],
+      "properties": {
+        "version": {
+          "description": "image の DME_IMAGE_VERSION（OCI version label と同じ値）。image 外では null。",
+          "oneOf": [{"type": "null"}, {"type": "string", "minLength": 1}]
+        },
+        "digest": {
+          "description": "ECS task metadata の ImageID。ECS 外では null。",
+          "oneOf": [{"type": "null"}, {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}]
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "ecs"],
+      "properties": {
+        "platform": {
+          "enum": ["local", "ecs"]
+        },
+        "ecs": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "task_arn",
+                "cluster",
+                "task_definition_family",
+                "task_definition_revision",
+                "container_name",
+                "log_group",
+                "log_stream"
+              ],
+              "properties": {
+                "task_arn": {
+                  "type": "string",
+                  "pattern": "^arn:aws[a-z-]*:ecs:[a-z0-9-]+:[0-9]{12}:task/[A-Za-z0-9_-]+/[0-9a-f]{32}$"
+                },
+                "cluster": {"$ref": "#/$defs/nullableString"},
+                "task_definition_family": {"$ref": "#/$defs/nullableString"},
+                "task_definition_revision": {"$ref": "#/$defs/nullableString"},
+                "container_name": {"$ref": "#/$defs/nullableString"},
+                "log_group": {"$ref": "#/$defs/nullableString"},
+                "log_stream": {"$ref": "#/$defs/nullableString"}
+              }
+            }
+          ]
+        }
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sink", "location"],
+      "properties": {
+        "sink": {
+          "enum": ["filesystem", "s3"]
+        },
+        "location": {
+          "description": "sink が s3 のとき run の prefix（s3://<bucket>/<prefix>/runs/<run_id>/）。filesystem のとき null（ホストのパスは記録しない）。",
+          "oneOf": [
+            {"type": "null"},
+            {"type": "string", "pattern": "^s3://[a-z0-9][a-z0-9-]{1,61}[a-z0-9]/([A-Za-z0-9][A-Za-z0-9._-]*/)*runs/[A-Za-z0-9][A-Za-z0-9._-]{0,127}/$"}
+          ]
+        }
+      }
+    },
+    "artifacts": {
+      "description": "この run が生成した artifact。failed の run では空。path は出力ディレクトリ（sink では run prefix）からの相対パス。",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "schema", "sha256", "bytes"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]*(/[a-z][a-z0-9_.-]*)*\\.json$"
+          },
+          "schema": {
+            "enum": ["dme-simulation/v1", "julia-quality-export/v1"]
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "utcTimestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "nullableString": {
+      "oneOf": [{"type": "null"}, {"type": "string", "minLength": 1}]
+    }
+  },
+  "x-semantic-invariants": [
+    "status = succeeded ⇔ exit_code = 0 ⇔ failure = null",
+    "status = failed ⇒ artifacts = []",
+    "publication.sink = s3 ⇔ publication.location ≠ null、かつ location の末尾の run segment は run_id と一致する",
+    "execution.platform = local ⇒ execution.ecs = null かつ image.digest = null",
+    "artifacts[].path と sha256 は同じ run prefix 配下の object の相対キーとその内容の SHA-256 に一致する"
+  ]
+}
