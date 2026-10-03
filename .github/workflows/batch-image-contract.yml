@@ -1,0 +1,67 @@
+name: Batch image comparison contract
+
+# Native amd64 compatibility can be checked before PAP #41 provides ECR.
+# This workflow never authenticates to AWS or publishes an image.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - experiments/issue296/**
+      - scripts/verify_batch_container.sh
+      - .github/workflows/batch-image-contract.yml
+      - Project.toml
+      - Manifest.toml
+      - src/**
+      - bin/dme
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: ${{ matrix.base }} (native linux/amd64, all 10 steps)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - base: debian13
+            dockerfile: Dockerfile
+          - base: al2023
+            dockerfile: experiments/issue296/Dockerfile.al2023
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build and verify the same image contract
+        env:
+          DOCKERFILE_PATH: ${{ matrix.dockerfile }}
+          BASE_OS: ${{ matrix.base }}
+        run: |
+          scripts/verify_batch_container.sh --image dme-batch:compare \
+            --dockerfile "$DOCKERFILE_PATH" --base-os "$BASE_OS" \
+            --platform linux/amd64 --revision "$GITHUB_SHA" 2>&1 | tee image-contract.log
+      - name: Record local image measurements (not ECR admission)
+        env:
+          BASE_OS: ${{ matrix.base }}
+        run: |
+          docker image inspect dme-batch:compare | jq --arg base "$BASE_OS" \
+            --arg commit "$GITHUB_SHA" \
+            '.[0] | {source_commit: $commit, base: $base,
+              local_image_id: .Id, image_size_bytes: .Size,
+              platform: (.Os + "/" + .Architecture), oci_labels: .Config.Labels,
+              image_contract_verification: "passed_all_10_steps",
+              publication_status: "not_published", ecr_scan: "not_run"}' > image-contract.json
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dme-batch-contract-${{ matrix.base }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            image-contract.log
+            image-contract.json
+          if-no-files-found: error
+          retention-days: 30

@@ -26,6 +26,9 @@ poll_seconds="${SCAN_POLL_SECONDS:-15}"
 platform="${PLATFORM:-linux/amd64}"
 
 : "${GITHUB_SHA:?}" "${IMAGE_DIGEST:?}" "${ECR_REPOSITORY_URL:?}" "${AWS_REGION:?}" "${IMAGE_VERSION:?}"
+image_tag="${IMAGE_TAG:-$GITHUB_SHA}"
+publication_purpose="${PUBLICATION_PURPOSE:-production}"
+case "$publication_purpose" in production|comparison) ;; *) echo "invalid PUBLICATION_PURPOSE" >&2; exit 2 ;; esac
 [[ "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "invalid IMAGE_DIGEST" >&2; exit 2; }
 repository="${ECR_REPOSITORY_URL#*/}"
 image_reference="${ECR_REPOSITORY_URL}@${IMAGE_DIGEST}"
@@ -38,8 +41,11 @@ label() {
         "$inspected_image"
 }
 built_at="$(docker image inspect --format '{{.Created}}' "$inspected_image")"
+image_size="$(docker image inspect --format '{{.Size}}' "$inspected_image")"
 os_release="$(docker run --rm --platform "$platform" --entrypoint /bin/sh "$inspected_image" \
     -c '. /etc/os-release; echo "$PRETTY_NAME"')"
+glibc="$(docker run --rm --platform "$platform" --entrypoint /bin/sh "$inspected_image" \
+    -c 'getconf GNU_LIBC_VERSION')"
 # Julia and the libraries it bundles live outside the dpkg database, so ECR basic
 # scanning never sees them. Their versions are recorded so that Julia security
 # releases can be tracked against this digest.
@@ -50,14 +56,13 @@ runtime_json="$(docker run --rm --platform "$platform" --entrypoint julia "$insp
                 for m in (LibCURL_jll, LibGit2_jll, LibSSH2_jll, OpenSSL_jll, Zlib_jll)]
         print("{\"name\":\"julia\",\"version\":\"", VERSION, "\",\"bundled_libraries\":{",
               join(["\"$k\":\"$v\"" for (k, v) in libs], ","), "}}")')"
-base_images="$(
-    grep -E '^FROM ' "$repo_root/Dockerfile" | awk '{print $2}' | sort -u |
-        while read -r reference; do
-            resolved="$(docker image inspect --format '{{index .RepoDigests 0}}' "$reference" 2>/dev/null || echo null)"
-            jq -n --arg reference "$reference" --arg resolved "$resolved" \
-                '{reference: $reference, resolved_digest: (if $resolved == "null" then null else $resolved end)}'
-        done | jq -s .
-)"
+# Read the base provenance from the exact image, even when its immutable tag is
+# reused. The Docker host's base tag can have moved since the original build.
+base_reference="$(label base.name)"
+base_digest="$(label base.digest)"
+[[ "$base_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "missing resolved base digest label" >&2; exit 2; }
+base_images="$(jq -n --arg reference "$base_reference" --arg resolved "${base_reference}@${base_digest}" \
+    '[{reference: $reference, resolved_digest: $resolved}]')"
 manifest_media_type="$(aws ecr describe-images --repository-name "$repository" \
     --image-ids "imageDigest=$IMAGE_DIGEST" --region "$AWS_REGION" \
     --query 'imageDetails[0].imageManifestMediaType' --output text)"
@@ -98,7 +103,8 @@ fi
 
 jq -n \
     --arg source_commit "$GITHUB_SHA" \
-    --arg image_tag "${ECR_REPOSITORY_URL}:${GITHUB_SHA}" \
+    --arg image_tag "${ECR_REPOSITORY_URL}:${image_tag}" \
+    --arg publication_purpose "$publication_purpose" \
     --arg image_digest "$IMAGE_DIGEST" \
     --arg image_reference "$image_reference" \
     --arg manifest_media_type "$manifest_media_type" \
@@ -108,16 +114,20 @@ jq -n \
     --arg label_version "$(label version)" \
     --arg built_at "$built_at" \
     --arg os_release "$os_release" \
+    --arg glibc "$glibc" \
+    --argjson image_size "$image_size" \
     --argjson runtime "$runtime_json" \
     --argjson base_images "$base_images" \
     --arg run_url "$run_url" \
     --arg run_attempt "${GITHUB_RUN_ATTEMPT:-1}" \
     --arg findings_command "aws ecr describe-image-scan-findings --repository-name $repository --image-id imageDigest=$IMAGE_DIGEST --region $AWS_REGION" \
     --argjson decision "$decision" \
+    --argjson scan_timestamps "$(jq '{completed_at: (.imageScanFindings.imageScanCompletedAt // null), vulnerability_source_updated_at: (.imageScanFindings.vulnerabilitySourceUpdatedAt // null)}' "$findings_file")" \
     '{
         schema_version: 1,
         workload: "dme-batch",
         publication_status: "published",
+        publication_purpose: $publication_purpose,
         deployment_status: $decision.deployment_status,
         source_commit: $source_commit,
         image_tag: $image_tag,
@@ -128,12 +138,14 @@ jq -n \
         oci_labels: {source: $label_source, revision: $label_revision, version: $label_version},
         base_images: $base_images,
         os_release: $os_release,
+        glibc: $glibc,
+        image_size_bytes: $image_size,
         runtime: ($runtime + {not_scanned_by_ecr_basic: true}),
         built_at: $built_at,
         workflow_run_url: $run_url,
         workflow_run_attempt: $run_attempt,
         image_contract_verification: {before_push: "passed", after_ecr_pull: "passed"},
-        scan: ($decision.scan + {findings_command: $findings_command}),
+        scan: ($decision.scan + $scan_timestamps + {findings_command: $findings_command}),
         exceptions: []
     }' >"$output"
 
@@ -147,7 +159,8 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
         echo "## DME batch image publication"
         echo
         echo "- Image: \`$image_reference\`"
-        echo "- Tag: \`${ECR_REPOSITORY_URL}:${GITHUB_SHA}\` (immutable; no \`latest\`)"
+        echo "- Tag: \`${ECR_REPOSITORY_URL}:${image_tag}\` (immutable; no \`latest\`)"
+        echo "- Purpose: $publication_purpose (comparison images require a separate base-selection decision)"
         echo "- Source commit / OCI revision: \`$GITHUB_SHA\`"
         echo "- Version: \`$(label version)\`; built at \`$built_at\`; $platform"
         echo "- Base: $(jq -r '[.base_images[] | "`\(.reference)` → `\(.resolved_digest)`"] | join(", ")' "$output")"
@@ -163,5 +176,5 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
         fi
     } >>"$GITHUB_STEP_SUMMARY"
 fi
-echo "Published $image_reference; deployment $deployment_status"
+echo "Published $image_reference; purpose $publication_purpose; ECR evaluation $deployment_status"
 [ "$deployment_status" = "approved" ]
