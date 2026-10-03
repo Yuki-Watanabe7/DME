@@ -34,6 +34,9 @@ jobs:
 
       - uses: julia-actions/cache@v3
 
+      - name: Image publication evidence regression checks
+        run: bash test/test_image_publication.sh
+
       - name: Install dependencies
         run: julia --project=. -e "using Pkg; Pkg.instantiate()"
 

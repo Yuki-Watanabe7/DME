@@ -23,6 +23,15 @@ on:
         description: Reviewed main commit SHA to publish (40 hex characters; must be the main HEAD)
         required: true
         type: string
+      image_recipe:
+        description: Production Debian image, or an evaluation image for Issue 296 (never deploy a comparison tag)
+        required: true
+        default: production-debian
+        type: choice
+        options:
+          - production-debian
+          - comparison-debian
+          - comparison-al2023
 
 permissions:
   contents: read
@@ -57,6 +66,9 @@ jobs:
 
       - uses: julia-actions/cache@v3
 
+      - name: Image publication evidence regression checks
+        run: bash test/test_image_publication.sh
+
       - name: Install dependencies
         run: julia --project=. -e 'using Pkg; Pkg.instantiate()'
 
@@ -76,7 +88,6 @@ jobs:
       ECR_REPOSITORY_URL: ${{ vars.PAP_ECR_REPOSITORY_URL }}
       ECR_PUSH_ROLE_ARN: ${{ vars.PAP_ECR_PUSH_ROLE_ARN }}
       PLATFORM: linux/amd64
-      BASE_IMAGE: julia:1.13.1-trixie
     steps:
       - name: Confirm the approved source and PAP destination
         env:
@@ -108,16 +119,38 @@ jobs:
           project_version="$(sed -n 's/^version = "\(.*\)"$/\1/p' Project.toml | head -1)"
           echo "IMAGE_VERSION=${project_version}+${GITHUB_SHA:0:12}" >> "$GITHUB_ENV"
 
-      # A5: every publish builds on a freshly pulled base and the Dockerfile's
-      # runtime stage upgrades it. The build reuses this pulled base, so the
-      # evidence records the digest the image was actually built from.
-      - name: Pull the base image
-        run: docker pull --platform "$PLATFORM" "$BASE_IMAGE"
+      - name: Select the reviewed image recipe
+        env:
+          IMAGE_RECIPE: ${{ inputs.image_recipe || 'production-debian' }}
+        run: |
+          set -euo pipefail
+          case "$IMAGE_RECIPE" in
+            production-debian|comparison-debian)
+              echo "DOCKERFILE_PATH=Dockerfile" >> "$GITHUB_ENV"
+              echo "BASE_OS=debian13" >> "$GITHUB_ENV"
+              ;;
+            comparison-al2023)
+              echo "DOCKERFILE_PATH=experiments/issue296/Dockerfile.al2023" >> "$GITHUB_ENV"
+              echo "BASE_OS=al2023" >> "$GITHUB_ENV"
+              ;;
+            *) echo "Unknown image recipe: $IMAGE_RECIPE" >&2; exit 2 ;;
+          esac
+          echo "IMAGE_RECIPE=$IMAGE_RECIPE" >> "$GITHUB_ENV"
+          if [ "$IMAGE_RECIPE" = production-debian ]; then
+            echo "IMAGE_TAG=$GITHUB_SHA" >> "$GITHUB_ENV"
+            echo "PUBLICATION_PURPOSE=production" >> "$GITHUB_ENV"
+          else
+            echo "IMAGE_TAG=${GITHUB_SHA}-${IMAGE_RECIPE}" >> "$GITHUB_ENV"
+            echo "PUBLICATION_PURPOSE=comparison" >> "$GITHUB_ENV"
+          fi
 
+      # A5: the verification script pulls the vendor base before the build;
+      # the runtime stage upgrades it and persists its resolved base digest.
       - name: Build and verify the image contract
         run: |
           scripts/verify_batch_container.sh --image dme-batch:publish \
-            --platform "$PLATFORM" --revision "$GITHUB_SHA" --version "$IMAGE_VERSION"
+            --platform "$PLATFORM" --revision "$GITHUB_SHA" --version "$IMAGE_VERSION" \
+            --dockerfile "$DOCKERFILE_PATH" --base-os "$BASE_OS"
 
       - name: Assume the PAP ECR push role through GitHub OIDC
         uses: aws-actions/configure-aws-credentials@v6
@@ -139,7 +172,7 @@ jobs:
           error_file="$(mktemp)"
           trap 'rm -f "$error_file"' EXIT
           if digest="$(aws ecr describe-images --repository-name "$ECR_REPOSITORY_NAME" \
-            --image-ids "imageTag=${GITHUB_SHA}" --region "$AWS_REGION" \
+            --image-ids "imageTag=${IMAGE_TAG}" --region "$AWS_REGION" \
             --query 'imageDetails[0].imageDigest' --output text 2>"$error_file")"; then
             [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
             echo "exists=true" >> "$GITHUB_OUTPUT"
@@ -162,12 +195,12 @@ jobs:
           set -euo pipefail
           if [ "$IMAGE_EXISTS" = true ]; then
             digest="$EXISTING_DIGEST"
-            echo "${ECR_REPOSITORY_URL}:${GITHUB_SHA} already exists; verifying it instead of pushing"
+            echo "${ECR_REPOSITORY_URL}:${IMAGE_TAG} already exists; verifying it instead of pushing"
           else
-            docker tag dme-batch:publish "${ECR_REPOSITORY_URL}:${GITHUB_SHA}"
-            docker push "${ECR_REPOSITORY_URL}:${GITHUB_SHA}"
+            docker tag dme-batch:publish "${ECR_REPOSITORY_URL}:${IMAGE_TAG}"
+            docker push "${ECR_REPOSITORY_URL}:${IMAGE_TAG}"
             digest="$(aws ecr describe-images --repository-name "$ECR_REPOSITORY_NAME" \
-              --image-ids "imageTag=${GITHUB_SHA}" --region "$AWS_REGION" \
+              --image-ids "imageTag=${IMAGE_TAG}" --region "$AWS_REGION" \
               --query 'imageDetails[0].imageDigest' --output text)"
           fi
           [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
@@ -176,26 +209,29 @@ jobs:
 
       # The smoke runs on the digest pulled back from ECR, not on the local build.
       - name: Verify the image pulled from ECR by digest
+        id: verify-pulled
         env:
           IMAGE_REFERENCE: ${{ steps.push.outputs.image_reference }}
         run: |
           set -euo pipefail
-          docker image rm dme-batch:publish "${ECR_REPOSITORY_URL}:${GITHUB_SHA}" >/dev/null 2>&1 || true
+          docker image rm dme-batch:publish "${ECR_REPOSITORY_URL}:${IMAGE_TAG}" >/dev/null 2>&1 || true
           docker pull --platform "$PLATFORM" "$IMAGE_REFERENCE"
           scripts/verify_batch_container.sh --image "$IMAGE_REFERENCE" --existing \
-            --platform "$PLATFORM" --revision "$GITHUB_SHA" --version "$IMAGE_VERSION"
+            --platform "$PLATFORM" --revision "$GITHUB_SHA" --version "$IMAGE_VERSION" \
+            --dockerfile "$DOCKERFILE_PATH" --base-os "$BASE_OS"
 
       # Publication and admission are separate facts: the digest is published at
       # this point, and this step records whether PAP may admit it (A7/A8).
       - name: Wait for the ECR scan and record the evidence
-        if: steps.push.outcome == 'success'
+        id: evidence
+        if: steps.verify-pulled.outcome == 'success'
         run: scripts/record_image_publication.sh
 
       - name: Upload publication evidence
-        if: always() && steps.push.outcome == 'success'
+        if: always() && steps.evidence.outcome != 'skipped'
         uses: actions/upload-artifact@v7
         with:
-          name: dme-batch-image-publication-${{ github.sha }}-${{ github.run_attempt }}
+          name: dme-batch-image-publication-${{ github.sha }}-${{ env.IMAGE_RECIPE }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: image-publication.json
           if-no-files-found: error
           retention-days: 90

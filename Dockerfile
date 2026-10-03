@@ -74,10 +74,14 @@ CMD ["simulate", "solow"]
 # OCI labels carry the same values for ECR, PAP admission (A1) and A8 evidence.
 ARG DME_SOURCE_COMMIT=unknown
 ARG DME_IMAGE_VERSION=0.1.0-dev
+ARG DME_BASE_REFERENCE=docker.io/library/julia:1.13.1-trixie
+ARG DME_BASE_DIGEST=unknown
 LABEL org.opencontainers.image.source="https://github.com/Yuki-Watanabe7/DME" \
     org.opencontainers.image.revision="${DME_SOURCE_COMMIT}" \
     org.opencontainers.image.version="${DME_IMAGE_VERSION}" \
     org.opencontainers.image.title="dme" \
-    org.opencontainers.image.description="DME batch CLI (dme simulate / dme quality-export)"
+    org.opencontainers.image.description="DME batch CLI (dme simulate / dme quality-export)" \
+    org.opencontainers.image.base.name="${DME_BASE_REFERENCE}" \
+    org.opencontainers.image.base.digest="${DME_BASE_DIGEST}"
 ENV DME_SOURCE_COMMIT=${DME_SOURCE_COMMIT} \
     DME_IMAGE_VERSION=${DME_IMAGE_VERSION}

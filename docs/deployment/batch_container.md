@@ -136,11 +136,12 @@ nothing needs to finish, a short value such as 10 seconds is safe.
 ## Build and run locally
 
 ```bash
-docker build \
-  --build-arg DME_SOURCE_COMMIT="$(git rev-parse HEAD)" \
-  --build-arg DME_IMAGE_VERSION="0.1.0+local" \
-  --tag dme-batch:local .
+scripts/verify_batch_container.sh --image dme-batch:local --version 0.1.0+local
 ```
+
+The verifier pulls the vendor base and passes its resolved digest into the OCI
+base labels. A direct `docker build` must also pass `DME_BASE_REFERENCE` and
+`DME_BASE_DIGEST`; verification and publication require a resolved base digest.
 
 Use `--platform linux/amd64` for the published architecture. Every PAP task
 definition declares `X86_64`; do not deploy an image built for the local host
@@ -176,9 +177,10 @@ scripts/verify_batch_container.sh --image <ref> --existing --revision <sha> --ve
 The script needs Docker and `jq`. It checks, in order: (1) the build or the named
 image; (2) the numeric non-root user, exec-form entrypoint, SIGTERM stop signal,
 declared artifact volume, OCI labels, architecture, and that no credential-like
-variable is in the image environment; (3) Debian 13, a Julia version equal to
-the `julia_version` of `Manifest.toml`, and after a fresh build that trixie has
-no pending update; (4) UID/GID 10001, a
+variable is in the image environment; (3) the expected OS (Debian 13 by default,
+or AL2023 with `--base-os al2023`), Julia matching `Manifest.toml`, no pending
+vendor update after a fresh build, glibc version, and a certificate-verified
+Downloads.jl HTTPS request with read-only root plus `/tmp` scratch; (4) UID/GID 10001, a
 read-only project and depot for that user, and `/bin/sh`, `chown` and `chmod` for
 PAP's volume-prep init container; (5) no tests, docs, examples, `.git` or `.env`
 in the image; (6) `--help` with stdin closed; (7) `simulate solow --periods 120`
@@ -194,6 +196,10 @@ exit `143` or `137`, no run manifest, and no partial final artifact.
 
 `--existing` verifies an image without building it (the publish workflow runs it
 on the digest pulled back from ECR); `--skip-sink` skips step 9.
+`--dockerfile` selects a committed recipe. Both candidates use the same ten
+steps; comparison runs never use `--skip-sink`. See the
+[Issue #296 comparison record](batch_image_comparison.md) for measurements and
+remaining ECR work.
 
 ## Publication
 
@@ -202,13 +208,17 @@ publishes to the ECR repository PAP creates in
 [PAP #41](https://github.com/Yuki-Watanabe7/personal-analytics-platform/issues/41):
 
 1. **Trigger**: `workflow_dispatch` on `main`, with `source_commit` equal to the
-   main HEAD. Nothing else publishes; `latest` is never pushed.
+   main HEAD and `image_recipe` defaulting to `production-debian`.
+   `comparison-debian` and `comparison-al2023` select evaluation recipes and
+   publish `<source commit>-comparison-debian` or
+   `<source commit>-comparison-al2023`. These tags do not replace the production
+   tag or select a production base. Nothing else publishes; `latest` is never pushed.
 2. **Tests**: `Pkg.test()` (tests, Aqua.jl, JuliaFormatter) must pass first.
 3. **Build and verify**: pull the base again, build `linux/amd64`, run the
    verification script.
 4. **Push**: assume PAP's push role with GitHub OIDC (no stored AWS key), push the
    immutable tag `<source commit>`, and read back the digest. A repeated dispatch
-   for the same commit does not push; it re-verifies the existing digest.
+   for the same commit and recipe does not push; it re-verifies the existing digest.
 5. **ECR-pulled smoke**: remove the local image, pull `<repository>@<digest>`, and
    run the verification script on it, including the sink and SIGTERM steps.
 6. **Scan and evidence**: wait for the `COMPLETE` ECR basic scan of that digest,
@@ -218,14 +228,17 @@ publishes to the ECR repository PAP creates in
 
 `image-publication.json` records the A8 fields: source commit, tag, digest,
 image reference, manifest media type, platform, OCI labels, each base reference
-with its resolved digest, OS release, Julia version with the versions of its
+with its resolved digest from the image's OCI base labels (also on repeat
+dispatch), publication purpose (`production` or `comparison`), OS release,
+glibc, uncompressed image size, Julia version with the versions of its
 bundled OpenSSL, libcurl, libgit2, libssh2 and zlib (which ECR basic scanning
-cannot see), build time, workflow run, scan status and counts, every HIGH or
+cannot see), build time, workflow run, scan status, completion/feed timestamps
+and counts, every HIGH or
 CRITICAL finding (CVE, package, version), and the `deployment_status`:
 
 | `deployment_status` | Meaning |
 |---|---|
-| `approved` | `COMPLETE` scan with no HIGH or CRITICAL finding (A7). |
+| `approved` | `COMPLETE` scan with no HIGH or CRITICAL finding (A7). For `publication_purpose: comparison`, this is a scan result; a reviewed base-selection decision and production publication are still required. |
 | `pending` | The scan did not complete within 10 minutes; re-run the dispatch for the same commit to re-evaluate without pushing. |
 | `blocked` | Any other scan status, or a HIGH/CRITICAL finding. Follow PAP ADR 0017 §4: rebuild if trixie has a fix; otherwise compare AL2023 minimal plus the official Julia tarball (§4 step 2), or record an approved, expiring exception per finding (§5). The workflow never applies an exception. |
 
@@ -303,6 +316,9 @@ PAP's ECR) or §5 exception records.
   If the first ECR scan reports them, the digest is `blocked` until the PAP ADR
   0017 §4 step 2 comparison or §5 exception records are done
   ([#296](https://github.com/Yuki-Watanabe7/DME/issues/296)).
+  The AL2023 candidate and main-only comparison publication path are prepared;
+  [the comparison record](batch_image_comparison.md) separates runtime
+  verification from the ECR scan and final base-selection decision.
 - Julia patch releases, including fixes to its bundled libraries, are not picked
   up by a rebuild; they need a change that moves CI, the Dockerfile and every
   `Manifest.toml` together. A3 is to be judged again when Julia 1.14.0 is released
