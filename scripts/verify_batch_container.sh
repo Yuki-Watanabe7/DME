@@ -3,6 +3,7 @@
 #
 #   scripts/verify_batch_container.sh [--image TAG] [--existing] [--platform PLATFORM]
 #                                     [--revision SHA] [--version VERSION] [--skip-sink]
+#                                     [--dockerfile PATH] [--base-os debian13|al2023]
 #
 # Without --existing the image is built from this checkout with the OCI build
 # arguments. With --existing the named image is verified as it is, without a
@@ -16,9 +17,9 @@
 #   2. image configuration: numeric non-root user, exec-form `dme` entrypoint,
 #      SIGTERM stop signal, declared artifact volume, OCI source/revision/version
 #      labels, architecture, no credentials in the image environment
-#   3. base: Debian 13 (trixie) with the Julia version Manifest.toml was resolved
-#      with; after a fresh build, no pending OS update in trixie's own
-#      repositories (A3-A5)
+#   3. expected OS (Debian 13 by default, or AL2023), Julia matching
+#      Manifest.toml, and no pending vendor OS updates after a fresh build;
+#      glibc and Downloads.jl HTTPS with certificate verification (A3-A5)
 #   4. uid/gid 10001; the project and Julia depot are not writable by it; /bin/sh,
 #      chown and chmod exist for PAP's volume-prep init container (A6)
 #   5. no repository-only content (tests, docs, .git, .env) in the image
@@ -43,6 +44,8 @@ platform=""
 revision="$(git -C "$repo_root" rev-parse HEAD 2>/dev/null || echo unknown)"
 version=""
 skip_sink=false
+dockerfile="$repo_root/Dockerfile"
+base_os=debian13
 
 if [ $# -gt 0 ] && [[ "$1" != --* ]]; then
     image="$1" # backward-compatible positional image tag
@@ -56,9 +59,23 @@ while [ $# -gt 0 ]; do
     --revision) revision="$2"; shift 2 ;;
     --version) version="$2"; shift 2 ;;
     --skip-sink) skip_sink=true; shift ;;
+    --dockerfile) dockerfile="$2"; shift 2 ;;
+    --base-os) base_os="$2"; shift 2 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done
+case "$base_os" in
+    debian13|al2023) ;;
+    *) echo "unsupported --base-os: $base_os" >&2; exit 2 ;;
+esac
+[[ "$dockerfile" = /* ]] || dockerfile="$repo_root/$dockerfile"
+[ -f "$dockerfile" ] || { echo "missing Dockerfile: $dockerfile" >&2; exit 2; }
+manifest_julia="$(sed -n 's/^julia_version = "\(.*\)"$/\1/p' "$repo_root/Manifest.toml")"
+if [ "$base_os" = debian13 ]; then
+    base_reference="docker.io/library/julia:${manifest_julia}-trixie"
+else
+    base_reference=public.ecr.aws/amazonlinux/amazonlinux:2023-minimal
+fi
 if [ -z "$version" ]; then
     project_version="$(sed -n 's/^version = "\(.*\)"$/\1/p' "$repo_root/Project.toml" | head -1)"
     version="${project_version}+${revision:0:12}"
@@ -110,8 +127,20 @@ if [ "$existing" = true ]; then
 else
     step "1. build $image (revision $revision, version $version${platform:+, $platform})"
     build_flags=(--build-arg "DME_SOURCE_COMMIT=$revision" --build-arg "DME_IMAGE_VERSION=$version")
+    if [ -n "$platform" ]; then
+        docker pull --platform "$platform" "$base_reference"
+    else
+        docker pull "$base_reference"
+    fi
+    # A repeat dispatch must not attribute today's base to an older digest.
+    base_digest="$(docker image inspect --format '{{index .RepoDigests 0}}' "$base_reference")"
+    base_digest="${base_digest##*@}"
+    build_flags+=(--build-arg "DME_BASE_REFERENCE=$base_reference" --build-arg "DME_BASE_DIGEST=$base_digest")
     [ -n "$platform" ] && build_flags+=(--platform "$platform")
-    docker build "${build_flags[@]}" --tag "$image" "$repo_root"
+    # Attestations introduce an OCI index even for one platform. The publish
+    # contract requires a directly scannable image manifest, not an index.
+    docker build --provenance=false --sbom=false "${build_flags[@]}" \
+        --file "$dockerfile" --tag "$image" "$repo_root"
 fi
 
 step "2. image configuration"
@@ -127,6 +156,8 @@ label() { inspect "{{index .Config.Labels \"org.opencontainers.image.$1\"}}"; }
     fail "OCI revision label is '$(label revision)', expected '$revision'"
 [ "$(label version)" = "$version" ] ||
     fail "OCI version label is '$(label version)', expected '$version'"
+[ "$(label base.name)" = "$base_reference" ] || fail "OCI base name does not match $base_reference"
+[[ "$(label base.digest)" =~ ^sha256:[0-9a-f]{64}$ ]] || fail "missing resolved base digest label"
 if [ -n "$platform" ]; then
     [ "$(inspect '{{.Os}}/{{.Architecture}}')" = "$platform" ] ||
         fail "image platform is $(inspect '{{.Os}}/{{.Architecture}}'), expected $platform"
@@ -137,22 +168,43 @@ fi
 echo "labels: revision=$(label revision) version=$(label version); platform $(inspect '{{.Os}}/{{.Architecture}}')"
 
 step "3. base OS and runtime"
-os_release="$(dme_run --entrypoint /bin/sh "$image" -c '. /etc/os-release; echo "$ID $VERSION_ID $VERSION_CODENAME"')"
-[[ "$os_release" == "debian 13 trixie" ]] || fail "base OS is '$os_release', expected Debian 13 (trixie)"
+os_release="$(dme_run --entrypoint /bin/sh "$image" -c '. /etc/os-release; echo "$ID $VERSION_ID ${VERSION_CODENAME:-}"')"
+case "$base_os" in
+    debian13) [ "$os_release" = "debian 13 trixie" ] || fail "expected Debian 13 (trixie), got '$os_release'" ;;
+    al2023) [[ "$os_release" = "amzn 2023 "* ]] || fail "expected Amazon Linux 2023, got '$os_release'" ;;
+esac
 julia_version="$(dme_run --entrypoint julia "$image" --startup-file=no --version)"
 # CI, the Dockerfile and every Manifest.toml pin one Julia patch version (ADR 0026).
-manifest_julia="$(sed -n 's/^julia_version = "\(.*\)"$/\1/p' "$repo_root/Manifest.toml")"
 [ "$julia_version" = "julia version $manifest_julia" ] ||
     fail "image runtime is '$julia_version', but Manifest.toml was resolved with Julia $manifest_julia"
 echo "OS: $os_release; runtime: $julia_version"
 if [ "$existing" = false ]; then
-    # A fresh build ran `apt-get upgrade` on a freshly pulled base (A5), so trixie
-    # has nothing newer to offer unless a package was published minutes ago.
-    upgradable="$(dme_run --user 0 --entrypoint /bin/sh "$image" -c \
-        'apt-get update -qq >/dev/null && apt list --upgradable 2>/dev/null | tail -n +2 | wc -l')"
+    # Both candidates upgrade against their own vendor repositories (A5).
+    # microdnf does not implement dnf's check-update. In a disposable container,
+    # upgrade and compare the RPM inventories: a change means updates were pending.
+    if [ "$base_os" = debian13 ]; then
+        upgradable="$(dme_run --user 0 --entrypoint /bin/sh "$image" -c \
+            'apt-get update -qq >/dev/null && apt list --upgradable 2>/dev/null | tail -n +2 | wc -l')"
+    else
+        upgradable="$(dme_run --user 0 --entrypoint /bin/sh "$image" -c \
+            'before=$(rpm -qa | sort)
+             if ! microdnf upgrade -y >/tmp/dme-verify-upgrade.log 2>&1; then
+                 cat /tmp/dme-verify-upgrade.log >&2; exit 1
+             fi
+             after=$(rpm -qa | sort)
+             if [ "$before" = "$after" ]; then echo 0; else echo 1; fi')"
+    fi
     [ "$upgradable" -eq 0 ] || fail "$upgradable OS updates are pending after the upgrade step"
     echo "pending OS updates after build: 0"
 fi
+dme_run --entrypoint /bin/sh "$image" -c 'getconf GNU_LIBC_VERSION'
+# A real TLS request exercises the runtime's bundled curl/OpenSSL and the OS CA
+# store on both bases. Use read-only root plus the declared /tmp scratch only.
+dme_run --read-only --tmpfs /tmp --entrypoint julia "$image" --startup-file=no -e \
+    'using Downloads; mktemp() do path, io
+         Downloads.download("https://julialang.org/", path; timeout=30)
+         @assert filesize(path) > 0
+     end; println("Downloads.jl HTTPS with certificate verification: passed")'
 
 step "4. non-root runtime and read-only code"
 [ "$(dme_run --entrypoint id "$image" -u)" = "10001" ] || fail "uid is not 10001"

@@ -188,6 +188,25 @@ Julia の version を上げる場合は CI・`Manifest.toml`（root / test / doc
 
 ## 改訂
 
+### 改訂 2（2026-10-03、[#296](https://github.com/Yuki-Watanabe7/DME/issues/296)）: base 比較の準備と証跡
+
+PAP #41 の ECR 公開先・push role に対応する repository variables は未設定で、初回 publish の実行履歴も無い。
+したがって ECR finding の確定・base の採用判断・exception 承認は未完了である。
+
+1. `experiments/issue296/Dockerfile.al2023` に AL2023 minimal + checksum 検証済み公式 Julia 1.13.1 glibc tarball の
+   比較候補を置く。depot は AL2023 上で install/precompile し、Debian からコピーしない。
+2. 同じ `verify_batch_container.sh` 全10段を両 OS に適用する。step 3 は明示した OS と Manifest の Julia patch、
+   vendor update、glibc、CA 証明書を検証する HTTPS 通信を確認する。PR の native amd64 CI は AWS に接続しない。
+3. publish workflow の main 限定と OIDC subject は維持する。比較は `<commit>-comparison-debian` と
+   `<commit>-comparison-al2023` の immutable tag とし、本番の `<commit>` と混同しない。比較の `approved` は scan 結果であり、
+   base 採用や本番配置の承認ではない。
+4. build した base reference/digest を OCI label に保持し、再 dispatch で既存 digest を検証するときにも、その image の
+   label から A8 evidence を作る。現在の host の base tag を過去の build の base として記録しない。size・glibc・scan 時刻も記録する。
+   ECR pull 後の契約検証が失敗した場合に、検証成功と記した evidence は生成しない。
+5. **本番 base は Debian 13 のまま。** 採用判断は PAP ECR の実測比較後に別の改訂として行う。
+   [比較記録と残作業](../deployment/batch_image_comparison.md)に §4 の再 build/移行判断、§5 の人間による期限付き exception 承認、
+   A9 の90日以内 rebuild・30日以内 rescan と vendor status の再確認手順を記録する。Issue #296 は digest の引き渡しまで open とする。
+
 ### 改訂 1（2026-10-01、[#295](https://github.com/Yuki-Watanabe7/DME/issues/295)）: Julia 1.13.1 への更新
 
 **背景.** Julia 1.12.6 は現行 stable（1.13.0 = 2026-09-10、1.13.1 = 2026-09-26）でも 1.12 系の最新 patch（1.12.7）でも

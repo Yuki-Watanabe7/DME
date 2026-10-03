@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "measured_on": "2026-10-03",
+  "environment": "Docker Desktop 4.93.0 / Engine 29.8.1, native linux/arm64",
+  "source_context": "Working tree for Issue #296, based on develop 756e43e08a7411cff885fb86b16691e20a3014cb; local images intentionally use revision unknown, not a claimed published source commit.",
+  "verifier_sha256": "505874415b3d41ca74626ba77d16a9887d48e6e7d61cf5b6f34c15dc299da35d",
+  "images": [
+    {
+      "base": "debian13",
+      "recipe": "Dockerfile",
+      "recipe_sha256": "0cbcd0bdd73dc02a83d72ef54025e75c25c185db8b185afb0b7937984d9b0c2c",
+      "local_image_id": "sha256:1a0d17344e43c68da8e5be5b2647203adbfc6af9ed1f2cfbdb3baf26bc97d0ba",
+      "manifest_media_type": "application/vnd.oci.image.manifest.v1+json",
+      "platform": "linux/arm64",
+      "image_size_bytes": 3292713001,
+      "built_at": "2026-10-03T10:59:41.506861126Z",
+      "oci_labels": {
+        "org.opencontainers.image.base.digest": "sha256:3020db6caac249f56124b9ca90b92c24af460b3f3a99c8a287097ba5d72e5da4",
+        "org.opencontainers.image.base.name": "docker.io/library/julia:1.13.1-trixie",
+        "org.opencontainers.image.description": "DME batch CLI (dme simulate / dme quality-export)",
+        "org.opencontainers.image.revision": "unknown",
+        "org.opencontainers.image.source": "https://github.com/Yuki-Watanabe7/DME",
+        "org.opencontainers.image.title": "dme",
+        "org.opencontainers.image.version": "0.1.0+issue296-worktree"
+      },
+      "glibc": "2.41",
+      "julia_version": "1.13.1",
+      "image_contract_verification": {
+        "steps_passed": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "skip_sink": false,
+        "pending_os_updates": 0,
+        "downloads_https_certificate_verification": "passed",
+        "stop": "SIGTERM with exit 143; no manifest and no partial artifact"
+      },
+      "verification_log_sha256": "85ecfb4a6c67a5156f9ae74b1066ff3f6ba44ebfdbe9bf6a92741a49a9822903",
+      "publication_status": "not_published",
+      "ecr_scan": "not_run"
+    },
+    {
+      "base": "al2023",
+      "recipe": "experiments/issue296/Dockerfile.al2023",
+      "recipe_sha256": "b2c4116939d1c518210eba5a0f478054463211f86aebad2725ba48fa16e4e11e",
+      "local_image_id": "sha256:8b8c2a9653066225d3c7a3e97a57eab7b3b710be0ec8cfe8ac83145483f6f5ce",
+      "manifest_media_type": "application/vnd.oci.image.manifest.v1+json",
+      "platform": "linux/arm64",
+      "image_size_bytes": 3303848426,
+      "built_at": "2026-10-03T11:06:17.199155838Z",
+      "oci_labels": {
+        "org.opencontainers.image.base.digest": "sha256:5c546c873970e79e5c9152cd9c8a9c7013824352bc89071d21feb15ad68496aa",
+        "org.opencontainers.image.base.name": "public.ecr.aws/amazonlinux/amazonlinux:2023-minimal",
+        "org.opencontainers.image.description": "DME batch CLI \u2014 AL2023 evaluation candidate",
+        "org.opencontainers.image.revision": "unknown",
+        "org.opencontainers.image.source": "https://github.com/Yuki-Watanabe7/DME",
+        "org.opencontainers.image.title": "dme",
+        "org.opencontainers.image.version": "0.1.0+issue296-worktree"
+      },
+      "glibc": "2.34",
+      "julia_version": "1.13.1",
+      "image_contract_verification": {
+        "steps_passed": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ],
+        "skip_sink": false,
+        "pending_os_updates": 0,
+        "downloads_https_certificate_verification": "passed",
+        "stop": "SIGKILL after 10s (Julia's SIGTERM exit path blocked) with exit 137; no manifest and no partial artifact"
+      },
+      "verification_log_sha256": "fe35800a084629ad5b1311d2f8b6f8ebda9944b33f723c6dd5de70cb8843e566",
+      "publication_status": "not_published",
+      "ecr_scan": "not_run"
+    }
+  ]
+}
