@@ -73,6 +73,18 @@ The historical 2026-09-30 Trivy result used Julia 1.12.6 and another feed. Its
 actual ECR blockers above. A finding absent from a different scan is not proof
 of a fix in the original digest.
 
+Compared with the issue's historical Trivy table:
+
+| CVE identity comparison | CVEs |
+| --- | --- |
+| Present in both | CVE-2026-8286, CVE-2026-8927 |
+| Present only in the current ECR blocker list | CVE-2026-8924, CVE-2026-102010, CVE-2026-85091, CVE-2026-95619 |
+| Historical Trivy HIGH entries absent from the current ECR blocker list | CVE-2025-69720, CVE-2026-12064, CVE-2026-8458, CVE-2026-16742, CVE-2026-54369, CVE-2026-76642, CVE-2026-78408, CVE-2026-78409, CVE-2026-78410, CVE-2026-9538 |
+
+CVE-2026-8927 was HIGH in historical Trivy and is CRITICAL in current ECR.
+This compares identities and recorded severities across different dates,
+runtimes, architectures and feeds; absence is not attributed to a package fix.
+
 ECR basic scanning does not cover Julia or its bundled JLL libraries. Both
 native images record Julia 1.13.1 with LibCURL_jll 8.18.0+1, LibGit2_jll 1.9.1+0,
 LibSSH2_jll 1.11.104+0, OpenSSL_jll 3.5.6+0 and Zlib_jll 1.3.1+2. An empty AL2023
