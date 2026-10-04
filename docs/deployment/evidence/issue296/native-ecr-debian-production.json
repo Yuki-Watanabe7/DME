@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "workload": "dme-batch",
+  "publication_status": "published",
+  "publication_purpose": "production",
+  "deployment_status": "blocked",
+  "source_commit": "d8eba8ad11d0f490815479b7d4085165257bbf66",
+  "image_tag": "867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme:d8eba8ad11d0f490815479b7d4085165257bbf66",
+  "image_digest": "sha256:70bd0e26a358c917f2937379c1fbd06b6ae2045e9cf330da7c573e00df4b4bd6",
+  "image_reference": "867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme@sha256:70bd0e26a358c917f2937379c1fbd06b6ae2045e9cf330da7c573e00df4b4bd6",
+  "image_manifest_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+  "platform": "linux/amd64",
+  "oci_labels": {
+    "source": "https://github.com/Yuki-Watanabe7/DME",
+    "revision": "d8eba8ad11d0f490815479b7d4085165257bbf66",
+    "version": "0.1.0+d8eba8ad11d0"
+  },
+  "base_images": [
+    {
+      "reference": "docker.io/library/julia:1.13.1-trixie",
+      "resolved_digest": "docker.io/library/julia:1.13.1-trixie@sha256:3020db6caac249f56124b9ca90b92c24af460b3f3a99c8a287097ba5d72e5da4"
+    }
+  ],
+  "os_release": "Debian GNU/Linux 13 (trixie)",
+  "glibc": "glibc 2.41",
+  "image_size_bytes": 2382477078,
+  "runtime": {
+    "name": "julia",
+    "version": "1.13.1",
+    "bundled_libraries": {
+      "LibCURL_jll": "8.18.0+1",
+      "LibGit2_jll": "1.9.1+0",
+      "LibSSH2_jll": "1.11.104+0",
+      "OpenSSL_jll": "3.5.6+0",
+      "Zlib_jll": "1.3.1+2"
+    },
+    "not_scanned_by_ecr_basic": true
+  },
+  "built_at": "2026-10-04T03:57:55.960807906Z",
+  "workflow_run_url": "https://github.com/Yuki-Watanabe7/DME/actions/runs/37174658453",
+  "workflow_run_attempt": "1",
+  "image_contract_verification": {
+    "before_push": "passed",
+    "after_ecr_pull": "passed"
+  },
+  "scan": {
+    "status": "COMPLETE",
+    "severity_counts": {
+      "HIGH": 4,
+      "MEDIUM": 2,
+      "CRITICAL": 2
+    },
+    "blocker_findings": [
+      {
+        "cve": "CVE-2026-8924",
+        "severity": "CRITICAL",
+        "package_name": "curl",
+        "package_version": "8.14.1-2+deb13u5",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-8924"
+      },
+      {
+        "cve": "CVE-2026-8927",
+        "severity": "CRITICAL",
+        "package_name": "curl",
+        "package_version": "8.14.1-2+deb13u5",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-8927"
+      },
+      {
+        "cve": "CVE-2026-102010",
+        "severity": "HIGH",
+        "package_name": "gcc-14",
+        "package_version": "14.2.0-19",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-102010"
+      },
+      {
+        "cve": "CVE-2026-8286",
+        "severity": "HIGH",
+        "package_name": "curl",
+        "package_version": "8.14.1-2+deb13u5",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-8286"
+      },
+      {
+        "cve": "CVE-2026-85091",
+        "severity": "HIGH",
+        "package_name": "zlib",
+        "package_version": "1.3.dfsg+really1.3.1-1",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-85091"
+      },
+      {
+        "cve": "CVE-2026-95619",
+        "severity": "HIGH",
+        "package_name": "gcc-14",
+        "package_version": "14.2.0-19",
+        "uri": "https://nvd.nist.gov/vuln/detail/CVE-2026-95619"
+      }
+    ],
+    "reason": "HIGH or CRITICAL findings: rebuild if the base release has a fix, otherwise follow PAP ADR 0017 §4 step 2 (compare another supported base) or record an approved exception per finding (§5).",
+    "completed_at": "2026-10-04T03:59:58+00:00",
+    "vulnerability_source_updated_at": "2026-10-04T03:59:58+00:00",
+    "findings_command": "aws ecr describe-image-scan-findings --repository-name dme --image-id imageDigest=sha256:70bd0e26a358c917f2937379c1fbd06b6ae2045e9cf330da7c573e00df4b4bd6 --region ap-northeast-1"
+  },
+  "exceptions": []
+}

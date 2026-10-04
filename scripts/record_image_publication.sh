@@ -63,9 +63,16 @@ base_digest="$(label base.digest)"
 [[ "$base_digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "missing resolved base digest label" >&2; exit 2; }
 base_images="$(jq -n --arg reference "$base_reference" --arg resolved "${base_reference}@${base_digest}" \
     '[{reference: $reference, resolved_digest: $resolved}]')"
-manifest_media_type="$(aws ecr describe-images --repository-name "$repository" \
+registry_image="$(aws ecr describe-images --repository-name "$repository" \
     --image-ids "imageDigest=$IMAGE_DIGEST" --region "$AWS_REGION" \
-    --query 'imageDetails[0].imageManifestMediaType' --output text)"
+    --query 'imageDetails[0]' --output json)"
+manifest_media_type="$(jq -r '.imageManifestMediaType' <<<"$registry_image")"
+registry_image_size="$(jq -er '.imageSizeInBytes | select(type == "number" and . > 0)' <<<"$registry_image")"
+# ECR reports compressed bytes. Summing image sizes conservatively counts shared
+# layers more than once, unlike Docker's uncompressed .Size measurement above.
+registry_sizes="$(aws ecr describe-images --repository-name "$repository" \
+    --region "$AWS_REGION" --query 'imageDetails[].imageSizeInBytes' --output json)"
+registry_repository_size="$(jq -er 'select(type == "array" and length > 0 and all(.[]; type == "number" and . >= 0)) | add' <<<"$registry_sizes")"
 
 # --- Wait for the scan of this exact digest (A7) ----------------------------------
 findings_file="$(mktemp)"
@@ -116,6 +123,8 @@ jq -n \
     --arg os_release "$os_release" \
     --arg glibc "$glibc" \
     --argjson image_size "$image_size" \
+    --argjson registry_image_size "$registry_image_size" \
+    --argjson registry_repository_size "$registry_repository_size" \
     --argjson runtime "$runtime_json" \
     --argjson base_images "$base_images" \
     --arg run_url "$run_url" \
@@ -140,6 +149,8 @@ jq -n \
         os_release: $os_release,
         glibc: $glibc,
         image_size_bytes: $image_size,
+        ecr_image_size_bytes: $registry_image_size,
+        ecr_repository_image_bytes_upper_bound: $registry_repository_size,
         runtime: ($runtime + {not_scanned_by_ecr_basic: true}),
         built_at: $built_at,
         workflow_run_url: $run_url,

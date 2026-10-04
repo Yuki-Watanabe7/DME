@@ -16,8 +16,8 @@ ADR 0017). The decisions behind this guide are
 
 | Concern | Implementation |
 |---|---|
-| Base image (PAP ADR 0017 Julia profile) | `julia:1.13.1-trixie` in both stages: the official Julia image on Debian 13, with the OS release in the tag (A4). Julia `1.13.1` matches CI and every `Manifest.toml`, and the verification script fails when the image's Julia differs from the version `Manifest.toml` was resolved with. See [Julia version](#julia-version) for why the patch is pinned and for the A3 judgement. |
-| OS updates (A5) | The runtime stage runs `apt-get update && apt-get upgrade` against trixie's own repositories on the base the build pulled. A rebuild is the fix path for an OS finding. |
+| Base image (PAP ADR 0017 Julia profile, §4 step 2) | `public.ecr.aws/amazonlinux/amazonlinux:2023-minimal` plus the official Julia `1.13.1` glibc tarball, verified with reviewed SHA-256 checksums. Build and runtime inherit the same Julia base. Julia matches CI and every `Manifest.toml`; the verifier rejects a mismatch. See [the measured comparison](batch_image_comparison.md) and ADR 0026 revision 3. |
+| OS updates (A5) | Both the Julia base and runtime stage run `microdnf upgrade` against AL2023's own repositories on a freshly pulled base. A rebuild is the fix path for an OS finding. |
 | Julia and package reproducibility | The root `Project.toml` plus tracked `Manifest.toml` are copied before `Pkg.instantiate()`. |
 | No startup dependency resolution | Packages are installed and precompiled at build time; `JULIA_PKG_PRECOMPILE_AUTO=0` at runtime. The runtime never writes the depot. |
 | Process identity | UID/GID `10001` (`dme`), never root. |
@@ -36,16 +36,16 @@ tests, docs, examples, `.git` and credentials out of the build context.
 ## Julia version
 
 Julia `1.13.1` is pinned to the same patch everywhere: the `setup-julia` step of
-every workflow, both `FROM` lines of the Dockerfile, and the `julia_version` of
+every workflow, the Dockerfile's download paths and checksums, and the `julia_version` of
 `Manifest.toml`, `test/Manifest.toml` and `docs/Manifest.toml`.
 The rationale is recorded in
 [ADR 0026, revision 1](../adr/0026-batch-artifact-retention-and-image-publication.md#改訂).
 
-- **Patch tag, not the minor tag.** `julia:1.13-trixie` moves to every new patch,
-  so a rebuild of the same commit could run a Julia that neither resolved the
-  Manifests nor ran the tests. A Julia patch update (including fixes to its bundled
-  libraries) is a reviewed change to all of the places above; OS updates still come
-  from `apt-get upgrade` on every build (A5).
+- **Exact tarball and checksum.** Julia is not selected through a moving minor
+  tag or an unversioned download. A Julia patch update, including fixes to its
+  bundled libraries, changes the download paths/checksums, CI, every Manifest
+  and the Debian comparison recipe together through review. OS updates still
+  come from `microdnf upgrade` on every build (A5).
 - **A3 (runtime support of at least 180 days at build time).** Julia publishes no
   end-of-support date for non-LTS releases, so the judgement uses its release
   history: 1.13 is the current stable release (1.13.0 on 2026-09-10, 1.13.1 on
@@ -177,8 +177,8 @@ scripts/verify_batch_container.sh --image <ref> --existing --revision <sha> --ve
 The script needs Docker and `jq`. It checks, in order: (1) the build or the named
 image; (2) the numeric non-root user, exec-form entrypoint, SIGTERM stop signal,
 declared artifact volume, OCI labels, architecture, and that no credential-like
-variable is in the image environment; (3) the expected OS (Debian 13 by default,
-or AL2023 with `--base-os al2023`), Julia matching `Manifest.toml`, no pending
+variable is in the image environment; (3) the expected OS (AL2023 by default,
+or the Debian baseline with `--base-os debian13`), Julia matching `Manifest.toml`, no pending
 vendor update after a fresh build, glibc version, and a certificate-verified
 Downloads.jl HTTPS request with read-only root plus `/tmp` scratch; (4) UID/GID 10001, a
 read-only project and depot for that user, and `/bin/sh`, `chown` and `chmod` for
@@ -208,11 +208,14 @@ publishes to the ECR repository PAP creates in
 [PAP #41](https://github.com/Yuki-Watanabe7/personal-analytics-platform/issues/41):
 
 1. **Trigger**: `workflow_dispatch` on `main`, with `source_commit` equal to the
-   main HEAD and `image_recipe` defaulting to `production-debian`.
+   main HEAD and `image_recipe` defaulting to `production-al2023`.
    `comparison-debian` and `comparison-al2023` select evaluation recipes and
    publish `<source commit>-comparison-debian` or
    `<source commit>-comparison-al2023`. These tags do not replace the production
-   tag or select a production base. Nothing else publishes; `latest` is never pushed.
+   tag or select a production base. `scripts/select_batch_image_recipe.sh` maps
+   production/AL2023 comparison to `Dockerfile`, Debian comparison to
+   `experiments/issue296/Dockerfile.debian`, and keeps their tag/purpose separate.
+   Nothing else publishes; `latest` is never pushed.
 2. **Tests**: `Pkg.test()` (tests, Aqua.jl, JuliaFormatter) must pass first.
 3. **Build and verify**: pull the base again, build `linux/amd64`, run the
    verification script.
@@ -230,7 +233,10 @@ publishes to the ECR repository PAP creates in
 image reference, manifest media type, platform, OCI labels, each base reference
 with its resolved digest from the image's OCI base labels (also on repeat
 dispatch), publication purpose (`production` or `comparison`), OS release,
-glibc, uncompressed image size, Julia version with the versions of its
+glibc, uncompressed Docker size (`image_size_bytes`), compressed ECR size
+(`ecr_image_size_bytes`) and the conservative repository image-size sum
+(`ecr_repository_image_bytes_upper_bound`, shared layers may be counted more than
+once), Julia version with the versions of its
 bundled OpenSSL, libcurl, libgit2, libssh2 and zlib (which ECR basic scanning
 cannot see), build time, workflow run, scan status, completion/feed timestamps
 and counts, every HIGH or
@@ -240,7 +246,7 @@ CRITICAL finding (CVE, package, version), and the `deployment_status`:
 |---|---|
 | `approved` | `COMPLETE` scan with no HIGH or CRITICAL finding (A7). For `publication_purpose: comparison`, this is a scan result; a reviewed base-selection decision and production publication are still required. |
 | `pending` | The scan did not complete within 10 minutes; re-run the dispatch for the same commit to re-evaluate without pushing. |
-| `blocked` | Any other scan status, or a HIGH/CRITICAL finding. Follow PAP ADR 0017 §4: rebuild if trixie has a fix; otherwise compare AL2023 minimal plus the official Julia tarball (§4 step 2), or record an approved, expiring exception per finding (§5). The workflow never applies an exception. |
+| `blocked` | Any other scan status, or a HIGH/CRITICAL finding. Follow PAP ADR 0017 §4: rebuild when the selected vendor release has a fix; otherwise compare another supported base or record an approved, expiring exception per finding (§5). The workflow never applies an exception. |
 
 ### Repository variables and the OIDC subject
 
@@ -290,35 +296,37 @@ differ. PAP #41 should confirm them on the task size it chooses.
 | Image size | 3.34 GB uncompressed; about 0.72 GB gzip-compressed. The Julia depot layer is 1.27 GB uncompressed (artifacts 740 MB, compiled caches 388 MB, of which DME itself 19 MB). |
 | Cold start / precompile | none at runtime: packages and DME are precompiled at build time, and step 7 of the verification fails on any runtime precompile output |
 
-**ECR storage.** Publish builds deliberately use no build cache, so the
-`apt-get upgrade` layer is always rebuilt on a fresh base (A5). Their depot layer
-therefore differs from the previous image's, and each published image adds about
-0.7 GB compressed to the repository. This is above the ≤ 0.5 GB ECR line in PAP's
-Job cost envelope for DME (PAP ADR 0015 §7): at USD 0.10/GB-month it is about USD 0.07/month per
-retained image, so PAP #41 should size the lifecycle rule (and the envelope) by the
-number of DME images it keeps.
+**ECR storage.** Fresh-base builds do not use build cache. The historical
+compressed estimate above is not a measurement of the native AL2023 publication.
+PAP #41 now owns a 3 GB retained-image operating envelope and lifecycle rules;
+this is not an ECR quota. Each publication records compressed registry bytes
+separately from Docker size so PAP can check the envelope before runtime adoption.
+The repository sum is an upper bound because shared layers can be counted again;
+[DME's measured comparison](batch_image_comparison.md) preserves the first native
+artifacts without inventing missing compressed sizes.
 
-**Preliminary vulnerability picture.** A Trivy 0.74.0 scan of the OS packages of this
+**Historical preliminary vulnerability picture.** A Trivy 0.74.0 scan of the OS packages of this
 image (Debian 13.7, after the upgrade step) on 2026-09-30 reported 12 distinct HIGH
 CVEs (no CRITICAL), none with a fixed package in trixie, in `util-linux` and its
 libraries, `curl`/`libcurl4t64`, `ncurses`, `systemd` libraries, `libacl1` and
 `perl-base`. Trivy and ECR use different feeds, so this is not the admission
-result; it indicates that the first ECR scan is likely to be `blocked` and to need
-PAP ADR 0017 §4 step 2 (AL2023 minimal plus the official Julia tarball, measured in
-PAP's ECR) or §5 exception records.
+result. The actual 2026-10-04 ECR findings and native amd64 comparison are in
+[the comparison record](batch_image_comparison.md); the earlier Trivy table is
+not used for admission.
 
 ## Known limitations
 
-- The first publication has not run yet: it needs the ECR repository and push
-  role from PAP #41. Until then the S3 path is verified only against the
-  S3-compatible server in step 9 and the SigV4 test vectors.
-- Debian 13 is likely to carry HIGH/CRITICAL findings that Debian has not fixed.
-  If the first ECR scan reports them, the digest is `blocked` until the PAP ADR
-  0017 §4 step 2 comparison or §5 exception records are done
-  ([#296](https://github.com/Yuki-Watanabe7/DME/issues/296)).
-  The AL2023 candidate and main-only comparison publication path are prepared;
-  [the comparison record](batch_image_comparison.md) separates runtime
-  verification from the ECR scan and final base-selection decision.
+- PAP #41 has created ECR and its push role. The first Debian production image
+  was published and passed all ten steps before and after ECR pull, but its
+  COMPLETE scan reported CRITICAL 2 / HIGH 4. The comparison record preserves
+  that blocked digest. After the reviewed base change reaches main, publish a
+  new AL2023 **production** digest and evaluate it before handing it to PAP;
+  a comparison digest is not a deployment input.
+- The S3 sink is verified against the S3-compatible server and SigV4 vectors;
+  real S3 retention and ECS identity remain PAP #41's acceptance work.
+  The AL2023 comparison has passed native publication and ECR checks;
+  [the comparison record](batch_image_comparison.md) separates that measured
+  result from the new production publication still required after merge.
 - Julia patch releases, including fixes to its bundled libraries, are not picked
   up by a rebuild; they need a change that moves CI, the Dockerfile and every
   `Manifest.toml` together. A3 is to be judged again when Julia 1.14.0 is released

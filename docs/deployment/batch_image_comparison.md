@@ -1,194 +1,200 @@
 # Issue #296: Debian 13 / AL2023 batch image comparison
 
-Status: comparison preparation; no ECR digest has been published or admitted.
-The production Dockerfile continues to use `julia:1.13.1-trixie`.
+Status: native amd64 publication and comparison measured on 2026-10-04;
+AL2023 production-base change is proposed for review. A new production digest
+from the merged change is still required. No DME ECS task has been started.
 
-This record implements the DME side of
-[Issue #296](https://github.com/Yuki-Watanabe7/DME/issues/296) and
-[PAP ADR 0017 §4](https://github.com/Yuki-Watanabe7/personal-analytics-platform/blob/main/docs/adr/0017-production-container-base-image-policy.md).
-The template is
-[CentralBankWatcher #66](https://github.com/Yuki-Watanabe7/CentralBankWatcher/issues/66):
-committed recipes, the same runtime contract, then scans in PAP's ECR.
+This record supports [DME #296](https://github.com/Yuki-Watanabe7/DME/issues/296)
+and [PAP #41](https://github.com/Yuki-Watanabe7/personal-analytics-platform/issues/41)
+under [PAP ADR 0017 §4](https://github.com/Yuki-Watanabe7/personal-analytics-platform/blob/main/docs/adr/0017-production-container-base-image-policy.md).
+DME owns the image, CLI and publication evidence; PAP owns ECR, permissions,
+storage, runtime configuration and image admission.
 
-## Preconditions checked on 2026-10-03
+## Published native amd64 evidence (2026-10-04)
 
-- [PR #294](https://github.com/Yuki-Watanabe7/DME/pull/294) merged on
-  2026-09-30 at 14:38:27 UTC, merge commit
-  `2a7464c159bc10434ec9b27aad7a1286801c121c`.
-- `gh variable list --repo Yuki-Watanabe7/DME` returned no repository variables.
-  `PAP_AWS_REGION`, `PAP_ECR_REPOSITORY_URL` and `PAP_ECR_PUSH_ROLE_ARN` are
-  therefore not configured for the publish job.
-- `gh run list --repo Yuki-Watanabe7/DME --workflow publish-batch-image.yml`
-  returned no runs. There is no initial publication evidence to evaluate.
-- [PAP #41](https://github.com/Yuki-Watanabe7/personal-analytics-platform/issues/41)
-  remains open. Creating ECR/IAM resources belongs to that issue, outside #296.
-- The earlier Trivy table in #296 measured Julia 1.12.6 on 2026-09-30. This
-  comparison uses the current Julia 1.13.1 after #295. Do not treat that historical
-  table as an ECR result, or carry its CVEs forward without a new scan.
+Both runs used reviewed main commit `d8eba8ad11d0f490815479b7d4085165257bbf66`
+([merged preparation PR #301](https://github.com/Yuki-Watanabe7/DME/pull/301)).
+PAP created ECR and the main-only OIDC push role, then configured the three
+non-secret publication variables from its Terraform handoff. Each run passed
+`Pkg.test()`, all ten contract steps before push, and all ten again after pulling
+the exact immutable digest from ECR, including the S3-compatible sink and stop
+contract. No exception was applied.
 
-## Recipes and maintenance
-
-| Axis | Debian baseline | AL2023 evaluation candidate |
+| Measurement | Debian production baseline | AL2023 comparison |
 | --- | --- | --- |
-| Committed recipe | [`Dockerfile`](../../Dockerfile) | [`experiments/issue296/Dockerfile.al2023`](../../experiments/issue296/Dockerfile.al2023) |
+| Workflow | [37174658453](https://github.com/Yuki-Watanabe7/DME/actions/runs/37174658453) | [37175890840](https://github.com/Yuki-Watanabe7/DME/actions/runs/37175890840) |
+| Result | Image published; run failed at vulnerability gate | Image published; run succeeded |
+| OS | Debian GNU/Linux 13 (trixie) | Amazon Linux 2023.12.20260930 |
+| Julia / glibc | 1.13.1 / 2.41 | 1.13.1 / 2.34 |
+| Uncompressed Docker bytes | 2,382,477,078 | 2,390,034,673 |
+| All ten steps before push / after ECR pull | Passed / passed | Passed / passed |
+| Scan status / completed UTC | COMPLETE / 03:59:58 | COMPLETE / 04:25:00 |
+| ECR CRITICAL / HIGH / MEDIUM | 2 / 4 / 2 | 0 / 0 / 0 |
+| Publication purpose / scan decision | production / blocked | comparison / approved |
+| Exact downloaded A8 evidence | [Debian JSON](evidence/issue296/native-ecr-debian-production.json) | [AL2023 JSON](evidence/issue296/native-ecr-al2023-comparison.json) |
+
+Immutable digests:
+
+- Debian: `sha256:70bd0e26a358c917f2937379c1fbd06b6ae2045e9cf330da7c573e00df4b4bd6`
+- AL2023 comparison: `sha256:5c2b389c0b0c0d58c7a85f46eab8f001571d0e15e8db4bab49a303414b6566b5`
+
+The registry is `867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme`.
+The JSON preserves the exact image/base digests, OCI revision, scan timestamps,
+package findings and runtime library versions. These files are unchanged copies
+of the downloaded workflow evidence, not reconstructed results.
+
+AL2023 is 7,557,595 bytes (0.32%) larger in uncompressed Docker size. Those bytes
+are not billable compressed ECR storage. These original artifacts do not report
+compressed registry sizes; the next publication records `ecr_image_size_bytes`
+and `ecr_repository_image_bytes_upper_bound` from ECR DescribeImages. The latter
+sums compressed image sizes and can count shared layers more than once. It is
+conservative storage evidence, not a quota or a precise billed-usage total.
+
+### Debian blocker findings and vendor status
+
+The fresh native build installed four vendor package upgrades and the verifier
+found zero pending OS updates. On 2026-10-04 the Debian tracker still marks the
+installed trixie versions below as vulnerable, with no fixed trixie package.
+An upstream or sid/forky fix is not an available trixie update. ECR severity,
+package and version below are preserved; a different vendor severity does not
+lower the admission gate.
+
+| CVE / vendor tracker | ECR severity | ECR package | ECR installed version | trixie status (2026-10-04) |
+| --- | --- | --- | --- | --- |
+| [CVE-2026-8924](https://security-tracker.debian.org/tracker/CVE-2026-8924) | CRITICAL | curl | 8.14.1-2+deb13u5 | Vulnerable; no fixed trixie package |
+| [CVE-2026-8927](https://security-tracker.debian.org/tracker/CVE-2026-8927) | CRITICAL | curl | 8.14.1-2+deb13u5 | Vulnerable; no fixed trixie package |
+| [CVE-2026-8286](https://security-tracker.debian.org/tracker/CVE-2026-8286) | HIGH | curl | 8.14.1-2+deb13u5 | Vulnerable; no fixed trixie package |
+| [CVE-2026-102010](https://security-tracker.debian.org/tracker/CVE-2026-102010) | HIGH | gcc-14 | 14.2.0-19 | Vulnerable; no fixed trixie package |
+| [CVE-2026-95619](https://security-tracker.debian.org/tracker/CVE-2026-95619) | HIGH | gcc-14 | 14.2.0-19 | Vulnerable; no fixed trixie package |
+| [CVE-2026-85091](https://security-tracker.debian.org/tracker/CVE-2026-85091) | HIGH | zlib | 1.3.dfsg+really1.3.1-1 | Vulnerable; no fixed trixie package (Debian source version has epoch `1:`) |
+
+The historical 2026-09-30 Trivy result used Julia 1.12.6 and another feed. Its
+12 HIGH findings are not the canonical current list; this record uses the six
+actual ECR blockers above. A finding absent from a different scan is not proof
+of a fix in the original digest.
+
+ECR basic scanning does not cover Julia or its bundled JLL libraries. Both
+native images record Julia 1.13.1 with LibCURL_jll 8.18.0+1, LibGit2_jll 1.9.1+0,
+LibSSH2_jll 1.11.104+0, OpenSSL_jll 3.5.6+0 and Zlib_jll 1.3.1+2. An empty AL2023
+OS scan does not establish that these runtime libraries have no vulnerabilities;
+upstream Julia security releases remain a separate maintenance obligation.
+
+## Base selection and maintenance
+
+The proposed production choice is AL2023 minimal plus the official Julia 1.13.1
+glibc tarball. It removes all six actual OS blockers without exceptions and
+passes the same published native runtime contract. This updates ADR 0026
+revision 3; deployment still requires a new production publication after merge.
+
+| Axis | Retained Debian baseline | AL2023 production recipe |
+| --- | --- | --- |
+| Recipe after this change | [`experiments/issue296/Dockerfile.debian`](../../experiments/issue296/Dockerfile.debian) | [`Dockerfile`](../../Dockerfile) |
 | Vendor base | `julia:1.13.1-trixie` | `public.ecr.aws/amazonlinux/amazonlinux:2023-minimal` |
-| OS update path | `apt-get upgrade` in runtime | `microdnf upgrade` in both Julia base and runtime |
-| Julia installation | Official Julia image | Official glibc tarball, exact 1.13.1, hardcoded SHA-256 for amd64 and arm64 |
-| Depot | Installed and precompiled on Debian | Installed and precompiled on AL2023; no Debian depot is reused |
-| Additional RPMs | Not applicable | `ca-certificates`, `libatomic`, `libstdc++`, `shadow-utils`, `findutils`; `tar` and `gzip` removed after extraction |
-| Runtime update ownership | DME updates Julia patch and Manifests together | Same, plus both tarball checksums and download paths in the candidate recipe |
-| Build complexity | Official image plus normal DME build | Explicit tarball download/checksum/extraction and minimal RPM footprint |
-| A3 support | Debian/Julia judgement in [ADR 0026](../adr/0026-batch-artifact-retention-and-image-publication.md) | AL2023 standard support to 2027-06-30, security maintenance to 2029-06-30; assess individual installed packages and Julia independently before selecting it |
+| OS updates | `apt-get upgrade` in runtime | `microdnf upgrade` in Julia base and runtime |
+| Julia installation | Official Julia image | Official glibc tarball; exact 1.13.1; reviewed SHA-256 per amd64/arm64 |
+| Depot | Installed/precompiled on Debian | Installed/precompiled on AL2023; no Debian depot reused |
+| Added RPMs | Not applicable | ca-certificates, libatomic, libstdc++, shadow-utils, findutils; extraction tools removed |
+| Runtime update ownership | DME updates Julia and Manifests together | Same, plus tarball paths/checksums |
+| Complexity | Official Julia image | Explicit tarball validation and minimal RPM maintenance |
 
-The tarballs and checksums come from
-[Julia's official release checksum list](https://julialang-s3.julialang.org/bin/checksums/julia-1.13.1.sha256).
-AL2023's release-specific tag and minimal package manager are documented in
-[AWS's minimal container guide](https://docs.aws.amazon.com/linux/al2023/ug/minimal-container.html);
-support phases and package-specific support are in
-[AWS's release cadence](https://docs.aws.amazon.com/linux/al2023/ug/release-cadence.html).
-Reassess A3 before AL2023 enters maintenance; the base's support date does not
-establish support for the separately installed Julia runtime.
+The original AL2023 candidate remains under `experiments/issue296/` as the
+historical comparison recipe. Future AL2023 production/comparison runs both use
+the root Dockerfile so the comparison cannot drift from the proposed production
+recipe. The Debian baseline remains independently reproducible.
 
-## Runtime comparison
+Checksums come from [Julia's official release checksum list](https://julialang-s3.julialang.org/bin/checksums/julia-1.13.1.sha256).
+[AWS's minimal container guide](https://docs.aws.amazon.com/linux/al2023/ug/minimal-container.html)
+documents the release-specific tag and microdnf.
+[AWS's release cadence](https://docs.aws.amazon.com/linux/al2023/ug/release-cadence.html)
+sets AL2023 standard support through 2027-06-30 and security maintenance through
+2029-06-30, with support assessed separately for installed packages. From the
+2026-10-04 assessment, the 180-day A3 horizon is 2027-04-02, before standard
+support ends. Reassess before maintenance begins. Julia's non-LTS support remains
+the release-history judgement in ADR 0026 revision 1, not a vendor end-date promise.
+
+## Reproducing the runtime contract
 
 Run both without `--skip-sink`:
 
 ```bash
 scripts/verify_batch_container.sh --image dme-batch:compare-debian \
+  --dockerfile experiments/issue296/Dockerfile.debian --base-os debian13 \
   --platform linux/arm64
 scripts/verify_batch_container.sh --image dme-batch:compare-al2023 \
-  --dockerfile experiments/issue296/Dockerfile.al2023 --base-os al2023 \
   --platform linux/arm64
 ```
 
-Step 3 checks the expected vendor OS rather than accepting any distribution.
-Both recipes must match `Manifest.toml`'s Julia patch, have no pending vendor
-package updates after the build, and complete a certificate-verified Downloads.jl
-HTTPS request with read-only root and only `/tmp` scratch. Steps 4–10 retain
-UID/GID 10001, root-owned code/depot, `/bin/sh`/`chown`/`chmod`, non-interactive
-CLI, read-only simulation/quality export, exit codes, conditional S3 writes,
-duplicate refusal and the SIGTERM/SIGKILL contract.
+Step 3 verifies the expected OS, Manifest Julia patch, no pending vendor updates,
+glibc and certificate-verified Downloads.jl HTTPS under read-only root with `/tmp`
+scratch. Steps 4–10 retain UID/GID 10001, root-owned code/depot, shell/ownership
+tools, non-interactive CLI, read-only simulation/quality export, exit codes,
+conditional S3 writes, duplicate refusal and SIGTERM/SIGKILL behavior.
 
-`microdnf` does not provide `dnf check-update`: step 3 snapshots the RPM
-inventory, upgrades a disposable container and compares its inventory again.
-Any package change fails the fresh-build check; a package-manager failure also
-fails rather than reporting zero updates.
+`microdnf` lacks `dnf check-update`: the verifier snapshots RPM inventory,
+upgrades a disposable container and compares again, failing on any change or
+package-manager error. Builds use `--provenance=false --sbom=false` for a
+single-platform ECR-scannable manifest. Base provenance is retained in OCI labels
+and the publication JSON.
 
-Builds explicitly use `--provenance=false --sbom=false` so the result remains
-a single-platform manifest that the existing ECR gate can scan directly.
-Docker's default provenance attaches an extra manifest through an OCI index
-([Docker attestations](https://docs.docker.com/build/metadata/attestations/));
-the A8 base provenance remains in the image's OCI labels and publication JSON.
+### Historical local ARM64 comparison (2026-10-03)
 
-### Local result (2026-10-03, native ARM64)
+Both recipes passed all ten steps. [local-arm64.json](evidence/issue296/local-arm64.json)
+preserves recipe/verifier/log hashes for working-tree builds (`revision: unknown`).
+Debian measured 3,292,713,001 bytes and AL2023 3,303,848,426 uncompressed bytes;
+AL2023 was 11,135,425 bytes (0.34%) larger. The stop trials exited 143 and 137,
+respectively; neither left a completed manifest or partial final artifact.
+These are historical local measurements, not ECR admission evidence. The 137
+fallback is permitted, and a single trial does not estimate its frequency.
 
-Both recipes passed all ten steps, without `--skip-sink`. Machine-readable
-measurements, recipe/verifier hashes and log hashes are in
-[`evidence/issue296/local-arm64.json`](evidence/issue296/local-arm64.json).
-These are working-tree builds with revision `unknown`; they do not claim a
-published source commit or ECR digest.
+### Native amd64 PR verification
 
-| Measurement | Debian 13 | AL2023 |
-| --- | --- | --- |
-| Julia | 1.13.1 | 1.13.1 |
-| glibc | 2.41 | 2.34 |
-| Uncompressed image bytes | 3,292,713,001 | 3,303,848,426 |
-| Image manifest | Single OCI image manifest | Single OCI image manifest |
-| Pending OS updates after build | 0 | 0 |
-| Downloads.jl HTTPS / CA verification | Passed | Passed |
-| All ten image contract steps | Passed | Passed |
-| Stop trial | SIGTERM, exit 143 | SIGKILL after 10 seconds, exit 137 |
-| Completed run manifest / partial final artifact after stop | Neither | Neither |
-| ECR scan | Not run | Not run |
+The [comparison contract workflow](../../.github/workflows/batch-image-contract.yml)
+builds both recipes and runs all ten steps on native amd64 without AWS access.
+It uploads logs and `image-contract.json` for 30 days. That JSON explicitly says
+`publication_status: not_published` and `ecr_scan: not_run`; it does not replace
+the production ECR gate. Representative models do not exercise every optional
+JLL code path.
 
-AL2023 was 11,135,425 bytes (0.34%) larger on this runtime. This is uncompressed
-Docker size, not ECR compressed storage. The AL2023 stop trial exercised the
-existing permitted 137 fallback; it does not establish how often that fallback
-will occur. The DME load/representative simulation/quality export and HTTP sink
-exercise the project's dependencies on glibc 2.34; they do not prove every model
-and every optional JLL code path. Native amd64 and ECR verification remain
-necessary before adopting this base.
+## Publication after the reviewed change is merged
 
-### Native amd64 verification
-
-The
-[`Batch image comparison contract` workflow](../../.github/workflows/batch-image-contract.yml)
-builds both on native amd64 PR runners without AWS authentication, and uploads
-the full log plus `image-contract.json` (30 days). Its JSON explicitly says
-`publication_status: not_published` and `ecr_scan: not_run`.
-The PR's workflow run and its artifacts record the native results; consult them
-for the exact tested commit. Neither local ARM64 nor native CI is an ECR scan.
-
-## ECR comparison after PAP #41 supplies the destination
-
-Merge the comparison recipes/workflow into main through review first. Keep the
-push role's trust restricted to
-`repo:Yuki-Watanabe7/DME:ref:refs/heads/main`; no GitHub environment or develop
-trust is required. The existing publish workflow selects one recipe per dispatch
-and serializes runs. Obtain the reviewed main HEAD as `source_commit`:
+Obtain the new reviewed main HEAD, then publish the production recipe:
 
 ```bash
 gh workflow run publish-batch-image.yml --repo Yuki-Watanabe7/DME --ref main \
-  -f source_commit=<reviewed-main-head> -f image_recipe=production-debian
-gh workflow run publish-batch-image.yml --repo Yuki-Watanabe7/DME --ref main \
-  -f source_commit=<same-reviewed-main-head> -f image_recipe=comparison-al2023
-# If a same-commit Debian comparison tag is needed separately:
+  -f source_commit=<reviewed-main-head> -f image_recipe=production-al2023
+# Optional same-commit comparisons:
 gh workflow run publish-batch-image.yml --repo Yuki-Watanabe7/DME --ref main \
   -f source_commit=<same-reviewed-main-head> -f image_recipe=comparison-debian
+gh workflow run publish-batch-image.yml --repo Yuki-Watanabe7/DME --ref main \
+  -f source_commit=<same-reviewed-main-head> -f image_recipe=comparison-al2023
 ```
 
-Each dispatch runs `Pkg.test()`, all ten contract steps before push, and all ten
-again on the exact ECR-pulled digest. Both comparison tags are immutable and
-separate from `<source commit>`. Repeated dispatches re-evaluate the existing
-digest; rebuilding with a fix requires a new commit/tag. Comparison images
-consume ECR storage and need a PAP-managed retention policy; DME does not delete
-them. A comparison scan with `deployment_status: approved` is evidence for the
-decision, not authorization to deploy a comparison tag.
+The push trust remains `repo:Yuki-Watanabe7/DME:ref:refs/heads/main`, without a
+GitHub environment or develop trust. Production uses immutable `<commit>`;
+comparisons use `<commit>-comparison-<os>`. Repeat dispatch verifies the existing
+digest rather than overwriting a tag. A rebuild needs a new source commit.
+The recipe selector's regression test checks OS/path/tag/purpose together and
+rejects unknown legacy production recipes and invalid commits before writing
+workflow variables.
 
-Download each run's `image-publication.json` and preserve the completed scan,
-source commit, immutable digest, base digest, OS/Julia/glibc, size, workflow URL
-and contract result in this record. The canonical CVE list is
-`scan.blocker_findings`; retain scanner severity/package/version unchanged.
-Compare it with the historical Trivy table, documenting newly added or absent
-CVEs rather than assuming the feeds agree.
+Comparison images consume ECR storage; PAP owns retention. Their scan
+`approved` status is evidence for base selection, not permission to deploy them.
 
-For each actual HIGH/CRITICAL finding, check the
-[Debian tracker](https://security-tracker.debian.org/tracker/) or
-[Amazon Linux advisories](https://alas.aws.amazon.com/alas2023.html), recording
-the vendor URL, date and fixed version/status. ECR basic scanning does not cover
-Julia or its bundled JLL libraries; keep tracking the versions recorded in
-`runtime.bundled_libraries` and the upstream Julia security release path.
+## Remaining acceptance and continuing operation
 
-## Decision and remaining acceptance criteria
+1. Review and merge the AL2023 production recipe/workflow/ADR change together.
+2. Publish the new main commit as production; require `Pkg.test()`, all ten steps
+   before/after ECR pull and a COMPLETE scan with no HIGH/CRITICAL findings.
+3. Hand the new production digest, matching source commit, full A8 evidence and
+   support judgement to PAP #41. PAP then reviews admission/runtime settings and
+   verifies real ECS execution, retained S3 artifacts and safe reruns.
+4. Keep DME #296 open until the production handoff exists, and PAP #41 open until
+   its runtime acceptance is complete. The measured comparison does not complete
+   either issue.
 
-No base migration or exception is approved by this preparation.
-
-1. Publish the first Debian digest and record its `COMPLETE` ECR scan and CVEs.
-2. Rebuild on a new commit if trixie offers any fix. Fixable findings do not
-   qualify for exceptions.
-3. For remaining findings, compare the same-commit AL2023 digest in PAP ECR,
-   including all ten steps on the published amd64 digest and image sizes.
-4. If AL2023 removes the blockers and is compatible, record the measured choice
-   in ADR 0026 (or a new ADR), update the production Dockerfile/workflow and this
-   guide through review, then publish a new production digest. Re-run contract
-   verification and ECR scan before handing it to PAP #41.
-5. Otherwise, draft one exception record per remaining finding using PAP ADR
-   0017 §5.1: exact digest/CVE/package/version/severity, vendor status URL,
-   category, evidence commands re-runnable on that digest, compensating controls,
-   owner, human approver, creation date and expiry. Only a human owner can
-   approve it; this workflow does not apply exceptions. CRITICAL expiry is at
-   most 30 days, HIGH at most 90, and neither exceeds the digest's A9 rebuild date.
-6. Keep #296 open until an admissible production digest and evidence can be
-   handed to PAP #41.
-
-## Continuing operation (A9)
-
-Record rebuild and rescan due dates from each production build/scan: rebuild
-within 90 days and rescan within 30 days.
-[PAP #159](https://github.com/Yuki-Watanabe7/personal-analytics-platform/issues/159)
-owns rescan automation. New HIGH/CRITICAL findings restart the same decision
-path. At every exception renewal, recheck the linked vendor tracker and rerun
-reachability commands on the exact digest. If a fix is available, rebuild
-instead of renewing. A runtime security release requires updating Julia,
-Manifests, workflow pins and the candidate's checksums together; an OS advisory
-requires a fresh-base rebuild and scan on a new source commit.
+Record A9 rebuild within 90 days and rescan within 30 days of each production
+build/scan. [PAP #159](https://github.com/Yuki-Watanabe7/personal-analytics-platform/issues/159)
+owns rescan automation. New HIGH/CRITICAL findings restart vendor-fix/base
+comparison review; no exception is introduced here. Runtime security releases
+require Julia, Manifests, workflow pins and tarball checksums to move together.
+OS advisories require a fresh-base rebuild and scan on a new source commit.

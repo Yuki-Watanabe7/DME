@@ -37,7 +37,13 @@ cat >"$work_dir/bin/aws" <<'MOCK'
 #!/usr/bin/env bash
 set -euo pipefail
 case "$2" in
-    describe-images) echo application/vnd.docker.distribution.manifest.v2+json ;;
+    describe-images)
+        case "$*" in
+            *'imageDetails[0]'*) echo '{"imageManifestMediaType":"application/vnd.docker.distribution.manifest.v2+json","imageSizeInBytes":45678}' ;;
+            *'imageDetails[].imageSizeInBytes'*) echo '[45678,23456]' ;;
+            *) exit 2 ;;
+        esac
+        ;;
     describe-image-scan-findings) cat "$SCAN_FIXTURE" ;;
     *) exit 2 ;;
 esac
@@ -45,7 +51,8 @@ MOCK
 chmod +x "$work_dir/bin/docker" "$work_dir/bin/aws"
 export PATH="$work_dir/bin:$PATH"
 export GITHUB_SHA=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-export IMAGE_DIGEST="sha256:$(printf '%064d' 3)"
+IMAGE_DIGEST="sha256:$(printf '%064d' 3)"
+export IMAGE_DIGEST
 export ECR_REPOSITORY_URL=123456789012.dkr.ecr.ap-northeast-1.amazonaws.com/dme
 export AWS_REGION=ap-northeast-1 IMAGE_VERSION=0.1.0+aaaaaaaaaaaa
 export SCAN_FIXTURE="$work_dir/scan.json" EVIDENCE_PATH="$work_dir/evidence.json"
@@ -60,6 +67,8 @@ jq -e --arg sha "$GITHUB_SHA" --arg old_base "public.ecr.aws/amazonlinux/amazonl
     and .base_images[0].resolved_digest == $old_base
     and .deployment_status == "approved" and .glibc == "glibc 2.34"
     and .image_size_bytes == 123456
+    and .ecr_image_size_bytes == 45678
+    and .ecr_repository_image_bytes_upper_bound == 69134
     and .scan.completed_at == "2026-10-02T00:00:00Z"' "$EVIDENCE_PATH" >/dev/null
 grep -q "$IMAGE_TAG" "$GITHUB_STEP_SUMMARY"
 
