@@ -19,7 +19,7 @@ ADR 0017). The decisions behind this guide are
 | Base image (PAP ADR 0017 Julia profile, §4 step 2) | `public.ecr.aws/amazonlinux/amazonlinux:2023-minimal` plus the official Julia `1.13.1` glibc tarball, verified with reviewed SHA-256 checksums. Build and runtime inherit the same Julia base. Julia matches CI and every `Manifest.toml`; the verifier rejects a mismatch. See [the measured comparison](batch_image_comparison.md) and ADR 0026 revision 3. |
 | OS updates (A5) | Both the Julia base and runtime stage run `microdnf upgrade` against AL2023's own repositories on a freshly pulled base. A rebuild is the fix path for an OS finding. |
 | Julia and package reproducibility | The root `Project.toml` plus tracked `Manifest.toml` are copied before `Pkg.instantiate()`. |
-| No startup dependency resolution | Packages are installed and precompiled at build time; `JULIA_PKG_PRECOMPILE_AUTO=0` at runtime. The runtime never writes the depot. |
+| No startup dependency resolution | Packages are installed and precompiled at build time with `JULIA_CPU_TARGET=sysimage`, matching all CPU targets of the official Julia system image; `JULIA_PKG_PRECOMPILE_AUTO=0` at runtime. The verifier requires shipped caches to load with generic CPU features without writing the depot (ADR 0026 revision 4). |
 | Process identity | UID/GID `10001` (`dme`), never root. |
 | Read-only code | `/opt/dme` (project and source) and `/opt/julia-depot` are owned by root; the runtime user cannot modify them even when the root filesystem is writable. |
 | Writable paths | See [Writable paths](#writable-paths): the artifact volume, plus `/tmp` for runs that make HTTP calls. |
@@ -65,6 +65,43 @@ The rationale is recorded in
   | `LibGit2_jll` | 1.9.0+0 | 1.9.1+0 |
   | `LibSSH2_jll` | 1.11.3+1 | 1.11.104+0 |
   | `Zlib_jll` | 1.3.1+2 | 1.3.1+2 |
+
+## Portable package caches
+
+The first real PAP task stopped before entering the CLI: Julia tried to create
+`/opt/julia-depot/compiled/v1.13/DME/*.ji.pidfile` on the read-only root filesystem
+([PAP failure](https://github.com/Yuki-Watanabe7/personal-analytics-platform/actions/runs/37200078980),
+[read-only diagnostic](https://github.com/Yuki-Watanabe7/personal-analytics-platform/actions/runs/37208693599)).
+The old image loaded on its build host, but forcing a generic CPU reproduced the
+same cache regeneration failure locally. Its build had no portable CPU target;
+same-host container verification did not cover CPU differences on Fargate.
+
+The AWS log confirms attempted cache regeneration, but does not record why the
+cache was rejected or the Fargate host's CPU features. CPU incompatibility is the
+locally reproduced explanation, not a measured identity of the AWS CPU.
+The unchanged [inspection evidence](evidence/pap41/startup-inspection.json) and
+[local cache rejection log](evidence/pap41/local-cpu-cache-rejection.txt) retain
+that distinction.
+
+Both recipes now set `JULIA_CPU_TARGET=sysimage` before build-time package loading
+and at runtime. Julia 1.13 replaces `sysimage` with the official system image's
+CPU target list, so package caches include its portable baseline and optimized
+variants. A package image cannot be less specific than its loaded system image;
+setting only `generic` can still inherit the build host's selected system-image
+features. This setting controls native code written to disk caches, while the
+in-memory JIT can still use the host's CPU features
+([Julia environment variables](https://docs.julialang.org/en/v1/manual/environment-variables/#JULIA_CPU_TARGET)).
+Setting the variable only on an old image does not rebuild its native caches:
+publish a new immutable image, then review its admission in PAP.
+
+`JULIA_PKG_PRECOMPILE_AUTO=0` controls automatic package-manager precompilation;
+it does not prevent `using DME` from regenerating an unusable cache. Verification
+therefore also runs both representative commands with `--cpu-target=generic`
+and `--compiled-modules=strict`, which requires existing precompiled files
+([Julia command-line switches](https://docs.julialang.org/en/v1/manual/command-line-interface/#Command-line-switches-for-Julia)).
+The checks retain read-only root/depot and PAP's 0.5 vCPU / 2 GiB budget.
+The fix preserves the read-only depot and existing task volumes and permissions.
+These image checks do not replace real Fargate/S3/rerun acceptance in PAP.
 
 ## Writable paths
 
@@ -184,8 +221,10 @@ Downloads.jl HTTPS request with read-only root plus `/tmp` scratch; (4) UID/GID 
 read-only project and depot for that user, and `/bin/sh`, `chown` and `chmod` for
 PAP's volume-prep init container; (5) no tests, docs, examples, `.git` or `.env`
 in the image; (6) `--help` with stdin closed; (7) `simulate solow --periods 120`
-and `quality-export` with a read-only root and only the artifact volume, with no
-stderr output (so no runtime precompilation), and run manifests that match the
+and `quality-export` with a read-only root and only the artifact volume, first on
+the host CPU and then with a generic CPU target and strict shipped-cache loading,
+both within 0.5 vCPU / 2 GiB, with no stderr output (so no runtime precompilation),
+and run manifests that match the
 artifact bytes, record the source commit and image version, and contain no
 filesystem path; (8) exit codes `2` and `4`; (9) the
 artifact sink against a throwaway S3-compatible server
@@ -294,7 +333,7 @@ differ. PAP #41 should confirm them on the task size it chooses.
 | `dme simulate solow --periods 120` | 4.9 s wall clock including Julia startup; peak memory 591.8 MiB (container cgroup `memory.peak`) |
 | `dme quality-export` | 4.1 s; peak memory 549.5 MiB |
 | Image size | 3.34 GB uncompressed; about 0.72 GB gzip-compressed. The Julia depot layer is 1.27 GB uncompressed (artifacts 740 MB, compiled caches 388 MB, of which DME itself 19 MB). |
-| Cold start / precompile | none at runtime: packages and DME are precompiled at build time, and step 7 of the verification fails on any runtime precompile output |
+| Cold start / precompile | The historical local measurement had none at runtime. Packages and DME are precompiled at build time; the current step 7 additionally requires generic-CPU strict-cache loading, after the first Fargate task exposed the same-host verification gap. |
 
 **ECR storage.** Fresh-base builds do not use build cache. The historical
 compressed estimate above is not a measurement of the native AL2023 publication.
@@ -317,16 +356,20 @@ not used for admission.
 ## Known limitations
 
 - PAP #41 has created ECR and its push role. The first Debian production image
-  was published and passed all ten steps before and after ECR pull, but its
-  COMPLETE scan reported CRITICAL 2 / HIGH 4. The comparison record preserves
-  that blocked digest. After the reviewed base change reaches main, publish a
-  new AL2023 **production** digest and evaluate it before handing it to PAP;
-  a comparison digest is not a deployment input.
+  had CRITICAL 2 / HIGH 4 and remains blocked in the comparison record. After
+  DME #302 merged, [production publication 37193760806](https://github.com/Yuki-Watanabe7/DME/actions/runs/37193760806)
+  published the AL2023 image from `94eadc900f10c420ea415d78ce2f8ecf277a7b2b`
+  at digest `sha256:244b3ecc32ad291585f1de1e417a9e1408f136473de2eea18de5b84487c8dffc`:
+  all ten checks passed before/after ECR pull, and its COMPLETE OS scan had
+  CRITICAL 0 / HIGH 0. PAP adopted it, but the first Fargate simulation then
+  exposed the CPU-cache issue above. Publish and evaluate a new **production**
+  digest after the portable-cache fix is reviewed and merged; the old digest
+  and comparison tags are not replacements for that fixed image.
 - The S3 sink is verified against the S3-compatible server and SigV4 vectors;
   real S3 retention and ECS identity remain PAP #41's acceptance work.
-  The AL2023 comparison has passed native publication and ECR checks;
-  [the comparison record](batch_image_comparison.md) separates that measured
-  result from the new production publication still required after merge.
+  The production AL2023 OS admission passed; Fargate completion and retained
+  S3/rerun acceptance remain incomplete. The [comparison record](batch_image_comparison.md)
+  preserves the earlier measured base comparison without rewriting it.
 - Julia patch releases, including fixes to its bundled libraries, are not picked
   up by a rebuild; they need a change that moves CI, the Dockerfile and every
   `Manifest.toml` together. A3 is to be judged again when Julia 1.14.0 is released

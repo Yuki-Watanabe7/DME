@@ -190,6 +190,38 @@ Julia の version を上げる場合は CI・`Manifest.toml`（root / test / doc
 
 ## 改訂
 
+### 改訂 4（2026-10-04、DME #296 / PAP #41）: CPU が異なる実行先でも使える package cache
+
+**背景。** 改訂 3 は PR #302 でマージされ、main `94eadc900f10c420ea415d78ce2f8ecf277a7b2b` の
+AL2023 本番 image は全10段・ECR COMPLETE（HIGH/CRITICAL 0）を通過した。しかし PAP の初回 Fargate 実行
+`37200078980` は `/usr/local/bin/dme:3` の `using DME` で cache lock file を read-only depot へ作ろうとして
+exit 1 になった。[未加工の診断証跡](../deployment/evidence/pap41/startup-inspection.json)は再生成の試行を確認できるが、
+AWS CPU の機能や cache rejection の理由までは記録していない。
+
+旧ローカル ARM64 image は同じ CPU で load できたが、`--cpu-target=generic` で機能を制限すると
+「compatible target が無い」という rejection と同種の EROFS を再現した。
+[再現ログ](../deployment/evidence/pap41/local-cpu-cache-rejection.txt)はローカル実験であり、AWS 実測と混同しない。
+同じ build host での検証だけでは package image の CPU 互換性を保証できない。
+
+**決定。**
+
+1. build/runtime の `JULIA_CPU_TARGET` を `sysimage` にする。Julia 1.13 の
+   [公式仕様](https://docs.julialang.org/en/v1/manual/environment-variables/#JULIA_CPU_TARGET)に従い、
+   公式 system image の CPU target 群を使い、baseline と最適化 variant を同じ package cache に含める。
+   package image は loaded system image より緩い feature を使えないため、build host が選んだ target に依存する
+   `generic` だけでなく system image 全体の target を使う。runtime の JIT は host CPU を利用できる。
+   AL2023 と Debian 比較 recipe の両方を揃え、古い depot のコピーや runtime-only 設定変更で済ませない。
+2. 検証 step 7 に generic CPU の代表 CLI 2経路を追加し、`--compiled-modules=strict` で既存 cache を必須にする。
+   read-only root/depot・UID 10001・0.5 vCPU / 2 GiB を維持し、別の出力 volume で完走・manifest/hash を検証する。
+   この検査は PR の native amd64、ECR push 前、digest pull 後に共通で適用する。
+3. scan-approved の旧 digest の証跡は書き換えない。PR #303 の review/merge 後に新しい source commit の
+   immutable production image を公開し、全10段と ECR scan の成功を確認して PAP に渡す。
+   PAP 側の採用・Fargate 完走・S3 保持・再実行確認はその後に行う。現在は未完了である。
+
+CLI/model・Julia patch・AL2023 base・artifact/sink・read-only・IAM・task volume の契約は変更しない。
+`JULIA_PKG_PRECOMPILE_AUTO=0` は Pkg の自動事前コンパイルを止める設定であり、`using` の cache 再生成を禁止する設定ではない。
+書き込み可能な depot を追加して再生成を許容する方式は採らない。
+
 ### 改訂 3（2026-10-04、[#296](https://github.com/Yuki-Watanabe7/DME/issues/296)）: 実測に基づく AL2023 本番 base の選択
 
 **背景と証拠。** main `d8eba8ad11d0f490815479b7d4085165257bbf66` を PAP の ECR に公開した

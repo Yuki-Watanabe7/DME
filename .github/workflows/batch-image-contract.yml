@@ -56,6 +56,11 @@ jobs:
               local_image_id: .Id, image_size_bytes: .Size,
               platform: (.Os + "/" + .Architecture), oci_labels: .Config.Labels,
               image_contract_verification: "passed_all_10_steps",
+              package_cache_portability: {build_cpu_target: "sysimage",
+                runtime_cpu_target: "generic", compiled_modules: "strict",
+                commands: ["simulate solow --periods 120", "quality-export"],
+                readonly_root: true, cpu_limit: 0.5, memory_limit_bytes: 2147483648,
+                result: "passed"},
               publication_status: "not_published", ecr_scan: "not_run"}' > image-contract.json
       - name: Upload verification evidence
         if: always()

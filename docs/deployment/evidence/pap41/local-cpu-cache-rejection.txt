@@ -1,0 +1,67 @@
+┌ Debug: Rejecting cache file /opt/julia-depot/compiled/v1.13/DME/4Yo6D_vHVrH.ji for Base.PkgId(Base.UUID("32de5cd0-ad60-11e9-36bc-9b7c9b1e2078"), "DME"):
+│   Reasons = "Unable to find compatible target in cached code image.\nTarget 0 (generic): Rejecting this target due to use of runtime-disabled features\n"
+│   Image Targets =
+│    1-element Vector{Base.ImageTarget}:
+│     generic; flags=0; features_en=(aes, sha2, crc, lse, fullfp16, rdm, jsconv, complxnum, rcpc, ccpp, sha3, dotprod, fp16fml, dit, rcpc-immo, flagm, sb, pauth, ccdp, altnzcv, fptoint, i8mm, bf16, bti); features_dis=(UInt8[0x00, 0x00, 0x48, 0x10, 0x7a, 0x0c, 0x05, 0x00, 0x3f, 0x00, 0x00, 0x00])
+│   Current Targets =
+│    1-element Vector{Base.ImageTarget}:
+│     generic; flags=0; features_en=(); features_dis=(UInt8[0xd0, 0xf3, 0xdb, 0x7d, 0xfb, 0x6d, 0x07, 0x00, 0x3f, 0x00, 0x00, 0x00])
+└ @ Base loading.jl:4236
+ERROR: IOError: open("/opt/julia-depot/compiled/v1.13/DME/4Yo6D_gjQL8.ji.pidfile", 194, 292): read-only file system (EROFS)
+Stacktrace:
+  [1] _uv_error(prefix::String, c::Int32)
+    @ Base ./libuv.jl:114
+  [2] uv_error
+    @ ./libuv.jl:113 [inlined]
+  [3] open(path::String, flags::UInt16, mode::UInt16)
+    @ Base.Filesystem ./filesystem.jl:190
+  [4] tryopen_exclusive(path::String, mode::UInt16)
+    @ FileWatching.Pidfile /usr/local/julia/share/julia/stdlib/v1.13/FileWatching/src/pidfile.jl:219
+  [5] open_exclusive(path::String; mode::UInt16, poll_interval::Int64, wait::Bool, stale_age::Int64, refresh::Float64)
+    @ FileWatching.Pidfile /usr/local/julia/share/julia/stdlib/v1.13/FileWatching/src/pidfile.jl:246
+  [6] open_exclusive
+    @ /usr/local/julia/share/julia/stdlib/v1.13/FileWatching/src/pidfile.jl:239 [inlined]
+  [7] mkpidlock(at::String, pid::Int32; stale_age::Int64, refresh::Float64, kwopts::@Kwargs{wait::Bool})
+    @ FileWatching.Pidfile /usr/local/julia/share/julia/stdlib/v1.13/FileWatching/src/pidfile.jl:70
+  [8] mkpidlock
+    @ /usr/local/julia/share/julia/stdlib/v1.13/FileWatching/src/pidfile.jl:65 [inlined]
+  [9] mkpidlock(f::Base.var"#__require_prelocked##0#__require_prelocked##1"{Base.PkgId, String, Dict{String, Int64}, Base.RefValue{Bool}}, at::String, pid::Int32; kwopts::@Kwargs{stale_age::Int64, wait::Bool})
+    @ FileWatching.Pidfile /usr/local/julia/share/julia/stdlib/v1.13/FileWatching/src/pidfile.jl:95
+ [10] #mkpidlock#7
+    @ /usr/local/julia/share/julia/stdlib/v1.13/FileWatching/src/pidfile.jl:92 [inlined]
+ [11] trymkpidlock(::Function, ::Vararg{Any}; kwargs::@Kwargs{stale_age::Int64})
+    @ FileWatching.Pidfile /usr/local/julia/share/julia/stdlib/v1.13/FileWatching/src/pidfile.jl:118
+ [12] #invokelatest_gr#232
+    @ ./reflection.jl:1350 [inlined]
+ [13] invokelatest_gr
+    @ ./reflection.jl:1342 [inlined]
+ [14] maybe_cachefile_lock(f::Base.var"#__require_prelocked##0#__require_prelocked##1"{Base.PkgId, String, Dict{String, Int64}, Base.RefValue{Bool}}, pkg::Base.PkgId, srcpath::String; stale_age::Int64)
+    @ Base ./loading.jl:4047
+ [15] maybe_cachefile_lock
+    @ ./loading.jl:4044 [inlined]
+ [16] __require_prelocked(pkg::Base.PkgId, env::String)
+    @ Base ./loading.jl:2774
+ [17] _require_prelocked(uuidkey::Base.PkgId, env::String)
+    @ Base ./loading.jl:2610
+ [18] macro expansion
+    @ ./loading.jl:2538 [inlined]
+ [19] macro expansion
+    @ ./lock.jl:376 [inlined]
+ [20] __require(into::Module, mod::Symbol)
+    @ Base ./loading.jl:2502
+ [21] require
+    @ ./loading.jl:2478 [inlined]
+ [22] eval_import_path
+    @ ./module.jl:36 [inlined]
+ [23] eval_import_path_all(at::Module, path::Expr, keyword::String)
+    @ Base ./module.jl:60
+ [24] _eval_using(to::Module, path::Expr)
+    @ Base ./module.jl:137
+ [25] top-level scope
+    @ none:1
+ [26] eval(m::Module, e::Any)
+    @ Core ./boot.jl:489
+ [27] exec_options(opts::Base.JLOptions)
+    @ Base ./client.jl:310
+ [28] _start()
+    @ Base ./client.jl:577

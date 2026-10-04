@@ -26,7 +26,9 @@
 #   6. non-interactive: --help succeeds with stdin closed
 #   7. read-only root filesystem with only the artifact volume mounted:
 #      `simulate solow --periods 120` and `quality-export` complete without any
-#      stderr output (no runtime precompilation), and each run
+#      stderr output, on the host CPU and with a generic CPU target and strict
+#      cache loading (no runtime precompilation), within PAP's 0.5 vCPU / 2 GiB;
+#      each run
 #      manifest records the source commit and image version, matches the artifact
 #      bytes, and contains no host or container path
 #   8. exit codes: unsupported model -> 2, unwritable artifact volume -> 4
@@ -165,6 +167,8 @@ fi
 if inspect '{{range .Config.Env}}{{println .}}{{end}}' | grep -Eq '^(AWS_|[A-Z_]*(SECRET|TOKEN|PASSWORD|API_KEY)[A-Z_]*=)'; then
     fail "the image environment contains a credential-like variable"
 fi
+inspect '{{range .Config.Env}}{{println .}}{{end}}' | grep -Fxq 'JULIA_CPU_TARGET=sysimage' ||
+    fail "package caches must use the official system image's CPU targets"
 echo "labels: revision=$(label revision) version=$(label version); platform $(inspect '{{.Os}}/{{.Architecture}}')"
 
 step "3. base OS and runtime"
@@ -231,7 +235,7 @@ dme_run "$image" simulate solow --help </dev/null >/dev/null || fail "simulate -
 
 step "7. read-only root filesystem with only the artifact volume"
 artifacts="$(new_volume_dir)"
-readonly_run=(--read-only --mount "type=bind,src=$artifacts,dst=/var/lib/dme/artifacts")
+readonly_run=(--read-only --cpus 0.5 --memory 2g --mount "type=bind,src=$artifacts,dst=/var/lib/dme/artifacts")
 # A successful run writes nothing to stderr. In particular, "Precompiling" or a
 # read-only-filesystem warning would mean the image's package cache is incomplete.
 dme_run "${readonly_run[@]}" "$image" simulate solow --periods 120 </dev/null 2>"$work_dir/stderr.log"
@@ -270,6 +274,40 @@ if [[ "$revision" =~ ^[0-9a-f]{40}$ ]]; then
         fail "quality export does not record source commit $revision"
 fi
 echo "run bundles: $(jq -r .run_id "$artifacts/simulation/solow/run-manifest.json"), $(jq -r .run_id "$artifacts/quality/run-manifest.json")"
+
+# Same-host verification cannot detect builder-specific native package images.
+# Limit CPU features to the portable baseline and require the shipped caches;
+# an invalid/missing cache must fail rather than be regenerated at runtime.
+(
+    # Independent output ensures an earlier successful run cannot mask failure.
+    artifacts="$(new_volume_dir)"
+    generic_run=(--read-only --cpus 0.5 --memory 2g
+        --mount "type=bind,src=$artifacts,dst=/var/lib/dme/artifacts"
+        --entrypoint julia "$image" --startup-file=no --cpu-target=generic
+        --compiled-modules=strict /usr/local/bin/dme)
+    for command in simulate quality-export; do
+        cli_args=("$command")
+        [ "$command" != simulate ] || cli_args+=(solow --periods 120)
+        if ! dme_run "${generic_run[@]}" "${cli_args[@]}" </dev/null 2>"$work_dir/generic-stderr.log"; then
+            cat "$work_dir/generic-stderr.log" >&2
+            fail "$command could not use precompiled caches with generic CPU features"
+        fi
+        if [ -s "$work_dir/generic-stderr.log" ]; then
+            cat "$work_dir/generic-stderr.log" >&2
+            fail "$command wrote to stderr with generic CPU features"
+        fi
+    done
+    check_manifest "$artifacts/simulation/solow/run-manifest.json" "simulation/solow/simulation.json"
+    check_manifest "$artifacts/quality/run-manifest.json" "quality/quality-export.json"
+    jq -e '.variables.k | length == 120' "$artifacts/simulation/solow/simulation.json" >/dev/null ||
+        fail "generic-CPU simulation artifact does not have 120 periods"
+    if [[ "$revision" =~ ^[0-9a-f]{40}$ ]]; then
+        jq -e --arg revision "$revision" '.commit == $revision' \
+            "$artifacts/quality/quality-export.json" >/dev/null ||
+            fail "generic-CPU quality export does not record source commit $revision"
+    fi
+    echo "generic CPU, strict shipped caches, 0.5 vCPU / 2 GiB: both representative commands passed"
+)
 
 step "8. exit codes"
 set +e
