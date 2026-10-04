@@ -1,10 +1,11 @@
 # Issue #296: Debian 13 / AL2023 batch image comparison
 
-Status: native amd64 publication and comparison measured on 2026-10-04;
-the AL2023 production-base change was merged in PR #302 and published. Its OS
-scan passed, but the first PAP Fargate task failed at Julia cache loading.
-The portable-cache correction is pending review in PR #303; a replacement
-production digest and real-runtime acceptance are still required.
+Status: all six DME #296 acceptance criteria are satisfied as of 2026-10-05 JST.
+The AL2023 base selection (PR #302) and portable-cache correction (PR #303) are
+merged. The corrected production image passed publication and OS scanning, and
+PAP adopted it and verified real Fargate/S3/rerun acceptance before closing #41.
+The original blocked Debian digest and first AL2023 startup failure remain
+historical evidence; they are not the accepted production image.
 
 This record supports [DME #296](https://github.com/Yuki-Watanabe7/DME/issues/296)
 and [PAP #41](https://github.com/Yuki-Watanabe7/personal-analytics-platform/issues/41)
@@ -72,16 +73,60 @@ stopped with exit 1 before entering DME's CLI. The subsequent
 [read-only inspection](https://github.com/Yuki-Watanabe7/personal-analytics-platform/actions/runs/37208693599)
 and unchanged [inspection JSON](evidence/pap41/startup-inspection.json) show Julia
 attempting to write a cache lock file in the read-only `/opt/julia-depot`.
-The preparation container exited 0. Successful Fargate completion, retained S3
-bundles and rerun acceptance have not been verified.
+The preparation container exited 0. At that point successful Fargate completion,
+retained S3 bundles and rerun acceptance had not been verified. The corrected
+image's later acceptance is recorded below.
 
 This does not change the recorded OS scan decision `deployment_status: approved`:
 that field is the publication scan gate, not evidence of successful AWS execution.
 [PR #303](https://github.com/Yuki-Watanabe7/DME/pull/303) corrects the package-cache
 CPU targets and adds strict-cache execution with generic CPU features within
 0.5 vCPU / 2 GiB. It changes the image build and verification; it does not change
-PAP resources or start another task. Review, merge and a new production
-publication must precede PAP's next adoption and runtime acceptance.
+PAP resources or start another task. Its subsequent merge, production publication
+and PAP adoption completed the required order.
+
+### Corrected production image and completed PAP handoff (2026-10-05 JST)
+
+[PR #303](https://github.com/Yuki-Watanabe7/DME/pull/303) merged at
+`2026-10-04T21:04:45Z` (2026-10-05 06:04:45 JST), commit
+`b5bb7dfd6a4c6ffcb3235ac9658a1ade7c4026a3`. The
+[production publication 37234934566](https://github.com/Yuki-Watanabe7/DME/actions/runs/37234934566)
+used exactly that reviewed main commit. Its unchanged
+[publication JSON](evidence/issue296/native-ecr-al2023-portable-cache-production.json)
+is the final DME handoff record:
+
+| Field | Accepted production value |
+| --- | --- |
+| Image digest | `sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef` |
+| Source / OCI revision | `b5bb7dfd6a4c6ffcb3235ac9658a1ade7c4026a3` |
+| OS / Julia / glibc / platform | AL2023 / 1.13.1 / 2.34 / linux/amd64 |
+| Publication purpose / decision | production / approved |
+| Tests and all ten steps before push / after exact ECR pull | Passed / passed |
+| Generic CPU / strict shipped caches / read-only / 0.5 vCPU / 2 GiB | Both representative commands passed before and after publication |
+| Scan / completed UTC / HIGH / CRITICAL / exceptions | COMPLETE / `2026-10-04T21:33:01+00:00` / 0 / 0 / none |
+| Docker uncompressed bytes / ECR compressed image bytes | 2,505,732,345 / 737,435,667 |
+| Repository compressed image upper bound at publication | 2,869,223,600 bytes |
+
+[PAP PR #173](https://github.com/Yuki-Watanabe7/personal-analytics-platform/pull/173)
+merged at `2026-10-04T21:50:13Z`, commit
+`54259d26dcdf8319cb829b7b4ae541f7c7fd64a3`, and adopted this exact digest in
+`pap-prod-dme-sim:2`. PAP's saved execution evidence records that DME source
+commit and digest in every run. The top-level `source_sha` in these PAP records
+is the PAP workflow revision; each run's `source_commit` is DME's image source.
+
+| Real AWS verification | Workflow / unchanged saved evidence | Result |
+| --- | --- | --- |
+| `simulate solow --periods 120` | [37238436818](https://github.com/Yuki-Watanabe7/personal-analytics-platform/actions/runs/37238436818) / [simulation JSON](evidence/pap41/simulation-run.json) | STOPPED, exit 0, logs readable, S3 bundle verified |
+| `quality-export` | [37238688592](https://github.com/Yuki-Watanabe7/personal-analytics-platform/actions/runs/37238688592) / [quality JSON](evidence/pap41/quality-run.json) | STOPPED, exit 0, logs readable, S3 bundle verified |
+| Isolated manual reruns and reused ID | [37238899758](https://github.com/Yuki-Watanabe7/personal-analytics-platform/actions/runs/37238899758) / [acceptance JSON](evidence/pap41/rerun-acceptance.json) | Two distinct runs exit 0; reused ID exits 4; original bundle unchanged; running tasks 0 |
+| Adopted image and continuing-age gates | Same acceptance run / [admission JSON](evidence/pap41/runtime-image-admission.json) | All checks passed; no HIGH/CRITICAL findings or exceptions |
+
+PAP verified S3 manifest identity and artifact size/SHA-256 against the stopped
+tasks, including source, image, execution and retained VersionId. See its
+[completion record](https://github.com/Yuki-Watanabe7/personal-analytics-platform/issues/41#issuecomment-5985071464).
+PAP #41 closed as completed at `2026-10-04T22:20:16Z` (2026-10-05 07:20:16 JST).
+This documentation archive reads existing records; it does not publish another
+image, start a task, change IAM or modify canonical S3 data.
 
 ### Debian blocker findings and vendor status
 
@@ -129,8 +174,8 @@ upstream Julia security releases remain a separate maintenance obligation.
 The production choice merged in PR #302 is AL2023 minimal plus the official Julia 1.13.1
 glibc tarball. It removes all six actual OS blockers without exceptions and
 passes the same published native runtime contract. This updates ADR 0026
-revision 3. The production publication passed OS admission; the CPU-cache
-correction in revision 4 still requires review and a new production publication.
+revision 3. The CPU-cache correction in revision 4 is also merged and its new
+production publication and PAP runtime acceptance passed as recorded above.
 
 | Axis | Retained Debian baseline | AL2023 production recipe |
 | --- | --- | --- |
@@ -227,18 +272,21 @@ workflow variables.
 Comparison images consume ECR storage; PAP owns retention. Their scan
 `approved` status is evidence for base selection, not permission to deploy them.
 
-## Remaining acceptance and continuing operation
+## DME #296 acceptance and continuing operation
 
-1. The AL2023 base change was reviewed, merged and published. Review and merge
-   PR #303's portable-cache correction and regression verification next.
-2. Publish the corrected main commit as production; require `Pkg.test()`, all ten steps
-   before/after ECR pull and a COMPLETE scan with no HIGH/CRITICAL findings.
-3. Hand the new production digest, matching source commit, full A8 evidence and
-   support judgement to PAP #41. PAP then reviews admission/runtime settings and
-   verifies real ECS execution, retained S3 artifacts and safe reruns.
-4. Keep DME #296 open until the corrected production handoff exists, and PAP #41
-   open until its runtime acceptance is complete. The earlier scan-approved
-   production image failed runtime startup and does not complete that acceptance.
+| Issue criterion | Completion evidence |
+| --- | --- |
+| First COMPLETE ECR scan and actual HIGH/CRITICAL list recorded | Unchanged Debian production JSON records CRITICAL 2 / HIGH 4 and all six CVEs; comparison with historical Trivy identities is above. |
+| Available trixie vendor fixes applied by rebuild | The fresh baseline applied vendor upgrades and verified zero pending updates. No fixed trixie package existed for the remaining six blockers at the comparison; the supported alternative was selected instead. The old Debian digest remains blocked. |
+| AL2023 measured in the same PAP ECR and all ten steps | Same-source comparison JSON and both workflow records above. |
+| Base migrated or valid exceptions supplied | PR #302 migrated the production recipe to AL2023; PR #303 corrected cache portability. Both are merged; no exception was needed. |
+| Approved digest handed to PAP #41 | Corrected production JSON matches PAP #173 and all five real task records; PAP #41 completed. |
+| ADR and deployment guide updated | ADR 0026 revisions 3/4 and its completion record, this comparison, and the batch container guide retain the decision, evidence and update procedure. |
+
+The implementation and production handoff are complete. The final DME
+documentation/archival [PR #304](https://github.com/Yuki-Watanabe7/DME/pull/304)
+carries `Closes #296` for closure through the repository's normal PR workflow.
+No new image or runtime action is necessary for that documentation change.
 
 Record A9 rebuild within 90 days and rescan within 30 days of each production
 build/scan. [PAP #159](https://github.com/Yuki-Watanabe7/personal-analytics-platform/issues/159)
@@ -246,3 +294,16 @@ owns rescan automation. New HIGH/CRITICAL findings restart vendor-fix/base
 comparison review; no exception is introduced here. Runtime security releases
 require Julia, Manifests, workflow pins and tarball checksums to move together.
 OS advisories require a fresh-base rebuild and scan on a new source commit.
+
+The accepted image's [PAP admission record](evidence/pap41/runtime-image-admission.json)
+sets rescan due at `2026-11-03T21:33:01Z` (2026-11-04 06:33:01 JST) and rebuild
+due at `2027-01-02T21:32:37Z` (2027-01-03 06:32:37 JST). The rebuild age is based
+on ECR's push time, not the earlier Docker `built_at` value. These are continuing
+operation deadlines, not incomplete initial acceptance. Recheck vendor status
+on any future finding/exception review; rebuild when the chosen release has a
+fix, otherwise repeat supported-base comparison or obtain per-finding approval.
+
+PAP's 3,000,000,000-byte retained-image operating envelope had 130,776,400 bytes
+remaining at publication. It is not an ECR quota and retention is count-based;
+any additional image publication needs a fresh capacity check. PAP's runtime
+and cost follow-up is [PAP #42](https://github.com/Yuki-Watanabe7/personal-analytics-platform/issues/42).

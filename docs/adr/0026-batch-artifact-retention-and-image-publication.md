@@ -190,7 +190,34 @@ Julia の version を上げる場合は CI・`Manifest.toml`（root / test / doc
 
 ## 改訂
 
+### 完了記録（2026-10-05、DME #296 / PAP #41）: 修正版本番 image の引き渡しと実機受入
+
+改訂 3 の AL2023 移行は DME #302、改訂 4 の portable cache は DME #303 でマージ済み。
+#303 の merge commit `b5bb7dfd6a4c6ffcb3235ac9658a1ade7c4026a3` は
+`2026-10-04T21:04:45Z`（2026-10-05 06:04:45 JST）に main へ取り込まれた。
+[本番公開 37234934566](https://github.com/Yuki-Watanabe7/DME/actions/runs/37234934566)は同じ commit を使い、
+全テスト・公開前と exact ECR pull 後の全10段・generic CPU / strict cache の代表2コマンドを通過した。
+
+採用 image は `sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef`。
+[未加工の公開証跡](../deployment/evidence/issue296/native-ecr-al2023-portable-cache-production.json)は
+COMPLETE scan（HIGH/CRITICAL 0）、例外なし、production / approved を記録する。旧 Debian の blocked 記録と、
+最初の AL2023 image の起動失敗は書き換えない。
+
+PAP #173 は `2026-10-04T21:50:13Z` に merge commit `54259d26dcdf8319cb829b7b4ae541f7c7fd64a3` で
+マージされ、この digest を `pap-prod-dme-sim:2` に採用した。実 Fargate の simulation / quality-export は exit 0、
+S3 manifest と全 artifact の hash/identity は一致した。2つの別 ID の再実行は成功し、ID 再利用は exit 4、元 bundle は不変、
+終了後 running task は0。PAP #41 は `2026-10-04T22:20:16Z` に completed で Close 済み。
+[比較・完了記録](../deployment/batch_image_comparison.md)と保存した PAP JSON に DME #296 の6条件の対応を示す。
+この記録は本番引き渡し完了後の文書更新であり、実装・本番 image 公開・PAP 引き渡しは完了している。
+
+継続運用は rescan 期限 `2026-11-03T21:33:01Z`、rebuild 期限 `2027-01-02T21:32:37Z` を維持する。
+期限は保存した PAP admission の ECR scan/push 時刻を基準とし、Docker の `built_at` と混同しない。
+追加 image 公開前に容量を再確認する。PAP #159 の rescan 自動化、PAP #42 の運用観測は継続課題であり、
+初回引き渡しの未完了条件ではない。この完了記録は新 image・RunTask・IAM・S3 の変更を伴わない。
+
 ### 改訂 4（2026-10-04、DME #296 / PAP #41）: CPU が異なる実行先でも使える package cache
+
+以下の「未完了」は改訂時点の記録。上の完了記録が現状を示す。
 
 **背景。** 改訂 3 は PR #302 でマージされ、main `94eadc900f10c420ea415d78ce2f8ecf277a7b2b` の
 AL2023 本番 image は全10段・ECR COMPLETE（HIGH/CRITICAL 0）を通過した。しかし PAP の初回 Fargate 実行
