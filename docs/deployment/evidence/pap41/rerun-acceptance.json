@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "source_sha": "54259d26dcdf8319cb829b7b4ae541f7c7fd64a3",
+  "mode": "acceptance",
+  "runs": [
+    {
+      "task_arn": "arn:aws:ecs:ap-northeast-1:867965242179:task/pap-prod-edp-cluster/ad1e1bde59244bf4b757a16121a246cd",
+      "task_definition": "arn:aws:ecs:ap-northeast-1:867965242179:task-definition/pap-prod-dme-sim:2",
+      "status": "STOPPED",
+      "started_at": "2026-10-04T22:10:35.126000+00:00",
+      "stopped_at": "2026-10-04T22:11:16.771000+00:00",
+      "stop_code": "EssentialContainerExited",
+      "stopped_reason": "Essential container in task exited",
+      "exit_code": 0,
+      "image": "867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme@sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef",
+      "image_digest": "sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef",
+      "source_commit": "b5bb7dfd6a4c6ffcb3235ac9658a1ade7c4026a3",
+      "log_stream": "run/dme-simulation/ad1e1bde59244bf4b757a16121a246cd",
+      "logs_readable": true,
+      "artifact_verified": true,
+      "manifest_key": "dme/runs/ad1e1bde59244bf4b757a16121a246cd/simulation/solow/run-manifest.json",
+      "manifest_version": ".zFIwOEhoEDnA2L6hCeBmOgdbYsxC3ql"
+    },
+    {
+      "task_arn": "arn:aws:ecs:ap-northeast-1:867965242179:task/pap-prod-edp-cluster/43347bee6d7d4a8b9916edd780b357e4",
+      "task_definition": "arn:aws:ecs:ap-northeast-1:867965242179:task-definition/pap-prod-dme-sim:2",
+      "status": "STOPPED",
+      "started_at": "2026-10-04T22:12:13.284000+00:00",
+      "stopped_at": "2026-10-04T22:12:58.062000+00:00",
+      "stop_code": "EssentialContainerExited",
+      "stopped_reason": "Essential container in task exited",
+      "exit_code": 0,
+      "image": "867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme@sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef",
+      "image_digest": "sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef",
+      "source_commit": "b5bb7dfd6a4c6ffcb3235ac9658a1ade7c4026a3",
+      "log_stream": "run/dme-simulation/43347bee6d7d4a8b9916edd780b357e4",
+      "logs_readable": true,
+      "artifact_verified": true,
+      "manifest_key": "dme/runs/43347bee6d7d4a8b9916edd780b357e4/simulation/solow/run-manifest.json",
+      "manifest_version": "OiDUxBkAv8qKhwo_3gJGtcNCDp0p49kr"
+    },
+    {
+      "task_arn": "arn:aws:ecs:ap-northeast-1:867965242179:task/pap-prod-edp-cluster/f2d0d41ba1084e658ed002bfbe257732",
+      "task_definition": "arn:aws:ecs:ap-northeast-1:867965242179:task-definition/pap-prod-dme-sim:2",
+      "status": "STOPPED",
+      "started_at": "2026-10-04T22:13:48.460000+00:00",
+      "stopped_at": "2026-10-04T22:14:34.514000+00:00",
+      "stop_code": "EssentialContainerExited",
+      "stopped_reason": "Essential container in task exited",
+      "exit_code": 4,
+      "image": "867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme@sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef",
+      "image_digest": "sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef",
+      "source_commit": "b5bb7dfd6a4c6ffcb3235ac9658a1ade7c4026a3",
+      "log_stream": "run/dme-simulation/f2d0d41ba1084e658ed002bfbe257732",
+      "logs_readable": true
+    }
+  ],
+  "manual_rerun_isolated": true,
+  "reused_id_rejected": true,
+  "original_bundle_unchanged": true,
+  "running_tasks": 0
+}

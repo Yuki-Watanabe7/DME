@@ -1,0 +1,81 @@
+{
+  "generated_at": "2026-10-04T22:09:49Z",
+  "source_sha": "54259d26dcdf8319cb829b7b4ae541f7c7fd64a3",
+  "mode": "check",
+  "overall_status": "pass",
+  "results": [
+    {
+      "workload": "dme",
+      "digest": "sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef",
+      "scan_target_digest": "sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef",
+      "status": "pass",
+      "checks": [
+        {
+          "id": "admission_entry",
+          "ok": true,
+          "detail": "aws/desired-state/image-admission.json names this workload"
+        },
+        {
+          "id": "entry_matches_desired_state",
+          "ok": true,
+          "detail": "the admission entry is for the digest the desired state pins"
+        },
+        {
+          "id": "evaluation_matches_desired_state",
+          "ok": true,
+          "detail": "the admission entry's evaluation_url equals the desired state's image_scan_evaluation_run_url"
+        },
+        {
+          "id": "a1_image_exists",
+          "ok": true,
+          "detail": "the pinned digest still exists in ECR"
+        },
+        {
+          "id": "a1_source_commit_tag",
+          "ok": true,
+          "detail": "the pinned digest carries its source-commit tag"
+        },
+        {
+          "id": "a1_lifecycle_retains_pin",
+          "ok": true,
+          "detail": "a count-1 rule matching only the source-commit tag precedes every other tagged-image rule"
+        },
+        {
+          "id": "a9_rebuild_age",
+          "ok": true,
+          "detail": "the image was pushed at most 90 days ago"
+        },
+        {
+          "id": "a7_scan_complete",
+          "ok": true,
+          "detail": "the scan of record is COMPLETE"
+        },
+        {
+          "id": "a9_scan_age",
+          "ok": true,
+          "detail": "the scan of record completed at most 30 days ago"
+        },
+        {
+          "id": "a7_exceptions_valid",
+          "ok": true,
+          "detail": "every recorded exception is well-formed, approved, unexpired, and within its severity and rebuild limits"
+        },
+        {
+          "id": "a7_findings_covered",
+          "ok": true,
+          "detail": "every HIGH/CRITICAL finding is covered by a valid exception"
+        },
+        {
+          "id": "a8_evaluation_recorded",
+          "ok": true,
+          "detail": "the admission entry links the evaluation of this digest"
+        }
+      ],
+      "critical_high": [],
+      "uncovered": [],
+      "rebuild_due": "2027-01-02T21:32:37Z",
+      "scan_due": "2026-11-03T21:33:01Z",
+      "transition_ends": null
+    }
+  ]
+}

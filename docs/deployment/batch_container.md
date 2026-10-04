@@ -102,6 +102,10 @@ and `--compiled-modules=strict`, which requires existing precompiled files
 The checks retain read-only root/depot and PAP's 0.5 vCPU / 2 GiB budget.
 The fix preserves the read-only depot and existing task volumes and permissions.
 These image checks do not replace real Fargate/S3/rerun acceptance in PAP.
+The correction was merged in PR #303, then published and accepted by PAP #41.
+The [completed handoff](batch_image_comparison.md#corrected-production-image-and-completed-pap-handoff-2026-10-05-jst)
+preserves the corrected production digest and real-runtime evidence separately
+from the first failed image.
 
 ## Writable paths
 
@@ -319,6 +323,16 @@ The stable CLI exit codes keep their meaning (`0` success, `2` input, `3` model,
 `4` artifact or sink, `1` unexpected; `143`/`137` stopped); PAP maps them for
 reporting only.
 
+The initial handoff is complete as of 2026-10-05 JST. PAP #173 adopted DME source
+`b5bb7dfd6a4c6ffcb3235ac9658a1ade7c4026a3`, digest
+`sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef`,
+in `pap-prod-dme-sim:2`. Both representative CLI commands succeeded in Fargate;
+PAP verified retained S3 bundles and isolated reruns, reused-ID refusal without
+overwriting, and zero running tasks afterward. See the
+[comparison and completion record](batch_image_comparison.md) for the unchanged
+publication, execution and admission JSON. The task definition remains non-root
+with read-only root and the same two writable volumes.
+
 ## Representative resource profile
 
 Measured on 2026-09-30 with the Julia 1.12.6 image built from this Dockerfile on
@@ -362,14 +376,20 @@ not used for admission.
   at digest `sha256:244b3ecc32ad291585f1de1e417a9e1408f136473de2eea18de5b84487c8dffc`:
   all ten checks passed before/after ECR pull, and its COMPLETE OS scan had
   CRITICAL 0 / HIGH 0. PAP adopted it, but the first Fargate simulation then
-  exposed the CPU-cache issue above. Publish and evaluate a new **production**
-  digest after the portable-cache fix is reviewed and merged; the old digest
-  and comparison tags are not replacements for that fixed image.
-- The S3 sink is verified against the S3-compatible server and SigV4 vectors;
-  real S3 retention and ECS identity remain PAP #41's acceptance work.
-  The production AL2023 OS admission passed; Fargate completion and retained
-  S3/rerun acceptance remain incomplete. The [comparison record](batch_image_comparison.md)
-  preserves the earlier measured base comparison without rewriting it.
+  exposed the CPU-cache issue above. The corrected source `b5bb7dfd6a4c6ffcb3235ac9658a1ade7c4026a3`
+  was subsequently [published and accepted](batch_image_comparison.md) at digest
+  `sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef`.
+  Its COMPLETE OS scan has HIGH/CRITICAL 0, with no exceptions. The old digest
+  and comparison tags remain historical records rather than adoption inputs.
+- PAP #41's real Fargate, retained S3 and rerun acceptance is complete for the
+  two representative commands. This does not establish AWS execution of every
+  DME model or optional live-provider path. Future runs and image updates must
+  continue to pass PAP's admission and operating limits; follow-up is PAP #42.
+- The accepted image's scan is due again by 2026-11-04 06:33:01 JST and its
+  rebuild by 2027-01-03 06:32:37 JST. At publication the repository's compressed
+  upper bound was 2,869,223,600 bytes against PAP's 3,000,000,000-byte operating
+  envelope; check current capacity before any additional publication. This
+  documentation change does not require a rebuild.
 - Julia patch releases, including fixes to its bundled libraries, are not picked
   up by a rebuild; they need a change that moves CI, the Dockerfile and every
   `Manifest.toml` together. A3 is to be judged again when Julia 1.14.0 is released
