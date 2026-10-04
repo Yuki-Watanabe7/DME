@@ -208,7 +208,7 @@ PAP #173 は `2026-10-04T21:50:13Z` に merge commit `54259d26dcdf8319cb829b7b4a
 S3 manifest と全 artifact の hash/identity は一致した。2つの別 ID の再実行は成功し、ID 再利用は exit 4、元 bundle は不変、
 終了後 running task は0。PAP #41 は `2026-10-04T22:20:16Z` に completed で Close 済み。
 [比較・完了記録](../deployment/batch_image_comparison.md)と保存した PAP JSON に DME #296 の6条件の対応を示す。
-現在の残件はこの完了記録の公開であり、実装・本番 image 公開・PAP 引き渡しは完了している。
+この記録は本番引き渡し完了後の文書更新であり、実装・本番 image 公開・PAP 引き渡しは完了している。
 
 継続運用は rescan 期限 `2026-11-03T21:33:01Z`、rebuild 期限 `2027-01-02T21:32:37Z` を維持する。
 期限は保存した PAP admission の ECR scan/push 時刻を基準とし、Docker の `built_at` と混同しない。

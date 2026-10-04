@@ -283,10 +283,10 @@ Comparison images consume ECR storage; PAP owns retention. Their scan
 | Approved digest handed to PAP #41 | Corrected production JSON matches PAP #173 and all five real task records; PAP #41 completed. |
 | ADR and deployment guide updated | ADR 0026 revisions 3/4 and its completion record, this comparison, and the batch container guide retain the decision, evidence and update procedure. |
 
-The implementation and production handoff are complete. Merge the final DME
-documentation/archival PR carrying `Closes #296` to close the issue through the
-repository's normal PR workflow. No new image or runtime action is necessary
-for that documentation change.
+The implementation and production handoff are complete. The final DME
+documentation/archival [PR #304](https://github.com/Yuki-Watanabe7/DME/pull/304)
+carries `Closes #296` for closure through the repository's normal PR workflow.
+No new image or runtime action is necessary for that documentation change.
 
 Record A9 rebuild within 90 days and rescan within 30 days of each production
 build/scan. [PAP #159](https://github.com/Yuki-Watanabe7/personal-analytics-platform/issues/159)
