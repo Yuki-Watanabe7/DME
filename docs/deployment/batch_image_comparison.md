@@ -1,8 +1,10 @@
 # Issue #296: Debian 13 / AL2023 batch image comparison
 
 Status: native amd64 publication and comparison measured on 2026-10-04;
-AL2023 production-base change is proposed for review. A new production digest
-from the merged change is still required. No DME ECS task has been started.
+the AL2023 production-base change was merged in PR #302 and published. Its OS
+scan passed, but the first PAP Fargate task failed at Julia cache loading.
+The portable-cache correction is pending review in PR #303; a replacement
+production digest and real-runtime acceptance are still required.
 
 This record supports [DME #296](https://github.com/Yuki-Watanabe7/DME/issues/296)
 and [PAP #41](https://github.com/Yuki-Watanabe7/personal-analytics-platform/issues/41)
@@ -50,6 +52,37 @@ and `ecr_repository_image_bytes_upper_bound` from ECR DescribeImages. The latter
 sums compressed image sizes and can count shared layers more than once. It is
 conservative storage evidence, not a quota or a precise billed-usage total.
 
+### AL2023 production publication and PAP startup failure
+
+[PR #302](https://github.com/Yuki-Watanabe7/DME/pull/302) merged at
+`2026-10-04T09:53:51Z`, commit `94eadc900f10c420ea415d78ce2f8ecf277a7b2b`.
+[Production run 37193760806](https://github.com/Yuki-Watanabe7/DME/actions/runs/37193760806)
+published that commit at
+`sha256:244b3ecc32ad291585f1de1e417a9e1408f136473de2eea18de5b84487c8dffc`.
+The unchanged [production evidence](evidence/issue296/native-ecr-al2023-production.json)
+records all ten checks before push and after exact-digest pull, Julia 1.13.1,
+AL2023, a COMPLETE scan at `2026-10-04T10:26:21+00:00`, and no findings or
+exceptions. ECR reports 710,927,717 compressed image bytes and a 2,131,787,933-byte
+repository upper bound at publication time; neither value is a current quota.
+
+PAP adopted this production digest through
+[merged PR #171](https://github.com/Yuki-Watanabe7/personal-analytics-platform/pull/171).
+Its [first simulation](https://github.com/Yuki-Watanabe7/personal-analytics-platform/actions/runs/37200078980)
+stopped with exit 1 before entering DME's CLI. The subsequent
+[read-only inspection](https://github.com/Yuki-Watanabe7/personal-analytics-platform/actions/runs/37208693599)
+and unchanged [inspection JSON](evidence/pap41/startup-inspection.json) show Julia
+attempting to write a cache lock file in the read-only `/opt/julia-depot`.
+The preparation container exited 0. Successful Fargate completion, retained S3
+bundles and rerun acceptance have not been verified.
+
+This does not change the recorded OS scan decision `deployment_status: approved`:
+that field is the publication scan gate, not evidence of successful AWS execution.
+[PR #303](https://github.com/Yuki-Watanabe7/DME/pull/303) corrects the package-cache
+CPU targets and adds strict-cache execution with generic CPU features within
+0.5 vCPU / 2 GiB. It changes the image build and verification; it does not change
+PAP resources or start another task. Review, merge and a new production
+publication must precede PAP's next adoption and runtime acceptance.
+
 ### Debian blocker findings and vendor status
 
 The fresh native build installed four vendor package upgrades and the verifier
@@ -93,10 +126,11 @@ upstream Julia security releases remain a separate maintenance obligation.
 
 ## Base selection and maintenance
 
-The proposed production choice is AL2023 minimal plus the official Julia 1.13.1
+The production choice merged in PR #302 is AL2023 minimal plus the official Julia 1.13.1
 glibc tarball. It removes all six actual OS blockers without exceptions and
 passes the same published native runtime contract. This updates ADR 0026
-revision 3; deployment still requires a new production publication after merge.
+revision 3. The production publication passed OS admission; the CPU-cache
+correction in revision 4 still requires review and a new production publication.
 
 | Axis | Retained Debian baseline | AL2023 production recipe |
 | --- | --- | --- |
@@ -111,7 +145,7 @@ revision 3; deployment still requires a new production publication after merge.
 
 The original AL2023 candidate remains under `experiments/issue296/` as the
 historical comparison recipe. Future AL2023 production/comparison runs both use
-the root Dockerfile so the comparison cannot drift from the proposed production
+the root Dockerfile so the comparison cannot drift from the production
 recipe. The Debian baseline remains independently reproducible.
 
 Checksums come from [Julia's official release checksum list](https://julialang-s3.julialang.org/bin/checksums/julia-1.13.1.sha256).
@@ -139,7 +173,8 @@ scripts/verify_batch_container.sh --image dme-batch:compare-al2023 \
 Step 3 verifies the expected OS, Manifest Julia patch, no pending vendor updates,
 glibc and certificate-verified Downloads.jl HTTPS under read-only root with `/tmp`
 scratch. Steps 4–10 retain UID/GID 10001, root-owned code/depot, shell/ownership
-tools, non-interactive CLI, read-only simulation/quality export, exit codes,
+tools, non-interactive CLI, read-only simulation/quality export (including
+generic CPU features with strict existing-cache loading), exit codes,
 conditional S3 writes, duplicate refusal and SIGTERM/SIGKILL behavior.
 
 `microdnf` lacks `dnf check-update`: the verifier snapshots RPM inventory,
@@ -194,15 +229,16 @@ Comparison images consume ECR storage; PAP owns retention. Their scan
 
 ## Remaining acceptance and continuing operation
 
-1. Review and merge the AL2023 production recipe/workflow/ADR change together.
-2. Publish the new main commit as production; require `Pkg.test()`, all ten steps
+1. The AL2023 base change was reviewed, merged and published. Review and merge
+   PR #303's portable-cache correction and regression verification next.
+2. Publish the corrected main commit as production; require `Pkg.test()`, all ten steps
    before/after ECR pull and a COMPLETE scan with no HIGH/CRITICAL findings.
 3. Hand the new production digest, matching source commit, full A8 evidence and
    support judgement to PAP #41. PAP then reviews admission/runtime settings and
    verifies real ECS execution, retained S3 artifacts and safe reruns.
-4. Keep DME #296 open until the production handoff exists, and PAP #41 open until
-   its runtime acceptance is complete. The measured comparison does not complete
-   either issue.
+4. Keep DME #296 open until the corrected production handoff exists, and PAP #41
+   open until its runtime acceptance is complete. The earlier scan-approved
+   production image failed runtime startup and does not complete that acceptance.
 
 Record A9 rebuild within 90 days and rescan within 30 days of each production
 build/scan. [PAP #159](https://github.com/Yuki-Watanabe7/personal-analytics-platform/issues/159)

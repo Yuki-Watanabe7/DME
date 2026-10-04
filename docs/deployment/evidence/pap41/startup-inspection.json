@@ -1,0 +1,264 @@
+{
+  "schema_version": 1,
+  "inspection_source_sha": "7d088e8525217f6dff3a1ec4afa18c84fc1e85ac",
+  "execution_source_sha": "7c3cbac7a93a9c955e0e1590c5c575d72fe20aba",
+  "task": {
+    "task_arn": "arn:aws:ecs:ap-northeast-1:867965242179:task/pap-prod-edp-cluster/790edd6ecbf64a9d979d9a1a43824211",
+    "task_definition": "arn:aws:ecs:ap-northeast-1:867965242179:task-definition/pap-prod-dme-sim:1",
+    "status": "STOPPED",
+    "started_at": "2026-10-04T11:51:52.678000+00:00",
+    "stopped_at": "2026-10-04T11:52:30.025000+00:00",
+    "stop_code": "EssentialContainerExited",
+    "stopped_reason": "Essential container in task exited",
+    "exit_code": 1,
+    "image": "867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme@sha256:244b3ecc32ad291585f1de1e417a9e1408f136473de2eea18de5b84487c8dffc",
+    "image_digest": "sha256:244b3ecc32ad291585f1de1e417a9e1408f136473de2eea18de5b84487c8dffc",
+    "source_commit": "94eadc900f10c420ea415d78ce2f8ecf277a7b2b",
+    "log_stream": "run/dme-simulation/790edd6ecbf64a9d979d9a1a43824211",
+    "logs_readable": true,
+    "execution_source_sha": "7c3cbac7a93a9c955e0e1590c5c575d72fe20aba"
+  },
+  "log_group": "/aws/ecs/pap-prod-dme-sim",
+  "log_stream": "run/dme-simulation/790edd6ecbf64a9d979d9a1a43824211",
+  "log_selection": "latest",
+  "log_event_limit": 200,
+  "logs_readable": true,
+  "events": [
+    {
+      "timestamp": 1791114715494,
+      "message": "ERROR: LoadError: IOError: open(\"/opt/julia-depot/compiled/v1.13/DME/4Yo6D_rh72N.ji.pidfile\", 194, 292): read-only file system (EROFS)"
+    },
+    {
+      "timestamp": 1791114715495,
+      "message": "Stacktrace:"
+    },
+    {
+      "timestamp": 1791114715521,
+      "message": "  [1] _uv_error(prefix::String, c::Int32)"
+    },
+    {
+      "timestamp": 1791114715521,
+      "message": "    @ Base ./libuv.jl:114"
+    },
+    {
+      "timestamp": 1791114715521,
+      "message": "  [2] uv_error"
+    },
+    {
+      "timestamp": 1791114715521,
+      "message": "    @ ./libuv.jl:113 [inlined]"
+    },
+    {
+      "timestamp": 1791114715522,
+      "message": "  [3] open(path::String, flags::UInt16, mode::UInt16)"
+    },
+    {
+      "timestamp": 1791114715522,
+      "message": "    @ Base.Filesystem ./filesystem.jl:190"
+    },
+    {
+      "timestamp": 1791114715522,
+      "message": "  [4] tryopen_exclusive(path::String, mode::UInt16)"
+    },
+    {
+      "timestamp": 1791114715522,
+      "message": "    @ FileWatching.Pidfile /usr/local/julia/share/julia/stdlib/v1.13/FileWatching/src/pidfile.jl:219"
+    },
+    {
+      "timestamp": 1791114715522,
+      "message": "  [5] open_exclusive(path::String; mode::UInt16, poll_interval::Int64, wait::Bool, stale_age::Int64, refresh::Float64)"
+    },
+    {
+      "timestamp": 1791114715522,
+      "message": "    @ FileWatching.Pidfile /usr/local/julia/share/julia/stdlib/v1.13/FileWatching/src/pidfile.jl:246"
+    },
+    {
+      "timestamp": 1791114715522,
+      "message": "  [6] open_exclusive"
+    },
+    {
+      "timestamp": 1791114715522,
+      "message": "    @ /usr/local/julia/share/julia/stdlib/v1.13/FileWatching/src/pidfile.jl:239 [inlined]"
+    },
+    {
+      "timestamp": 1791114715529,
+      "message": "  [7] mkpidlock(at::String, pid::Int32; stale_age::Int64, refresh::Float64, kwopts::@Kwargs{wait::Bool})"
+    },
+    {
+      "timestamp": 1791114715529,
+      "message": "    @ FileWatching.Pidfile /usr/local/julia/share/julia/stdlib/v1.13/FileWatching/src/pidfile.jl:70"
+    },
+    {
+      "timestamp": 1791114715529,
+      "message": "  [8] mkpidlock"
+    },
+    {
+      "timestamp": 1791114715529,
+      "message": "    @ /usr/local/julia/share/julia/stdlib/v1.13/FileWatching/src/pidfile.jl:65 [inlined]"
+    },
+    {
+      "timestamp": 1791114715539,
+      "message": "  [9] mkpidlock(f::Base.var\"#__require_prelocked##0#__require_prelocked##1\"{Base.PkgId, String, Dict{String, Int64}, Base.RefValue{Bool}}, at::String, pid::Int32; kwopts::@Kwargs{stale_age::Int64, wait::Bool})"
+    },
+    {
+      "timestamp": 1791114715592,
+      "message": "    @ FileWatching.Pidfile /usr/local/julia/share/julia/stdlib/v1.13/FileWatching/src/pidfile.jl:95"
+    },
+    {
+      "timestamp": 1791114715592,
+      "message": " [10] #mkpidlock#7"
+    },
+    {
+      "timestamp": 1791114715593,
+      "message": "    @ /usr/local/julia/share/julia/stdlib/v1.13/FileWatching/src/pidfile.jl:92 [inlined]"
+    },
+    {
+      "timestamp": 1791114715611,
+      "message": " [11] trymkpidlock(::Function, ::Vararg{Any}; kwargs::@Kwargs{stale_age::Int64})"
+    },
+    {
+      "timestamp": 1791114715611,
+      "message": "    @ FileWatching.Pidfile /usr/local/julia/share/julia/stdlib/v1.13/FileWatching/src/pidfile.jl:118"
+    },
+    {
+      "timestamp": 1791114715611,
+      "message": " [12] #invokelatest_gr#232"
+    },
+    {
+      "timestamp": 1791114715611,
+      "message": "    @ ./reflection.jl:1350 [inlined]"
+    },
+    {
+      "timestamp": 1791114715611,
+      "message": " [13] invokelatest_gr"
+    },
+    {
+      "timestamp": 1791114715611,
+      "message": "    @ ./reflection.jl:1342 [inlined]"
+    },
+    {
+      "timestamp": 1791114715612,
+      "message": " [14] maybe_cachefile_lock(f::Base.var\"#__require_prelocked##0#__require_prelocked##1\"{Base.PkgId, String, Dict{String, Int64}, Base.RefValue{Bool}}, pkg::Base.PkgId, srcpath::String; stale_age::Int64)"
+    },
+    {
+      "timestamp": 1791114715612,
+      "message": "    @ Base ./loading.jl:4047"
+    },
+    {
+      "timestamp": 1791114715612,
+      "message": " [15] maybe_cachefile_lock"
+    },
+    {
+      "timestamp": 1791114715612,
+      "message": "    @ ./loading.jl:4044 [inlined]"
+    },
+    {
+      "timestamp": 1791114715612,
+      "message": " [16] __require_prelocked(pkg::Base.PkgId, env::String)"
+    },
+    {
+      "timestamp": 1791114715612,
+      "message": "    @ Base ./loading.jl:2774"
+    },
+    {
+      "timestamp": 1791114715612,
+      "message": " [17] _require_prelocked(uuidkey::Base.PkgId, env::String)"
+    },
+    {
+      "timestamp": 1791114715612,
+      "message": "    @ Base ./loading.jl:2610"
+    },
+    {
+      "timestamp": 1791114715612,
+      "message": " [18] macro expansion"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": "    @ ./loading.jl:2538 [inlined]"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": " [19] macro expansion"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": "    @ ./lock.jl:376 [inlined]"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": " [20] __require(into::Module, mod::Symbol)"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": "    @ Base ./loading.jl:2502"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": " [21] require"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": "    @ ./loading.jl:2478 [inlined]"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": " [22] eval_import_path"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": "    @ ./module.jl:36 [inlined]"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": " [23] eval_import_path_all(at::Module, path::Expr, keyword::String)"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": "    @ Base ./module.jl:60"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": " [24] _eval_using(to::Module, path::Expr)"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": "    @ Base ./module.jl:137"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": " [25] top-level scope"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": "    @ /usr/local/bin/dme:3"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": " [26] include(mod::Module, _path::String)"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": "    @ Base ./Base.jl:309"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": " [27] exec_options(opts::Base.JLOptions)"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": "    @ Base ./client.jl:344"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": " [28] _start()"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": "    @ Base ./client.jl:577"
+    },
+    {
+      "timestamp": 1791114715613,
+      "message": "in expression starting at /usr/local/bin/dme:3"
+    }
+  ]
+}

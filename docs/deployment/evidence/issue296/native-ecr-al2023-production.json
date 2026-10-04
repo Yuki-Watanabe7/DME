@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "workload": "dme-batch",
+  "publication_status": "published",
+  "publication_purpose": "production",
+  "deployment_status": "approved",
+  "source_commit": "94eadc900f10c420ea415d78ce2f8ecf277a7b2b",
+  "image_tag": "867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme:94eadc900f10c420ea415d78ce2f8ecf277a7b2b",
+  "image_digest": "sha256:244b3ecc32ad291585f1de1e417a9e1408f136473de2eea18de5b84487c8dffc",
+  "image_reference": "867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme@sha256:244b3ecc32ad291585f1de1e417a9e1408f136473de2eea18de5b84487c8dffc",
+  "image_manifest_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+  "platform": "linux/amd64",
+  "oci_labels": {
+    "source": "https://github.com/Yuki-Watanabe7/DME",
+    "revision": "94eadc900f10c420ea415d78ce2f8ecf277a7b2b",
+    "version": "0.1.0+94eadc900f10"
+  },
+  "base_images": [
+    {
+      "reference": "public.ecr.aws/amazonlinux/amazonlinux:2023-minimal",
+      "resolved_digest": "public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:5c546c873970e79e5c9152cd9c8a9c7013824352bc89071d21feb15ad68496aa"
+    }
+  ],
+  "os_release": "Amazon Linux 2023.12.20260930",
+  "glibc": "glibc 2.34",
+  "image_size_bytes": 2390002927,
+  "ecr_image_size_bytes": 710927717,
+  "ecr_repository_image_bytes_upper_bound": 2131787933,
+  "runtime": {
+    "name": "julia",
+    "version": "1.13.1",
+    "bundled_libraries": {
+      "LibCURL_jll": "8.18.0+1",
+      "LibGit2_jll": "1.9.1+0",
+      "LibSSH2_jll": "1.11.104+0",
+      "OpenSSL_jll": "3.5.6+0",
+      "Zlib_jll": "1.3.1+2"
+    },
+    "not_scanned_by_ecr_basic": true
+  },
+  "built_at": "2026-10-04T10:23:22.153227777Z",
+  "workflow_run_url": "https://github.com/Yuki-Watanabe7/DME/actions/runs/37193760806",
+  "workflow_run_attempt": "1",
+  "image_contract_verification": {
+    "before_push": "passed",
+    "after_ecr_pull": "passed"
+  },
+  "scan": {
+    "status": "COMPLETE",
+    "severity_counts": {},
+    "blocker_findings": [],
+    "reason": "COMPLETE ECR scan with no HIGH or CRITICAL findings.",
+    "completed_at": "2026-10-04T10:26:21+00:00",
+    "vulnerability_source_updated_at": "2026-10-04T10:26:21+00:00",
+    "findings_command": "aws ecr describe-image-scan-findings --repository-name dme --image-id imageDigest=sha256:244b3ecc32ad291585f1de1e417a9e1408f136473de2eea18de5b84487c8dffc --region ap-northeast-1"
+  },
+  "exceptions": []
+}

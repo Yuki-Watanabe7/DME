@@ -30,9 +30,11 @@ RUN microdnf install -y tar gzip \
 
 # The builder and Fargate need not expose the same CPU features. Package images
 # must be portable or Julia will try to regenerate them in the read-only depot.
-# This controls disk caches; runtime JIT still uses the host CPU.
+# Match every target of Julia's official system image (including its baseline),
+# rather than only the CI builder's selected target. This controls disk caches;
+# runtime JIT still uses the host CPU.
 ENV PATH=/usr/local/julia/bin:$PATH \
-    JULIA_CPU_TARGET=generic
+    JULIA_CPU_TARGET=sysimage
 
 FROM julia-base AS build
 ENV JULIA_DEPOT_PATH=/opt/julia-depot \

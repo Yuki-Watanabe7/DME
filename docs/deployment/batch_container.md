@@ -19,7 +19,7 @@ ADR 0017). The decisions behind this guide are
 | Base image (PAP ADR 0017 Julia profile, §4 step 2) | `public.ecr.aws/amazonlinux/amazonlinux:2023-minimal` plus the official Julia `1.13.1` glibc tarball, verified with reviewed SHA-256 checksums. Build and runtime inherit the same Julia base. Julia matches CI and every `Manifest.toml`; the verifier rejects a mismatch. See [the measured comparison](batch_image_comparison.md) and ADR 0026 revision 3. |
 | OS updates (A5) | Both the Julia base and runtime stage run `microdnf upgrade` against AL2023's own repositories on a freshly pulled base. A rebuild is the fix path for an OS finding. |
 | Julia and package reproducibility | The root `Project.toml` plus tracked `Manifest.toml` are copied before `Pkg.instantiate()`. |
-| No startup dependency resolution | Packages are installed and precompiled at build time with portable `JULIA_CPU_TARGET=generic` caches; `JULIA_PKG_PRECOMPILE_AUTO=0` at runtime. The verifier requires shipped caches to load on a generic CPU without writing the depot. |
+| No startup dependency resolution | Packages are installed and precompiled at build time with `JULIA_CPU_TARGET=sysimage`, matching all CPU targets of the official Julia system image; `JULIA_PKG_PRECOMPILE_AUTO=0` at runtime. The verifier requires shipped caches to load with generic CPU features without writing the depot (ADR 0026 revision 4). |
 | Process identity | UID/GID `10001` (`dme`), never root. |
 | Read-only code | `/opt/dme` (project and source) and `/opt/julia-depot` are owned by root; the runtime user cannot modify them even when the root filesystem is writable. |
 | Writable paths | See [Writable paths](#writable-paths): the artifact volume, plus `/tmp` for runs that make HTTP calls. |
@@ -76,9 +76,20 @@ The old image loaded on its build host, but forcing a generic CPU reproduced the
 same cache regeneration failure locally. Its build had no portable CPU target;
 same-host container verification did not cover CPU differences on Fargate.
 
-Both recipes now set `JULIA_CPU_TARGET=generic` before build-time package loading
-and at runtime. Julia documents that this setting controls native code written
-to disk caches, while the in-memory JIT can still use the host's CPU features
+The AWS log confirms attempted cache regeneration, but does not record why the
+cache was rejected or the Fargate host's CPU features. CPU incompatibility is the
+locally reproduced explanation, not a measured identity of the AWS CPU.
+The unchanged [inspection evidence](evidence/pap41/startup-inspection.json) and
+[local cache rejection log](evidence/pap41/local-cpu-cache-rejection.txt) retain
+that distinction.
+
+Both recipes now set `JULIA_CPU_TARGET=sysimage` before build-time package loading
+and at runtime. Julia 1.13 replaces `sysimage` with the official system image's
+CPU target list, so package caches include its portable baseline and optimized
+variants. A package image cannot be less specific than its loaded system image;
+setting only `generic` can still inherit the build host's selected system-image
+features. This setting controls native code written to disk caches, while the
+in-memory JIT can still use the host's CPU features
 ([Julia environment variables](https://docs.julialang.org/en/v1/manual/environment-variables/#JULIA_CPU_TARGET)).
 Setting the variable only on an old image does not rebuild its native caches:
 publish a new immutable image, then review its admission in PAP.
@@ -89,7 +100,7 @@ therefore also runs both representative commands with `--cpu-target=generic`
 and `--compiled-modules=strict`, which requires existing precompiled files
 ([Julia command-line switches](https://docs.julialang.org/en/v1/manual/command-line-interface/#Command-line-switches-for-Julia)).
 The checks retain read-only root/depot and PAP's 0.5 vCPU / 2 GiB budget.
-No additional writable depot, IAM grant or task volume is needed for this fix.
+The fix preserves the read-only depot and existing task volumes and permissions.
 These image checks do not replace real Fargate/S3/rerun acceptance in PAP.
 
 ## Writable paths

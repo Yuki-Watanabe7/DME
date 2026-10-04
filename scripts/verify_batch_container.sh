@@ -167,6 +167,8 @@ fi
 if inspect '{{range .Config.Env}}{{println .}}{{end}}' | grep -Eq '^(AWS_|[A-Z_]*(SECRET|TOKEN|PASSWORD|API_KEY)[A-Z_]*=)'; then
     fail "the image environment contains a credential-like variable"
 fi
+inspect '{{range .Config.Env}}{{println .}}{{end}}' | grep -Fxq 'JULIA_CPU_TARGET=sysimage' ||
+    fail "package caches must use the official system image's CPU targets"
 inspect '{{range .Config.Env}}{{println .}}{{end}}' | grep -Fxq 'JULIA_CPU_TARGET=generic' ||
     fail "package caches are not configured for portable CPUs"
 echo "labels: revision=$(label revision) version=$(label version); platform $(inspect '{{.Os}}/{{.Architecture}}')"
@@ -278,24 +280,36 @@ echo "run bundles: $(jq -r .run_id "$artifacts/simulation/solow/run-manifest.jso
 # Same-host verification cannot detect builder-specific native package images.
 # Limit CPU features to the portable baseline and require the shipped caches;
 # an invalid/missing cache must fail rather than be regenerated at runtime.
-generic_run=("${readonly_run[@]}" --entrypoint julia "$image"
-    --startup-file=no --cpu-target=generic --compiled-modules=strict /usr/local/bin/dme)
-dme_run "${generic_run[@]}" simulate solow --periods 120 </dev/null 2>"$work_dir/generic-stderr.log"
-dme_run "${generic_run[@]}" quality-export </dev/null 2>>"$work_dir/generic-stderr.log"
-if [ -s "$work_dir/generic-stderr.log" ]; then
-    cat "$work_dir/generic-stderr.log" >&2
-    fail "generic-CPU strict-cache run wrote to stderr"
-fi
-check_manifest "$artifacts/simulation/solow/run-manifest.json" "simulation/solow/simulation.json"
-check_manifest "$artifacts/quality/run-manifest.json" "quality/quality-export.json"
-jq -e '.variables.k | length == 120' "$artifacts/simulation/solow/simulation.json" >/dev/null ||
-    fail "generic-CPU simulation artifact does not have 120 periods"
-if [[ "$revision" =~ ^[0-9a-f]{40}$ ]]; then
-    jq -e --arg revision "$revision" '.commit == $revision' \
-        "$artifacts/quality/quality-export.json" >/dev/null ||
-        fail "generic-CPU quality export does not record source commit $revision"
-fi
-echo "generic CPU, strict shipped caches, 0.5 vCPU / 2 GiB: both representative commands passed"
+(
+    # Independent output ensures an earlier successful run cannot mask failure.
+    artifacts="$(new_volume_dir)"
+    generic_run=(--read-only --cpus 0.5 --memory 2g
+        --mount "type=bind,src=$artifacts,dst=/var/lib/dme/artifacts"
+        --entrypoint julia "$image" --startup-file=no --cpu-target=generic
+        --compiled-modules=strict /usr/local/bin/dme)
+    for command in simulate quality-export; do
+        cli_args=("$command")
+        [ "$command" != simulate ] || cli_args+=(solow --periods 120)
+        if ! dme_run "${generic_run[@]}" "${cli_args[@]}" </dev/null 2>"$work_dir/generic-stderr.log"; then
+            cat "$work_dir/generic-stderr.log" >&2
+            fail "$command could not use precompiled caches with generic CPU features"
+        fi
+        if [ -s "$work_dir/generic-stderr.log" ]; then
+            cat "$work_dir/generic-stderr.log" >&2
+            fail "$command wrote to stderr with generic CPU features"
+        fi
+    done
+    check_manifest "$artifacts/simulation/solow/run-manifest.json" "simulation/solow/simulation.json"
+    check_manifest "$artifacts/quality/run-manifest.json" "quality/quality-export.json"
+    jq -e '.variables.k | length == 120' "$artifacts/simulation/solow/simulation.json" >/dev/null ||
+        fail "generic-CPU simulation artifact does not have 120 periods"
+    if [[ "$revision" =~ ^[0-9a-f]{40}$ ]]; then
+        jq -e --arg revision "$revision" '.commit == $revision' \
+            "$artifacts/quality/quality-export.json" >/dev/null ||
+            fail "generic-CPU quality export does not record source commit $revision"
+    fi
+    echo "generic CPU, strict shipped caches, 0.5 vCPU / 2 GiB: both representative commands passed"
+)
 
 step "8. exit codes"
 set +e

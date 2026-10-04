@@ -11,7 +11,7 @@
 FROM julia:1.13.1-trixie AS build
 
 ENV JULIA_DEPOT_PATH=/opt/julia-depot \
-    JULIA_CPU_TARGET=generic \
+    JULIA_CPU_TARGET=sysimage \
     JULIA_PKG_PRECOMPILE_AUTO=0 \
     JULIA_NUM_PRECOMPILE_TASKS=2
 
@@ -41,7 +41,7 @@ RUN apt-get update \
 
 ENV JULIA_PROJECT=/opt/dme \
     JULIA_DEPOT_PATH=/opt/julia-depot \
-    JULIA_CPU_TARGET=generic \
+    JULIA_CPU_TARGET=sysimage \
     JULIA_PKG_PRECOMPILE_AUTO=0 \
     DME_ARTIFACT_OUTDIR=/var/lib/dme/artifacts
 
