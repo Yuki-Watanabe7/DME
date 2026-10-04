@@ -17,7 +17,7 @@
 #   2. image configuration: numeric non-root user, exec-form `dme` entrypoint,
 #      SIGTERM stop signal, declared artifact volume, OCI source/revision/version
 #      labels, architecture, no credentials in the image environment
-#   3. expected OS (Debian 13 by default, or AL2023), Julia matching
+#   3. expected OS (AL2023 by default, or the Debian 13 baseline), Julia matching
 #      Manifest.toml, and no pending vendor OS updates after a fresh build;
 #      glibc and Downloads.jl HTTPS with certificate verification (A3-A5)
 #   4. uid/gid 10001; the project and Julia depot are not writable by it; /bin/sh,
@@ -45,7 +45,7 @@ revision="$(git -C "$repo_root" rev-parse HEAD 2>/dev/null || echo unknown)"
 version=""
 skip_sink=false
 dockerfile="$repo_root/Dockerfile"
-base_os=debian13
+base_os=al2023
 
 if [ $# -gt 0 ] && [[ "$1" != --* ]]; then
     image="$1" # backward-compatible positional image tag

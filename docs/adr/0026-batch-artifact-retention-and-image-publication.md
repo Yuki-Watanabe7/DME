@@ -104,6 +104,8 @@ run prefix を列挙し、manifest の `status` と `finished_at` で選ぶ。
 
 ### 6. image は PAP ADR 0017 の Julia profile に従う
 
+以下の Debian 選択は初回決定の記録であり、現行の base 選択は「改訂 3」による。runtime の権限・書き込み契約は維持する。
+
 - 両 stage を `julia:1.13.1-trixie`（Debian 13。Julia patch は CI・Manifest と揃えて固定）にし、runtime stage で
   `apt-get update && apt-get upgrade`（trixie 自身の repository のみ）を実行する（A3–A5）。Julia version・patch 固定の
   理由・A3 の判断は末尾の「改訂 1」による。
@@ -151,7 +153,7 @@ Julia の version を上げる場合は CI・`Manifest.toml`（root / test / doc
   PUT は書き込み時点で拒否する。
 - **最新 run を指す pointer object（`latest.json`）を置く。** 可変 object を作ると上書きを再導入する。
 - **DME 内で PUT を retry する。** §4 のとおり応答喪失後の `412` と区別できない。
-- **AL2023 minimal + 公式 Julia tarball を今採用する。** PAP ADR 0017 の Julia profile で preferred は
+- **初回決定時に AL2023 minimal + 公式 Julia tarball を採用する。**（2026-10-04 の実測を受けた改訂 3 で再評価済み。） PAP ADR 0017 の Julia profile で preferred は
   `julia:<X.Y>-<Debian stable>`。AL2023 との実測比較（§4 step 2）は Debian 側に未修正の HIGH/CRITICAL が ECR scan で
   残った場合の手順で、比較は PAP の ECR repository（PAP #41 で作成）で行う必要がある。最初の publish の evidence を
   見て判断する。
@@ -188,9 +190,41 @@ Julia の version を上げる場合は CI・`Manifest.toml`（root / test / doc
 
 ## 改訂
 
+### 改訂 3（2026-10-04、[#296](https://github.com/Yuki-Watanabe7/DME/issues/296)）: 実測に基づく AL2023 本番 base の選択
+
+**背景と証拠。** main `d8eba8ad11d0f490815479b7d4085165257bbf66` を PAP の ECR に公開した
+[Debian run](https://github.com/Yuki-Watanabe7/DME/actions/runs/37174658453) は、OS upgrade 後にも
+COMPLETE scan で CRITICAL 2 / HIGH 4 が残った。Debian tracker に固定済み trixie package は無い。
+同じ source の [AL2023 比較 run](https://github.com/Yuki-Watanabe7/DME/actions/runs/37175890840) は
+CRITICAL / HIGH ともに 0。両方で `Pkg.test()` と push 前・ECR pull 後の全10段の契約検証が通った。
+exact digest・未加工 A8 JSON・6件の vendor status は [比較記録](../deployment/batch_image_comparison.md)に保持する。
+
+**決定。**
+
+1. root `Dockerfile` を AL2023 minimal + checksum 検証済み公式 Julia 1.13.1 glibc tarball にする。
+   `microdnf upgrade` を Julia base / runtime に実行し、AL2023 上で depot を install/precompile する。
+   Debian の depot をコピーしない。Julia patch・Manifest・domain/CLI・read-only/non-root・sink 契約は変えない。
+2. Debian baseline を `experiments/issue296/Dockerfile.debian` に残す。production と AL2023 comparison は
+   同じ root recipe を使う。workflow の default は `production-al2023`。production `<commit>` と比較 suffix を
+   selector と回帰テストで区別し、main 限定・OIDC trust・immutable tag・HIGH/CRITICAL gate は維持する。
+3. **比較 digest は本番入力にしない。** この変更をレビューして main にマージした後、新しい main commit の本番 image を
+   公開し、全10段・ECR scan を再検証する。新 production digest と matching source/evidence が揃ってから PAP #41 に渡す。
+   この改訂自体では ECS task を起動せず、exception も承認しない。#296 は production handoff まで open とする。
+4. **A3。** AL2023 の [standard support](https://docs.aws.amazon.com/linux/al2023/ug/release-cadence.html) は
+   2027-06-30、security maintenance は 2029-06-30 まで。2026-10-04 の180日後は 2027-04-02 で standard support 内。
+   installed package の support を別に評価し、maintenance 移行前に再判断する。Julia 1.13.1 は改訂 1 の release 履歴に
+   基づく見込みであり、AL2023 の日付が Julia の support を保証するわけではない。
+5. **保守コストと制約。** 公式 Julia image の利用から tarball path / checksum と RPM footprint の保守が増える。
+   native Docker size は AL2023 が 7,557,595 bytes（0.32%）増える。これは非圧縮サイズであり、ECR 課金量ではない。
+   次回の A8 evidence に ECR 圧縮 image size と repository の image size 合計（shared layer を重複計上し得る上限）を追加する。
+   ECR basic scan が見ない Julia / bundled JLL は引き続き version と upstream security release で追跡する。
+
+この改訂は初回 §6 の Debian 選択・見送り理由と改訂 2 の「実測待ち」を更新する。artifact の保存・run identity・条件付き
+S3 PUT・失敗/停止の意味と PAP/DME の責務分担は変更しない。
+
 ### 改訂 2（2026-10-03、[#296](https://github.com/Yuki-Watanabe7/DME/issues/296)）: base 比較の準備と証跡
 
-PAP #41 の ECR 公開先・push role に対応する repository variables は未設定で、初回 publish の実行履歴も無い。
+以下は 2026-10-03 時点の準備記録。PAP #41 の ECR 公開先・push role に対応する repository variables は未設定で、初回 publish の実行履歴も無かった。
 したがって ECR finding の確定・base の採用判断・exception 承認は未完了である。
 
 1. `experiments/issue296/Dockerfile.al2023` に AL2023 minimal + checksum 検証済み公式 Julia 1.13.1 glibc tarball の

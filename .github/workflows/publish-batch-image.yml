@@ -24,12 +24,12 @@ on:
         required: true
         type: string
       image_recipe:
-        description: Production Debian image, or an evaluation image for Issue 296 (never deploy a comparison tag)
+        description: Production AL2023 image, or a comparison image (comparison tags are never deployment inputs)
         required: true
-        default: production-debian
+        default: production-al2023
         type: choice
         options:
-          - production-debian
+          - production-al2023
           - comparison-debian
           - comparison-al2023
 
@@ -67,7 +67,9 @@ jobs:
       - uses: julia-actions/cache@v3
 
       - name: Image publication evidence regression checks
-        run: bash test/test_image_publication.sh
+        run: |
+          bash test/test_image_publication.sh
+          bash test/test_batch_image_recipe.sh
 
       - name: Install dependencies
         run: julia --project=. -e 'using Pkg; Pkg.instantiate()'
@@ -121,28 +123,9 @@ jobs:
 
       - name: Select the reviewed image recipe
         env:
-          IMAGE_RECIPE: ${{ inputs.image_recipe || 'production-debian' }}
+          IMAGE_RECIPE: ${{ inputs.image_recipe || 'production-al2023' }}
         run: |
-          set -euo pipefail
-          case "$IMAGE_RECIPE" in
-            production-debian|comparison-debian)
-              echo "DOCKERFILE_PATH=Dockerfile" >> "$GITHUB_ENV"
-              echo "BASE_OS=debian13" >> "$GITHUB_ENV"
-              ;;
-            comparison-al2023)
-              echo "DOCKERFILE_PATH=experiments/issue296/Dockerfile.al2023" >> "$GITHUB_ENV"
-              echo "BASE_OS=al2023" >> "$GITHUB_ENV"
-              ;;
-            *) echo "Unknown image recipe: $IMAGE_RECIPE" >&2; exit 2 ;;
-          esac
-          echo "IMAGE_RECIPE=$IMAGE_RECIPE" >> "$GITHUB_ENV"
-          if [ "$IMAGE_RECIPE" = production-debian ]; then
-            echo "IMAGE_TAG=$GITHUB_SHA" >> "$GITHUB_ENV"
-            echo "PUBLICATION_PURPOSE=production" >> "$GITHUB_ENV"
-          else
-            echo "IMAGE_TAG=${GITHUB_SHA}-${IMAGE_RECIPE}" >> "$GITHUB_ENV"
-            echo "PUBLICATION_PURPOSE=comparison" >> "$GITHUB_ENV"
-          fi
+          bash scripts/select_batch_image_recipe.sh "$IMAGE_RECIPE"
 
       # A5: the verification script pulls the vendor base before the build;
       # the runtime stage upgrades it and persists its resolved base digest.

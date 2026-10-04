@@ -9,6 +9,8 @@ on:
       - Dockerfile
       - experiments/issue296/**
       - scripts/verify_batch_container.sh
+      - scripts/select_batch_image_recipe.sh
+      - test/test_batch_image_recipe.sh
       - .github/workflows/batch-image-contract.yml
       - Project.toml
       - Manifest.toml
@@ -29,9 +31,9 @@ jobs:
       matrix:
         include:
           - base: debian13
-            dockerfile: Dockerfile
+            dockerfile: experiments/issue296/Dockerfile.debian
           - base: al2023
-            dockerfile: experiments/issue296/Dockerfile.al2023
+            dockerfile: Dockerfile
     steps:
       - uses: actions/checkout@v7
         with:
