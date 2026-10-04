@@ -47,7 +47,7 @@ of the downloaded workflow evidence, not reconstructed results.
 
 AL2023 is 7,557,595 bytes (0.32%) larger in uncompressed Docker size. Those bytes
 are not billable compressed ECR storage. These original artifacts do not report
-compressed registry sizes; the next publication records `ecr_image_size_bytes`
+compressed registry sizes; the production publication below records `ecr_image_size_bytes`
 and `ecr_repository_image_bytes_upper_bound` from ECR DescribeImages. The latter
 sums compressed image sizes and can count shared layers more than once. It is
 conservative storage evidence, not a quota or a precise billed-usage total.

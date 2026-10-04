@@ -169,8 +169,6 @@ if inspect '{{range .Config.Env}}{{println .}}{{end}}' | grep -Eq '^(AWS_|[A-Z_]
 fi
 inspect '{{range .Config.Env}}{{println .}}{{end}}' | grep -Fxq 'JULIA_CPU_TARGET=sysimage' ||
     fail "package caches must use the official system image's CPU targets"
-inspect '{{range .Config.Env}}{{println .}}{{end}}' | grep -Fxq 'JULIA_CPU_TARGET=generic' ||
-    fail "package caches are not configured for portable CPUs"
 echo "labels: revision=$(label revision) version=$(label version); platform $(inspect '{{.Os}}/{{.Architecture}}')"
 
 step "3. base OS and runtime"
