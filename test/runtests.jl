@@ -4,6 +4,7 @@ using Dates
 
 const DME_TEST_FILES = [
     "test_util.jl",
+    "test_manifest_consistency.jl",
     "test_data_series.jl",
     "test_fred.jl",
     "test_estat.jl",
