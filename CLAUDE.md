@@ -46,6 +46,7 @@ julia --project=. -e "using Pkg; Pkg.test()"
 3. **Project.toml を変更した場合**: `julia --project=. -e 'using Pkg; Pkg.resolve()'` を実行し、`Manifest.toml` もコミットすること。
 4. **test/Project.toml を変更した場合**: `julia --project=test -e 'using Pkg; Pkg.instantiate()'` を実行し、`test/Manifest.toml` もコミットすること。テスト専用依存（`Aqua`・`JuliaFormatter`・`Test`）を追加・変更する場合はルート `Project.toml` の `[extras]`/`[targets]` も更新すること（詳細: [品質チェックとローカル検証手順](docs/development/quality_checks.md) 2.1 節）。
 5. **docs/Project.toml を変更した場合**: `julia --project=docs -e 'using Pkg; Pkg.instantiate()'` を実行し、`docs/Manifest.toml` もコミットすること（Documenter.jl 専用環境。詳細: [品質チェックとローカル検証手順](docs/development/quality_checks.md) 5.7 節）。
+   - **root・test・docs の `Manifest.toml` は共有パッケージの entry を一致させること**（食い違うと `Pkg.test()` が warning を出し test 側の固定が効かない。`test/test_manifest_consistency.jl` が検査する）。いずれかを更新したら3つとも `Pkg.update()` で揃える（詳細: 同 2.1 節）。
 6. **`src/` に新しいサブディレクトリを追加した場合**: `docs/make.jl` の `DME_API_GROUPS` へ割り当てること（割り当て漏れは Documenter ビルドが失敗する。既存ディレクトリへのファイル追加は対応不要）。
 
 ## GitHub Issue対応の標準手順

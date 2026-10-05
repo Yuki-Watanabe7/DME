@@ -260,7 +260,7 @@ end
 # 優先順位: 環境変数 > デフォルト値
 function _load_openai_config()::_OpenAIConfig
     _env(key) =
-        let v = get(ENV, key, "");
+        let v = get(ENV, key, "")
             isempty(v) ? nothing : v
         end
     api_key = something(_env("OPENAI_API_KEY"), "")

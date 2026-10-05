@@ -59,6 +59,26 @@ julia --project=test -e 'using Pkg; Pkg.update("JuliaFormatter")'
 git add test/Project.toml test/Manifest.toml
 ```
 
+#### root・test・docs の Manifest 整合（Issue #299）
+
+root・`test/`・`docs/` の `Manifest.toml` は別々に解決されるが、共有パッケージの entry
+（version・`git-tree-sha1`）は一致していなければならない。食い違うと `Pkg.test()` が
+sandbox の manifest を作る際に root 側を採用し、`Entry in manifest ... differs` の warning を
+出した上で `test/Manifest.toml` の固定が効かなくなる（`--project=test` の instantiate は
+test 側の version を入れるため、経路ごとに別 version が使われる）。
+
+- **方式**: workspace 化（`[workspace]`）は採用しない。Manifest が1つになり、root の
+  Manifest（batch image が `Pkg.instantiate()` する対象）に Documenter・JET・テスト専用依存が
+  混ざるため。代わりに [`test/test_manifest_consistency.jl`](../../test/test_manifest_consistency.jl)
+  が3つの Manifest の共有 entry の一致を検査し、食い違いを CI（`Pkg.test()`）で失敗させる。
+- **揃え方**: いずれかの Manifest を更新したら、他の2つも同じ時点で更新する。
+  ```bash
+  for p in . test docs; do julia --project=$p -e 'using Pkg; Pkg.update()'; done
+  ```
+  上流の compat 制約で最新に揃わない場合（例: 他環境が `Parsers` を 2.x に制限）は、
+  遅れている側に合わせて `Pkg.add(name="<pkg>", version="<ver>")` の後 `Pkg.rm("<pkg>")`
+  （間接依存のまま version が残る）で固定する。
+
 `JuliaFormatter` を更新した際は、新バージョンのルールで `src/` 全体が
 フォーマット済みかを必ず確認すること（2 節のコマンド）。
 
