@@ -12,10 +12,12 @@
 using Test
 using DME
 using Dates
-# JSON3 は test/Project.toml の直接依存ではない（DME 本体のみが依存する）ため、
-# `using JSON3` ではなく `DME.JSON3` を alias する（test_scenario_serialization.jl・
-# test_quality_export.jl と同じ idiom）。
-const JSON3 = DME.JSON3
+# JSON.jl は test/Project.toml の直接依存ではない（DME 本体のみが依存する）ため、
+# `using JSON` ではなく DME の `json_read`/`json_write` を alias する
+# （test_scenario_serialization.jl・test_quality_export.jl と同じ idiom）。
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 @testset "Japan fiscal scenario catalog / assumption schema / FRE context 契約（Issue #275）" begin
 
@@ -277,7 +279,7 @@ const JSON3 = DME.JSON3
         @test d["assumptions"][1]["magnitude"] == 0.0
 
         # round trip でも欠測は補完されない
-        back = japan_fiscal_scenario_from_dict(JSON3.read(to_json(sc)))
+        back = japan_fiscal_scenario_from_dict(json_read(to_json(sc)))
         back_concepts = Set(a.concept for a in back.assumptions)
         @test back_concepts == concepts_present
     end
@@ -401,7 +403,7 @@ const JSON3 = DME.JSON3
         )
 
         json_str = to_json(sc)
-        back = japan_fiscal_scenario_from_dict(JSON3.read(json_str))
+        back = japan_fiscal_scenario_from_dict(json_read(json_str))
         @test back.scenario_id == sc.scenario_id
         @test back.family == sc.family
         @test back.name == sc.name
@@ -417,22 +419,22 @@ const JSON3 = DME.JSON3
         @test japan_fiscal_scenario_content_hash(back) == japan_fiscal_scenario_content_hash(sc)
 
         # content_hash の改変は検出される
-        d = DME._jf_json_to_plain(JSON3.read(json_str))
+        d = DME._jf_json_to_plain(json_read(json_str))
         d["content_hash"] = "sha256:" * "0"^64
         @test_throws ArgumentError japan_fiscal_scenario_from_dict(d)
 
         # assumption_set_hash の改変は検出される
-        d2 = DME._jf_json_to_plain(JSON3.read(json_str))
+        d2 = DME._jf_json_to_plain(json_read(json_str))
         d2["assumption_set_hash"] = "sha256:" * "1"^64
         @test_throws ArgumentError japan_fiscal_scenario_from_dict(d2)
 
         # 未知キーの混入は拒否される（fail closed decode）
-        d3 = DME._jf_json_to_plain(JSON3.read(json_str))
+        d3 = DME._jf_json_to_plain(json_read(json_str))
         d3["unexpected_field"] = "surprise"
         @test_throws ArgumentError japan_fiscal_scenario_from_dict(d3)
 
         # 必須キーの欠落は拒否される
-        d4 = DME._jf_json_to_plain(JSON3.read(json_str))
+        d4 = DME._jf_json_to_plain(json_read(json_str))
         delete!(d4, "assumption_set_hash")
         @test_throws ArgumentError japan_fiscal_scenario_from_dict(d4)
 
@@ -441,7 +443,7 @@ const JSON3 = DME.JSON3
             scenario_id = "sc-empty-rt", family = :high_growth_productivity,
             provenance = JapanFiscalScenarioProvenance(; assumption_source = :fixture),
         )
-        empty_back = japan_fiscal_scenario_from_dict(JSON3.read(to_json(empty_sc)))
+        empty_back = japan_fiscal_scenario_from_dict(json_read(to_json(empty_sc)))
         @test isempty(empty_back.assumptions)
         @test empty_back.fre_context === nothing
     end
@@ -458,8 +460,8 @@ const JSON3 = DME.JSON3
               Set(collect(JAPAN_FISCAL_FORBIDDEN_MAGNITUDE_INPUT_FIELDS))
         @test length(contract["assumption_concepts"]) == length(JAPAN_FISCAL_ASSUMPTION_CONCEPTS)
         @test length(contract["catalog"]) == length(JAPAN_FISCAL_SCENARIO_FAMILIES)
-        # JSON3 で round trip できる（Julia 内部型を含まない）
-        parsed = JSON3.read(JSON3.write(contract))
+        # JSON.jl で round trip できる（Julia 内部型を含まない）
+        parsed = json_read(json_write(contract))
         @test parsed.schema_version == JAPAN_FISCAL_SCENARIO_SCHEMA_VERSION
     end
 

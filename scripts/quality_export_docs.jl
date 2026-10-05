@@ -33,7 +33,6 @@
 
 using DME
 using Dates
-using JSON3
 
 const _REPO_ROOT = normpath(joinpath(@__DIR__, ".."))
 const _WORKER_PATH = joinpath(@__DIR__, "docs_build_worker.jl")
@@ -171,7 +170,7 @@ function _docs_tool_execution(
     end
 
     raw = try
-        DME._qe_to_plain(JSON3.read(read(raw_output_path, String)))
+        DME._qe_to_plain(DME.json_read(read(raw_output_path, String)))
     catch e
         return QualityToolExecution(;
             tool_name = "Documenter.jl",

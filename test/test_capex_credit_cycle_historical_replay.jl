@@ -55,7 +55,9 @@ using DME:
     PersistenceSpec,
     EventProvenance
 
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 # ---------------------------------------------------------------------------
 # fixture ヘルパ（test_capex_credit_cycle_estimation.jl / test_capex_credit_cycle_history.jl
@@ -443,7 +445,7 @@ end
         mktempdir() do dir
             path = joinpath(dir, "replay.json")
             save_capex_historical_replay_run(path, run)
-            parsed = JSON3.read(read(path, String))
+            parsed = json_read(read(path, String))
             @test parsed.status == "terminated"
             wage_vec = parsed.series.wage
             @test any(v -> v === nothing, wage_vec)

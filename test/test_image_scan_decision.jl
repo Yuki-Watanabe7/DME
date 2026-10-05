@@ -16,7 +16,7 @@ function _scan_decision(findings_json::AbstractString)
         pipeline(`jq -c -f $(_SCAN_DECISION_FILTER)`; stdin = IOBuffer(findings_json)),
         String,
     )
-    return DME._qe_to_plain(DME.JSON3.read(output))
+    return DME._qe_to_plain(DME.json_read(output))
 end
 
 @testset "ECR scan admission decision (Issue #252)" begin

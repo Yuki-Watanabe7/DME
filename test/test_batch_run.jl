@@ -16,7 +16,7 @@ const _BATCH_TASK_ARN = "arn:aws:ecs:ap-northeast-1:123456789012:task/pap-shared
 const _BATCH_DIGEST = "sha256:" * "ab"^32
 const _BATCH_COMMIT = "0123456789abcdef0123456789abcdef01234567"
 
-_batch_plain(path) = DME._qe_to_plain(DME.JSON3.read(read(path, String)))
+_batch_plain(path) = DME._qe_to_plain(DME.json_read(read(path, String)))
 
 """
 In-memory stand-in for S3 and the ECS endpoints. PUTs honor `If-None-Match: *`
@@ -37,7 +37,7 @@ function _batch_fake_aws(; fail_key = nothing, ecs_metadata = nothing)
             )
         elseif method == "GET" && url == "http://169.254.170.2/v4/metadata"
             ecs_metadata === nothing && return (status = 404, body = UInt8[])
-            return (status = 200, body = Vector{UInt8}(DME.JSON3.write(ecs_metadata)))
+            return (status = 200, body = Vector{UInt8}(DME.json_write(ecs_metadata)))
         elseif method == "PUT"
             key = replace(url, r"^https?://[^/]+/" => "")
             key == fail_key && return (

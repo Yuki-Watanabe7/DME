@@ -161,7 +161,7 @@ DME 内の versioned な const を正本とし、provider catalog を照合に�
 ## 見送りとした選択肢
 
 - **provider catalog を正本にする**: 系列の差し替えが DME に無断で観測方程式を変える。#170 §4.1 の確認義務を provider 任せにすることになる（§1）。
-- **catalog を TOML で持つ**: `TOML` は現行 `[deps]` に無く、依存の追加は本書の対象外である。JSON（`JSON3` は既存依存）または Julia const で足りる。宣言的レジストリは既にリポジトリの作法である。
+- **catalog を TOML で持つ**: `TOML` は現行 `[deps]` に無く、依存の追加は本書の対象外である。JSON（`JSON3` は当時の既存依存。現在は `JSON`。[ADR 0027](0027-json3-to-json-jl-migration.md)）または Julia const で足りる。宣言的レジストリは既にリポジトリの作法である。
 - **provider が返さない metadata を catalog の宣言値で埋める**: 「確認した」と「宣言した」が同一フィールドに入り、事後に区別できない（§2 と同じ理由）。
 - **`capex_credit_cycle_model` の `structural` を無制限にする**: `CAL-SS` の閉形式導出を黙って壊せる。定常条件違反として後段で検出されるが、なぜ違反したのかが分からない。
 - **モデル層に単一方程式の公開 API を追加する**: `simulate` が系列のみを返すという契約と `src/models/` の責務（[ADR 0013](0013-capex-credit-cycle-integration-contract.md) 決定 12）が崩れる。期内 10 ステップの内部状態を公開すると、実装の変更が公開 API の変更になる。

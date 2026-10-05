@@ -1158,13 +1158,13 @@ concept_definitions(m::AbstractMacroModel) = concept_definitions(model_symbol(m)
 # ===========================================================================
 # JSON シリアライズ / デシリアライズ（round-trip）
 # ===========================================================================
-# 規約は src/sfc/serialization.jl に準拠: to_dict → Dict{String,Any}、to_json = JSON3.write∘to_dict、
+# 規約は src/sfc/serialization.jl に準拠: to_dict → Dict{String,Any}、to_json = json_write∘to_dict、
 # 復元は *_from_dict / *_from_json。Symbol は String へ、nothing は保持する。
 
 _cap_sym(x::Symbol) = String(x)
 _cap_syms(xs) = String[String(x) for x in xs]
 
-# Dict / JSON3.Object 双方に対応するアクセサ
+# Dict / JSON.Object 双方に対応するアクセサ
 _cap_get(d::AbstractDict, k::AbstractString) = haskey(d, k) ? d[k] : d[Symbol(k)]
 _cap_get(d, k::AbstractString) = getproperty(d, Symbol(k))
 _cap_has(d::AbstractDict, k::AbstractString) = haskey(d, k) || haskey(d, Symbol(k))
@@ -1208,12 +1208,12 @@ function to_dict(p::ModelCapabilityProfile)
     )
 end
 
-to_json(p::ModelCapabilityProfile) = JSON3.write(to_dict(p))
+to_json(p::ModelCapabilityProfile) = json_write(to_dict(p))
 
 """
     model_capability_profile_from_dict(d) -> ModelCapabilityProfile
 
-`to_dict(::ModelCapabilityProfile)` の出力（または JSON3.Object）から復元する。
+`to_dict(::ModelCapabilityProfile)` の出力（または JSON.Object）から復元する。
 """
 function model_capability_profile_from_dict(d)
     return ModelCapabilityProfile(;
@@ -1249,7 +1249,7 @@ function model_capability_profile_from_dict(d)
 end
 
 model_capability_profile_from_json(s::AbstractString) =
-    model_capability_profile_from_dict(JSON3.read(s, Dict{String, Any}))
+    model_capability_profile_from_dict(json_read(s, Dict{String, Any}))
 
 function to_dict(c::ModelConceptDefinition)
     return Dict{String, Any}(
@@ -1269,12 +1269,12 @@ function to_dict(c::ModelConceptDefinition)
     )
 end
 
-to_json(c::ModelConceptDefinition) = JSON3.write(to_dict(c))
+to_json(c::ModelConceptDefinition) = json_write(to_dict(c))
 
 """
     model_concept_definition_from_dict(d) -> ModelConceptDefinition
 
-`to_dict(::ModelConceptDefinition)` の出力（または JSON3.Object）から復元する。
+`to_dict(::ModelConceptDefinition)` の出力（または JSON.Object）から復元する。
 """
 function model_concept_definition_from_dict(d)
     return ModelConceptDefinition(;
@@ -1295,4 +1295,4 @@ function model_concept_definition_from_dict(d)
 end
 
 model_concept_definition_from_json(s::AbstractString) =
-    model_concept_definition_from_dict(JSON3.read(s, Dict{String, Any}))
+    model_concept_definition_from_dict(json_read(s, Dict{String, Any}))

@@ -51,7 +51,6 @@
 
 using DME
 using Dates
-using JSON3
 
 const _REPO_ROOT = normpath(joinpath(@__DIR__, ".."))
 const _WORKER_PATH = joinpath(@__DIR__, "benchmark_worker.jl")
@@ -171,7 +170,7 @@ function _load_baseline_environment(environment_key::AbstractString)
     path = _baseline_path()
     isfile(path) || return (nothing, "baseline_missing")
     raw = try
-        DME._qe_to_plain(JSON3.read(read(path, String)))
+        DME._qe_to_plain(DME.json_read(read(path, String)))
     catch e
         @warn "baseline ファイルを JSON として解析できませんでした（比較を unavailable として続行します）" path =
             path exception = e
@@ -321,7 +320,7 @@ function _benchmark_tool_execution(
     )
 
     raw = try
-        DME._qe_to_plain(JSON3.read(read(raw_output_path, String)))
+        DME._qe_to_plain(DME.json_read(read(raw_output_path, String)))
     catch e
         return _tool_failure(
             started_at,

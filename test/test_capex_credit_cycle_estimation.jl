@@ -763,7 +763,7 @@ end
         mktempdir() do dir
             p1 = save_capex_parameter_set(joinpath(dir, "ps.json"), ps_est)
             @test isfile(p1)
-            g = DME.JSON3.read(read(p1, String))
+            g = DME.json_read(read(p1, String))
             @test g["estimation_version"] == CAPEX_CC_ESTIMATION_VERSION
             p2 = save_capex_block_estimate(joinpath(dir, "eb1.json"), e1)
             @test isfile(p2)

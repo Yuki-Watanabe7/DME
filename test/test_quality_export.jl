@@ -4,13 +4,15 @@
 # DME は汎用 JSON Schema バリデータを持たないため、`quality_export_from_dict` 自体が
 # validator を兼ねる（real_rate_model_artifact と同じ doctrine）。
 
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 const _QE_FIXTURES_DIR = joinpath(@__DIR__, "fixtures", "quality_export")
 
 function _qe_load_fixture_dict(subdir::AbstractString, filename::AbstractString)
     path = joinpath(_QE_FIXTURES_DIR, subdir, filename)
-    return DME._qe_to_plain(JSON3.read(read(path, String)))
+    return DME._qe_to_plain(json_read(read(path, String)))
 end
 
 function _qe_valid_fixture_files()

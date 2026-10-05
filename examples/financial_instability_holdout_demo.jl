@@ -48,8 +48,10 @@ using Dates
 # DME 本体が既に依存として持つ stdlib を DME 経由で参照する（test/Project.toml には
 # 含まれない stdlib を examples 側で `using` すると、`Pkg.test()` が使う test 環境
 # （test/Project.toml）でロードに失敗するため。`examples/capex_credit_cycle_demo.jl:53`
-# の `const JSON3 = DME.JSON3` と同じ idiom）。
-const JSON3 = DME.JSON3
+# の `const json_read = DME.json_read` と同じ idiom）。
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 const Downloads = DME.Downloads
 
 const FIH_NOTES = String[
@@ -248,7 +250,7 @@ function _fih_fetch_edp_identity(provider_base::AbstractString)::Union{Dict{Stri
         url = "$(rstrip(provider_base, '/'))/health"
         response = Downloads.request(url; output = buffer, timeout = 10.0)
         response.status == 200 || return nothing
-        data = JSON3.read(String(take!(buffer)))
+        data = json_read(String(take!(buffer)))
         return Dict{String, Any}(
             "api_version" => get(data, "api_version", nothing),
             "application_version" => get(data, "application_version", nothing),
@@ -474,7 +476,7 @@ function run_financial_instability_holdout_demo(;
     manifest = _fih_build_run_manifest(built; lookback_days = lookback_days)
     manifest_path = joinpath(outdir, "run_manifest.json")
     open(manifest_path, "w") do io
-        JSON3.pretty(io, manifest)
+        json_pretty(io, manifest)
     end
 
     report_path = _fih_write_report(joinpath(outdir, "report.md"), a, built.mode, manifest)
@@ -526,8 +528,8 @@ end
 """`dir` に保存済みの `assessment.json`/`run_manifest.json`（`run_financial_instability_holdout_demo`
 が保存した形）を `Dict{String,Any}` として読み込む。新規のEDP/FRED fetchを行わない。"""
 function _fih_load_snapshot_dicts(dir::AbstractString)
-    assessment = JSON3.read(read(joinpath(dir, "assessment.json"), String), Dict{String, Any})
-    manifest = JSON3.read(read(joinpath(dir, "run_manifest.json"), String), Dict{String, Any})
+    assessment = json_read(read(joinpath(dir, "assessment.json"), String), Dict{String, Any})
+    manifest = json_read(read(joinpath(dir, "run_manifest.json"), String), Dict{String, Any})
     return (assessment = assessment, manifest = manifest)
 end
 

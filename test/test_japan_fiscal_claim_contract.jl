@@ -346,7 +346,7 @@ using DME
         @test "cb_jgb_absorption" in d["unsupported_concepts"]
         @test d["family_complete"] == false
 
-        back = DME.JSON3.read(to_json(cov))
+        back = DME.json_read(to_json(cov))
         @test back["claim_level"] == "direction_and_relative_timing"
         @test "cb_jgb_absorption" in back["unsupported_concepts"]
         @test back["family_complete"] == false
@@ -372,11 +372,11 @@ using DME
 
         # 決定的
         @test japan_fiscal_downstream_contract() == c
-        s1 = DME.JSON3.write(c)
-        @test DME.JSON3.write(japan_fiscal_downstream_contract()) == s1
+        s1 = DME.json_write(c)
+        @test DME.json_write(japan_fiscal_downstream_contract()) == s1
 
         # Julia 内部型なしで decode できる
-        back = DME.JSON3.read(s1)
+        back = DME.json_read(s1)
         @test back["claim_contract_version"] == JAPAN_FISCAL_CLAIM_CONTRACT_VERSION
         @test length(back["coverages"]) == 55
         @test back["invariants"]["magnitude_claim_count"] == 0

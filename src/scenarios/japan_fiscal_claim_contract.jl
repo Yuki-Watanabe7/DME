@@ -1469,12 +1469,12 @@ to_dict(u::JapanFiscalClaimUpgradeRule) = Dict{String, Any}(
     "doc_ref" => u.doc_ref,
 )
 
-to_json(s::JapanFiscalClaimLevelSpec) = JSON3.write(to_dict(s))
-to_json(c::JapanFiscalChannel) = JSON3.write(to_dict(c))
-to_json(c::JapanFiscalCoverage) = JSON3.write(to_dict(c))
-to_json(v::JapanFiscalClaimViolation) = JSON3.write(to_dict(v))
-to_json(r::JapanFiscalHandoffRequirement) = JSON3.write(to_dict(r))
-to_json(u::JapanFiscalClaimUpgradeRule) = JSON3.write(to_dict(u))
+to_json(s::JapanFiscalClaimLevelSpec) = json_write(to_dict(s))
+to_json(c::JapanFiscalChannel) = json_write(to_dict(c))
+to_json(c::JapanFiscalCoverage) = json_write(to_dict(c))
+to_json(v::JapanFiscalClaimViolation) = json_write(to_dict(v))
+to_json(r::JapanFiscalHandoffRequirement) = json_write(to_dict(r))
+to_json(u::JapanFiscalClaimUpgradeRule) = json_write(to_dict(u))
 
 """
     japan_fiscal_downstream_contract() -> Dict{String,Any}

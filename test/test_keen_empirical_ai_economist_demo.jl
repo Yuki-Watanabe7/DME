@@ -1,7 +1,9 @@
 # GR バックエンドをヘッドレスモードで動作させる（CI / 無表示環境対応）
 ENV["GKSwstype"] = "nul"
 using Plots
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 # 例スクリプトは PROGRAM_FILE ガードで直接実行時のみ走る。include では
 # run_keen_empirical_ai_economist などの関数定義のみ読み込まれる。
@@ -85,7 +87,7 @@ include(joinpath(@__DIR__, "..", "examples", "keen_empirical_ai_economist.jl"))
         dir = mktempdir()
         run_demo(dir)
 
-        manifest = JSON3.read(read(joinpath(dir, "run_manifest.json"), String))
+        manifest = json_read(read(joinpath(dir, "run_manifest.json"), String))
         for k in (
             "demo",
             "run_timestamp",
@@ -108,7 +110,7 @@ include(joinpath(@__DIR__, "..", "examples", "keen_empirical_ai_economist.jl"))
               String.(manifest["explanation"]["insufficient_comparability"])
 
         # keen 説明 JSON: 契約・section・免責
-        keen = JSON3.read(read(joinpath(dir, "keen_ai_explanation.json"), String))
+        keen = json_read(read(joinpath(dir, "keen_ai_explanation.json"), String))
         @test keen["contract_version"] == KEEN_AI_OUTPUT_CONTRACT_VERSION
         for sec in KEEN_OUTPUT_SECTION_ORDER
             @test haskey(keen, sec)
@@ -116,7 +118,7 @@ include(joinpath(@__DIR__, "..", "examples", "keen_empirical_ai_economist.jl"))
         @test !isempty(keen["disclaimer"])
 
         # クロスモデル JSON: 契約・比較不能 section
-        cross = JSON3.read(read(joinpath(dir, "cross_model_reasoning.json"), String))
+        cross = json_read(read(joinpath(dir, "cross_model_reasoning.json"), String))
         @test cross["contract_version"] == CROSS_MODEL_OUTPUT_CONTRACT_VERSION
         @test haskey(cross, "incomparable_or_insufficient")
 

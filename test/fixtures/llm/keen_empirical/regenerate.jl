@@ -13,7 +13,9 @@
 # 新しい禁止解釈を追加する手順は同ディレクトリの README.md を参照。
 
 using DME
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 include(joinpath(@__DIR__, "..", "..", "..", "keen_llm_eval.jl"))
 
@@ -23,7 +25,7 @@ function write_json(relpath::String, d)
     path = joinpath(HERE, relpath)
     mkpath(dirname(path))
     open(path, "w") do io
-        JSON3.pretty(io, JSON3.write(d))
+        json_pretty(io, json_write(d))
     end
     println("wrote ", relpath)
 end
@@ -52,7 +54,7 @@ golden["generation_status"] = "parsed"
 write_json(joinpath("golden", "valid_response.json"), golden)
 
 # golden が :parsed で round-trip することを確認
-gp = parse_keen_empirical_response(JSON3.write(golden), kctx)
+gp = parse_keen_empirical_response(json_write(golden), kctx)
 gp === nothing && error("golden が再parse できない")
 gp.generation_status === :parsed || error("golden の generation_status が :parsed でない")
 
@@ -90,10 +92,10 @@ forbidden_specs = [
 ]
 
 for (name, section, claim_id, suffix, rule) in forbidden_specs
-    d = JSON3.read(JSON3.write(golden), Dict{String, Any})  # deep copy via round-trip
+    d = json_read(json_write(golden), Dict{String, Any})  # deep copy via round-trip
     mutate_claim_text!(d, section, claim_id, suffix)
     # 注入した fixture が parser を通り、評価器が指定 rule を検出することを確認
-    parsed = parse_keen_empirical_response(JSON3.write(d), kctx)
+    parsed = parse_keen_empirical_response(json_write(d), kctx)
     parsed === nothing &&
         error("forbidden '$(name)' が parser を通らない（golden の claim_id を確認）")
     viol = keen_safety_violations(parsed, kctx)

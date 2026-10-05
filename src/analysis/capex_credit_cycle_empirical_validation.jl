@@ -911,7 +911,7 @@ function save_capex_empirical_validation_report(
     report::CapexEmpiricalValidationReport,
 )
     open(path, "w") do io
-        JSON3.pretty(io, capex_empirical_validation_report_to_dict(report))
+        json_pretty(io, capex_empirical_validation_report_to_dict(report))
     end
     return path
 end

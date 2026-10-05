@@ -1017,10 +1017,12 @@ using Ipopt
 using Plots
 using Interpolations
 using Logging
-using JSON3
 using Downloads
 using Dates
 using SHA
+
+# JSON の読み書きヘルパ（Issue #300。JSON.jl を直接呼ぶ箇所をここへ集約する）
+include("./artifacts/json_io.jl")
 
 # Data types: external data standard types
 include("./data/data_series.jl")
@@ -1110,7 +1112,7 @@ include("./scenarios/japan_fiscal_capability.jl")
 include("./scenarios/japan_fiscal_claim_contract.jl")
 
 # DME real-rate model artifact（Issue #159 / economic-data-provider ADR 006 準拠。
-# depends on NewKeynesianModel, JSON3, SHA）
+# depends on NewKeynesianModel, json_io.jl, SHA）
 include("./artifacts/json_canonical.jl")
 
 # Japan Fiscal Scenario Lab: scenario catalog・explicit assumption schema・FRE context
@@ -1188,14 +1190,14 @@ include("./analysis/capex_credit_cycle_diagnostics.jl")
 # 部門別CAPEX・信用循環モデルの実証較正層（Issue #244 / `P-4`。depends on
 # CapexCreditCycleModel（capex_credit_cycle_model の structural 引数・CapexSteadyStateReport）・
 # data/capex_credit_cycle_measurements.jl（CapexEmpiricalDataset・四半期ラベル parse）・
-# artifacts/json_canonical.jl（sha256_hex_of_canonical）・JSON3。observation dataset の
+# artifacts/json_canonical.jl（sha256_hex_of_canonical）・JSON.jl。observation dataset の
 # baseline 期間平均から 48 定常水準ターゲットと逆較正モデルを決定論的に構築する読み取り専用層）
 include("./analysis/capex_credit_cycle_calibration.jl")
 
 # 部門別CAPEX・信用循環モデルの実証識別層（Issue #245 / `P-5`。depends on
 # analysis/capex_credit_cycle_calibration.jl（CapexEmpiricalCalibration・capex_parameter_class）・
 # data/capex_credit_cycle_measurements.jl（CapexEmpiricalDataset）・models/capex_credit_cycle.jl
-# （CAPEX_CC_PARAMETER_NAMES）・artifacts/json_canonical.jl（sha256_hex_of_canonical）・JSON3。
+# （CAPEX_CC_PARAMETER_NAMES）・artifacts/json_canonical.jl（sha256_hex_of_canonical）・JSON.jl。
 # EB-1–EB-7 の推定ブロック仕様と、観測 dataset からの推定可否・弱識別 W1–W4 の決定論的診断を
 # 提供する読み取り専用層。パラメータ値の最適化は #246 / P-6 の責務）
 include("./analysis/capex_credit_cycle_identification.jl")
@@ -1277,7 +1279,7 @@ include("./scenarios/scenario_serialization.jl")
 # と mapping 適用（X2/X3）（Issue #281 / `PN-1`。設計 docs/architecture/
 # pne_sector_output_integration.md・ADR 0024）。depends on artifacts/json_canonical.jl
 # （sha256_hex_of_canonical）・scenarios/scenario_time.jl（CalendarQuarter・quarter_of・
-# quarter_label）・scenarios/scenario_serialization.jl（_scenario_json_to_plain）・JSON3・SHA。
+# quarter_label）・scenarios/scenario_serialization.jl（_scenario_json_to_plain）・JSON.jl・SHA。
 # モデル・イベント層・run_scenario には依存しない（モデルへの適用は #282）。
 include("./scenarios/pne_sector_output_path.jl")
 include("./scenarios/cross_model_mapping.jl")

@@ -488,7 +488,7 @@ end
                 diagnose_capex_identification(ds1),
             )
             @test isfile(path)
-            g = DME.JSON3.read(read(path, String))
+            g = DME.json_read(read(path, String))
             @test g["est_total"] == 35
             @test haskey(g, "block_specs")
             @test length(g["diagnostics"]) == 7

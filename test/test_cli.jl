@@ -18,7 +18,7 @@ const _DME_CLI_TEST_OUTDIR_ENV = "DME_ARTIFACT_OUTDIR"
             @test occursin("dme simulate: success", String(take!(stdout)))
             @test isfile(path)
 
-            artifact = DME._qe_to_plain(DME.JSON3.read(read(path, String)))
+            artifact = DME._qe_to_plain(DME.json_read(read(path, String)))
             @test artifact["artifact_schema"] == "dme-simulation/v1"
             @test artifact["model"]["id"] == "solow"
             @test artifact["run"]["periods"] == 4
@@ -27,7 +27,7 @@ const _DME_CLI_TEST_OUTDIR_ENV = "DME_ARTIFACT_OUTDIR"
             # Issue #252: the run manifest is written last, next to the artifact.
             manifest_path = joinpath(dir, "simulation", "solow", "run-manifest.json")
             @test isfile(manifest_path)
-            manifest = DME._qe_to_plain(DME.JSON3.read(read(manifest_path, String)))
+            manifest = DME._qe_to_plain(DME.json_read(read(manifest_path, String)))
             @test manifest["manifest_schema"] == DME.DME_RUN_MANIFEST_SCHEMA
             @test manifest["status"] == "succeeded"
             @test only(manifest["artifacts"])["path"] == "simulation/solow/simulation.json"

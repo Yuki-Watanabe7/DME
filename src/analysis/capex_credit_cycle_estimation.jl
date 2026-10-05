@@ -1732,7 +1732,7 @@ end
 """
 function save_capex_parameter_set(path::AbstractString, ps::CapexParameterSet)
     open(path, "w") do io
-        JSON3.pretty(io, capex_parameter_set_to_dict(ps))
+        json_pretty(io, capex_parameter_set_to_dict(ps))
     end
     return path
 end
@@ -1742,7 +1742,7 @@ end
 """
 function save_capex_block_estimate(path::AbstractString, e::CapexBlockEstimate)
     open(path, "w") do io
-        JSON3.pretty(io, capex_block_estimate_to_dict(e))
+        json_pretty(io, capex_block_estimate_to_dict(e))
     end
     return path
 end

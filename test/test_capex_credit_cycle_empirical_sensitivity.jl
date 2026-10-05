@@ -56,7 +56,9 @@ using DME:
 
 using Test
 
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 # ---------------------------------------------------------------------------
 # fixture ヘルパ（`_ces_` prefix で自己完結。実 H1–H6 とは無関係）
@@ -621,7 +623,7 @@ end
             path = joinpath(dir, "sensitivity.json")
             save_capex_empirical_sensitivity_report(path, report)
             @test isfile(path)
-            parsed = JSON3.read(read(path, String))
+            parsed = json_read(read(path, String))
             @test parsed.sensitivity_version == CAPEX_CC_EMPIRICAL_SENSITIVITY_VERSION
         end
     end

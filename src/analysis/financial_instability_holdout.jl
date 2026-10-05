@@ -668,7 +668,7 @@ function save_financial_instability_assessment(
     a::FinancialInstabilityAssessment,
 )::String
     open(path, "w") do io
-        JSON3.pretty(io, financial_instability_assessment_to_dict(a))
+        json_pretty(io, financial_instability_assessment_to_dict(a))
     end
     return String(path)
 end

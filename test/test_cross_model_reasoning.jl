@@ -291,13 +291,13 @@ using DME
         # 未登録 source_id を注入
         d2 = deepcopy(d)
         d2["mechanisms_by_model"]["claims"][1]["source_ids"] = ["concept.unknown.bogus"]
-        @test parse_cross_model_response(DME.JSON3.write(d2), ctx) === nothing
+        @test parse_cross_model_response(DME.json_write(d2), ctx) === nothing
         # metadata claim に concept_mapping source を与えて category 不整合
         d3 = deepcopy(d)
         # concept_mapping category の source id を 1 つ取得
         mapping_id = first(id for (id, s) in ctx.sources if s.category === :concept_mapping)
         d3["mechanisms_by_model"]["claims"][1]["source_ids"] = [mapping_id]
-        @test parse_cross_model_response(DME.JSON3.write(d3), ctx) === nothing
+        @test parse_cross_model_response(DME.json_write(d3), ctx) === nothing
     end
 
     # ---- 実証結果ありの経路（Keen 実証層）-------------------------------

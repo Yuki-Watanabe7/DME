@@ -14,7 +14,9 @@
 using Test
 using DME
 using Dates
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 include(joinpath(@__DIR__, "fixtures", "pne", "pne_fixture_builders.jl"))
 
@@ -63,7 +65,7 @@ end
 
     # ---- vendor fixture の drift 検出 ----------------------------------------
     @testset "vendor した PNE contract fixture が MANIFEST の hash と一致する" begin
-        manifest = JSON3.read(
+        manifest = json_read(
             read(joinpath(PNE_TEST_ROOT, "sector_output_path", "v1", "MANIFEST.json"), String),
         )
         @test manifest["upstream_repository"] == "Yuki-Watanabe7/production-network-engine"
@@ -75,7 +77,7 @@ end
             @test isfile(path)
             @test "sha256:" * bytes2hex(DME.SHA.sha256(read(path))) == f["sha256"]
         end
-        schema = JSON3.read(
+        schema = json_read(
             read(
                 joinpath(
                     PNE_REPO_ROOT,
@@ -113,9 +115,9 @@ end
         a2 = pne_sector_output_path_from_dict(d)
         @test a2.content_hash == a.content_hash
         @test a2.source_bytes_sha256 === nothing
-        compact = JSON3.write(d)
+        compact = json_write(d)
         a3 = pne_sector_output_path_from_dict(
-            DME._scenario_json_to_plain(JSON3.read(compact)),
+            DME._scenario_json_to_plain(json_read(compact)),
         )
         @test a3.content_hash == a.content_hash
 
@@ -708,7 +710,7 @@ end
 
         # 同じ内容を別のバイト列（ファイル）から受理しても report hash は同じ
         path = joinpath(mktempdir(), "artifact.json")
-        write(path, JSON3.write(synthetic_quarterly_dict()))
+        write(path, json_write(synthetic_quarterly_dict()))
         r_file = check_cross_model_compatibility(load_pne_sector_output_path(path), m)
         @test r_file.upstream.source_bytes_sha256 !== nothing
         @test cross_model_compatibility_report_hash(r_file) == cross_model_compatibility_report_hash(r1)

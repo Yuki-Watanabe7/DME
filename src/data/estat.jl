@@ -335,7 +335,7 @@ function _parse_estat_json(
     series_id::Union{String, Nothing} = nothing,
     series_name::Union{String, Nothing} = nothing,
 )::DataSeries
-    data = JSON3.read(json_str)
+    data = json_read(json_str)
     root = data["GET_STATS_DATA"]
 
     status = Int(root["RESULT"]["STATUS"])

@@ -18,7 +18,7 @@
 # 診断層と共有し、独自の magic number を持たない）・scenarios/macro_events.jl（4層型）・
 # scenarios/scenario_time.jl（`CalendarQuarter`）・scenarios/scenario_provenance.jl
 # （`_scenario_sha256`・`_scenario_assumption_hash_dict`。`event_set_hash` と同じ正準化・
-# hash手続きを再利用する）・artifacts/json_canonical.jl（`sha256_hex_of_canonical`）・JSON3。
+# hash手続きを再利用する）・artifacts/json_canonical.jl（`sha256_hex_of_canonical`）・JSON.jl。
 
 # ---------------------------------------------------------------------------
 # 語彙定数
@@ -813,7 +813,7 @@ end
 """
 function save_capex_episode_assessment(path::AbstractString, a::CapexEpisodeAssessment)
     open(path, "w") do io
-        JSON3.pretty(io, capex_episode_assessment_to_dict(a))
+        json_pretty(io, capex_episode_assessment_to_dict(a))
     end
     return path
 end

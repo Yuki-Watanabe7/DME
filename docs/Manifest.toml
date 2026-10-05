@@ -239,7 +239,7 @@ uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
 version = "0.6.3"
 
 [[deps.DME]]
-deps = ["Dates", "Downloads", "Interpolations", "Ipopt", "JSON3", "JuMP", "LinearAlgebra", "Logging", "NLsolve", "Plots", "SHA"]
+deps = ["Dates", "Downloads", "Interpolations", "Ipopt", "JSON", "JuMP", "LinearAlgebra", "Logging", "NLsolve", "Plots", "SHA"]
 path = ".."
 uuid = "32de5cd0-ad60-11e9-36bc-9b7c9b1e2078"
 version = "0.1.0"
@@ -644,19 +644,6 @@ version = "1.10.0"
     JSONArrowExt = ["ArrowTypes"]
 
     [deps.JSON.weakdeps]
-    ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
-
-[[deps.JSON3]]
-deps = ["Dates", "Mmap", "Parsers", "PrecompileTools", "StructTypes", "UUIDs"]
-git-tree-sha1 = "411eccfe8aba0814ffa0fdf4860913ed09c34975"
-registries = "General"
-uuid = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
-version = "1.14.3"
-
-    [deps.JSON3.extensions]
-    JSON3ArrowExt = ["ArrowTypes"]
-
-    [deps.JSON3.weakdeps]
     ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
 
 [[deps.JpegTurbo_jll]]
@@ -1308,13 +1295,6 @@ git-tree-sha1 = "adb9da019510162e67a4493fc235c23203d8b09e"
 registries = "General"
 uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 version = "0.34.13"
-
-[[deps.StructTypes]]
-deps = ["Dates", "UUIDs"]
-git-tree-sha1 = "159331b30e94d7b11379037feeb9b690950cace8"
-registries = "General"
-uuid = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
-version = "1.11.0"
 
 [[deps.StructUtils]]
 deps = ["Dates", "UUIDs"]

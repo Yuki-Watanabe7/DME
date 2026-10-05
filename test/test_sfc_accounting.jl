@@ -443,7 +443,7 @@ end
         @test d["checks_performed"] == rep.checks_performed
 
         j = to_json(rep)
-        parsed = DME.JSON3.read(j)
+        parsed = DME.json_read(j)
         @test parsed["status"] == "pass"
         @test parsed["checks_performed"] == rep.checks_performed
 

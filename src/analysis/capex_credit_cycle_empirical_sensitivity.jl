@@ -969,7 +969,7 @@ function save_capex_empirical_sensitivity_report(
     report::EmpiricalRobustnessReport,
 )
     open(path, "w") do io
-        JSON3.pretty(io, capex_empirical_sensitivity_report_to_dict(report))
+        json_pretty(io, capex_empirical_sensitivity_report_to_dict(report))
     end
     return path
 end

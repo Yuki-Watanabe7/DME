@@ -15,7 +15,9 @@
 using Test
 using DME
 using Dates
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 @isdefined(synthetic_quarterly_dict) ||
     include(joinpath(@__DIR__, "fixtures", "pne", "pne_fixture_builders.jl"))
@@ -254,7 +256,7 @@ _xmr_codes(v) = [x.code for x in v]
             y = model_derived_input_from_dict(model_derived_input_to_dict(x))
             @test model_derived_input_to_dict(y) == model_derived_input_to_dict(x)
             @test y.values == x.values
-            j = DME._scenario_json_to_plain(JSON3.read(canonical_json_string(model_derived_input_to_dict(x))))
+            j = DME._scenario_json_to_plain(json_read(canonical_json_string(model_derived_input_to_dict(x))))
             @test cross_model_input_set_hash([model_derived_input_from_dict(j)]) == cross_model_input_set_hash([x])
         end
         h = cross_model_input_set_hash(f.xs)
@@ -555,7 +557,7 @@ _xmr_codes(v) = [x.code for x in v]
         report = read(joinpath(dir, "report.md"), String)
         @test occursin("観測・実績・予測ではない", report)
         @test occursin("hypothetical_fictional", report)
-        manifest = JSON3.read(read(joinpath(dir, "manifest.json"), String))
+        manifest = json_read(read(joinpath(dir, "manifest.json"), String))
         @test manifest["run_kind"] == "cross_model"
 
         sc2, xs2 = load_cross_model_scenario(joinpath(dir, "cross_model_scenario.json"))
@@ -569,7 +571,7 @@ _xmr_codes(v) = [x.code for x in v]
               run.result.metadata["cross_model_input_set_hash"]
 
         artifact_path = joinpath(mktempdir(), "pne.json")
-        write(artifact_path, JSON3.write(synthetic_quarterly_dict()))
+        write(artifact_path, json_write(synthetic_quarterly_dict()))
         rederived = replay_cross_model_scenario(
             m,
             dir;
@@ -582,7 +584,7 @@ _xmr_codes(v) = [x.code for x in v]
         only(filter(s -> s["sector_id"] == "phone_assembly", d2["sectors"]))["periods"] =
             _pne_points([1.0, 0.5, 0.8, 1.0, 1.0, 1.0])
         wrong_path = joinpath(mktempdir(), "pne_wrong.json")
-        write(wrong_path, JSON3.write(d2))
+        write(wrong_path, json_write(d2))
         err = try
             replay_cross_model_scenario(m, dir; upstream_artifacts = Dict(f.a.content_hash => wrong_path))
             nothing
@@ -601,7 +603,7 @@ _xmr_codes(v) = [x.code for x in v]
             return d
         end
         rewrite(path, f!) = begin
-            doc = DME._scenario_json_to_plain(JSON3.read(read(path, String)))
+            doc = DME._scenario_json_to_plain(json_read(read(path, String)))
             f!(doc)
             write(path, canonical_json_string(doc))
         end
@@ -676,7 +678,7 @@ _xmr_codes(v) = [x.code for x in v]
         @test run.status === :rejected_validation
         dir = mktempdir()
         save_cross_model_scenario_artifact(dir, run; mappings = [f.mapping], reports = [f.report])
-        summary = JSON3.read(read(joinpath(dir, "result_summary.json"), String))
+        summary = json_read(read(joinpath(dir, "result_summary.json"), String))
         @test summary["status"] == "rejected_validation"
         @test summary["variables"] === nothing
         @test occursin("timing_basis_conflict", read(joinpath(dir, "report.md"), String))

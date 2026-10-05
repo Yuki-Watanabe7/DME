@@ -177,7 +177,7 @@ _fs_frequency_ok(value::AbstractString)::Bool = lowercase(strip(value)) == "dail
 
 function _decode_financial_stress_series(json::String, spec::FinancialStressSeriesSpec)
     data = try
-        JSON3.read(json)
+        json_read(json)
     catch
         throw(_FSProviderDecodeError("series response is not valid JSON"))
     end

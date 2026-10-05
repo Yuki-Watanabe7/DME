@@ -35,7 +35,9 @@ using DME:
 
 using Dates: Date
 
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 # ---------------------------------------------------------------------------
 # fixture: 合成 observation dataset（test_capex_credit_cycle_calibration.jl と同じ規約）
@@ -515,7 +517,7 @@ _hist_prov(layer::Symbol; derived_from::Vector{String} = String[]) =
             path = joinpath(dir, "h1_assessment.json")
             save_capex_episode_assessment(path, a)
             @test isfile(path)
-            loaded = JSON3.read(read(path, String))
+            loaded = json_read(read(path, String))
             @test String(loaded["id"]) == "H1"
         end
     end

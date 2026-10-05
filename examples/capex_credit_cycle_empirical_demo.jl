@@ -70,7 +70,9 @@ get!(ENV, "GKSwstype", "nul")
 
 using DME
 
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 # ─────────────────────────────────────────────────────────────────
 # 合成 fixture の構築ヘルパー
@@ -541,7 +543,7 @@ function run_capex_credit_cycle_empirical_demo(;
     determinism_path = joinpath(outdir, "determinism_check.json")
     write(
         determinism_path,
-        JSON3.write(
+        json_write(
             Dict{String, Any}(
                 "determinism_ok" => determinism_ok,
                 "run1_identity" =>

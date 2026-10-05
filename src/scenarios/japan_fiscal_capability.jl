@@ -2716,11 +2716,11 @@ to_dict(g::JapanFiscalGap) = Dict{String, Any}(
     "doc_ref" => g.doc_ref,
 )
 
-to_json(c::JapanFiscalAssumptionConcept) = JSON3.write(to_dict(c))
-to_json(i::JapanFiscalInputMapping) = JSON3.write(to_dict(i))
-to_json(m::JapanFiscalModelMapping) = JSON3.write(to_dict(m))
-to_json(s::JapanFiscalScenarioFamilySpec) = JSON3.write(to_dict(s))
-to_json(g::JapanFiscalGap) = JSON3.write(to_dict(g))
+to_json(c::JapanFiscalAssumptionConcept) = json_write(to_dict(c))
+to_json(i::JapanFiscalInputMapping) = json_write(to_dict(i))
+to_json(m::JapanFiscalModelMapping) = json_write(to_dict(m))
+to_json(s::JapanFiscalScenarioFamilySpec) = json_write(to_dict(s))
+to_json(g::JapanFiscalGap) = json_write(to_dict(g))
 
 """
     japan_fiscal_capability_matrix() -> Dict{String,Any}

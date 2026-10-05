@@ -829,4 +829,4 @@ to_dict(r::ComparisonResultV2) = Dict{String, Any}(
     "provenance" => r.provenance,
 )
 
-to_json(r::ComparisonResultV2) = JSON3.write(to_dict(r))
+to_json(r::ComparisonResultV2) = json_write(to_dict(r))

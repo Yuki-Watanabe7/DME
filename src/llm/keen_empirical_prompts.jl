@@ -302,7 +302,7 @@ function build_keen_empirical_prompt(
     )
 
     ctx_dict = detail === :brief ? to_compact_dict(kctx) : to_dict(kctx)
-    ctx_json = JSON3.write(ctx_dict)
+    ctx_json = json_write(ctx_dict)
     source_ids = sort!(collect(keys(kctx.sources)))
     ids_str = isempty(source_ids) ? "（なし）" : join(source_ids, ", ")
 
@@ -951,7 +951,7 @@ function parse_keen_empirical_response(
     prompt::String = "",
 )::Union{KeenEmpiricalExplanationOutput, Nothing}
     parsed = try
-        JSON3.read(raw, Dict{String, Any})
+        json_read_first(raw)
     catch
         return nothing
     end
@@ -1146,4 +1146,4 @@ end
 
 `KeenEmpiricalExplanationOutput` を JSON 文字列へ変換する。
 """
-to_json(out::KeenEmpiricalExplanationOutput) = JSON3.write(to_dict(out))
+to_json(out::KeenEmpiricalExplanationOutput) = json_write(to_dict(out))

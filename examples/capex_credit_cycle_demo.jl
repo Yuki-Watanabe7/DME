@@ -50,7 +50,9 @@ get!(ENV, "GKSwstype", "nul")
 using DME
 using Plots
 using Dates: now
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 # ─────────────────────────────────────────────────────────────────
 # 定数
@@ -102,7 +104,7 @@ function _capex_demo_git_revision()
 end
 
 # 非有限値（NaN/Inf）を文字列タグへ符号化する（`src/sfc/serialization.jl` と同じ規約）。
-# 打ち切り・助走区間の初期化次第で系列にNaNが混ざりうるため、JSON3.write前に必ず通す。
+# 打ち切り・助走区間の初期化次第で系列にNaNが混ざりうるため、json_write前に必ず通す。
 _capex_demo_json_safe(x::AbstractFloat) =
     isfinite(x) ? x : (isnan(x) ? "NaN" : (x > 0 ? "Inf" : "-Inf"))
 _capex_demo_json_safe(x::AbstractVector) = Any[_capex_demo_json_safe(v) for v in x]
@@ -544,12 +546,12 @@ function run_capex_credit_cycle_demo(;
             senses[id],
         )
         path = joinpath(outdir, "capex_scenario_$(id).json")
-        write(path, JSON3.write(d))
+        write(path, json_write(d))
         push!(scenario_paths, path)
     end
 
     judgment_path = joinpath(outdir, "capex_judgment_questions.json")
-    write(judgment_path, JSON3.write(judgment))
+    write(judgment_path, json_write(judgment))
 
     v2_path = joinpath(outdir, "capex_comparison_v2.json")
     write(v2_path, to_json(comparison_v2))
@@ -590,7 +592,7 @@ function run_capex_credit_cycle_demo(;
         "notes" => CAPEX_DEMO_NOTES,
     )
     manifest_path = joinpath(outdir, "capex_run_manifest.json")
-    write(manifest_path, JSON3.write(manifest))
+    write(manifest_path, json_write(manifest))
 
     artifact_names = [
         basename(p) for

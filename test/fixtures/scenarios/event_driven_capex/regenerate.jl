@@ -14,7 +14,9 @@
 # （`test/fixtures/events/`・`test/fixtures/scenarios/regenerate.jl` と同じ `Y-25` の規約）。
 
 using DME
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 const HERE = @__DIR__
 const DEMO_SCRIPT =
@@ -138,7 +140,7 @@ for (relpath, expected_status) in (
     ("negative_unmapped.json", :rejected_mapping),
 )
     fixture =
-        DME._scenario_json_to_plain(JSON3.read(read(joinpath(HERE, relpath), String)))
+        DME._scenario_json_to_plain(json_read(read(joinpath(HERE, relpath), String)))
     sc = scenario_from_dict(fixture["scenario"])
     options =
         get(fixture["expected"], "on_unmapped", "") == "warn" ?

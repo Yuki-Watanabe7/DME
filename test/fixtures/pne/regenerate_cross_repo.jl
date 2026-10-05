@@ -34,7 +34,9 @@
 
 using DME
 
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 const HERE = @__DIR__
 const DME_ROOT = normpath(joinpath(HERE, "..", "..", ".."))
 const PRODUCER_DIR = joinpath(HERE, "producer")
@@ -79,12 +81,12 @@ const PNE_DYNAMIC_HASH_PY =
 
 _rel(path) = relpath(path, DME_ROOT)
 _sha256_file(path) = "sha256:" * bytes2hex(DME.SHA.sha256(read(path)))
-_read_plain(path) = DME._scenario_json_to_plain(JSON3.read(read(path, String)))
+_read_plain(path) = DME._scenario_json_to_plain(json_read(read(path, String)))
 
 function _write_pretty_json(path::AbstractString, d)
     mkpath(dirname(path))
     io = IOBuffer()
-    JSON3.pretty(io, JSON3.read(canonical_json_string(d)))
+    json_pretty(io, json_read(canonical_json_string(d)))
     println(io)
     write(path, take!(io))
     println("wrote ", _rel(path))

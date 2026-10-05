@@ -100,7 +100,7 @@ function _capex_catalog_entries(
     json::String,
 )::Tuple{Dict{String, Any}, Union{String, Missing}}
     data = try
-        JSON3.read(json)
+        json_read(json)
     catch
         throw(_CapexProviderDecodeError("catalog is not valid JSON"))
     end
@@ -145,7 +145,7 @@ end
 
 function _capex_provider_json_text(value)::Union{String, Missing}
     ismissing(value) && return missing
-    return JSON3.write(value)
+    return json_write(value)
 end
 
 function _capex_provider_metadata_mismatches(
@@ -197,7 +197,7 @@ function _decode_capex_provider_series(
     catalog_entry,
 )::NamedTuple
     data = try
-        JSON3.read(json)
+        json_read(json)
     catch
         throw(_CapexProviderDecodeError("series response is not valid JSON"))
     end

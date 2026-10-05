@@ -1,8 +1,10 @@
 # GR バックエンドをヘッドレスモードで動作させる（CI / 無表示環境対応）
 ENV["GKSwstype"] = "nul"
 using Plots
-# JSON3 は DME の依存（test 環境へ直接は入れない）。DME 経由で参照する。
-const JSON3 = DME.JSON3
+# JSON.jl は DME の依存（test 環境へ直接は入れない）。DME 経由で参照する。
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 @testset "Keen 実証統合デモ" begin
     fixture_dir = joinpath(@__DIR__, "fixtures", "keen")
@@ -108,7 +110,7 @@ const JSON3 = DME.JSON3
             artifact_paths = ["dummy/traj.png"],
         )
         txt = read(report_path, String)
-        r = JSON3.read(txt)
+        r = json_read(txt)
         for k in (
             "report_kind",
             "methodology",
@@ -130,7 +132,7 @@ const JSON3 = DME.JSON3
         # validation JSON も同様に保存できる
         vpath = joinpath(dir, "val.json")
         save_keen_validation(vpath, res)
-        @test JSON3.read(read(vpath, String)) isa JSON3.Object
+        @test json_read(read(vpath, String)) isa AbstractDict
     end
 
     # ---- secret 値が artifact に含まれない --------------------------------

@@ -970,7 +970,7 @@ function keen_calibration_config_to_dict(config::KeenCalibrationConfig)
     )
 end
 
-# JSON3.Object / Dict の双方から取り出せる小ヘルパ
+# JSON.Object / Dict の双方から取り出せる小ヘルパ
 _kc_get(d, key) = d[key]
 _kc_sym(x) = Symbol(String(x))
 _kc_float(x) = Float64(x)
@@ -979,7 +979,7 @@ _kc_int(x) = Int(x)
 """
     keen_calibration_config_from_dict(d) -> KeenCalibrationConfig
 
-[`keen_calibration_config_to_dict`](@ref) の逆変換。`Dict` または `JSON3.Object` を受け付ける。
+[`keen_calibration_config_to_dict`](@ref) の逆変換。`Dict` または `JSON.Object` を受け付ける。
 """
 function keen_calibration_config_from_dict(d)
     est = [_kc_sym(x) for x in _kc_get(d, "estimated_params")]
@@ -1078,7 +1078,7 @@ end
 """
 function save_keen_calibration(path::AbstractString, result::KeenCalibrationResult)
     open(path, "w") do io
-        JSON3.pretty(io, keen_calibration_to_dict(result))
+        json_pretty(io, keen_calibration_to_dict(result))
     end
     path
 end
@@ -1090,7 +1090,7 @@ end
 """
 function save_keen_calibration_config(path::AbstractString, config::KeenCalibrationConfig)
     open(path, "w") do io
-        JSON3.pretty(io, keen_calibration_config_to_dict(config))
+        json_pretty(io, keen_calibration_config_to_dict(config))
     end
     path
 end
@@ -1103,7 +1103,7 @@ end
 [`calibrate_keen`](@ref) を再実行するのに十分な公開設定を含む。
 """
 function load_keen_calibration_config(path::AbstractString)
-    obj = JSON3.read(read(path, String))
+    obj = json_read(read(path, String))
     d = haskey(obj, "config") ? obj["config"] : obj
     keen_calibration_config_from_dict(d)
 end

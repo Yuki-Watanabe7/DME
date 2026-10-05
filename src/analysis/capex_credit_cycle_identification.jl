@@ -839,7 +839,7 @@ function save_capex_identification(
     targets_hash::AbstractString = "",
 )
     open(path, "w") do io
-        JSON3.pretty(
+        json_pretty(
             io,
             capex_identification_to_dict(
                 diags;
