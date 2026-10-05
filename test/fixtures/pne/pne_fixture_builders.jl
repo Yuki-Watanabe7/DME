@@ -17,7 +17,7 @@ const PNE_OFFICIAL_JP_DIR = joinpath(@__DIR__, "official_jp")
 
 "vendor した PNE の representative fixture を plain `Dict` として読む。"
 function pne_representative_dict()
-    raw = DME.JSON3.read(read(joinpath(PNE_FIXTURE_DIR, "representative.json"), String))
+    raw = DME.json_read(read(joinpath(PNE_FIXTURE_DIR, "representative.json"), String))
     return DME._scenario_json_to_plain(raw)
 end
 
@@ -219,18 +219,18 @@ jp_like_dict() = pne_test_artifact_dict(;
 
 "producer fixture の MANIFEST（`producer/MANIFEST.json`）を plain `Dict` として読む。"
 pne_producer_manifest() =
-    DME._scenario_json_to_plain(DME.JSON3.read(read(joinpath(PNE_PRODUCER_DIR, "MANIFEST.json"), String)))
+    DME._scenario_json_to_plain(DME.json_read(read(joinpath(PNE_PRODUCER_DIR, "MANIFEST.json"), String)))
 
 "PNE の実 producer 経路で生成した artifact（`producer/v1/<case_id>.json`）のパス。"
 pne_producer_path(case_id::AbstractString) = joinpath(PNE_PRODUCER_DIR, "v1", "$(case_id).json")
 
 "PNE の実 producer 経路で生成した artifact を plain `Dict` として読む。"
 pne_producer_dict(case_id::AbstractString) =
-    DME._scenario_json_to_plain(DME.JSON3.read(read(pne_producer_path(case_id), String)))
+    DME._scenario_json_to_plain(DME.json_read(read(pne_producer_path(case_id), String)))
 
 "official Japan 由来 bridge artifact の identity metadata（`official_jp/bridge_identity.json`）。"
 pne_official_jp_identity() = DME._scenario_json_to_plain(
-    DME.JSON3.read(read(joinpath(PNE_OFFICIAL_JP_DIR, "bridge_identity.json"), String)),
+    DME.json_read(read(joinpath(PNE_OFFICIAL_JP_DIR, "bridge_identity.json"), String)),
 )
 
 """

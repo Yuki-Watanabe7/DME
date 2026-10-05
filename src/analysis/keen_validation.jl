@@ -1364,7 +1364,7 @@ metric 等の非有限値（`NaN`/`Inf`、発散・欠損由来）は JSON `null
 """
 function save_keen_validation(path::AbstractString, result::KeenValidationResult)
     open(path, "w") do io
-        JSON3.pretty(io, _keen_json_safe(keen_validation_to_dict(result)))
+        json_pretty(io, _keen_json_safe(keen_validation_to_dict(result)))
     end
     path
 end
@@ -1452,7 +1452,7 @@ function save_keen_empirical_report(
     report =
         keen_empirical_report(dataset, result; mode = mode, artifact_paths = artifact_paths)
     open(path, "w") do io
-        JSON3.pretty(io, _keen_json_safe(report))
+        json_pretty(io, _keen_json_safe(report))
     end
     path
 end

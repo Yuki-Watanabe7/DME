@@ -559,7 +559,7 @@ end
 """
     quality_export_from_dict(d::AbstractDict) -> QualityExport
 
-生の `Dict`（`JSON3.read` を `_qe_to_plain` した後の Native Dict、あるいは valid/invalid
+生の `Dict`（`json_read` を `_qe_to_plain` した後の Native Dict、あるいは valid/invalid
 fixture のパース結果）から `QualityExport` を再構築する。契約が要求する制約
 （必須フィールド・enum・timestamp 形式・commit SHA 形式・status ごとの必須/禁止フィールド）は
 すべてこの経路（および各型のキーワードコンストラクタ）で検証する。DME はこの schema に対する
@@ -608,14 +608,14 @@ function quality_export_from_dict(d::AbstractDict)::QualityExport
     )
 end
 
-_qe_to_plain(x::JSON3.Object) =
+_qe_to_plain(x::AbstractDict) =
     Dict{String, Any}(String(k) => _qe_to_plain(v) for (k, v) in pairs(x))
-_qe_to_plain(x::JSON3.Array) = Any[_qe_to_plain(v) for v in x]
+_qe_to_plain(x::AbstractVector) = Any[_qe_to_plain(v) for v in x]
 _qe_to_plain(x) = x
 
-"""`quality_export_from_dict(_qe_to_plain(JSON3.read(s)))` の糖衣関数。"""
+"""`quality_export_from_dict(_qe_to_plain(json_read(s)))` の糖衣関数。"""
 quality_export_from_json(s::AbstractString)::QualityExport =
-    quality_export_from_dict(_qe_to_plain(JSON3.read(s)))
+    quality_export_from_dict(_qe_to_plain(json_read(s)))
 
 # ---------------------------------------------------------------------------
 # 保存・読み込み（atomic rename）

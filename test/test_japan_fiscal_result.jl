@@ -15,7 +15,9 @@
 using Test
 using DME
 using Dates
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 function _jf_result_test_scenario(
     family::Symbol,
@@ -301,7 +303,7 @@ _jf_result_adopted_mappings() =
     # ---- no secrets / local paths in identity --------------------------------
     @testset "artifact に secrets・local path が含まれない" begin
         r = japan_fiscal_run(:sim, _JF_RESULT_TEST_SCENARIOS[:fiscal_consolidation]; horizon = 6)
-        s = String(JSON3.write(to_dict(r)))
+        s = String(json_write(to_dict(r)))
         @test !occursin(homedir(), s)
         @test !occursin("/Users/", s)
         @test !occursin("/home/", s)
@@ -365,7 +367,7 @@ _jf_result_adopted_mappings() =
         @test c["schema_version"] == JAPAN_FISCAL_RESULT_ARTIFACT_SCHEMA_VERSION
         @test c["adapter_contract_version"] == JAPAN_FISCAL_ADAPTER_CONTRACT_VERSION
         @test length(c["adopted_models"]) == length(JAPAN_FISCAL_MODEL_ADAPTERS)
-        s = JSON3.write(c)
+        s = json_write(c)
         @test s isa AbstractString
     end
 

@@ -1064,7 +1064,7 @@ to_dict(c::KeenSFCConceptCorrespondence) = Dict{String, Any}(
     "doc_refs" => copy(c.doc_refs),
 )
 
-to_json(c::KeenSFCConceptCorrespondence) = JSON3.write(to_dict(c))
+to_json(c::KeenSFCConceptCorrespondence) = json_write(to_dict(c))
 
 # 数値比較結果の要約（metric の NamedTuple は JSON 安全な Dict へ）
 function _ksfc_comparison_summary(r::ComparisonResultV2)
@@ -1111,4 +1111,4 @@ function to_dict(report::KeenSFCComparisonReport)
     )
 end
 
-to_json(report::KeenSFCComparisonReport) = JSON3.write(to_dict(report))
+to_json(report::KeenSFCComparisonReport) = json_write(to_dict(report))

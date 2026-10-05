@@ -13,7 +13,9 @@
 #   8. 成果物に実証統合設計 §10.4 の caveats を含む
 #   9. ネットワークアクセスを行わない（FredClient/EStatClient/HTTP を用いない）
 
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 # 例スクリプトは PROGRAM_FILE ガードで直接実行時のみ走る。include では
 # run_capex_credit_cycle_empirical_demo などの関数定義のみ読み込まれる。
@@ -63,7 +65,7 @@ include(CCED_SCRIPT_PATH)
         out = run_capex_credit_cycle_empirical_demo(; outdir = dir, verbose = false)
         @test out.determinism_ok
 
-        determinism = JSON3.read(read(joinpath(dir, "determinism_check.json"), String))
+        determinism = json_read(read(joinpath(dir, "determinism_check.json"), String))
         @test determinism.determinism_ok
         @test determinism.run1_identity.dataset_hash ==
               determinism.run2_identity.dataset_hash
@@ -79,8 +81,8 @@ include(CCED_SCRIPT_PATH)
         # 独立した保存でも同一 fixture・同一 config から同一 hash が再現される）。
         dir2 = mktempdir()
         out2 = run_capex_credit_cycle_empirical_demo(; outdir = dir2, verbose = false)
-        artifact1 = JSON3.read(read(joinpath(dir, "artifact.json"), String))
-        artifact2 = JSON3.read(read(joinpath(dir2, "artifact.json"), String))
+        artifact1 = json_read(read(joinpath(dir, "artifact.json"), String))
+        artifact2 = json_read(read(joinpath(dir2, "artifact.json"), String))
         @test artifact1.identity.dataset_hash == artifact2.identity.dataset_hash
         @test artifact1.identity.targets_hash == artifact2.identity.targets_hash
         @test artifact1.identity.parameter_set_hash == artifact2.identity.parameter_set_hash

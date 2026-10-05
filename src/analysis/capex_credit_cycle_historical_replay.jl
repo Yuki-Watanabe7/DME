@@ -803,7 +803,7 @@ function save_capex_historical_replay_run(
     run::CapexHistoricalReplayRun,
 )
     open(path, "w") do io
-        JSON3.pretty(io, capex_historical_replay_run_to_dict(run))
+        json_pretty(io, capex_historical_replay_run_to_dict(run))
     end
     return path
 end

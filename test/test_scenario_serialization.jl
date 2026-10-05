@@ -9,7 +9,9 @@
 # 逐次 `include` するため、同一 Main 名前空間で定義済み）。
 
 using Dates: Date, DateTime
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 # ------------------------------------------------------------
 # テスト用ヘルパ（fictional。型写像の全パターンを網羅する assumption 群）
@@ -296,7 +298,7 @@ end
         fixture_path =
             joinpath(@__DIR__, "fixtures", "scenarios", "event_driven_capex_golden.json")
         @test isfile(fixture_path)
-        fixture = DME._scenario_json_to_plain(JSON3.read(read(fixture_path, String)))
+        fixture = DME._scenario_json_to_plain(json_read(read(fixture_path, String)))
         @test fixture["source"]["kind"] == "golden"
         @test fixture["source"]["kind"] != "illustrative"
         sc = scenario_from_dict(fixture["scenario"])
@@ -316,7 +318,7 @@ end
             run1 = run_scenario(m, sc)
             save_scenario_artifact(dir, run1)
             manifest = DME._scenario_json_to_plain(
-                JSON3.read(read(joinpath(dir, "manifest.json"), String)),
+                json_read(read(joinpath(dir, "manifest.json"), String)),
             )
             @test manifest["schema_version"] == SCENARIO_ARTIFACT_SCHEMA_VERSION
             @test manifest["status"] == "completed"
@@ -340,11 +342,11 @@ end
             @test run1.schedule === nothing
             paths = save_scenario_artifact(dir, run1)
             event_log = DME._scenario_json_to_plain(
-                JSON3.read(read(joinpath(dir, "event_log.json"), String)),
+                json_read(read(joinpath(dir, "event_log.json"), String)),
             )
             @test isempty(event_log["event_log"])
             result_summary = DME._scenario_json_to_plain(
-                JSON3.read(read(joinpath(dir, "result_summary.json"), String)),
+                json_read(read(joinpath(dir, "result_summary.json"), String)),
             )
             @test result_summary["metadata"] === nothing
             @test result_summary["variables"] === nothing

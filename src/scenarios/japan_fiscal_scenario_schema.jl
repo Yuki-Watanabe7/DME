@@ -32,7 +32,7 @@
 # registry は変更しない。
 #
 # 依存: scenarios/japan_fiscal_capability.jl（#274）・scenarios/japan_fiscal_claim_contract.jl
-# （#285）・artifacts/json_canonical.jl（`sha256_hex_of_canonical`）・JSON3・Dates。
+# （#285）・artifacts/json_canonical.jl（`sha256_hex_of_canonical`）・JSON.jl・Dates。
 #
 # 設計契約:
 #   docs/architecture/japan_fiscal_scenario_schema_contract.md
@@ -708,20 +708,20 @@ to_dict(e::JapanFiscalScenarioCatalogEntry) = Dict{String, Any}(
     "doc_ref" => e.doc_ref,
 )
 
-to_json(c::JapanFiscalFREContext) = JSON3.write(to_dict(c))
-to_json(a::JapanFiscalScenarioAssumption) = JSON3.write(to_dict(a))
-to_json(p::JapanFiscalScenarioProvenance) = JSON3.write(to_dict(p))
-to_json(s::JapanFiscalScenario) = JSON3.write(to_dict(s))
-to_json(e::JapanFiscalScenarioCatalogEntry) = JSON3.write(to_dict(e))
+to_json(c::JapanFiscalFREContext) = json_write(to_dict(c))
+to_json(a::JapanFiscalScenarioAssumption) = json_write(to_dict(a))
+to_json(p::JapanFiscalScenarioProvenance) = json_write(to_dict(p))
+to_json(s::JapanFiscalScenario) = json_write(to_dict(s))
+to_json(e::JapanFiscalScenarioCatalogEntry) = json_write(to_dict(e))
 
 # ===========================================================================
 # JSON decode（fail closed。scenario_serialization.jl の `_scenario_check_keys`・
 # `_scenario_as_*` と同じ idiom をこのファイル専用に持つ）
 # ===========================================================================
 
-_jf_json_to_plain(x::JSON3.Object) =
+_jf_json_to_plain(x::AbstractDict) =
     Dict{String, Any}(String(k) => _jf_json_to_plain(v) for (k, v) in x)
-_jf_json_to_plain(x::JSON3.Array) = Any[_jf_json_to_plain(v) for v in x]
+_jf_json_to_plain(x::AbstractVector) = Any[_jf_json_to_plain(v) for v in x]
 _jf_json_to_plain(x) = x
 
 function _jf_check_keys(label::AbstractString, d::AbstractDict, required)

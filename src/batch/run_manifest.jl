@@ -122,7 +122,7 @@ function _dme_ecs_task_metadata(env, transport)
         response = transport("GET", uri, Pair{String, String}[], nothing; timeout = 2)
         response.status == 200 ||
             return (nothing, "ECS task metadata endpoint returned HTTP $(response.status)")
-        metadata = JSON3.read(response.body)
+        metadata = json_read(response.body)
         labels = get(metadata, :Labels, Dict{Symbol, Any}())
         task_arn = _dme_optional_string(labels, Symbol("com.amazonaws.ecs.task-arn"))
         match_ = task_arn === nothing ? nothing : match(_DME_ECS_TASK_ARN_RE, task_arn)

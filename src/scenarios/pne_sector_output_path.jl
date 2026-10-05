@@ -919,7 +919,7 @@ JSON ファイルから PNE artifact を受理する。読み込んだバイト�
 function load_pne_sector_output_path(path::AbstractString)
     bytes = read(path)
     parsed = try
-        JSON3.read(String(copy(bytes)))
+        json_read(String(copy(bytes)))
     catch e
         _pne_schema_fail("$(basename(path)) を JSON として解釈できません（$(typeof(e))）")
     end

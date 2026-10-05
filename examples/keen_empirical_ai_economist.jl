@@ -55,7 +55,9 @@ get!(ENV, "GKSwstype", "nul")
 using DME
 using Plots
 using Dates: now
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 # ─────────────────────────────────────────────────────────────────
 # provenance ヘルパー
@@ -527,7 +529,7 @@ function run_keen_empirical_ai_economist(;
         "warnings" => string.(result.warnings),
     )
     manifest_path = joinpath(outdir, "run_manifest.json")
-    write(manifest_path, JSON3.write(manifest))
+    write(manifest_path, json_write(manifest))
 
     artifact_names = [
         basename(p) for p in vcat(

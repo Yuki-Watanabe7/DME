@@ -55,7 +55,9 @@ get!(ENV, "GKSwstype", "nul")
 
 using DME
 using Dates: Date, now
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 # ─────────────────────────────────────────────────────────────────
 # 定数

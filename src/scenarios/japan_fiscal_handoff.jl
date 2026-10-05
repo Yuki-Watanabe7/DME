@@ -241,7 +241,7 @@ end
 使う）。
 """
 function japan_fiscal_handoff_negative_artifacts(source::JapanFiscalScenarioResult)
-    base = _jf_json_to_plain(JSON3.read(String(canonical_json_bytes(to_dict(source)))))
+    base = _jf_json_to_plain(json_read(String(canonical_json_bytes(to_dict(source)))))
     source.result_shape === :time_path || throw(
         ArgumentError(
             "negative artifact の source は result_shape=:time_path の result でなければなりません",
@@ -654,7 +654,7 @@ function _jf_handoff_read(dir::AbstractString, entry::AbstractDict, label::Abstr
             "$(label): $(rel) の SHA-256 が index と一致しません（index: $(entry["sha256"])、実値: $(got)）",
         ),
     )
-    return rel, _jf_json_to_plain(JSON3.read(String(bytes)))
+    return rel, _jf_json_to_plain(json_read(String(bytes)))
 end
 
 "case の tags が artifact / scenario の内容と整合することを検査する。"
@@ -771,7 +771,7 @@ function load_japan_fiscal_handoff(dir::AbstractString)::JapanFiscalHandoffBundl
     index_path = joinpath(dir, "index.json")
     isfile(index_path) ||
         throw(ArgumentError("load_japan_fiscal_handoff: index.json がありません"))
-    index = _jf_json_to_plain(JSON3.read(read(index_path, String)))
+    index = _jf_json_to_plain(json_read(read(index_path, String)))
     _jf_check_keys("handoff index", index, _JF_HANDOFF_INDEX_KEYS)
     index["schema_version"] == JAPAN_FISCAL_HANDOFF_SCHEMA_VERSION || throw(
         ArgumentError(
@@ -1076,7 +1076,7 @@ function replay_japan_fiscal_handoff_case(
         horizon = Int(c["horizon"]),
         generated_at = _jf_as_datetime(saved["generated_at"], "generated_at"),
     )
-    replayed = _jf_json_to_plain(JSON3.read(String(canonical_json_bytes(to_dict(rerun)))))
+    replayed = _jf_json_to_plain(json_read(String(canonical_json_bytes(to_dict(rerun)))))
     kind = Symbol(saved["artifact_kind"])
     hash_key = kind === :result ? "result_content_hash" : "rejection_content_hash"
     replayed["artifact_kind"] == saved["artifact_kind"] || return JapanFiscalReplayReport(

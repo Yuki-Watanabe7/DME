@@ -11,7 +11,9 @@
 # GR バックエンドをヘッドレスモードで動作させる（CI / 無表示環境対応）
 ENV["GKSwstype"] = "nul"
 using Plots
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 # 例スクリプトは PROGRAM_FILE ガードで直接実行時のみ走る。include では
 # run_sfc_ai_economist などの関数定義のみ読み込まれる。
@@ -105,7 +107,7 @@ include(joinpath(@__DIR__, "..", "examples", "sfc_ai_economist_demo.jl"))
         dir = mktempdir()
         run_demo(dir)
 
-        manifest = JSON3.read(read(joinpath(dir, "run_manifest.json"), String))
+        manifest = json_read(read(joinpath(dir, "run_manifest.json"), String))
         for k in (
             "demo",
             "run_timestamp",
@@ -128,21 +130,21 @@ include(joinpath(@__DIR__, "..", "examples", "sfc_ai_economist_demo.jl"))
         @test manifest["explanation"]["generation_status"] == "deterministic"
         @test "private_debt" in String.(manifest["explanation"]["incomparable_concepts"])
 
-        acc = JSON3.read(read(joinpath(dir, "accounting_checks.json"), String))
+        acc = json_read(read(joinpath(dir, "accounting_checks.json"), String))
         @test acc["baseline"]["status"] == "pass"
         @test acc["fiscal_shock"]["status"] == "pass"
 
-        cap = JSON3.read(read(joinpath(dir, "model_capabilities.json"), String))
+        cap = json_read(read(joinpath(dir, "model_capabilities.json"), String))
         @test haskey(cap, "sim")
         @test haskey(cap, "keen")
 
-        v2 = JSON3.read(read(joinpath(dir, "comparison_v2.json"), String))
+        v2 = json_read(read(joinpath(dir, "comparison_v2.json"), String))
         @test v2["mode"] == "trajectory"
 
-        ksfc = JSON3.read(read(joinpath(dir, "keen_sfc_comparison.json"), String))
+        ksfc = json_read(read(joinpath(dir, "keen_sfc_comparison.json"), String))
         @test ksfc["contract_version"] == KEEN_SFC_COMPARISON_CONTRACT_VERSION
 
-        expl = JSON3.read(read(joinpath(dir, "keen_sfc_explanation.json"), String))
+        expl = json_read(read(joinpath(dir, "keen_sfc_explanation.json"), String))
         @test expl["contract_version"] == DME.CROSS_MODEL_OUTPUT_CONTRACT_VERSION
         for sec in DME.CROSS_MODEL_OUTPUT_SECTION_ORDER
             @test haskey(expl, sec)

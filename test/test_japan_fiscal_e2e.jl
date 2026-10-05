@@ -21,15 +21,17 @@
 using Test
 using DME
 using Dates
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 @isdefined(jf_fixture_cases) ||
     include(joinpath(@__DIR__, "fixtures", "japan_fiscal", "japan_fiscal_fixture_cases.jl"))
 @isdefined(jf_schema_errors) ||
     include(joinpath(@__DIR__, "fixtures", "japan_fiscal", "json_schema_subset.jl"))
 
-_jfe_plain(x) = DME._jf_json_to_plain(JSON3.read(String(canonical_json_bytes(x))))
-_jfe_read(path) = DME._jf_json_to_plain(JSON3.read(read(path, String)))
+_jfe_plain(x) = DME._jf_json_to_plain(json_read(String(canonical_json_bytes(x))))
+_jfe_read(path) = DME._jf_json_to_plain(json_read(read(path, String)))
 _jfe_bytes(x) = canonical_json_bytes(x)
 
 "JSON 木を辿り、各キーの位置（`\$.a.b[1].c`）を返す。"
@@ -334,7 +336,7 @@ const _JFE_HANDOFF_SCHEMA = jf_load_schema("japan-fiscal-scenario-handoff-v1.sch
                 @test has_floats
                 @test isempty(
                     _jfe_tolerance_mismatches(
-                        _jfe_strip_float_hashes(DME._jf_json_to_plain(JSON3.read(String(committed)))),
+                        _jfe_strip_float_hashes(DME._jf_json_to_plain(json_read(String(committed)))),
                         _jfe_strip_float_hashes(d),
                     ),
                 )

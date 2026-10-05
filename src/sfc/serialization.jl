@@ -2,7 +2,7 @@
 #
 # 規約:
 #   - `to_dict(x)` は String キーの `Dict{String,Any}` を返し、`to_json(x)` は
-#     `JSON3.write(to_dict(x))`。復元は `sfc_result_from_dict` / `sfc_result_from_json` /
+#     `json_write(to_dict(x))`。復元は `sfc_result_from_dict` / `sfc_result_from_json` /
 #     `load_sfc_result`。round-trip（保存→復元→再保存で一致）をテストで保証する。
 #   - sector・instrument・transaction の順序は型側で stable id 昇順に正準化済みのため、
 #     配列として出力すれば決定的になる。
@@ -63,13 +63,13 @@ _sfc_jsonify(x::AbstractDict) =
     Dict{String, Any}(string(k) => _sfc_jsonify(v) for (k, v) in x)
 _sfc_jsonify(x) = x
 
-# パース済み JSON（JSON3.Object / Array）を素の Dict / Vector へ変換。
+# パース済み JSON（JSON.Object / Array）を素の Dict / Vector へ変換。
 _sfc_to_plain(x::AbstractDict) =
     Dict{String, Any}(string(k) => _sfc_to_plain(v) for (k, v) in x)
 _sfc_to_plain(x::AbstractVector) = Any[_sfc_to_plain(v) for v in x]
 _sfc_to_plain(x) = x
 
-# Dict / JSON3.Object の双方に対応するアクセサ。
+# Dict / JSON.Object の双方に対応するアクセサ。
 _sfc_get(d::AbstractDict, k::AbstractString) = haskey(d, k) ? d[k] : d[Symbol(k)]
 _sfc_get(d, k::AbstractString) = getproperty(d, Symbol(k))
 _sfc_has(d::AbstractDict, k::AbstractString) = haskey(d, k) || haskey(d, Symbol(k))
@@ -149,13 +149,13 @@ to_dict(r::SFCResult) = Dict{String, Any}(
 )
 
 # to_json（`to_json` 総称関数へメソッドを追加）
-to_json(x::SFCSector) = JSON3.write(to_dict(x))
-to_json(x::SFCInstrument) = JSON3.write(to_dict(x))
-to_json(x::BalanceSheetMatrix) = JSON3.write(to_dict(x))
-to_json(x::TransactionFlowMatrix) = JSON3.write(to_dict(x))
-to_json(x::SFCPeriodSnapshot) = JSON3.write(to_dict(x))
-to_json(x::SFCMethodologyMetadata) = JSON3.write(to_dict(x))
-to_json(x::SFCResult) = JSON3.write(to_dict(x))
+to_json(x::SFCSector) = json_write(to_dict(x))
+to_json(x::SFCInstrument) = json_write(to_dict(x))
+to_json(x::BalanceSheetMatrix) = json_write(to_dict(x))
+to_json(x::TransactionFlowMatrix) = json_write(to_dict(x))
+to_json(x::SFCPeriodSnapshot) = json_write(to_dict(x))
+to_json(x::SFCMethodologyMetadata) = json_write(to_dict(x))
+to_json(x::SFCResult) = json_write(to_dict(x))
 
 # ---------------------------------------------------------------------------
 # from_dict（復元）
@@ -225,7 +225,7 @@ end
 """
     sfc_result_from_dict(d) -> SFCResult
 
-`to_dict(::SFCResult)` 相当の Dict / `JSON3.Object` から `SFCResult` を復元する。
+`to_dict(::SFCResult)` 相当の Dict / `JSON.Object` から `SFCResult` を復元する。
 """
 function sfc_result_from_dict(d)
     sectors = SFCSector[sfc_sector_from_dict(x) for x in _sfc_get(d, "sectors")]
@@ -256,7 +256,7 @@ end
 
 JSON 文字列から `SFCResult` を復元する。
 """
-sfc_result_from_json(s::AbstractString) = sfc_result_from_dict(JSON3.read(s))
+sfc_result_from_json(s::AbstractString) = sfc_result_from_dict(json_read(s))
 
 # ---------------------------------------------------------------------------
 # 保存 / 読み込み
@@ -269,7 +269,7 @@ sfc_result_from_json(s::AbstractString) = sfc_result_from_dict(JSON3.read(s))
 """
 function save_sfc_result(path::AbstractString, r::SFCResult)
     open(path, "w") do io
-        JSON3.pretty(io, to_dict(r))
+        json_pretty(io, to_dict(r))
     end
     return path
 end
@@ -279,4 +279,4 @@ end
 
 `save_sfc_result` で保存した JSON ファイルを読み込み `SFCResult` を復元する。
 """
-load_sfc_result(path::AbstractString) = sfc_result_from_dict(JSON3.read(read(path, String)))
+load_sfc_result(path::AbstractString) = sfc_result_from_dict(json_read(read(path, String)))

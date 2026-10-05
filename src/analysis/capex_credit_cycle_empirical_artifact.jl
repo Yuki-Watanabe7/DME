@@ -339,7 +339,7 @@ end
 
 `save_capex_empirical_artifact` が `dir` へ書き出した `artifact.json` の file index に従って
 各ファイルを読み込み、`capex_empirical_artifact_to_dict` と同じキー構造の辞書を再構築する
-（監査・決定性確認用。実証統合設計 §12.7 項目61）。数値・hash は JSON の型（`JSON3.Object`/
+（監査・決定性確認用。実証統合設計 §12.7 項目61）。数値・hash は JSON の型（`JSON.Object`/
 `Vector`/`String`/`Number`/`nothing`）で返る。Julia の型（`CapexEmpiricalDataset` 等）へは
 再構築しない（他段の to_dict も同じ「監査用の辞書化であり完全な再水和はしない」規約）。
 """
@@ -347,7 +347,7 @@ function load_capex_empirical_artifact(dir::AbstractString)::Dict{String, Any}
     manifest_path = joinpath(dir, "artifact.json")
     isfile(manifest_path) ||
         throw(ArgumentError("artifact.json が見つかりません: $(manifest_path)"))
-    manifest = JSON3.read(read(manifest_path, String))
+    manifest = json_read(read(manifest_path, String))
 
     out = Dict{String, Any}(
         "artifact_version" =>
@@ -360,7 +360,7 @@ function load_capex_empirical_artifact(dir::AbstractString)::Dict{String, Any}
     for (filename, _) in pairs(manifest["files"])
         fname = String(filename)
         path = joinpath(dir, fname)
-        value = _capex_validation_json_value(JSON3.read(read(path, String)))
+        value = _capex_validation_json_value(json_read(read(path, String)))
         if fname == "catalog.json"
             out["catalog"] = value
         elseif fname == "raw_observation_manifest.json"

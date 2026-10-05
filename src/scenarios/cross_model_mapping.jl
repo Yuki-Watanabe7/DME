@@ -930,7 +930,7 @@ JSON ファイルから mapping artifact を decode する（`cross_model_mappin
 """
 function load_cross_model_mapping(path::AbstractString)
     parsed = try
-        JSON3.read(read(path, String))
+        json_read(read(path, String))
     catch e
         _cross_model_mapping_fail(
             "$(basename(path)) を JSON として解釈できません（$(typeof(e))）",

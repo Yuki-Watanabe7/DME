@@ -368,10 +368,10 @@ end
         @test length(mx["assumption_concepts"]) == 9
         # 同一入力から同一の matrix（決定的）
         @test japan_fiscal_capability_matrix() == mx
-        s1 = DME.JSON3.write(mx)
-        @test DME.JSON3.write(japan_fiscal_capability_matrix()) == s1
+        s1 = DME.json_write(mx)
+        @test DME.json_write(japan_fiscal_capability_matrix()) == s1
         # JSON として読み戻せる
-        back = DME.JSON3.read(s1)
+        back = DME.json_read(s1)
         @test back["contract_version"] == JAPAN_FISCAL_CAPABILITY_CONTRACT_VERSION
         @test length(back["mappings"]) == 55
         # 各 mapping の dict に必須キーが揃う

@@ -32,7 +32,7 @@ const _JF_SCHEMA_ASSERTIONS = Set([
 const _JF_SCHEMA_ANNOTATIONS = Set(["\$schema", "\$id", "\$defs", "title", "description"])
 
 jf_load_schema(name::AbstractString) =
-    DME._jf_json_to_plain(DME.JSON3.read(read(joinpath(JF_SCHEMA_DIR, name), String)))
+    DME._jf_json_to_plain(DME.json_read(read(joinpath(JF_SCHEMA_DIR, name), String)))
 
 "schema の全ノードを辿り、対応していないキーワードを `\"<位置>: <キーワード>\"` の形で返す。"
 function jf_schema_unsupported_keywords(schema::AbstractDict)

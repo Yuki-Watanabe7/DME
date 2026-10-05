@@ -226,7 +226,7 @@ function _fetch_fred_live(
     end_date::Union{String, Nothing},
 )::DataSeries
     meta_url = _build_fred_url(client.base_url, "/series", client.api_key, series_id)
-    meta_data = JSON3.read(_http_get(meta_url))
+    meta_data = json_read(_http_get(meta_url))
     series_info = first(meta_data["seriess"])
 
     freq = _detect_frequency(String(series_info["frequency"]))
@@ -244,7 +244,7 @@ function _fetch_fred_live(
         series_id;
         params = obs_params,
     )
-    obs_data = JSON3.read(_http_get(obs_url))
+    obs_data = json_read(_http_get(obs_url))
     dates, values = _parse_fred_observations(obs_data["observations"], freq)
 
     DataSeries(
@@ -285,7 +285,7 @@ economic-data-provider REST API の TimeSeries JSON レスポンスを DataSerie
   }
 """
 function _parse_rest_api_response(json_str::String, source::String)::DataSeries
-    data = JSON3.read(json_str)
+    data = json_read(json_str)
     freq = _rest_api_frequency(String(data["frequency"]))
     unit = haskey(data, "unit") && data["unit"] !== nothing ? String(data["unit"]) : ""
     dates = String[]
@@ -321,7 +321,7 @@ end
 # ----------------------------------------------------------------
 
 function _parse_fred_json(json_str::String)::DataSeries
-    data = JSON3.read(json_str)
+    data = json_read(json_str)
     s = data["series"]
     freq = _detect_frequency(String(s["frequency"]))
     sa = string(get(s, "seasonal_adjustment", ""))

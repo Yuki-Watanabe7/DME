@@ -156,8 +156,8 @@ to_dict(r::AccountingCheckReport) = Dict{String, Any}(
     "tolerance_rel" => _sfc_encode_float(r.tolerance_rel),
 )
 
-to_json(v::AccountingViolation) = JSON3.write(to_dict(v))
-to_json(r::AccountingCheckReport) = JSON3.write(to_dict(r))
+to_json(v::AccountingViolation) = json_write(to_dict(v))
+to_json(r::AccountingCheckReport) = json_write(to_dict(r))
 
 # NaN 安全な等価比較（round-trip 後の report 一致テスト等で使う）。
 function Base.isequal(a::AccountingViolation, b::AccountingViolation)

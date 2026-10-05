@@ -1082,7 +1082,7 @@ function calibrate_capex_credit_cycle(
         "literature_keys" => sort(String.(collect(keys(literature)))),
         "assumption_keys" => sort(String.(collect(keys(assumptions)))),
         "structural_override_keys" =>
-            sort(String.(collect(keys(structural_overrides)))),
+            sort(String[String(k) for k in keys(structural_overrides)]),
         "parameter_class_counts" => class_counts,
         "targets_hash" => targets_hash,
         "vintage_mode" => get(ds.metadata, "vintage_mode", "latest_only"),
@@ -1219,7 +1219,7 @@ end
 """
 function save_capex_calibration(path::AbstractString, cal::CapexEmpiricalCalibration)
     open(path, "w") do io
-        JSON3.pretty(io, capex_calibration_to_dict(cal))
+        json_pretty(io, capex_calibration_to_dict(cal))
     end
     return path
 end

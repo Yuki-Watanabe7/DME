@@ -20,7 +20,7 @@ const PNE_SCHEMA_PATH = normpath(
 )
 
 "vendor した PNE schema を plain `Dict` として読む。"
-pne_vendored_schema() = DME._scenario_json_to_plain(DME.JSON3.read(read(PNE_SCHEMA_PATH, String)))
+pne_vendored_schema() = DME._scenario_json_to_plain(DME.json_read(read(PNE_SCHEMA_PATH, String)))
 
 function _pne_surface_resolve(node::AbstractDict, defs::AbstractDict)
     haskey(node, "\$ref") || return node

@@ -496,7 +496,7 @@ const _CALIB_BEND = "2016-Q4"
             "roundtrip_default_targets.json",
         )
         @test isfile(golden_path)
-        g = DME.JSON3.read(read(golden_path, String))
+        g = DME.json_read(read(golden_path, String))
         @test cal.dataset_hash == g["dataset_hash"]
         @test cal.targets_hash == g["targets_hash"]
         @test cal.metadata["calibration_version"] == g["calibration_version"]

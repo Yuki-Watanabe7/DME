@@ -13,7 +13,7 @@
 | 3 | 判定問題 Q2（`A`, Sc3）・Q3（`share_C`, Sc2/Sc3、主方式+加法分解+残差比）・Q4（Sc3 vs Sc4 の波及遮断比較）の回答を構成する | `diag.amplification` / `diag.share_c` / `diag.share_c_additive` / `diag.peaks` |
 | 4 | `Sc0` vs `Sc3` を比較API v2の `mechanism` モードで比較する（同一モデル内のシナリオ比較。能力metadataの構造化差分を返す） | `compare_results_v2`（[クロスモデル推論層](../architecture/cross_model_reasoning.md)） |
 | 5 | `Sc3`の部門別系列・シナリオ比較（`dY`/`dI`/`dC`）・診断ラベル帯・`funding_pressure`帯を描画する | `plot_capex_sector_series` / `plot_capex_scenario_comparison` / `plot_capex_diagnostic_label` / `plot_capex_funding_pressure` |
-| 6 | シナリオ別・判定問題・比較結果・provenanceをrun単位で保存する | `to_json` / `JSON3.write` |
+| 6 | シナリオ別・判定問題・比較結果・provenanceをrun単位で保存する | `to_json` / `DME.json_write` |
 
 ## 実行方法
 

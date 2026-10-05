@@ -902,7 +902,7 @@ end
 
 function _cross_model_read_json(path::AbstractString)
     isfile(path) || throw(ArgumentError("$(path) が見つかりません"))
-    d = _scenario_json_to_plain(JSON3.read(read(path, String)))
+    d = _scenario_json_to_plain(json_read(read(path, String)))
     d isa AbstractDict ||
         throw(ArgumentError("$(path): トップレベルは object でなければなりません"))
     return d

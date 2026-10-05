@@ -805,7 +805,7 @@ function to_dict(r::JapanFiscalScenarioRejection)
         "rejection_content_hash" => r.rejection_content_hash,
     )
 end
-to_json(r::JapanFiscalScenarioRejection) = JSON3.write(to_dict(r))
+to_json(r::JapanFiscalScenarioRejection) = json_write(to_dict(r))
 
 const _JF_REJECTION_KEYS = (
     "schema_version",
@@ -1232,7 +1232,7 @@ function to_dict(r::JapanFiscalScenarioResult)
         "result_content_hash" => r.result_content_hash,
     )
 end
-to_json(r::JapanFiscalScenarioResult) = JSON3.write(to_dict(r))
+to_json(r::JapanFiscalScenarioResult) = json_write(to_dict(r))
 
 """
     japan_fiscal_result_artifact_contract() -> Dict{String,Any}

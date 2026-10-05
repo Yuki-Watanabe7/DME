@@ -14,7 +14,9 @@
 # GR バックエンドをヘッドレスモードで動作させる（CI / 無表示環境対応）
 ENV["GKSwstype"] = "nul"
 using Plots
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 # 例スクリプトは PROGRAM_FILE ガードで直接実行時のみ走る。include では
 # run_capex_credit_cycle_demo などの関数定義のみ読み込まれる。
@@ -119,7 +121,7 @@ include(CAPEX_DEMO_SCRIPT_PATH)
             end
         end
 
-        manifest = JSON3.read(read(joinpath(dir, "capex_run_manifest.json"), String))
+        manifest = json_read(read(joinpath(dir, "capex_run_manifest.json"), String))
         for k in reserved_keys
             @test haskey(manifest["reserved_metadata"], k)
         end
@@ -174,7 +176,7 @@ include(CAPEX_DEMO_SCRIPT_PATH)
         r = run_demo(dir; make_plots = false)
         @test length(CAPEX_DEMO_NOTES) == 7
 
-        manifest_notes = Set(String.(JSON3.read(
+        manifest_notes = Set(String.(json_read(
             read(joinpath(dir, "capex_run_manifest.json"), String),
         )["notes"]))
         @test manifest_notes == Set(CAPEX_DEMO_NOTES)
@@ -239,7 +241,7 @@ include(CAPEX_DEMO_SCRIPT_PATH)
         @test r.comparison_v2.mode === :mechanism
         @test r.comparison_v2.mechanism_diff !== nothing
 
-        v2 = JSON3.read(read(joinpath(dir, "capex_comparison_v2.json"), String))
+        v2 = json_read(read(joinpath(dir, "capex_comparison_v2.json"), String))
         @test v2["mode"] == "mechanism"
     end
 end

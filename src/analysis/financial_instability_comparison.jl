@@ -566,7 +566,7 @@ function save_financial_instability_comparison(
     c::FinancialInstabilityComparison,
 )::String
     open(path, "w") do io
-        JSON3.pretty(io, financial_instability_comparison_to_dict(c))
+        json_pretty(io, financial_instability_comparison_to_dict(c))
     end
     return String(path)
 end
@@ -606,7 +606,7 @@ function save_financial_instability_handoff(
     h::FinancialInstabilityHandoff,
 )::String
     open(path, "w") do io
-        JSON3.pretty(io, financial_instability_handoff_to_dict(h))
+        json_pretty(io, financial_instability_handoff_to_dict(h))
     end
     return String(path)
 end

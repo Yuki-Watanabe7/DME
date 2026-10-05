@@ -373,7 +373,7 @@
         @test d["alignment"]["Y"]["common_dates"] == r.alignment["Y"].common_dates
 
         j = to_json(r)
-        parsed = DME.JSON3.read(j)
+        parsed = DME.json_read(j)
         @test parsed["assessment"]["level"] == string(r.assessment.level)
 
         # :mechanism モード（metrics 空・mechanism_diff あり）も round-trip する
@@ -385,6 +385,6 @@
         dm = to_dict(rm)
         @test isempty(dm["metrics"])
         @test dm["mechanism_diff"] !== nothing
-        @test DME.JSON3.read(to_json(rm))["mode"] == "mechanism"
+        @test DME.json_read(to_json(rm))["mode"] == "mechanism"
     end
 end

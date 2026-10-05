@@ -268,11 +268,11 @@ persistence（時間形状）の選択は #276（adapter/runner）の責務で�
 
 ```julia
 json_str = to_json(scenario)
-back = japan_fiscal_scenario_from_dict(JSON3.read(json_str))
+back = japan_fiscal_scenario_from_dict(DME._jf_json_to_plain(DME.json_read(json_str)))
 japan_fiscal_scenario_content_hash(back) == japan_fiscal_scenario_content_hash(scenario)  # true
 
 # 改変されたJSONは拒否される
-tampered = JSON3.read(json_str) |> Dict  # 概念的な例。実際は DME._jf_json_to_plain を使う
+tampered = DME._jf_json_to_plain(DME.json_read(json_str))
 tampered["content_hash"] = "sha256:" * "0"^64
 japan_fiscal_scenario_from_dict(tampered)  # ArgumentError
 ```
@@ -314,7 +314,7 @@ artifact のみを consume する。
 | `japan_fiscal_fre_context_from_dict` / `japan_fiscal_assumption_from_dict` / `japan_fiscal_scenario_from_dict` | fail closed round trip |
 
 ```julia
-using DME, Dates, JSON3
+using DME, Dates
 
 catalog = japan_fiscal_scenario_catalog()
 catalog[:fiscal_consolidation].required_concepts

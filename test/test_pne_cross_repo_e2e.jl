@@ -23,7 +23,9 @@
 using Test
 using DME
 using Dates
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 @isdefined(synthetic_quarterly_dict) ||
     include(joinpath(@__DIR__, "fixtures", "pne", "pne_fixture_builders.jl"))
@@ -42,7 +44,7 @@ const XREPO_OFFICIAL_MODES = (
     ("hypothetical_override", :hypothetical_override_requires_synthetic_source),
 )
 
-_xrepo_json(path) = DME._scenario_json_to_plain(JSON3.read(read(path, String)))
+_xrepo_json(path) = DME._scenario_json_to_plain(json_read(read(path, String)))
 _xrepo_golden(name) = read(joinpath(XREPO_ROOT, "golden", name), String)
 _xrepo_mapping(name) = load_cross_model_mapping(joinpath(XREPO_ROOT, "mappings", name))
 _xrepo_codes(v) = [x.code for x in v]
@@ -677,7 +679,7 @@ end
         end
         # 再導出検証: content hash の異なる PNE bytes を与えると検出する
         wrong = joinpath(mktempdir(), "wrong.json")
-        write(wrong, JSON3.write(d2))
+        write(wrong, json_write(d2))
         msg = _xrepo_error(
             () -> replay_cross_model_scenario(m, dir; upstream_artifacts = Dict(f.a.content_hash => wrong)),
         )

@@ -21,12 +21,12 @@
 #     §9.4（JSON schema と正準化、`Y-19`・`Y-27`）・§9.5（成果物と replay）・§11 `E-7` 行
 
 # ------------------------------------------------------------
-# JSON3 → 素の Dict/Vector（`real_rate_model_artifact.jl` の `_rra_to_plain` と同じ idiom）
+# JSON.jl → 素の Dict/Vector（`real_rate_model_artifact.jl` の `_rra_to_plain` と同じ idiom）
 # ------------------------------------------------------------
 
-_scenario_json_to_plain(x::JSON3.Object) =
+_scenario_json_to_plain(x::AbstractDict) =
     Dict{String, Any}(String(k) => _scenario_json_to_plain(v) for (k, v) in x)
-_scenario_json_to_plain(x::JSON3.Array) = Any[_scenario_json_to_plain(v) for v in x]
+_scenario_json_to_plain(x::AbstractVector) = Any[_scenario_json_to_plain(v) for v in x]
 _scenario_json_to_plain(x) = x
 
 # ------------------------------------------------------------
@@ -837,7 +837,7 @@ fail closed 契約（未知 schema version・必須フィールド欠損・未�
 適用して返す。
 """
 function load_scenario(path::AbstractString)::Scenario
-    d = _scenario_json_to_plain(JSON3.read(read(path, String)))
+    d = _scenario_json_to_plain(json_read(read(path, String)))
     d isa AbstractDict ||
         throw(ArgumentError("$(path): トップレベルは object でなければなりません"))
     return scenario_from_dict(d)
@@ -873,7 +873,7 @@ function replay_scenario(
             "（統合設計 §9.5 契約2）",
         ),
     )
-    manifest = _scenario_json_to_plain(JSON3.read(read(manifest_path, String)))
+    manifest = _scenario_json_to_plain(json_read(read(manifest_path, String)))
     manifest isa AbstractDict ||
         throw(ArgumentError("$(manifest_path): トップレベルは object でなければなりません"))
 

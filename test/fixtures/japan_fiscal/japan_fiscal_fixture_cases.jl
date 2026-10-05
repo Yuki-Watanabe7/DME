@@ -20,7 +20,7 @@ const JF_INPUTS_DIR = joinpath(JF_FIXTURE_ROOT, "inputs")
 const JF_HANDOFF_DIR = joinpath(JF_FIXTURE_ROOT, "handoff", "v1")
 const JF_INVALID_INPUTS_DIR = joinpath(JF_FIXTURE_ROOT, "invalid_inputs")
 
-jf_fixture_json(path::AbstractString) = DME._jf_json_to_plain(DME.JSON3.read(read(path, String)))
+jf_fixture_json(path::AbstractString) = DME._jf_json_to_plain(DME.json_read(read(path, String)))
 
 "`inputs/cases.json`（fixture の manifest）。"
 jf_fixture_manifest() = jf_fixture_json(joinpath(JF_INPUTS_DIR, "cases.json"))
@@ -84,7 +84,7 @@ jf_fixture_case_entry(case_id::AbstractString) =
 # invalid inputs（有効な scenario から 1 事実だけを破る。regenerate.jl が書き、テストが読む）
 # ---------------------------------------------------------------------------
 
-_jf_scenario_plain(sc) = DME._jf_json_to_plain(DME.JSON3.read(String(canonical_json_bytes(to_dict(sc)))))
+_jf_scenario_plain(sc) = DME._jf_json_to_plain(DME.json_read(String(canonical_json_bytes(to_dict(sc)))))
 
 function _jf_assumption_index(d, concept)
     return findfirst(a -> a["concept"] == concept, d["assumptions"])

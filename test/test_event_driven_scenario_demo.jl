@@ -16,7 +16,9 @@
 # 加えて test/fixtures/scenarios/event_driven_capex/ の golden fixture 3種の round-trip・
 # 実行結果を検証する（`Y-25`）。
 
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 # 例スクリプトは PROGRAM_FILE ガードで直接実行時のみ走る。include では
 # run_event_driven_capex_scenario_demo などの関数定義のみ読み込まれる。
@@ -92,7 +94,7 @@ const EDCS_FIXTURE_DIR =
         end
         parity_path = joinpath(dir, "sc0_sc4_parity.json")
         @test isfile(parity_path)
-        parity_json = JSON3.read(read(parity_path, String))
+        parity_json = json_read(read(parity_path, String))
         @test parity_json["all_pass"] == true
     end
 
@@ -106,7 +108,7 @@ const EDCS_FIXTURE_DIR =
         # 同一四半期4イベントのうちcredit系2件はoffsetting（符号が逆）
         @test any(w.code === :offsetting_events for w in simult.run.warnings)
 
-        event_log = JSON3.read(
+        event_log = json_read(
             read(joinpath(simult.dir, "event_log.json"), String),
         )["event_log"]
         @test !isempty(event_log)
@@ -119,10 +121,10 @@ const EDCS_FIXTURE_DIR =
         # 暦日付き（policy_easing）ケースで period_zero・period_labels がscenario.jsonから
         # 確認できる（日付→四半期の割当が成果物から追跡可能）
         flagship = only(filter(cr -> cr.id === :policy_easing, r.case_runs))
-        sc_json = JSON3.read(read(joinpath(flagship.dir, "scenario.json"), String))
+        sc_json = json_read(read(joinpath(flagship.dir, "scenario.json"), String))
         @test sc_json["period_zero"]["year"] == 2026
         @test sc_json["period_zero"]["quarter"] == 1
-        result_summary = JSON3.read(read(joinpath(flagship.dir, "result_summary.json"), String))
+        result_summary = json_read(read(joinpath(flagship.dir, "result_summary.json"), String))
         @test haskey(result_summary["metadata"], "period_labels")
     end
 
@@ -223,7 +225,7 @@ const EDCS_FIXTURE_DIR =
         dir = mktempdir()
         r = run_demo(dir)
 
-        manifest = JSON3.read(read(joinpath(dir, "demo_manifest.json"), String))
+        manifest = json_read(read(joinpath(dir, "demo_manifest.json"), String))
         @test length(manifest["notes"]) == 8
 
         report_txt = read(joinpath(dir, "report.md"), String)
@@ -263,7 +265,7 @@ const EDCS_FIXTURE_DIR =
         for (fname, expected_status) in cases
             path = joinpath(EDCS_FIXTURE_DIR, fname)
             @test isfile(path)
-            fixture = DME._scenario_json_to_plain(JSON3.read(read(path, String)))
+            fixture = DME._scenario_json_to_plain(json_read(read(path, String)))
             @test fixture["source"]["kind"] == "golden"
             @test fixture["source"]["kind"] != "illustrative"
 

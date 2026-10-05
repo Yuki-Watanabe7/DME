@@ -325,7 +325,7 @@ end
 プロンプトへの埋め込みやファイル保存に使用する。
 """
 function to_json(ctx::AnalysisContext)
-    JSON3.write(to_dict(ctx))
+    json_write(to_dict(ctx))
 end
 
 """

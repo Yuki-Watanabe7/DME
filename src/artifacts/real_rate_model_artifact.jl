@@ -1019,10 +1019,10 @@ function real_rate_model_artifact_from_dict(d::AbstractDict)
     return a
 end
 
-_rra_to_plain(x::JSON3.Object) =
+_rra_to_plain(x::AbstractDict) =
     Dict{String, Any}(String(k) => _rra_to_plain(v) for (k, v) in pairs(x))
-_rra_to_plain(x::JSON3.Array) = Any[_rra_to_plain(v) for v in x]
+_rra_to_plain(x::AbstractVector) = Any[_rra_to_plain(v) for v in x]
 _rra_to_plain(x) = x
 
 real_rate_model_artifact_from_json(s::AbstractString) =
-    real_rate_model_artifact_from_dict(_rra_to_plain(JSON3.read(s)))
+    real_rate_model_artifact_from_dict(_rra_to_plain(json_read(s)))

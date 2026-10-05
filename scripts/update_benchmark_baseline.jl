@@ -37,7 +37,6 @@
 # 契約・設計判断: docs/contract/julia-quality-export-v1.md §4.4
 
 using DME
-using JSON3
 
 const _REPO_ROOT = normpath(joinpath(@__DIR__, ".."))
 const BENCHMARK_BASELINE_SCHEMA = "dme-benchmark-baseline/v1"
@@ -94,7 +93,7 @@ function _load_baseline()::Dict{String, Any}
         "baseline_schema" => BENCHMARK_BASELINE_SCHEMA,
         "environments" => Dict{String, Any}(),
     )
-    raw = DME._qe_to_plain(JSON3.read(read(path, String)))
+    raw = DME._qe_to_plain(DME.json_read(read(path, String)))
     raw["baseline_schema"] == BENCHMARK_BASELINE_SCHEMA || error(
         "baseline ファイルの baseline_schema が想定外です（期待: $(BENCHMARK_BASELINE_SCHEMA)、" *
         "実際: $(get(raw, "baseline_schema", nothing))）: $path",

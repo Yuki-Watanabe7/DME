@@ -1354,7 +1354,7 @@ function build_cross_model_prompt(
     audience::Symbol = :analyst,
     detail::Symbol = :standard,
 )
-    ctx_json = JSON3.write(to_dict(ctx))
+    ctx_json = json_write(to_dict(ctx))
     """
 $(_XM_SYSTEM_PROMPT)
 
@@ -1964,7 +1964,7 @@ function parse_cross_model_response(
     prompt::String = "",
 )::Union{CrossModelReasoningOutput, Nothing}
     parsed = try
-        JSON3.read(raw, Dict{String, Any})
+        json_read_first(raw)
     catch
         return nothing
     end
@@ -2155,7 +2155,7 @@ function to_dict(ctx::CrossModelComparisonContext)
     d
 end
 
-to_json(ctx::CrossModelComparisonContext) = JSON3.write(to_dict(ctx))
+to_json(ctx::CrossModelComparisonContext) = json_write(to_dict(ctx))
 
 """
     to_dict(out::CrossModelReasoningOutput) -> Dict{String, Any}
@@ -2178,4 +2178,4 @@ function to_dict(out::CrossModelReasoningOutput)
     d
 end
 
-to_json(out::CrossModelReasoningOutput) = JSON3.write(to_dict(out))
+to_json(out::CrossModelReasoningOutput) = json_write(to_dict(out))

@@ -64,7 +64,7 @@ canonicalizer は導入しない。
 
 保存・`to_json`・hash 計算はすべて `canonical_json_bytes` を単一の経路として使う
 （`JSON3.write` は使わない）。`JSON3` は `real_rate_model_artifact_from_json` の読み込み
-専用とし、JSON3.Object/Array を `Dict{String,Any}`/`Vector{Any}` へ変換してから
+専用とし、JSON3.Object/Array（2026-10 以降は JSON.jl の `JSON.Object`。[ADR 0027](0027-json3-to-json-jl-migration.md)）を `Dict{String,Any}`/`Vector{Any}` へ変換してから
 `real_rate_model_artifact_from_dict` に渡す。既存 `sfc/serialization.jl` の
 `to_json(x) = JSON3.write(to_dict(x))` という慣行からの意図的な逸脱であり、理由は
 cross-repository の hash identity 契約（同じ内容は同じ `artifact_id`）を満たすため。

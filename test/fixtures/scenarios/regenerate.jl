@@ -14,7 +14,9 @@
 # DateTime・Tuple・NamedTuple）を一通り往復させる fictional シナリオを構築する。
 
 using DME
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 using Dates: Date, DateTime
 
 const HERE = @__DIR__

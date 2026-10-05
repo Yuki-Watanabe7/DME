@@ -53,7 +53,9 @@ get!(ENV, "GKSwstype", "nul")
 using DME
 using Plots
 using Dates: now
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 # ─────────────────────────────────────────────────────────────────
 # provenance ヘルパー
@@ -548,7 +550,7 @@ function run_sfc_ai_economist(;
     acc_path = joinpath(outdir, "accounting_checks.json")
     write(
         acc_path,
-        JSON3.write(
+        json_write(
             Dict{String, Any}(
                 "baseline" => to_dict(acc_baseline),
                 "fiscal_shock" => to_dict(acc_shock),
@@ -559,7 +561,7 @@ function run_sfc_ai_economist(;
     cap_path = joinpath(outdir, "model_capabilities.json")
     write(
         cap_path,
-        JSON3.write(
+        json_write(
             Dict{String, Any}("sim" => to_dict(cap_sim), "keen" => to_dict(cap_keen)),
         ),
     )
@@ -624,7 +626,7 @@ function run_sfc_ai_economist(;
         "warnings" => vcat(comparison_v2.warnings, ksfc_report.warnings),
     )
     manifest_path = joinpath(outdir, "run_manifest.json")
-    write(manifest_path, JSON3.write(manifest))
+    write(manifest_path, json_write(manifest))
 
     artifact_names = [
         basename(p) for p in vcat(

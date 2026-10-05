@@ -7,7 +7,9 @@
 #   - JSON round-trip（to_dict/to_json/from_dict、save/load）と決定的な出力
 #   - 空行列・0 値・負値・NaN/Inf を含む境界ケース
 
-const JSON3 = DME.JSON3
+const json_read = DME.json_read
+const json_write = DME.json_write
+const json_pretty = DME.json_pretty
 
 # ---- 正常 fixture を組み立てるヘルパー ------------------------------------
 function sfc_normal_fixture()

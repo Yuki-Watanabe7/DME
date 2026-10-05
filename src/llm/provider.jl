@@ -283,7 +283,7 @@ end
 const _OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
 
 function complete(provider::OpenAIProvider, request::LLMRequest)::LLMResponse
-    body = JSON3.write(
+    body = json_write(
         Dict(
             "model" => provider.model,
             "messages" => Any[
@@ -351,7 +351,7 @@ end
 
 function _parse_openai_response(raw::String, model::String)::LLMResponse
     parsed = try
-        JSON3.read(raw)
+        json_read(raw)
     catch e
         throw(LLMProviderError("OpenAI レスポンス JSON のパースに失敗しました: $(e)"))
     end

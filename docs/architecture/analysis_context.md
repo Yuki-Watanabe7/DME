@@ -442,7 +442,7 @@ println(out.disclaimer)               # 免責文言
 
 - **LLM API を呼ばない**: `AnalysisContext` の構築・変換はすべて LLM API なしで完結する。LLM 呼び出しは LLM接続層（[llm_layer.md](llm_layer.md) セクション7参照）に閉じる。
 - **`data_comparison_summary` は実データ比較後に設定**: 実データ比較を行っていない場合は `Nothing` のままとする。`DataComparisonSummary` を手動で構築する場合は `variable_mapping.md` の対応表を参照すること。
-- **`parameters` は `Dict{String, Any}`**: JSON3 でシリアライズ可能にするため NamedTuple から変換している。モデルの `parameters(m)` の NamedTuple は `ModelMetadata(m)` のコンストラクタ内で自動変換される。
+- **`parameters` は `Dict{String, Any}`**: JSON でシリアライズ可能にするため NamedTuple から変換している。モデルの `parameters(m)` の NamedTuple は `ModelMetadata(m)` のコンストラクタ内で自動変換される。
 - **`variable_summaries` の NamedTuple→Dict 変換**: `summarize_result` が返す各変数のサマリーは NamedTuple だが、`to_dict` / `to_json` の際に Dict に変換される。
 
 ---

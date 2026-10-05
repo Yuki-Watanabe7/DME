@@ -164,7 +164,7 @@ function _dme_aws_credentials(env, transport)::_DmeAwsCredentials
         ),
     )
     document = try
-        JSON3.read(response.body)
+        json_read(response.body)
     catch
         throw(_DmeCliIOError("ECS container credentials endpoint returned invalid JSON"))
     end
