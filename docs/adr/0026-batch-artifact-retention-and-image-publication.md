@@ -190,6 +190,33 @@ Julia の version を上げる場合は CI・`Manifest.toml`（root / test / doc
 
 ## 改訂
 
+### 改訂 5（2026-11-03、[#307](https://github.com/Yuki-Watanabe7/DME/issues/307)）: 公開 digest の OS package inventory を A8 evidence に記録する
+
+**背景。** PAP の 2026-10-25 の rescan（[40239693645](https://github.com/Yuki-Watanabe7/personal-analytics-platform/actions/runs/40239693645)、
+確認 [40245282193](https://github.com/Yuki-Watanabe7/personal-analytics-platform/actions/runs/40245282193)）で、
+pin 中の `sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef`（source `b5bb7dfd`）に
+HIGH 7 CVE / 11 finding（openssl・pcre2・libcap・curl）が検出された。2026-10-12 の scan では 0 件で、
+いずれも push 後に出た AL2023 advisory（ALAS2023-2026-3204 / 3255 / 3267 / 3269）による。7件とも修正版が
+repository にあるので、PAP ADR 0017 §4 step 1 により例外ではなく rebuild で置き換える。admission が `fail` のため、
+置き換えまで DME の RunTask は起動できない。30日期限は 2026-11-24。
+
+これまでの A8 evidence は OS release・glibc と HIGH/CRITICAL finding の package だけを記録していた。clean scan の digest では、
+修正版が入っていることを evidence から確かめられず、private ECR から digest を pull し直す必要があった。
+
+**決定。**
+
+1. `image-publication.json` に `os_packages` を加える。ECR から pull した digest そのものの installed OS package を全件、
+   `{name, version, architecture}` の配列（name 順）で記録する。rpm の `version` は AL2023 advisory と同じ
+   `VERSION-RELEASE`（epoch を含まない）。Debian comparison recipe は installed（`ii`）の dpkg entry を記録する。
+   特定の CVE の package 名を script に持たず全件を記録するので、後の advisory も image を pull し直さずに照合できる。
+2. inventory を読めない・空・形式不正のときは evidence を書かずに失敗する（読めなかった inventory を「package なし」と
+   記録しない）。A7 の scan gate、`deployment_status` の意味、`schema_version` は変えない（field の追加のみ）。
+3. Dockerfile・base・recipe は変えない。既存の `microdnf upgrade -y`（A5）で修正版が入る。この改訂を main にマージした後の
+   main commit を通常の production publish で公開し、新 digest の COMPLETE scan（HIGH/CRITICAL 0）と、`os_packages` の
+   7 package（`openssl-libs`・`openssl-fips-provider-latest`・`pcre2`・`pcre2-syntax`・`libcap`・`curl-minimal`・
+   `libcurl-minimal`）が advisory の修正版以上であることを確かめてから PAP #179 へ handoff する。旧 digest の evidence は
+   書き換えない。
+
 ### 完了記録（2026-10-05、DME #296 / PAP #41）: 修正版本番 image の引き渡しと実機受入
 
 改訂 3 の AL2023 移行は DME #302、改訂 4 の portable cache は DME #303 でマージ済み。

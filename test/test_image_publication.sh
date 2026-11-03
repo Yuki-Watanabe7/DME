@@ -27,6 +27,7 @@ elif [ "$1" = run ]; then
         *PRETTY_NAME*) echo 'Amazon Linux 2023' ;;
         *GNU_LIBC_VERSION*) echo 'glibc 2.34' ;;
         *bundled_libraries*) echo '{"name":"julia","version":"1.13.1","bundled_libraries":{}}' ;;
+        *'rpm -qa'*) cat "$PACKAGES_FIXTURE" ;;
         *) exit 2 ;;
     esac
 else
@@ -56,21 +57,27 @@ export IMAGE_DIGEST
 export ECR_REPOSITORY_URL=123456789012.dkr.ecr.ap-northeast-1.amazonaws.com/dme
 export AWS_REGION=ap-northeast-1 IMAGE_VERSION=0.1.0+aaaaaaaaaaaa
 export SCAN_FIXTURE="$work_dir/scan.json" EVIDENCE_PATH="$work_dir/evidence.json"
+export PACKAGES_FIXTURE="$work_dir/packages.tsv"
 export SCAN_MAX_ATTEMPTS=1 SCAN_POLL_SECONDS=0
 export GITHUB_STEP_SUMMARY="$work_dir/summary.md"
 export PUBLICATION_PURPOSE=comparison IMAGE_TAG="${GITHUB_SHA}-comparison-al2023"
 echo '{"imageScanStatus":{"status":"COMPLETE"},"imageScanFindings":{"imageScanCompletedAt":"2026-10-02T00:00:00Z","findingSeverityCounts":{},"findings":[]}}' >"$SCAN_FIXTURE"
+printf 'pcre2\t10.40-1.amzn2023.0.5\tx86_64\nopenssl-libs\t3.5.8-1.amzn2023.0.3\tx86_64\n' >"$PACKAGES_FIXTURE"
 bash "$repo_root/scripts/record_image_publication.sh"
 jq -e --arg sha "$GITHUB_SHA" --arg old_base "public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:$(printf '%064d' 1)" '
     .source_commit == $sha and .publication_purpose == "comparison"
     and (.image_tag | endswith($sha + "-comparison-al2023"))
     and .base_images[0].resolved_digest == $old_base
     and .deployment_status == "approved" and .glibc == "glibc 2.34"
+    and .os_packages == [
+        {name: "openssl-libs", version: "3.5.8-1.amzn2023.0.3", architecture: "x86_64"},
+        {name: "pcre2", version: "10.40-1.amzn2023.0.5", architecture: "x86_64"}]
     and .image_size_bytes == 123456
     and .ecr_image_size_bytes == 45678
     and .ecr_repository_image_bytes_upper_bound == 69134
     and .scan.completed_at == "2026-10-02T00:00:00Z"' "$EVIDENCE_PATH" >/dev/null
 grep -q "$IMAGE_TAG" "$GITHUB_STEP_SUMMARY"
+grep -q 'OS packages: 2 installed' "$GITHUB_STEP_SUMMARY"
 
 # The default production tag and fail-closed scan gate keep their meaning.
 unset PUBLICATION_PURPOSE IMAGE_TAG
@@ -88,4 +95,17 @@ if bash "$repo_root/scripts/record_image_publication.sh"; then
     echo 'Pending scan unexpectedly approved' >&2; exit 1
 fi
 jq -e '.deployment_status == "pending"' "$EVIDENCE_PATH" >/dev/null
+
+# An unreadable OS package inventory is not recorded as an empty one.
+echo '{"imageScanStatus":{"status":"COMPLETE"},"imageScanFindings":{"findingSeverityCounts":{},"findings":[]}}' >"$SCAN_FIXTURE"
+for case in $'empty OS package inventory\t' \
+    $'malformed OS package entry\topenssl-libs\t3.5.8-1.amzn2023.0.3\n'; do
+    printf '%s' "${case#*$'\t'}" >"$PACKAGES_FIXTURE"
+    rm -f "$EVIDENCE_PATH"
+    if bash "$repo_root/scripts/record_image_publication.sh" 2>"$work_dir/stderr"; then
+        echo 'Missing or malformed OS package inventory unexpectedly accepted' >&2; exit 1
+    fi
+    grep -q "${case%%$'\t'*}" "$work_dir/stderr"
+    [ ! -e "$EVIDENCE_PATH" ]
+done
 echo 'Image publication regression checks passed'

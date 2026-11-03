@@ -56,6 +56,21 @@ runtime_json="$(docker run --rm --platform "$platform" --entrypoint julia "$insp
                 for m in (LibCURL_jll, LibGit2_jll, LibSSH2_jll, OpenSSL_jll, Zlib_jll)]
         print("{\"name\":\"julia\",\"version\":\"", VERSION, "\",\"bundled_libraries\":{",
               join(["\"$k\":\"$v\"" for (k, v) in libs], ","), "}}")')"
+# ECR basic scanning reports OS package findings. Keep this digest's installed
+# inventory so that a later advisory can be checked against the evidence without
+# pulling the image again (Issue #307). rpm versions are VERSION-RELEASE, as in
+# AL2023 advisories; the Debian comparison recipe records installed dpkg entries.
+os_packages="$(docker run --rm --platform "$platform" --entrypoint /bin/sh "$inspected_image" -c \
+    'if command -v rpm >/dev/null 2>&1; then
+         rpm -qa --queryformat "%{NAME}\t%{VERSION}-%{RELEASE}\t%{ARCH}\n"
+     else
+         dpkg-query --show --showformat "\${db:Status-Abbrev}\t\${Package}\t\${Version}\t\${Architecture}\n" |
+             sed -n "s/^ii *\t//p"
+     fi' | LC_ALL=C sort |
+    jq -R -s -c '[split("\n")[] | select(length > 0) | split("\t")
+        | if length == 3 then {name: .[0], version: .[1], architecture: .[2]}
+          else error("malformed OS package entry") end]')"
+jq -e 'length > 0' <<<"$os_packages" >/dev/null || { echo "empty OS package inventory" >&2; exit 2; }
 # Read the base provenance from the exact image, even when its immutable tag is
 # reused. The Docker host's base tag can have moved since the original build.
 base_reference="$(label base.name)"
@@ -122,6 +137,7 @@ jq -n \
     --arg built_at "$built_at" \
     --arg os_release "$os_release" \
     --arg glibc "$glibc" \
+    --argjson os_packages "$os_packages" \
     --argjson image_size "$image_size" \
     --argjson registry_image_size "$registry_image_size" \
     --argjson registry_repository_size "$registry_repository_size" \
@@ -148,6 +164,7 @@ jq -n \
         base_images: $base_images,
         os_release: $os_release,
         glibc: $glibc,
+        os_packages: $os_packages,
         image_size_bytes: $image_size,
         ecr_image_size_bytes: $registry_image_size,
         ecr_repository_image_bytes_upper_bound: $registry_repository_size,
@@ -176,6 +193,7 @@ if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
         echo "- Version: \`$(label version)\`; built at \`$built_at\`; $platform"
         echo "- Base: $(jq -r '[.base_images[] | "`\(.reference)` → `\(.resolved_digest)`"] | join(", ")' "$output")"
         echo "- OS: $os_release; runtime: $(jq -r '"Julia \(.runtime.version) (bundled: \(.runtime.bundled_libraries | to_entries | map("\(.key) \(.value)") | join(", ")))"' "$output")"
+        echo "- OS packages: $(jq '.os_packages | length' "$output") installed, listed in \`os_packages\` of \`image-publication.json\`"
         echo "- Image contract: passed before push and after pulling the digest from ECR"
         echo "- ECR scan: \`$(jq -r .scan.status "$output")\` $(jq -c .scan.severity_counts "$output")"
         echo "- Deployment status: **$deployment_status** — $(jq -r .scan.reason "$output")"
