@@ -303,6 +303,11 @@ operation deadlines, not incomplete initial acceptance. Recheck vendor status
 on any future finding/exception review; rebuild when the chosen release has a
 fix, otherwise repeat supported-base comparison or obtain per-finding approval.
 
+These deadlines are historical. After HIGH findings appeared on rescan, DME #307
+replaced this digest with a rebuild. See
+[ADR 0026 revision 5](../adr/0026-batch-artifact-retention-and-image-publication.md)
+for the replacement digest, evidence and current deadlines.
+
 PAP's 3,000,000,000-byte retained-image operating envelope had 130,776,400 bytes
 remaining at publication. It is not an ECR quota and retention is count-based;
 any additional image publication needs a fresh capacity check. PAP's runtime

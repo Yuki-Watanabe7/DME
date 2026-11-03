@@ -1,0 +1,535 @@
+{
+  "schema_version": 1,
+  "workload": "dme-batch",
+  "publication_status": "published",
+  "publication_purpose": "production",
+  "deployment_status": "approved",
+  "source_commit": "515b6ae3fd4d217625e1c4a4d87db9df04b68af7",
+  "image_tag": "867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme:515b6ae3fd4d217625e1c4a4d87db9df04b68af7",
+  "image_digest": "sha256:7903f8b58e394c3d03ed1281b10fac1f712fb259ca0e76d52b2ad2b2875b9b62",
+  "image_reference": "867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme@sha256:7903f8b58e394c3d03ed1281b10fac1f712fb259ca0e76d52b2ad2b2875b9b62",
+  "image_manifest_media_type": "application/vnd.docker.distribution.manifest.v2+json",
+  "platform": "linux/amd64",
+  "oci_labels": {
+    "source": "https://github.com/Yuki-Watanabe7/DME",
+    "revision": "515b6ae3fd4d217625e1c4a4d87db9df04b68af7",
+    "version": "0.1.0+515b6ae3fd4d"
+  },
+  "base_images": [
+    {
+      "reference": "public.ecr.aws/amazonlinux/amazonlinux:2023-minimal",
+      "resolved_digest": "public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:d4495d25da60ef3f2d44bc7f6a2dd2ec1646c14414e0dfaaa44dc3ff653e1c2b"
+    }
+  ],
+  "os_release": "Amazon Linux 2023.12.20261102",
+  "glibc": "glibc 2.34",
+  "os_packages": [
+    {
+      "name": "alternatives",
+      "version": "1.15-2.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "amazon-linux-repo-cdn",
+      "version": "2023.12.20261102-0.amzn2023",
+      "architecture": "noarch"
+    },
+    {
+      "name": "audit-libs",
+      "version": "3.1.5-1.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "basesystem",
+      "version": "11-11.amzn2023.0.2",
+      "architecture": "noarch"
+    },
+    {
+      "name": "bash",
+      "version": "5.2.15-1.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "bzip2-libs",
+      "version": "1.0.8-6.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "ca-certificates",
+      "version": "2025.2.76-1.0.amzn2023.0.5",
+      "architecture": "noarch"
+    },
+    {
+      "name": "coreutils-single",
+      "version": "8.32-30.amzn2023.0.5",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "crypto-policies",
+      "version": "20260224-1.gitea0f072.amzn2023.0.6",
+      "architecture": "noarch"
+    },
+    {
+      "name": "curl-minimal",
+      "version": "8.21.0-5.amzn2023.0.3",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "dnf-data",
+      "version": "4.14.0-1.amzn2023.0.9",
+      "architecture": "noarch"
+    },
+    {
+      "name": "file-libs",
+      "version": "5.39-7.amzn2023.0.4",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "filesystem",
+      "version": "3.14-5.amzn2023.0.3",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "findutils",
+      "version": "4.8.0-2.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "gawk",
+      "version": "5.1.0-3.amzn2023.0.4",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "glib2",
+      "version": "2.82.2-771.amzn2023",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "glibc",
+      "version": "2.34-231.amzn2023.0.5",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "glibc-common",
+      "version": "2.34-231.amzn2023.0.5",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "glibc-minimal-langpack",
+      "version": "2.34-231.amzn2023.0.5",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "gmp",
+      "version": "6.2.1-2.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "gnupg2-minimal",
+      "version": "2.3.7-1.amzn2023.0.9",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "gobject-introspection",
+      "version": "1.82.0-1.amzn2023",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "gpg-pubkey",
+      "version": "d832c631-6515c85e",
+      "architecture": "(none)"
+    },
+    {
+      "name": "gpgme",
+      "version": "1.23.2-182.amzn2023.0.1",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "grep",
+      "version": "3.8-1.amzn2023.0.4",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "json-c",
+      "version": "0.14-8.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "keyutils-libs",
+      "version": "1.6.3-1.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "krb5-libs",
+      "version": "1.21.3-8.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libacl",
+      "version": "2.4.0-1.amzn2023.0.1",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libarchive",
+      "version": "3.7.4-2.amzn2023.0.4",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libassuan",
+      "version": "2.5.5-1.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libatomic",
+      "version": "14.2.1-7.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libattr",
+      "version": "2.5.1-3.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libblkid",
+      "version": "2.37.4-1.amzn2023.0.7",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libcap",
+      "version": "2.73-1.amzn2023.0.8",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libcap-ng",
+      "version": "0.8.2-4.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libcom_err",
+      "version": "1.46.5-2.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libcurl-minimal",
+      "version": "8.21.0-5.amzn2023.0.3",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libdnf",
+      "version": "0.69.0-8.amzn2023.0.9",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libffi",
+      "version": "3.4.4-1.amzn2023.0.1",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libgcc",
+      "version": "14.2.1-7.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libgcrypt",
+      "version": "1.10.2-1.amzn2023.0.3",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libgpg-error",
+      "version": "1.42-1.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libidn2",
+      "version": "2.3.2-1.amzn2023.0.5",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libmodulemd",
+      "version": "2.13.0-2.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libmount",
+      "version": "2.37.4-1.amzn2023.0.7",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libnghttp2",
+      "version": "1.59.0-3.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libpeas",
+      "version": "1.32.0-1.amzn2023.0.3",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libpsl",
+      "version": "0.21.5-1.amzn2023.0.1",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "librepo",
+      "version": "1.14.5-2.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libreport-filesystem",
+      "version": "2.15.2-2.amzn2023.0.2",
+      "architecture": "noarch"
+    },
+    {
+      "name": "libselinux",
+      "version": "3.4-5.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libsemanage",
+      "version": "3.4-5.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libsepol",
+      "version": "3.4-3.amzn2023.0.3",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libsigsegv",
+      "version": "2.13-2.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libsmartcols",
+      "version": "2.37.4-1.amzn2023.0.7",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libsolv",
+      "version": "0.7.22-1.amzn2023.0.5",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libstdc++",
+      "version": "14.2.1-7.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libtasn1",
+      "version": "4.19.0-1.amzn2023.0.6",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libunistring",
+      "version": "0.9.10-10.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libuuid",
+      "version": "2.37.4-1.amzn2023.0.7",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libverto",
+      "version": "0.3.2-1.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libxcrypt",
+      "version": "4.4.33-7.amzn2023",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libxml2",
+      "version": "2.10.4-1.amzn2023.0.22",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libyaml",
+      "version": "0.2.5-5.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "libzstd",
+      "version": "1.5.5-1.amzn2023.0.1",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "lua-libs",
+      "version": "5.4.4-3.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "lz4-libs",
+      "version": "1.9.4-1.amzn2023.0.3",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "microdnf",
+      "version": "3.10.0-2.amzn2023.0.1",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "microdnf-dnf",
+      "version": "3.10.0-2.amzn2023.0.1",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "mkpasswd",
+      "version": "5.5.10-1.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "mpfr",
+      "version": "4.1.0-7.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "ncurses-base",
+      "version": "6.6-1.amzn2023.0.1",
+      "architecture": "noarch"
+    },
+    {
+      "name": "ncurses-libs",
+      "version": "6.6-1.amzn2023.0.1",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "npth",
+      "version": "1.6-6.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "openssl-fips-provider-latest",
+      "version": "3.5.8-1.amzn2023.0.3",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "openssl-libs",
+      "version": "3.5.8-1.amzn2023.0.3",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "p11-kit",
+      "version": "0.24.1-2.amzn2023.0.3",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "p11-kit-trust",
+      "version": "0.24.1-2.amzn2023.0.3",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "pcre2",
+      "version": "10.40-1.amzn2023.0.5",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "pcre2-syntax",
+      "version": "10.40-1.amzn2023.0.5",
+      "architecture": "noarch"
+    },
+    {
+      "name": "popt",
+      "version": "1.18-6.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "publicsuffix-list-dafsa",
+      "version": "20260116-1.amzn2023.0.1",
+      "architecture": "noarch"
+    },
+    {
+      "name": "readline",
+      "version": "8.1-2.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "rpm",
+      "version": "4.16.1.3-29.amzn2023.0.8",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "rpm-libs",
+      "version": "4.16.1.3-29.amzn2023.0.8",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "sed",
+      "version": "4.8-7.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "setup",
+      "version": "2.13.7-3.amzn2023.0.2",
+      "architecture": "noarch"
+    },
+    {
+      "name": "shadow-utils",
+      "version": "4.9-12.amzn2023.0.4",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "sqlite-libs",
+      "version": "3.40.0-1.amzn2023.0.8",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "system-release",
+      "version": "2023.12.20261102-0.amzn2023",
+      "architecture": "noarch"
+    },
+    {
+      "name": "tzdata",
+      "version": "2026e-1.amzn2023.0.1",
+      "architecture": "noarch"
+    },
+    {
+      "name": "whois-nls",
+      "version": "5.5.10-1.amzn2023.0.2",
+      "architecture": "noarch"
+    },
+    {
+      "name": "xz-libs",
+      "version": "5.2.5-9.amzn2023.0.2",
+      "architecture": "x86_64"
+    },
+    {
+      "name": "zlib",
+      "version": "1.2.11-33.amzn2023.0.6",
+      "architecture": "x86_64"
+    }
+  ],
+  "image_size_bytes": 2474326112,
+  "ecr_image_size_bytes": 727455965,
+  "ecr_repository_image_bytes_upper_bound": 2886700433,
+  "runtime": {
+    "name": "julia",
+    "version": "1.13.1",
+    "bundled_libraries": {
+      "LibCURL_jll": "8.18.0+1",
+      "LibGit2_jll": "1.9.1+0",
+      "LibSSH2_jll": "1.11.104+0",
+      "OpenSSL_jll": "3.5.6+0",
+      "Zlib_jll": "1.3.1+2"
+    },
+    "not_scanned_by_ecr_basic": true
+  },
+  "built_at": "2026-11-03T08:20:06.773868695Z",
+  "workflow_run_url": "https://github.com/Yuki-Watanabe7/DME/actions/runs/41598686075",
+  "workflow_run_attempt": "1",
+  "image_contract_verification": {
+    "before_push": "passed",
+    "after_ecr_pull": "passed"
+  },
+  "scan": {
+    "status": "COMPLETE",
+    "severity_counts": {},
+    "blocker_findings": [],
+    "reason": "COMPLETE ECR scan with no HIGH or CRITICAL findings.",
+    "completed_at": "2026-11-03T08:23:45+00:00",
+    "vulnerability_source_updated_at": "2026-11-03T08:23:45+00:00",
+    "findings_command": "aws ecr describe-image-scan-findings --repository-name dme --image-id imageDigest=sha256:7903f8b58e394c3d03ed1281b10fac1f712fb259ca0e76d52b2ad2b2875b9b62 --region ap-northeast-1"
+  },
+  "exceptions": []
+}

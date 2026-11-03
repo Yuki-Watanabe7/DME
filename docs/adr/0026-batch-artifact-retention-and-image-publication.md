@@ -217,6 +217,31 @@ repository にあるので、PAP ADR 0017 §4 step 1 により例外ではなく
    `libcurl-minimal`）が advisory の修正版以上であることを確かめてから PAP #179 へ handoff する。旧 digest の evidence は
    書き換えない。
 
+**公開結果（2026-11-03）。** #308 の merge commit `515b6ae3fd4d217625e1c4a4d87db9df04b68af7` を
+[本番公開 41598686075](https://github.com/Yuki-Watanabe7/DME/actions/runs/41598686075)で公開した。`Pkg.test()` と、
+push 前・exact ECR pull 後の全10段を通過した。digest は
+`sha256:7903f8b58e394c3d03ed1281b10fac1f712fb259ca0e76d52b2ad2b2875b9b62`、base は
+`2023-minimal@sha256:d4495d25da60ef3f2d44bc7f6a2dd2ec1646c14414e0dfaaa44dc3ff653e1c2b`（Amazon Linux 2023.12.20261102）。
+[未加工の公開証跡](../deployment/evidence/issue307/native-ecr-al2023-production.json)には、COMPLETE scan（`2026-11-03T08:23:45Z`。
+finding 0 件で、HIGH/CRITICAL も 0）、例外なし、production / approved が記録されている。`os_packages`（95 件）の 7 package は、
+#307 が挙げた修正版と一致した。
+
+| package | version | advisory |
+| --- | --- | --- |
+| `openssl-libs` / `openssl-fips-provider-latest` | `3.5.8-1.amzn2023.0.3` | ALAS2023-2026-3204 |
+| `pcre2` / `pcre2-syntax` | `10.40-1.amzn2023.0.5` | ALAS2023-2026-3269 |
+| `libcap` | `2.73-1.amzn2023.0.8` | ALAS2023-2026-3255 |
+| `curl-minimal` / `libcurl-minimal` | `8.21.0-5.amzn2023.0.3` | ALAS2023-2026-3267 |
+
+ECR 圧縮 image は 727,455,965 bytes、公開時点の repository image size 合計（上限）は 2,886,700,433 bytes で、PAP の
+3,000,000,000 bytes の運用上限内に収まった。digest・source commit・evaluation URL は
+[PAP #179](https://github.com/Yuki-Watanabe7/personal-analytics-platform/issues/179#issuecomment-6598892309)へ handoff した。
+DME 側の rebuild・公開・評価・handoff はこれで完了した。PAP 側の repin（desired state・`image-admission.json`・lifecycle の pin rule）、
+plan / apply、admission の `pass` の確認は PAP #179 の作業である。それまでは、旧 digest に対する RunTask の拒否が残る。
+
+A9 の rescan 期限は scan 完了の30日後の `2026-12-03T08:23:45Z`。rebuild 期限は ECR の push 時刻から90日後（2027-02-01 頃）で、
+正確な時刻は PAP admission が ECR の push 時刻から決める。
+
 ### 完了記録（2026-10-05、DME #296 / PAP #41）: 修正版本番 image の引き渡しと実機受入
 
 改訂 3 の AL2023 移行は DME #302、改訂 4 の portable cache は DME #303 でマージ済み。

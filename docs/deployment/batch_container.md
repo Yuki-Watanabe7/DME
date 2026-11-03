@@ -337,6 +337,20 @@ overwriting, and zero running tasks afterward. See the
 publication, execution and admission JSON. The task definition remains non-root
 with read-only root and the same two writable volumes.
 
+PAP's 2026-10-25 rescan found HIGH findings with AL2023 fixes in that digest
+(DME #307). It was replaced by a rebuild of source
+`515b6ae3fd4d217625e1c4a4d87db9df04b68af7` at digest
+`sha256:7903f8b58e394c3d03ed1281b10fac1f712fb259ca0e76d52b2ad2b2875b9b62`.
+[Publication 41598686075](https://github.com/Yuki-Watanabe7/DME/actions/runs/41598686075)
+passed tests and all ten steps before push and after the exact ECR pull. Its
+COMPLETE scan has no findings, and there are no exceptions. Its
+[unchanged publication JSON](evidence/issue307/native-ecr-al2023-production.json)
+records the fixed package versions in `os_packages`. The values were handed off in
+[PAP #179](https://github.com/Yuki-Watanabe7/personal-analytics-platform/issues/179#issuecomment-6598892309).
+PAP repins, applies and confirms admission there. Until then, RunTask stays
+refused for the old digest. The record is in
+[ADR 0026 revision 5](../adr/0026-batch-artifact-retention-and-image-publication.md).
+
 ## Representative resource profile
 
 Measured on 2026-09-30 with the Julia 1.12.6 image built from this Dockerfile on
@@ -389,11 +403,12 @@ not used for admission.
   two representative commands. This does not establish AWS execution of every
   DME model or optional live-provider path. Future runs and image updates must
   continue to pass PAP's admission and operating limits; follow-up is PAP #42.
-- The accepted image's scan is due again by 2026-11-04 06:33:01 JST and its
-  rebuild by 2027-01-03 06:32:37 JST. At publication the repository's compressed
-  upper bound was 2,869,223,600 bytes against PAP's 3,000,000,000-byte operating
-  envelope; check current capacity before any additional publication. This
-  documentation change does not require a rebuild.
+- The replacement image from DME #307 is due for rescan by
+  2026-12-03T08:23:45Z (30 days after its scan). Its rebuild is due 90 days after
+  its ECR push, around 2027-02-01. PAP admission fixes the exact time from the
+  push. At publication the repository's compressed upper bound was 2,886,700,433
+  bytes against PAP's 3,000,000,000-byte operating envelope. Check current
+  capacity before any additional publication.
 - Julia patch releases, including fixes to its bundled libraries, are not picked
   up by a rebuild; they need a change that moves CI, the Dockerfile and every
   `Manifest.toml` together. A3 is to be judged again when Julia 1.14.0 is released
