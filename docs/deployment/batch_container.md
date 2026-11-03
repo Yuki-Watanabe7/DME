@@ -276,7 +276,11 @@ publishes to the ECR repository PAP creates in
 image reference, manifest media type, platform, OCI labels, each base reference
 with its resolved digest from the image's OCI base labels (also on repeat
 dispatch), publication purpose (`production` or `comparison`), OS release,
-glibc, uncompressed Docker size (`image_size_bytes`), compressed ECR size
+glibc, the installed OS packages of the pulled digest (`os_packages`: name,
+version and architecture; rpm versions are `VERSION-RELEASE` as in AL2023
+advisories, so a later advisory can be checked without pulling the image again;
+an unreadable or empty inventory fails the step without evidence),
+uncompressed Docker size (`image_size_bytes`), compressed ECR size
 (`ecr_image_size_bytes`) and the conservative repository image-size sum
 (`ecr_repository_image_bytes_upper_bound`, shared layers may be counted more than
 once), Julia version with the versions of its
