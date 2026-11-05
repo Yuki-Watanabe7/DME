@@ -41,10 +41,16 @@ Immutable digests:
 - Debian: `sha256:70bd0e26a358c917f2937379c1fbd06b6ae2045e9cf330da7c573e00df4b4bd6`
 - AL2023 comparison: `sha256:5c2b389c0b0c0d58c7a85f46eab8f001571d0e15e8db4bab49a303414b6566b5`
 
-The registry is `867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme`.
+The registry is `<pap-account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/dme`.
 The JSON preserves the exact image/base digests, OCI revision, scan timestamps,
 package findings and runtime library versions. These files are unchanged copies
 of the downloaded workflow evidence, not reconstructed results.
+
+One edit applies to every file under [`evidence/`](evidence/) and to this page.
+On 2026-11-06 the AWS account ID was replaced with `<pap-account-id>`
+([ADR 0028](../adr/0028-public-repository-scope.md), DME #310). Nothing else in the
+files was changed. The account is PAP's, and the `PAP_ECR_REPOSITORY_URL`
+repository variable holds the full value.
 
 AL2023 is 7,557,595 bytes (0.32%) larger in uncompressed Docker size. Those bytes
 are not billable compressed ECR storage. These original artifacts do not report

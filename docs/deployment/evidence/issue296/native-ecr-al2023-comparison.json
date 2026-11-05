@@ -5,9 +5,9 @@
   "publication_purpose": "comparison",
   "deployment_status": "approved",
   "source_commit": "d8eba8ad11d0f490815479b7d4085165257bbf66",
-  "image_tag": "867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme:d8eba8ad11d0f490815479b7d4085165257bbf66-comparison-al2023",
+  "image_tag": "<pap-account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/dme:d8eba8ad11d0f490815479b7d4085165257bbf66-comparison-al2023",
   "image_digest": "sha256:5c2b389c0b0c0d58c7a85f46eab8f001571d0e15e8db4bab49a303414b6566b5",
-  "image_reference": "867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme@sha256:5c2b389c0b0c0d58c7a85f46eab8f001571d0e15e8db4bab49a303414b6566b5",
+  "image_reference": "<pap-account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/dme@sha256:5c2b389c0b0c0d58c7a85f46eab8f001571d0e15e8db4bab49a303414b6566b5",
   "image_manifest_media_type": "application/vnd.docker.distribution.manifest.v2+json",
   "platform": "linux/amd64",
   "oci_labels": {

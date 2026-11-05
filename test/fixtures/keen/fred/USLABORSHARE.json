@@ -1,7 +1,7 @@
 {
   "series": {
     "id": "USLABORSHARE",
-    "title": "Share of Output: Compensation of Employees (constructed)",
+    "title": "Share of Output: Compensation of Employees (constructed) (synthetic fixture values, not real observations)",
     "frequency": "Quarterly",
     "units": "Percent",
     "seasonal_adjustment": "Seasonally Adjusted"

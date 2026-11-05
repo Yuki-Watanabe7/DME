@@ -21,7 +21,7 @@ DME は動学的マクロ経済モデルを Julia で実装したパッケージ
 | `scripts/` | CI/tooling 用スタンドアロンスクリプト（`quality_export.jl`・`verify_batch_container.sh` 等。モデルデモは `examples/`） |
 | `benchmarks/` | BenchmarkTools.jl slow lane の baseline（`baseline.json`。手動更新のみ。suite 定義は `scripts/benchmark_suite.jl`） |
 | `examples/` | 機能別デモスクリプト（API キー不要で完走） |
-| `test/` | テスト（`test/fixtures/` に API fixture、`test/Project.toml`/`test/Manifest.toml` にテスト専用依存を固定） |
+| `test/` | テスト（`test/fixtures/` に API fixture。public リポジトリなので出典区分は `test/fixtures/README.md`（ADR 0028）、`test/Project.toml`/`test/Manifest.toml` にテスト専用依存を固定） |
 | `docs/` | 詳細ドキュメント（下表参照）。**`docs/make.jl` / `docs/src/` / `docs/Project.toml` / `docs/Manifest.toml` の4点だけは Documenter.jl 用**（Julia の慣習に合わせた配置。`docs/src/` は docstring から生成する API リファレンスのソースで、他の `docs/**.md`（設計文書）とは別物。ADR 0017） |
 
 ## よく使うコマンド

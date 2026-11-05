@@ -1,7 +1,7 @@
 {
   "series": {
     "id": "CRDQUSAPABIS",
-    "title": "Credit to Private Non-Financial Sector (% of GDP, BIS)",
+    "title": "Credit to Private Non-Financial Sector (% of GDP, BIS) (synthetic fixture values, not real observations)",
     "frequency": "Quarterly",
     "units": "Percent of GDP",
     "seasonal_adjustment": "Not Seasonally Adjusted"

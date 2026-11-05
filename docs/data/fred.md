@@ -80,7 +80,9 @@ export FRED_API_KEY=your_api_key_here
 | `GS10` | 10-Year Treasury Yield | 月次 | ✓ |
 
 fixture は `test/fixtures/fred/<SERIES_ID>.json` に格納されています。
+上記5系列は公表値を基にした fixture で、正式な観測値としては扱いません。現行の公表値と一致するのは FEDFUNDS だけです。出典と照合結果は [`test/fixtures/README.md`](../../test/fixtures/README.md) を参照してください。
 上記以外の系列を fixture モードで使用するには、同ディレクトリに JSON ファイルを追加してください。
+DME は public リポジトリです。追加する前に同 README の出典区分に従ってください。FRED から取得した値をそのまま commit することはできません（[ADR 0028](../adr/0028-public-repository-scope.md)）。
 
 ---
 

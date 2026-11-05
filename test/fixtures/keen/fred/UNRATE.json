@@ -1,7 +1,7 @@
 {
   "series": {
     "id": "UNRATE",
-    "title": "Unemployment Rate",
+    "title": "Unemployment Rate (synthetic fixture values, not real observations)",
     "frequency": "Monthly",
     "units": "Percent",
     "seasonal_adjustment": "Seasonally Adjusted"

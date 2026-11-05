@@ -105,6 +105,9 @@ jobs:
           [[ "$AWS_REGION" =~ ^[a-z]{2}(-[a-z]+)+-[0-9]+$ ]]
           [[ "$ECR_REPOSITORY_URL" =~ ^([0-9]{12})\.dkr\.ecr\.([a-z0-9-]+)\.amazonaws\.com/([a-z0-9][a-z0-9._/-]*)$ ]]
           repository_account="${BASH_REMATCH[1]}"
+          # The repository is public, so its logs are too (ADR 0028). The account ID is
+          # not a credential; masking only keeps later steps from repeating it.
+          echo "::add-mask::${repository_account}"
           test "${BASH_REMATCH[2]}" = "$AWS_REGION"
           echo "ECR_REPOSITORY_NAME=${BASH_REMATCH[3]}" >> "$GITHUB_ENV"
           [[ "$ECR_PUSH_ROLE_ARN" =~ ^arn:aws:iam::([0-9]{12}):role/[A-Za-z0-9+=,.@_/-]+$ ]]

@@ -1,7 +1,7 @@
 {
   "series": {
     "id": "CPIAUCSL",
-    "title": "Consumer Price Index for All Urban Consumers: All Items in U.S. City Average",
+    "title": "Consumer Price Index for All Urban Consumers: All Items in U.S. City Average (fixture values approximating published data, not authoritative observations)",
     "frequency": "Monthly",
     "units": "Index 1982-1984=100",
     "seasonal_adjustment": "Seasonally Adjusted"

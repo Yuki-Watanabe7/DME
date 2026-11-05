@@ -5,9 +5,9 @@
   "publication_purpose": "production",
   "deployment_status": "approved",
   "source_commit": "b5bb7dfd6a4c6ffcb3235ac9658a1ade7c4026a3",
-  "image_tag": "867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme:b5bb7dfd6a4c6ffcb3235ac9658a1ade7c4026a3",
+  "image_tag": "<pap-account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/dme:b5bb7dfd6a4c6ffcb3235ac9658a1ade7c4026a3",
   "image_digest": "sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef",
-  "image_reference": "867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme@sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef",
+  "image_reference": "<pap-account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/dme@sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef",
   "image_manifest_media_type": "application/vnd.docker.distribution.manifest.v2+json",
   "platform": "linux/amd64",
   "oci_labels": {
