@@ -1,7 +1,7 @@
 {
   "series": {
     "id": "FEDFUNDS",
-    "title": "Federal Funds Effective Rate",
+    "title": "Federal Funds Effective Rate (fixture values approximating published data, not authoritative observations)",
     "frequency": "Monthly",
     "units": "Percent",
     "seasonal_adjustment": "Not Seasonally Adjusted"

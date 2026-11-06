@@ -1,7 +1,7 @@
 {
   "series": {
     "id": "GDPC1",
-    "title": "Real Gross Domestic Product",
+    "title": "Real Gross Domestic Product (fixture values approximating published data, not authoritative observations)",
     "frequency": "Quarterly",
     "units": "Billions of Chained 2017 Dollars",
     "seasonal_adjustment": "Seasonally Adjusted Annual Rate"

@@ -101,6 +101,8 @@ cpi = fetch_estat_series(
 ## fixture の追加方法
 
 `test/fixtures/estat/<STATS_DATA_ID>.json` にファイルを追加することで、fixture モードで使用できる。
+DME は public リポジトリなので、追加するときは [`test/fixtures/README.md`](../../test/fixtures/README.md) の出典区分に従い、
+出典と、編集・加工した旨をそこに記載する（[ADR 0028](../adr/0028-public-repository-scope.md)、e-Stat 利用規約）。
 
 ファイル形式（e-Stat API レスポンス準拠）:
 

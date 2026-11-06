@@ -309,6 +309,21 @@ so the publish job's subject is **`repo:Yuki-Watanabe7/DME:ref:refs/heads/main`*
 The job deliberately has no GitHub `environment`, which would change the subject
 to `repo:Yuki-Watanabe7/DME:environment:<name>`.
 
+DME is a public repository, so its run logs and artifacts are public too
+([ADR 0028](../adr/0028-public-repository-scope.md)). The account ID is not a
+credential, and these variables stay non-secret. It is not repeated in the open
+without need, though.
+
+- **Logs.** The first step registers the account ID with `::add-mask::`, so later
+  steps print it as `***`. Only the first step's header still shows the job `env`.
+- **Artifact.** `image-publication.json` keeps the full image reference for the
+  PAP handoff. It expires after 90 days.
+- **Committed evidence.** Before you commit a downloaded evidence file under
+  `docs/deployment/evidence/`, replace the account ID with `<pap-account-id>`.
+  Change nothing else. `test/test_public_repository_hygiene.jl` fails on any
+  ARN-form or ECR-form account ID in a tracked file. The one exception is AWS's
+  documentation example, `123456789012`.
+
 ## Handoff to PAP #41
 
 What the DME Job needs from PAP, derived from the contract above. PAP decides

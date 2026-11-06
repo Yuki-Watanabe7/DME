@@ -1,7 +1,7 @@
 {
   "series": {
     "id": "DPRIME",
-    "title": "Bank Prime Loan Rate",
+    "title": "Bank Prime Loan Rate (synthetic fixture values, not real observations)",
     "frequency": "Monthly",
     "units": "Percent",
     "seasonal_adjustment": "Not Seasonally Adjusted"

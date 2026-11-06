@@ -3,6 +3,10 @@
 These records support DME PR #303 and the completed DME #296 / PAP #41 handoff.
 Historical failure evidence and corrected-image acceptance are retained separately.
 
+"Unchanged" below means one thing. Apart from the AWS account ID, the files are
+byte-for-byte what was downloaded. The account ID was replaced with `<pap-account-id>`
+on 2026-11-06 ([ADR 0028](../../../adr/0028-public-repository-scope.md), DME #310).
+
 ## Completed real-runtime acceptance (2026-10-05 JST)
 
 The following files are unchanged downloads from each workflow's artifact

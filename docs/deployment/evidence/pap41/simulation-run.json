@@ -4,15 +4,15 @@
   "mode": "simulate",
   "runs": [
     {
-      "task_arn": "arn:aws:ecs:ap-northeast-1:867965242179:task/pap-prod-edp-cluster/69eb4647785e4093ae54550056de69ed",
-      "task_definition": "arn:aws:ecs:ap-northeast-1:867965242179:task-definition/pap-prod-dme-sim:2",
+      "task_arn": "arn:aws:ecs:ap-northeast-1:<pap-account-id>:task/pap-prod-edp-cluster/69eb4647785e4093ae54550056de69ed",
+      "task_definition": "arn:aws:ecs:ap-northeast-1:<pap-account-id>:task-definition/pap-prod-dme-sim:2",
       "status": "STOPPED",
       "started_at": "2026-10-04T22:03:30.319000+00:00",
       "stopped_at": "2026-10-04T22:04:17.656000+00:00",
       "stop_code": "EssentialContainerExited",
       "stopped_reason": "Essential container in task exited",
       "exit_code": 0,
-      "image": "867965242179.dkr.ecr.ap-northeast-1.amazonaws.com/dme@sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef",
+      "image": "<pap-account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/dme@sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef",
       "image_digest": "sha256:f5c496b0d0086bf40683537d6a7fafb36c7d47f4178c83563ccb8949209e76ef",
       "source_commit": "b5bb7dfd6a4c6ffcb3235ac9658a1ade7c4026a3",
       "log_stream": "run/dme-simulation/69eb4647785e4093ae54550056de69ed",

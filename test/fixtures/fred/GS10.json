@@ -1,7 +1,7 @@
 {
   "series": {
     "id": "GS10",
-    "title": "Market Yield on U.S. Treasury Securities at 10-Year Constant Maturity",
+    "title": "Market Yield on U.S. Treasury Securities at 10-Year Constant Maturity (fixture values approximating published data, not authoritative observations)",
     "frequency": "Monthly",
     "units": "Percent",
     "seasonal_adjustment": "Not Seasonally Adjusted"
