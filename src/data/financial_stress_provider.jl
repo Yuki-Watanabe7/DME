@@ -5,9 +5,9 @@
 # `build_capex_raw_dataset`（capex_credit_cycle_provider.jl）と同じ責務境界
 # （raw観測で止め、単位変換・整列・派生指標の計算を行わない）だが、CCC固有の
 # catalog_entry 突合（`metadata_mismatches`）は行わない。8系列はいずれも
-# EDP側で`role`宣言済み（financial-stress 5種）または汎用FRED passthrough
-# （長期金利3種）であり、DME側で宣言値との突合対象となる `declared_*` を
-# catalogが持たないため。
+# EDP側で`role`宣言済み（financial-stress 3種）または汎用FRED中継
+# （credit-tier の CP 金利2種・長期金利3種）であり、DME側で宣言値との突合対象となる
+# `declared_*` をcatalogが持たないため。
 #
 # 本ファイルは CCC の内部ヘルパ（`_capex_*`、capex_credit_cycle_provider.jl）を
 # 再利用しない。CCC の較正catalogから独立した診断層であるという責務分離
@@ -16,14 +16,25 @@
 #
 # 欠測日・provider失敗・空系列を 0 や直近値へ暗黙変換しない（Issue #260 対象外事項）。
 # `:ok` 以外の観測は `series === nothing` とし、失敗を空データと混同しない。
+# EDP が権利上の理由で提供を停止した系列（HTTP 410 `distribution_stopped`、EDP ADR 060・
+# ADR 072）は `:distribution_stopped` とし、障害（`:provider_error`）・データなし
+# （`:missing_series`）と区別する（Issue #312・ADR 0029）。
 
 """
     FINANCIAL_STRESS_RAW_STATUSES
 
-`FinancialStressRawObservation.status` の確定集合（Issue #260 Part B）。
+`FinancialStressRawObservation.status` の確定集合（Issue #260 Part B。
+`:distribution_stopped` は Issue #312 で追加）。
+
+- `:ok`: 取得成功。
+- `:missing_series`: provider が当該系列を返さない（fixture不在・HTTP 404・空系列）。
+- `:distribution_stopped`: EDP が提供を停止した（HTTP 410 かつ `detail.code ==
+  "distribution_stopped"`）。一時的なデータ不足や障害ではなく、恒久的に取得できない。
+- `:provider_error`: 上記以外の HTTP エラー・通信失敗。
+- `:invalid_response`: レスポンスが契約と不整合。
 """
 const FINANCIAL_STRESS_RAW_STATUSES =
-    (:ok, :missing_series, :provider_error, :invalid_response)
+    (:ok, :missing_series, :distribution_stopped, :provider_error, :invalid_response)
 
 """Internal decode error, mirroring the shape of similar errors elsewhere in `src/data/`
 but kept private to this file (no dependency on CCC's `_CapexProviderDecodeError`)."""
@@ -252,8 +263,10 @@ function _fs_exception_status(error)::Symbol
     error isa _FSProviderDecodeError && return :invalid_response
     error isa _FSProviderEmptySeries && return :missing_series
     error isa _DataProviderFixtureMissingError && return :missing_series
-    error isa _DataProviderHTTPError &&
+    if error isa _DataProviderHTTPError
+        _data_provider_distribution_stopped(error) && return :distribution_stopped
         return error.status == 404 ? :missing_series : :provider_error
+    end
     return :provider_error
 end
 
@@ -262,7 +275,13 @@ function _fs_exception_detail(error)::String
     error isa _FSProviderEmptySeries && return error.detail
     error isa _DataProviderFixtureMissingError &&
         return "provider response fixture is missing"
-    error isa _DataProviderHTTPError && return "provider returned HTTP $(error.status)"
+    if error isa _DataProviderHTTPError
+        _data_provider_distribution_stopped(error) &&
+            return "provider stopped distributing this series (HTTP 410 " *
+                   "distribution_stopped, reason_code=$(something(error.reason_code, "unspecified")))"
+        error.error_code === nothing && return "provider returned HTTP $(error.status)"
+        return "provider returned HTTP $(error.status) (code=$(error.error_code))"
+    end
     # Network exceptions may embed a credentialed request URL; keep only the
     # actionable status distinction, matching the same choice made for CCC.
     return "provider request failed"
@@ -324,8 +343,9 @@ end
 
 `catalog`（既定 `FINANCIAL_STRESS_SERIES_CATALOG`）の各系列をEDP経由で取得する
 （Issue #260 Part B）。`keys` を渡すと部分集合のみ取得する。EDPの `/v1/catalog/series`
-突合は行わない（本ファイル冒頭コメント）。fixtureが無い・HTTP失敗・空系列・
-frequency不一致はそれぞれ別のstatusとして記録し、0や直近値へ変換しない。
+突合は行わない（本ファイル冒頭コメント）。fixtureが無い・HTTP失敗・EDPの提供停止
+（410 `distribution_stopped`）・空系列・frequency不一致はそれぞれ別のstatusとして記録し、
+0や直近値へ変換しない。
 """
 function build_financial_stress_raw_dataset(;
     catalog::AbstractVector{<:FinancialStressSeriesSpec} = FINANCIAL_STRESS_SERIES_CATALOG,

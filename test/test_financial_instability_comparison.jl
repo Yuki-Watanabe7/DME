@@ -37,9 +37,13 @@ function _fic_test_assessment(;
         ),
         "weak_credit_state" => Dict{String, Any}(
             "from_date" => from_date, "to_date" => to_date,
-            "ccc_oas_latest" => Dict{String, Any}("date" => to_date, "value" => 10.0),
-            "divergence_latest_bps" => Dict{String, Any}("date" => to_date, "value" => 800.0),
+            "measure" => WEAK_CREDIT_MEASURE,
+            "lower_tier_rate_latest" => Dict{String, Any}("date" => to_date, "value" => 4.60),
+            "divergence_latest_bps" => Dict{String, Any}("date" => to_date, "value" => 40.0),
             "divergence_shift_bps" => 40.0,
+            "input_statuses" => Dict{String, Any}(
+                "cp_a2p2_nonfinancial_30d" => "ok", "cp_aa_nonfinancial_30d" => "ok",
+            ),
             "label" => String(weak_credit_label),
         ),
         "funding_state" => Dict{String, Any}(
@@ -68,10 +72,10 @@ end
 function _fic_test_manifest(;
     dme_code_revision::String = "abc123",
     rule_version::String = FINANCIAL_INSTABILITY_RULE_VERSION,
-    catalog_version::String = "financial-stress-catalog/1.0.0",
+    catalog_version::String = FINANCIAL_STRESS_CATALOG_VERSION,
     data_mode::String = "fixture",
-    broad_hy_oas_value::Float64 = 3.10,
-    broad_hy_oas_date::String = "2026-09-10",
+    upper_tier_value::Float64 = 4.20,
+    upper_tier_date::String = "2026-09-10",
     series_status::Symbol = :ok,
 )
     return Dict{String, Any}(
@@ -85,10 +89,11 @@ function _fic_test_manifest(;
         "run_timestamp" => "2026-09-12T10:00:00.000Z",
         "series_provenance" => [
             Dict{String, Any}(
-                "key" => "broad_hy_oas", "status" => String(series_status), "mode" => data_mode,
+                "key" => "cp_aa_nonfinancial_30d", "status" => String(series_status),
+                "mode" => data_mode,
                 "detail" => series_status == :ok ? "" : "provider error",
                 "latest_observation" => series_status == :ok ?
-                    Dict{String, Any}("date" => broad_hy_oas_date, "value" => broad_hy_oas_value) : nothing,
+                    Dict{String, Any}("date" => upper_tier_date, "value" => upper_tier_value) : nothing,
             ),
         ],
     )
@@ -152,18 +157,49 @@ end
         @test cmp.conclusion == :no_material_change
     end
 
-    @testset "broad_hy_oas_latestはmanifestのseries_provenanceから補われる" begin
+    @testset "upper_tier_rate_latestはmanifestのseries_provenanceから補われる" begin
         pre = _fic_test_assessment(; overall_status = :watch)
         post = _fic_test_assessment(; overall_status = :watch)
-        pre_m = _fic_test_manifest(; broad_hy_oas_value = 3.10, broad_hy_oas_date = "2026-08-13")
-        post_m = _fic_test_manifest(; broad_hy_oas_value = 3.16, broad_hy_oas_date = "2026-09-10")
+        pre_m = _fic_test_manifest(; upper_tier_value = 4.20, upper_tier_date = "2026-08-13")
+        post_m = _fic_test_manifest(; upper_tier_value = 4.26, upper_tier_date = "2026-09-10")
         cmp = compare_financial_instability_assessments(pre, pre_m, post, post_m)
+        @test cmp.version == "financial-instability-comparison/2.0.0"
         wc = only(filter(d -> d.dimension == :weak_credit_state, cmp.dimensions))
-        diff = wc.values["broad_hy_oas_latest"]
-        @test diff["pre"]["value"] == 3.10
-        @test diff["post"]["value"] == 3.16
+        diff = wc.values["upper_tier_rate_latest"]
+        @test diff["pre"]["value"] == 4.20
+        @test diff["post"]["value"] == 4.26
         @test diff["value_delta"] ≈ 0.06 atol = 1e-9
         @test diff["date_changed"] == true
+        @test wc.values["measure"] ==
+              Dict{String, Any}("pre" => WEAK_CREDIT_MEASURE, "post" => WEAK_CREDIT_MEASURE)
+        @test wc.values["lower_tier_rate_latest"]["value_delta"] ≈ 0.0 atol = 1e-12
+    end
+
+    @testset "assessment 1.0.0（ICE BofA指標）との比較はKeyErrorにせずinsufficient_comparable_data" begin
+        pre = _fic_test_assessment(;
+            overall_status = :watch,
+            rule_version = "financial-instability-rule/1.0.0",
+            assessment_version = "financial-instability-holdout/1.0.0",
+        )
+        pre["thresholds"]["version"] = "financial-instability-rule/1.0.0"
+        w = pre["weak_credit_state"]
+        delete!(w, "measure")
+        delete!(w, "lower_tier_rate_latest")
+        delete!(w, "input_statuses")
+        w["ccc_oas_latest"] = Dict{String, Any}("date" => "2026-09-10", "value" => 10.0)
+        pre_m = _fic_test_manifest(;
+            rule_version = "financial-instability-rule/1.0.0",
+            catalog_version = "financial-stress-catalog/1.0.0",
+        )
+        post = _fic_test_assessment(; overall_status = :confirmed)
+        post_m = _fic_test_manifest()
+        cmp = compare_financial_instability_assessments(pre, pre_m, post, post_m)
+        @test cmp.conclusion == :insufficient_comparable_data
+        @test !cmp.version_consistency["all_semantic_versions_match"]
+        wc = only(filter(d -> d.dimension == :weak_credit_state, cmp.dimensions))
+        @test wc.values["measure"]["pre"] === nothing
+        @test wc.values["lower_tier_rate_latest"]["pre"] === nothing
+        @test wc.values["lower_tier_rate_latest"]["value_delta"] === nothing
     end
 
     @testset "conclusionが確定集合に収まる" begin

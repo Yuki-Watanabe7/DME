@@ -17,7 +17,7 @@ _fsd_series(; dates, values, key = :x, unit = "Percent") = FinancialStressSeries
 @testset "aligned_daily_spread_bp（Issue #260 Part B）" begin
     @testset "smoke test（CLAUDE.md）" begin
         d = _fsd_dataset()
-        spread = ccc_minus_broad_hy_oas_bp(d)
+        spread = cp_a2p2_minus_aa_bp(d)
         @test spread isa AlignedDailySpread
         @test spread.n_common > 0
     end
@@ -56,8 +56,13 @@ _fsd_series(; dates, values, key = :x, unit = "Percent") = FinancialStressSeries
 
     @testset "4種の名前付きwrapperがdatasetの正しい系列ペアを使う" begin
         d = _fsd_dataset()
-        s1 = ccc_minus_broad_hy_oas_bp(d)
-        @test (s1.a_key, s1.b_key) == (:ccc_oas, :broad_hy_oas)
+        s1 = cp_a2p2_minus_aa_bp(d)
+        @test (s1.a_key, s1.b_key) == (:cp_a2p2_nonfinancial_30d, :cp_aa_nonfinancial_30d)
+        # fixture（fictional）: 2026-08-27 は A2/P2 側が null のため除外される
+        @test !("2026-08-27" in s1.dates)
+        @test s1.n_a_only_missing == 1
+        @test latest_aligned(s1)[1] == "2026-09-04"
+        @test latest_aligned(s1)[2] ≈ (4.90 - 4.26) * 100
         s2 = sofr_minus_iorb_bp(d)
         @test (s2.a_key, s2.b_key) == (:sofr, :iorb)
         s3 = tgcr_minus_iorb_bp(d)

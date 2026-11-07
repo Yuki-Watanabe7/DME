@@ -71,14 +71,111 @@ function DataProviderClient(;
     )
 end
 
-"""Internal error that records an HTTP status without retaining a request URL."""
+"""
+Internal error that records an HTTP status without retaining a request URL.
+
+`error_code` / `reason_code` keep EDP's structured `detail.code` / `detail.reason_code`
+(for example `distribution_stopped` / `redistribution_rights` on HTTP 410, EDP ADR 060 /
+ADR 072) so that callers can tell an intentional stop of distribution apart from missing
+data or an outage.  Only these two machine-readable tokens are kept; the free-text
+`detail.message` is not retained.
+"""
 struct _DataProviderHTTPError <: Exception
     status::Int
     detail::String
+    error_code::Union{String, Nothing}
+    reason_code::Union{String, Nothing}
 end
 
-Base.showerror(io::IO, e::_DataProviderHTTPError) =
-    print(io, "EDP request failed with HTTP ", e.status, ": ", e.detail)
+_DataProviderHTTPError(status::Integer, detail::AbstractString) =
+    _DataProviderHTTPError(Int(status), String(detail), nothing, nothing)
+
+Base.showerror(io::IO, e::_DataProviderHTTPError) = print(
+    io,
+    "EDP request failed with HTTP ",
+    e.status,
+    ": ",
+    e.detail,
+    e.error_code === nothing ? "" : " (code=$(e.error_code))",
+    e.reason_code === nothing ? "" : " (reason_code=$(e.reason_code))",
+)
+
+"""
+    _REDISTRIBUTION_EXCLUDED_SERIES
+
+DME の catalog（金融ストレス観測・CCC 実証）に宣言してはならない FRED 系列 ID
+（ADR 0029）。キーは FRED の元 ID（大文字）。`basis` は除外の根拠で、
+`"edp_distribution_stopped"` は EDP が提供を停止した系列（EDP 契約 6.0.0・ADR 072、
+`GET /v1/series/{id}` が HTTP 410 `distribution_stopped`）、`"dme_rights_review"` は EDP の
+catalog には無いが同じ権利表示（FRED 区分 "Copyrighted: Pre-Approval Required"、ICE Data
+Indices の "internal use only" 注記）を持つため DME が自ら宣言から外した系列を表す。
+"""
+const _REDISTRIBUTION_EXCLUDED_SERIES = Dict{String, NamedTuple}(
+    "BAMLH0A0HYM2" => (
+        name = "ICE BofA US High Yield Index Option-Adjusted Spread",
+        basis = "edp_distribution_stopped",
+        reason_code = "redistribution_rights",
+        reference = "economic-data-provider ADR 072 (contract 6.0.0, 2026-11-07); DME ADR 0029",
+    ),
+    "BAMLH0A3HYC" => (
+        name = "ICE BofA CCC & Lower US High Yield Index Option-Adjusted Spread",
+        basis = "edp_distribution_stopped",
+        reason_code = "redistribution_rights",
+        reference = "economic-data-provider ADR 072 (contract 6.0.0, 2026-11-07); DME ADR 0029",
+    ),
+    "BAMLC0A0CM" => (
+        name = "ICE BofA US Corporate Index Option-Adjusted Spread",
+        basis = "dme_rights_review",
+        reason_code = "redistribution_rights",
+        reference = "DME ADR 0029 (same ICE Data Indices notice as the EDP-stopped series)",
+    ),
+)
+
+"""
+    _redistribution_excluded_series_id(provider_series_id) -> Union{String,Nothing}
+
+`provider_series_id` が `_REDISTRIBUTION_EXCLUDED_SERIES` の系列を指していれば、その FRED
+元 ID を返す。前後の空白・大文字小文字・CCC catalog の `FRED_` 接頭辞を無視して照合する
+（FRED の ID は大文字小文字を区別しないため。EDP ADR 072 決定2と同じ照合）。
+"""
+function _redistribution_excluded_series_id(
+    provider_series_id::AbstractString,
+)::Union{String, Nothing}
+    id = uppercase(strip(provider_series_id))
+    startswith(id, "FRED_") && (id = id[(lastindex("FRED_") + 1):end])
+    return haskey(_REDISTRIBUTION_EXCLUDED_SERIES, id) ? id : nothing
+end
+
+"""EDP の HTTP 410 `distribution_stopped`（EDP ADR 060・ADR 072）かどうか。"""
+_data_provider_distribution_stopped(e::_DataProviderHTTPError)::Bool =
+    e.status == 410 && e.error_code == "distribution_stopped"
+
+const _DATA_PROVIDER_ERROR_TOKEN = r"^[a-z][a-z0-9_]{0,63}$"
+
+"""
+    _data_provider_error_codes(body) -> (code, reason_code)
+
+Extract EDP's structured error tokens from a non-success response body of the shape
+`{"detail": {"code": "...", "reason_code": "..."}}`.  Anything else (a plain-string
+`detail`, invalid JSON, a value that is not a short lowercase token) yields `nothing`
+for that field: the body is untrusted and is never echoed into DME artifacts.
+"""
+function _data_provider_error_codes(
+    body::AbstractString,
+)::Tuple{Union{String, Nothing}, Union{String, Nothing}}
+    parsed = try
+        json_read(String(body))
+    catch
+        return (nothing, nothing)
+    end
+    parsed isa AbstractDict || return (nothing, nothing)
+    detail = get(parsed, "detail", nothing)
+    detail isa AbstractDict || return (nothing, nothing)
+    token(value) =
+        (value isa AbstractString && occursin(_DATA_PROVIDER_ERROR_TOKEN, value)) ?
+        String(value) : nothing
+    return (token(get(detail, "code", nothing)), token(get(detail, "reason_code", nothing)))
+end
 
 """Internal error for a fixture that has no response file for the requested route."""
 struct _DataProviderFixtureMissingError <: Exception
@@ -91,10 +188,19 @@ Base.showerror(io::IO, e::_DataProviderFixtureMissingError) =
 function _data_provider_http_get(url::String, timeout_seconds::Float64)::String
     buffer = IOBuffer()
     response = Downloads.request(url; output = buffer, timeout = timeout_seconds)
-    response.status == 200 || throw(
-        _DataProviderHTTPError(response.status, "EDP returned a non-success response"),
-    )
-    return String(take!(buffer))
+    body = String(take!(buffer))
+    if response.status != 200
+        code, reason_code = _data_provider_error_codes(body)
+        throw(
+            _DataProviderHTTPError(
+                response.status,
+                "EDP returned a non-success response",
+                code,
+                reason_code,
+            ),
+        )
+    end
+    return body
 end
 
 function _data_provider_endpoint(client::DataProviderClient, suffix::String)::String

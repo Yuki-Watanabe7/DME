@@ -12,10 +12,10 @@
 |---|---|
 | **対象** | 部門別CAPEX・信用循環モデル（`CapexCreditCycleModel` 相当、未実装） |
 | **ステータス** | 観測方程式・識別戦略・検証契約を確定。Julia の型・API・失敗契約・artifact は [実証統合設計](../architecture/capex_credit_cycle_empirical_integration.md)（#240）で確定済み。実装は catalog・raw observation・measurement・dataset・較正（#241–#244）、識別診断（#245）、ブロック別限定推定と parameter artifact（#246）、履歴再生候補選定（#247）、履歴再生実行（#248）、dimension別検証（#249）、robustness/sensitivity（#250）、統合デモ・artifact・利用文書（#251）まで完了。Phase 3（実データ接続・較正・履歴再生・検証・統合デモ）は完了 |
-| **empirical version** | `capex-credit-cycle-empirical/1.2.0` |
+| **empirical version** | `capex-credit-cycle-empirical/1.3.0` |
 | **上位契約** | `capex-credit-cycle-contract/1.0.0`・`capex-credit-cycle-graph/1.1.0`・`capex-credit-cycle-vars/1.2.0`・`capex-credit-cycle-accounting/1.1.0`・`capex-credit-cycle-boundaries/1.0.1`・`capex-credit-cycle-equations/1.1.0`・`macro-event-contract/1.0.2`・`scenario-time-semantics/1.1.0` |
 | **下位の実装契約** | `capex-credit-cycle-empirical-integration/1.0.0`（[実証統合設計](../architecture/capex_credit_cycle_empirical_integration.md)。本書の契約を Julia の型・API・失敗契約・artifact へ落とす） |
-| **改訂の優先関係** | **§15（#171 統合レビューによる改訂）と §16（#240 統合レビューによる改訂）が本書の正本である。§16 は §15 より優先する。§2.4・§4.2・§5.2・§7.1・§7.2・§7.4・§7.5・§15.2 の一部は改訂節で上書きされている。較正・推定の前に §15 と §16 を読むこと。** |
+| **改訂の優先関係** | **§15（#171 統合レビューによる改訂）・§16（#240 統合レビューによる改訂）・§17（#312 `spread` の観測系列の置換）が本書の正本である。後の節ほど優先する。§2.4・§3.2・§4.2・§4.5・§5.2・§6.2・§7.1・§7.2・§7.4・§7.5・§10.4・§15.2 の一部は改訂節で上書きされている。較正・推定の前に §15–§17 を読むこと。** |
 | **基準経済・頻度** | 米国・四半期（`Δt = 0.25` 年。契約 §2.1 を継承） |
 | **決定記録** | [ADR 0012](../adr/0012-capex-credit-cycle-empirical-contract.md)（本書の決定）・[ADR 0018](../adr/0018-capex-credit-cycle-empirical-runtime-contract.md)（実装契約・§16 の改訂） |
 
@@ -1011,10 +1011,42 @@ LLM による説明生成時は、上記を [llm_safety.md](../llm_safety.md) �
 
 ---
 
-## 17. 改訂履歴
+## 17. #312 `spread` の観測系列の置換（`1.3.0`）
+
+本節は Issue #312（economic-data-provider 契約6.0.0・EDP ADR 072 への追従）による改訂を記録する。決定記録は [ADR 0029](../adr/0029-ice-bofa-distribution-stop-and-replacement-indicators.md)。**本節は §3.2-(7)・§4.2 注意3・§4.5・§6.2・§10.4 の `spread` に関する記述に優先する。**
+
+### 17.1 背景
+
+§3.2-(7)・§4.5・§6.2 は `spread` の観測系列を ICE BofA の US High Yield OAS（`BAMLH0A0HYM2`）と US Corporate OAS（`BAMLC0A0CM`）としていた。両系列は FRED の権利区分が "Copyrighted: Pre-Approval Required" であり、注記が ICE Data の書面の承認なしに第三者へ提供することを禁じている。EDP は `BAMLH0A0HYM2` の提供を停止した（`GET /v1/series/{id}` が HTTP 410 `distribution_stopped`）。`BAMLC0A0CM` は EDP の catalog に無いが、FRED の系列ページに同じ区分・同じ注記がある。DME は public リポジトリであり（ADR 0028）、どちらも観測系列として宣言しない。
+
+### 17.2 改訂
+
+| 論点 | 改訂前 | 改訂後 |
+|---|---|---|
+| 主系列（`calibration_required`） | `BAMLH0A0HYM2`（HY OAS、`D`・`direct`） | **`HQMCB10YRP − GS10`**（米財務省 HQM 社債イールドカーブ10年 par yield − FRB H.15 10年国債 CMT、いずれも月次・FRED 区分 "Public Domain: Citation Requested"）。`C`・`proxy`・`scope_bias = :under` |
+| alternative proxy（`validation_only`） | `BAMLC0A0CM`（IG OAS、`P`・`proxy`） | **`RIFSPPNA2P2D90NB − TB3MS`**（FRB Commercial Paper release の90日物 A2/P2 非金融 CP 金利 − 3か月 T-bill、Public Domain）。`C`・`proxy`・`scope_bias = :indeterminate` |
+| 構成の実装 | 単一系列 | catalog の `reference_key` で参照脚（`treasury_10y`・`treasury_bill_3m`）を宣言し、measurement 層が両脚を各自の観測方程式で四半期化した後に四半期ごとの差を取る。片方が欠測の四半期は欠測のまま。参照脚を測定できない場合は差分を作らず `measurement_failed` とする |
+| §4.2 注意3（日次系列） | `BAMLH0A0HYM2` 等 | `RIFSPPNA2P2D90NB`（日次）。provider 側で月次化してから四半期平均にする |
+| §10.4 `alternative proxy`（a） | `spread` の HY / IG | **`spread` の長期・上位投資適格（HQM）/ 短期・下位投資適格（A2/P2 CP）** |
+
+### 17.3 置換で失うもの（限界）
+
+1. **HY・CCC 層の信用リスクを観測しない。** 公表統計・FRED の Public Domain 区分に、HY 社債のスプレッドに相当する系列は無い。主系列は AAA/AA/A の社債に限られ、信用ストレス局面の拡大幅を HY OAS より小さく見せる（`scope_bias = :under`）。`bh_spread_*`・`st_spread0` の推定・較正値は HY OAS を用いた場合と比べられない。
+2. **OAS ではない。** 国債利回りとの単純差であり、オプション調整を行わない。HQM の par yield は国債の CMT（par yield）と対にし、spot と par を混ぜない。
+3. **alternative proxy は満期と格付け層が主系列と異なる。** 差が出ても、どちらの要因によるかを本書の手続きでは分解しない。T-bill は割引ベースで、CP 金利と表示ベースを揃えていない。
+4. **標本開始期が変わる。** 主系列は 1984-Q1（HQM の開始）から、alternative proxy は 1998-Q1 から。共通標本の開始候補（BEA GDP-by-Industry の 2005-Q1）は変わらない。
+
+### 17.4 変えないもの
+
+モデル変数 `spread`（bp・`AVG`・`control`）の定義、方程式 `E5-04`・`E5-05`、パラメータ区分、推定ブロック `EB-1`・`EB-2` の構成。`spread` を観測できるという分類（構成系列 `C` による）も変えない。
+
+---
+
+## 18. 改訂履歴
 
 | version | 日付 | 変更 |
 |---|---|---|
+| `capex-credit-cycle-empirical/1.3.0` | 2026-11-08 | #312 による改訂（§17）。`spread` の観測系列を ICE BofA の HY/IG OAS（再配布できない）から、Public Domain の利回りの差（主系列 `HQMCB10YRP − GS10`、alternative proxy `RIFSPPNA2P2D90NB − TB3MS`）へ置換。catalog の `reference_key` による差分構成を追加。HY・CCC 層を観測しなくなる限界を明記 |
 | `capex-credit-cycle-empirical/1.2.0` | 2026-09-01 | #240 の実証統合レビューによる改訂（§16）。`BOP` を独立の集計方式として実装せず `EOP` の1期ラグとして構成することを明記。`st_dcap_s` の余裕幅を `CAL-OBS` の入力とし実装既定 `2 ×` を正とする。`st_cor_s1` を `CAL-SS` から `SENS` へ移す（`util_s1^{ss}` が `E` で逆算できないため）。定常水準では `order_gen_s^{ss}` と `ext_demand_s^{ss}` の分割が識別されないことを明記し、`st_gen_share_s` を標本全体から先に与え `ext_demand_s^{ss}` を残差とする識別仮定を固定（§5.2-9 と §15.4 の逆方向を解消）。`emp_s4` が存在しないため `EB-6` の `EST` を 11 → 9 へ、`EST` 総数を 37 → 35 へ修正。`data_vintage` を provider 申告値とし未申告を `"unknown"` とする（`"latest"` と書かない）。`vintage_mode` を `:latest_only` の1値に固定。下位の実装契約として `capex-credit-cycle-empirical-integration/1.0.0` を追加 |
 | `capex-credit-cycle-empirical/1.1.0` | 2026-07-30 | #171 の統合レビューによる改訂（§15）。上位契約を `vars/1.2.0`・`accounting/1.1.0`・`equations/1.1.0`・`macro-event-contract/1.0.1` へ更新。区分の二重付与 3 件を一意化（`st_pipelag_s`・`st_dcap_s` を `CAL-OBS`、`bh_cc_lend`/`bh_cc_equity`/`bh_cc_fc` を `W1` 事前適用で `CAL-OBS`）し、区分と感応度対象が直交する概念であることを §7.1 へ追記。`st_commit_s` を `st_commit_s1` へ修正。推定ブロックの `EST` 個数を実測値へ修正（総数 37）。#166 §11 が引き渡した `st_maturity_s` の較正要求を外した事実と理由を記録。§5.2 の `ext_demand_s^{ss}` の観測ソースを §4.3 の残差構成規則として明記。在庫の当期価格評価に伴い `st_invprice_s` を `FIX` 一覧から削除（構造 35 → 34 系統）。遅延バッファの列挙と宣言の食い違い（35 対 34）が解消され状態次元 65 が確定。`:no_double_count` の価格・投資変化局面での検証と会計恒等式の履歴再生検証を §10 へ追加 |
 | `capex-credit-cycle-empirical/1.0.0` | 2026-07-30 | 初版（#170）。観測可能性 5 分類（`D`/`C`/`P`/`E`/`A`）と 8 群の変数割当・観測方程式の構成要素 9 項目と部門別実物量/資本能力/金融信用の観測方程式・頻度変換の既定割当（NIPA 年率の `÷ 4` を含む）・`y_s` のアンカー式と `ext_demand_s` の残差構成規則と 3 契約・`aggregation`/`allocation`/`proxy` の methodology metadata・逆較正入力 13 項目の観測対応と定常水準の算出方式・データソース境界 3 層と企業開示を較正入力に用いない決定・モデル層/データ層/較正層の境界・fixture 最小セットと metadata 保存項目・パラメータ 6 区分（`FIX`/`CAL-SS`/`CAL-OBS`/`EST`/`SCN`/`SENS`）の全パラメータ割当・推定ブロック `EB-1`–`EB-7` と固定推定順序・診断閾値を較正しない決定と `breadth` の較正不能性・識別リスク `ID-1`–`ID-7` と弱識別対応規則 `W1`–`W4`・履歴再生の必要条件 `NC-1`–`NC-7` と候補 `H1`–`H6`・履歴再生 baseline を成長率ゼロの定常状態とする決定・数値fit/動学構造/比較/数値頑健性の 4 レイヤー分離と出力契約・因果と予測上の限界 14 件を固定 |

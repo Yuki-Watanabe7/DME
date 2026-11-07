@@ -15,19 +15,31 @@
 #     `minsky_diagnostic_state` は**既存の検証・診断capabilityの引用**であり、
 #     2026-09データに対する新規のモデル実行・較正ではない。§「静的citation」参照）。
 #   - missing / stale / unavailable dataをfalse/zeroへ変換しない
-#     （dimension単位で `:insufficient_data` を返す）。
+#     （dimension単位で `:insufficient_data` を返す）。データ由来の3 dimension
+#     （trigger/weak_credit/funding）は入力系列の raw status を `input_statuses` に残し、
+#     EDP の提供停止（`:distribution_stopped`）を一時的な欠測と区別できるようにする
+#     （Issue #312・ADR 0029）。
 #
-# 設計契約: docs/examples/financial_instability_holdout_demo.md・docs/data/financial_stress.md
+# 設計契約: docs/examples/financial_instability_holdout_demo.md・docs/data/financial_stress.md・
+#   docs/adr/0029-ice-bofa-distribution-stop-and-replacement-indicators.md
 
 # ------------------------------------------------------------
 # バージョン・語彙
 # ------------------------------------------------------------
 
-"本ファイルの構造・フィールドの version。"
-const FINANCIAL_INSTABILITY_HOLDOUT_VERSION = "financial-instability-holdout/1.0.0"
+"""
+本ファイルの構造・フィールドの version。2.0.0（Issue #312・ADR 0029）で `weak_credit_state`
+の入力を CP 金利の格付け階層差へ置き換え（`ccc_oas_latest` → `lower_tier_rate_latest`、
+`measure` を追加）、データ由来の3 dimension に `input_statuses` を追加した。
+"""
+const FINANCIAL_INSTABILITY_HOLDOUT_VERSION = "financial-instability-holdout/2.0.0"
 
-"閾値の版（後続issueでの較正を想定した versioned constant。#260は2026-09データを閾値較正に使わない）。"
-const FINANCIAL_INSTABILITY_RULE_VERSION = "financial-instability-rule/1.0.0"
+"""
+閾値の版（後続issueでの較正を想定した versioned constant。#260は2026-09データを閾値較正に
+使わない）。2.0.0（Issue #312）は `weak_credit_*_bps` の適用対象が
+`cp_a2p2_minus_aa_bp` に変わったことを表す（数値は 1.0.0 と同じ）。
+"""
+const FINANCIAL_INSTABILITY_RULE_VERSION = "financial-instability-rule/2.0.0"
 
 """
     FINANCIAL_INSTABILITY_STATUSES
@@ -61,7 +73,10 @@ dimension別 status を決める閾値（Issue #260 Part D）。**全て暫定�
 - `trigger_watch_bps` / `trigger_confirmed_bps::Float64`: `long_nominal_yield_shift_bps`
   の絶対値がこれを超えると `:watch`/`:confirmed`（既定 `25.0`/`50.0`）。
 - `weak_credit_watch_bps` / `weak_credit_confirmed_bps::Float64`:
-  `ccc_minus_broad_hy_oas_bp` の `from_date→to_date` の拡大幅（既定 `30.0`/`75.0`）。
+  `cp_a2p2_minus_aa_bp`（30日物 A2/P2 − AA 非金融 CP）の `from_date→to_date` の変化幅の
+  絶対値（既定 `30.0`/`75.0`）。rule 1.0.0 は同じ数値を CCC − 広範 HY OAS に適用していた。
+  2.0.0 は数値を変えずに適用対象だけを置き換えたもので、新しい指標に対して較正した値では
+  ない（較正は別issue。ADR 0029）。
 - `funding_watch_bps` / `funding_confirmed_bps::Float64`: `sofr`/`tgcr` の `iorb` 対比
   乖離の絶対値（既定 `10.0`/`25.0`）。
 - `version::String`
@@ -105,7 +120,27 @@ struct TriggerState
     long_nominal_yield_shift_bps::Union{Float64, Missing}
     long_real_yield_shift_bps::Union{Float64, Missing}
     inflation_compensation_shift_bps::Union{Float64, Missing}
+    input_statuses::Dict{String, String}
     label::Symbol
+end
+
+"""
+    _fih_input_statuses(dataset, keys) -> Dict{String,String}
+
+dimension の入力系列ごとの raw status（`FINANCIAL_STRESS_RAW_STATUSES` の文字列）。
+dataset に含まれない key は `"not_requested"`。`label = :insufficient_data` の原因が
+一時的な欠測（`missing_series`・`provider_error` 等）か EDP の提供停止
+（`distribution_stopped`）かを、artifact だけで判別できるようにする（Issue #312）。
+"""
+function _fih_input_statuses(
+    dataset::FinancialStressRawDataset,
+    keys::Vector{Symbol},
+)::Dict{String, String}
+    return Dict{String, String}(
+        String(key) =>
+            haskey(dataset.observations, key) ? String(dataset.observations[key].status) :
+            "not_requested" for key in keys
+    )
 end
 
 """
@@ -147,6 +182,10 @@ function trigger_state(
         c.long_nominal_yield_shift_bps,
         c.long_real_yield_shift_bps,
         c.inflation_compensation_shift_bps,
+        _fih_input_statuses(
+            dataset,
+            [:long_nominal_yield, :long_real_yield, :inflation_compensation, :sofr, :iorb],
+        ),
         label,
     )
 end
@@ -155,20 +194,36 @@ end
 # weak_credit_state
 # ------------------------------------------------------------
 
+"WeakCreditState.measure の値（rule 2.0.0 で用いる credit-tier 指標の識別子）。"
+const WEAK_CREDIT_MEASURE = "cp_a2p2_minus_aa_nonfinancial_30d"
+
 """
     WeakCreditState
 
-最弱信用層（CCC以下OAS）の水準・広範HYとの乖離拡大（Issue #260 Part D の
-`weak_credit_state`）。`label` は `divergence_shift_bps`（`from_date→to_date` の
-`ccc_minus_broad_hy_oas_bp` 拡大幅）で決める。「長期金利が高いだけ」では
-`weak_credit_state` は動かない（水準ではなく信用spreadの相対乖離を見るため）。
+下位信用階層の調達条件の、上位階層に対する相対悪化（Issue #260 Part D の
+`weak_credit_state`）。rule 2.0.0（Issue #312・ADR 0029）では 30日物 A2/P2 非金融 CP 金利と
+AA 非金融 CP 金利の同日差分（`cp_a2p2_minus_aa_bp`）で観測する。`label` は
+`divergence_shift_bps`（`from_date→to_date` の変化幅）で決める。「長期金利が高いだけ」では
+`weak_credit_state` は動かない（水準ではなく階層間の相対乖離を見るため）。
+
+rule 1.0.0 は ICE BofA の CCC & Lower OAS − 広範 HY OAS を用いていたが、EDP が提供を停止
+した（契約6.0.0、ADR 072）。CP の格付け階層差は短期・投資適格域の発行体を観測し、
+HY・CCC 社債の信用リスクは観測しない（`measure` で区別する）。
+
+## フィールド
+- `measure::String`: 用いた指標（`WEAK_CREDIT_MEASURE`）。
+- `lower_tier_rate_latest`: 下位階層（A2/P2）の金利の最新観測 `(date, percent)`。
+- `divergence_latest_bps` / `divergence_shift_bps`: 階層差の最新値と変化幅（bp）。
+- `input_statuses`: 入力2系列の raw status（`_fih_input_statuses`）。
 """
 struct WeakCreditState
     from_date::String
     to_date::String
-    ccc_oas_latest::Union{Tuple{String, Float64}, Nothing}
+    measure::String
+    lower_tier_rate_latest::Union{Tuple{String, Float64}, Nothing}
     divergence_latest_bps::Union{Tuple{String, Float64}, Nothing}
     divergence_shift_bps::Union{Float64, Missing}
+    input_statuses::Dict{String, String}
     label::Symbol
 end
 
@@ -184,15 +239,15 @@ function weak_credit_state(
 )::WeakCreditState
     # trigger_state と同じ理由（raw fetch 失敗を :insufficient_data として吸収する）。
     spread = _fih_safe_aligned_spread(
-        ccc_minus_broad_hy_oas_bp,
+        cp_a2p2_minus_aa_bp,
         dataset,
-        :ccc_oas,
-        :broad_hy_oas,
+        :cp_a2p2_nonfinancial_30d,
+        :cp_aa_nonfinancial_30d,
     )
-    ccc_series = get(dataset.observations, :ccc_oas, nothing)
-    ccc_latest =
-        (ccc_series !== nothing && ccc_series.status == :ok) ?
-        _fih_latest_value(ccc_series.series) : nothing
+    lower_obs = get(dataset.observations, :cp_a2p2_nonfinancial_30d, nothing)
+    lower_latest =
+        (lower_obs !== nothing && lower_obs.status == :ok) ?
+        _fih_latest_value(lower_obs.series) : nothing
     divergence_latest = latest_aligned(spread)
     shift = value_on_date_spread(spread, from_date, to_date)
     label = _fih_magnitude_status(
@@ -203,9 +258,11 @@ function weak_credit_state(
     return WeakCreditState(
         String(from_date),
         String(to_date),
-        ccc_latest,
+        WEAK_CREDIT_MEASURE,
+        lower_latest,
         divergence_latest,
         shift,
+        _fih_input_statuses(dataset, [:cp_a2p2_nonfinancial_30d, :cp_aa_nonfinancial_30d]),
         label,
     )
 end
@@ -248,6 +305,7 @@ secured funding市場の政策アンカーからの乖離（Issue #260 Part D �
 struct FundingState
     sofr_minus_iorb_latest_bps::Union{Tuple{String, Float64}, Nothing}
     tgcr_minus_iorb_latest_bps::Union{Tuple{String, Float64}, Nothing}
+    input_statuses::Dict{String, String}
     label::Symbol
 end
 
@@ -295,7 +353,12 @@ function funding_state(
             thresholds.funding_confirmed_bps,
         )
     end
-    return FundingState(sofr_iorb, tgcr_iorb, label)
+    return FundingState(
+        sofr_iorb,
+        tgcr_iorb,
+        _fih_input_statuses(dataset, [:sofr, :tgcr, :iorb]),
+        label,
+    )
 end
 
 # ------------------------------------------------------------
@@ -452,6 +515,7 @@ const FINANCIAL_INSTABILITY_CAVEATS = String[
     "model_amplification_state・minsky_diagnostic_stateは既存capabilityへの静的citationで" * "あり、2026-09データを用いた新規のモデル実行・較正ではない。",
     "`:as_of` は実装していない。known_atは監査属性であり「その時点で判断できた」という" * "主張には用いない。",
     "dimension単位で `:insufficient_data` を返す場合があり、missing/stale/unavailableな" * "データを false や 0 へ変換していない。",
+    "weak_credit_stateは短期CP市場の格付け階層差（30日物 A2/P2 − AA 非金融CP）であり、" * "HY・CCC社債の信用スプレッドではない（ICE BofA OASはEDPが提供を停止した。ADR 0029）。",
 ]
 
 """
@@ -559,6 +623,7 @@ function _fih_trigger_to_dict(s::TriggerState)::Dict{String, Any}
         "long_real_yield_shift_bps" => _fih_dict_float(s.long_real_yield_shift_bps),
         "inflation_compensation_shift_bps" =>
             _fih_dict_float(s.inflation_compensation_shift_bps),
+        "input_statuses" => s.input_statuses,
         "label" => String(s.label),
     )
 end
@@ -567,9 +632,11 @@ function _fih_weak_credit_to_dict(s::WeakCreditState)::Dict{String, Any}
     return Dict{String, Any}(
         "from_date" => s.from_date,
         "to_date" => s.to_date,
-        "ccc_oas_latest" => _fih_dict_tuple(s.ccc_oas_latest),
+        "measure" => s.measure,
+        "lower_tier_rate_latest" => _fih_dict_tuple(s.lower_tier_rate_latest),
         "divergence_latest_bps" => _fih_dict_tuple(s.divergence_latest_bps),
         "divergence_shift_bps" => _fih_dict_float(s.divergence_shift_bps),
+        "input_statuses" => s.input_statuses,
         "label" => String(s.label),
     )
 end
@@ -578,6 +645,7 @@ function _fih_funding_to_dict(s::FundingState)::Dict{String, Any}
     return Dict{String, Any}(
         "sofr_minus_iorb_latest_bps" => _fih_dict_tuple(s.sofr_minus_iorb_latest_bps),
         "tgcr_minus_iorb_latest_bps" => _fih_dict_tuple(s.tgcr_minus_iorb_latest_bps),
+        "input_statuses" => s.input_statuses,
         "label" => String(s.label),
     )
 end

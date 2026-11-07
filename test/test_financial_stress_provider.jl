@@ -3,7 +3,8 @@
 #
 # fixtureは test/fixtures/data/financial_stress/series/*.json（fictional。実在の
 # 金利水準・日付の観測値を用いない）。EDPの `/v1/catalog/series` 突合は行わないため
-# catalog.json fixtureは無い。
+# catalog.json fixtureは無い。credit-tier の2系列は Issue #312・ADR 0029 で ICE BofA OAS から
+# FRB の非金融 CP 金利へ置き換えた。
 
 const _FS_PROVIDER_FIXTURE_DIR = joinpath(@__DIR__, "fixtures", "data", "financial_stress")
 
@@ -13,20 +14,39 @@ _fs_fixture_client(; fixture_dir::String = _FS_PROVIDER_FIXTURE_DIR) =
 @testset "金融ストレス観測 catalog（Issue #260 Part B）" begin
     @testset "smoke test（CLAUDE.md）" begin
         @test length(FINANCIAL_STRESS_SERIES_CATALOG) == 8
-        @test financial_stress_spec(:ccc_oas) isa FinancialStressSeriesSpec
+        @test financial_stress_spec(:cp_a2p2_nonfinancial_30d) isa FinancialStressSeriesSpec
     end
 
     @testset "catalogの8系列が確定している" begin
         keys = Set(getfield.(FINANCIAL_STRESS_SERIES_CATALOG, :key))
         @test keys == Set([
-            :ccc_oas, :broad_hy_oas, :sofr, :tgcr, :iorb,
+            :cp_a2p2_nonfinancial_30d, :cp_aa_nonfinancial_30d, :sofr, :tgcr, :iorb,
             :long_nominal_yield, :long_real_yield, :inflation_compensation,
         ])
-        # ccc_oas と broad_hy_oas は別 series_id（暗黙fallbackしない）
-        @test financial_stress_spec(:ccc_oas).provider_series_id == "BAMLH0A3HYC"
-        @test financial_stress_spec(:broad_hy_oas).provider_series_id == "BAMLH0A0HYM2"
-        @test financial_stress_spec(:ccc_oas).provider_series_id !=
-              financial_stress_spec(:broad_hy_oas).provider_series_id
+        @test FINANCIAL_STRESS_CATALOG_VERSION == "financial-stress-catalog/2.0.0"
+        # 下位/上位階層は同じ release・同じ満期の別 series_id（暗黙fallbackしない）
+        lower = financial_stress_spec(:cp_a2p2_nonfinancial_30d)
+        upper = financial_stress_spec(:cp_aa_nonfinancial_30d)
+        @test lower.provider_series_id == "RIFSPPNA2P2D30NB"
+        @test upper.provider_series_id == "RIFSPPNAAD30NB"
+        @test lower.comparison_key == :cp_aa_nonfinancial_30d
+        @test upper.comparison_key === nothing
+        @test (lower.role, upper.role) ==
+              (:credit_tier_lower_cp_rate, :credit_tier_upper_cp_rate)
+    end
+
+    @testset "EDPが提供を停止したICE BofA系列はcatalogに登録できない（Issue #312）" begin
+        ids = Set(spec.provider_series_id for spec in FINANCIAL_STRESS_SERIES_CATALOG)
+        @test isempty(intersect(ids, Set(keys(DME._REDISTRIBUTION_EXCLUDED_SERIES))))
+        @test !(:credit_stress_ccc_oas in FINANCIAL_STRESS_ROLES)
+        @test !(:credit_stress_broad_hy_oas in FINANCIAL_STRESS_ROLES)
+        # 大文字小文字・前後の空白を無視して拒否する（FREDのIDは大文字小文字を区別しない）
+        for id in ("BAMLH0A3HYC", "bamlh0a0hym2", " BAMLC0A0CM ")
+            @test_throws ArgumentError FinancialStressSeriesSpec(;
+                key = :x, provider_series_id = id, role = :policy_anchor_rate,
+                unit = "Percent", description = "",
+            )
+        end
     end
 
     @testset "role が FINANCIAL_STRESS_ROLES のいずれかである" begin
@@ -66,7 +86,7 @@ end
     @testset "smoke test（CLAUDE.md）" begin
         raw = build_financial_stress_raw_dataset(; client = _fs_fixture_client())
         @test raw isa FinancialStressRawDataset
-        @test raw.observations[:ccc_oas].status == :ok
+        @test raw.observations[:cp_a2p2_nonfinancial_30d].status == :ok
     end
 
     @testset "fixtureからraw観測を構築する（欠測日を0や直近値へ変換しない）" begin
@@ -79,13 +99,14 @@ end
             @test obs.series.unit == "Percent"
             @test issorted(obs.series.dates)
         end
-        ccc = raw.observations[:ccc_oas].series
-        @test ismissing(value_on_date(ccc, "2026-08-27"))          # fixtureのnull
-        @test value_on_date(ccc, "2026-08-28") == 9.7
-        @test value_on_date(ccc, "2026-01-01") === missing          # 不在日も missing
+        lower = raw.observations[:cp_a2p2_nonfinancial_30d].series
+        @test ismissing(value_on_date(lower, "2026-08-27"))        # fixtureのnull
+        @test value_on_date(lower, "2026-08-28") == 4.5
+        @test value_on_date(lower, "2026-01-01") === missing        # 不在日も missing
         @test raw.catalog_version == FINANCIAL_STRESS_CATALOG_VERSION
         @test startswith(raw.metadata["raw_identity"], "sha256:")
         @test raw.metadata["status_counts"]["ok"] == 8
+        @test raw.metadata["status_counts"]["distribution_stopped"] == 0
     end
 
     @testset "keys引数で部分集合のみ取得する" begin
@@ -142,6 +163,43 @@ end
         )
         @test raw_404.observations[:sofr].status == :missing_series
 
+        # HTTP 410 distribution_stopped -> :distribution_stopped（障害・データなしと区別する、
+        # Issue #312・EDP ADR 072）。reason_code を detail に残す
+        raw_410 = build_financial_stress_raw_dataset(;
+            catalog = [spec],
+            client = make_client(
+                (url, t) -> throw(
+                    DME._DataProviderHTTPError(
+                        410, "EDP returned a non-success response",
+                        "distribution_stopped", "redistribution_rights",
+                    ),
+                ),
+            ),
+        )
+        obs_410 = raw_410.observations[:sofr]
+        @test obs_410.status == :distribution_stopped
+        @test obs_410.series === nothing
+        @test occursin("distribution_stopped", obs_410.detail)
+        @test occursin("redistribution_rights", obs_410.detail)
+        @test raw_410.metadata["status_counts"]["distribution_stopped"] == 1
+
+        # 410 でも code が distribution_stopped でなければ提供停止として扱わない
+        raw_410_other = build_financial_stress_raw_dataset(;
+            catalog = [spec],
+            client = make_client(
+                (url, t) -> throw(DME._DataProviderHTTPError(410, "gone", "symbol_migrated", nothing)),
+            ),
+        )
+        @test raw_410_other.observations[:sofr].status == :provider_error
+        @test occursin("symbol_migrated", raw_410_other.observations[:sofr].detail)
+
+        # code の無い 410 も :provider_error
+        raw_410_plain = build_financial_stress_raw_dataset(;
+            catalog = [spec],
+            client = make_client((url, t) -> throw(DME._DataProviderHTTPError(410, "gone"))),
+        )
+        @test raw_410_plain.observations[:sofr].status == :provider_error
+
         # 不正JSON -> :invalid_response
         raw_bad_json = build_financial_stress_raw_dataset(;
             catalog = [spec],
@@ -174,6 +232,27 @@ end
             client = make_client((url, t) -> wrong_id_json),
         )
         @test raw_wrong_id.observations[:sofr].status == :invalid_response
+    end
+
+    @testset "EDPのエラー本文から detail.code・reason_code だけを取り出す（Issue #312）" begin
+        body = "{\"detail\": {\"code\": \"distribution_stopped\", " *
+               "\"reason_code\": \"redistribution_rights\", \"canonical_id\": \"BAMLH0A3HYC\", " *
+               "\"symbol\": \"BAMLH0A3HYC\", \"message\": \"free text\"}}"
+        @test DME._data_provider_error_codes(body) ==
+              ("distribution_stopped", "redistribution_rights")
+        @test DME._data_provider_error_codes("{\"detail\": \"Not Found\"}") == (nothing, nothing)
+        @test DME._data_provider_error_codes("not json") == (nothing, nothing)
+        @test DME._data_provider_error_codes("[1, 2]") == (nothing, nothing)
+        # 短い小文字トークン以外（自由記述・URL等）は保持しない
+        @test DME._data_provider_error_codes(
+            "{\"detail\": {\"code\": \"See https://example.invalid/x\", \"reason_code\": 3}}",
+        ) == (nothing, nothing)
+        e = DME._DataProviderHTTPError(410, "x", "distribution_stopped", "redistribution_rights")
+        @test DME._data_provider_distribution_stopped(e)
+        @test !DME._data_provider_distribution_stopped(DME._DataProviderHTTPError(410, "x"))
+        @test !DME._data_provider_distribution_stopped(
+            DME._DataProviderHTTPError(404, "x", "distribution_stopped", nothing),
+        )
     end
 
     @testset "FinancialStressSeries: dates/valuesの長さ不一致・非昇順を拒否する" begin

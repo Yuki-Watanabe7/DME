@@ -403,8 +403,9 @@ function _fih_write_report(path::AbstractString, a, mode::Symbol, manifest::Dict
         println(
             io,
             "| weak_credit_state | $(a.weak_credit_state.label) | " *
+            "$(a.weak_credit_state.measure): " *
             "divergence_shift_bps=$(_fih_fmt(a.weak_credit_state.divergence_shift_bps))・" *
-            "ccc_oas_latest=$(_fih_fmt(a.weak_credit_state.ccc_oas_latest)) |",
+            "lower_tier_rate_latest=$(_fih_fmt(a.weak_credit_state.lower_tier_rate_latest)) |",
         )
         println(
             io,
@@ -595,7 +596,7 @@ function _fih_write_comparison_report(
         )
         println(
             io,
-            "| divergence_shift_bps（CCC-broad HY） | " *
+            "| divergence_shift_bps（A2/P2 − AA 非金融CP 30日物） | " *
             "$(_fic_fmt_num(w["divergence_shift_bps"]["pre"]))→" *
             "$(_fic_fmt_num(w["divergence_shift_bps"]["post"])) | " *
             "$(_fic_fmt_diff(w["divergence_shift_bps"])) |",

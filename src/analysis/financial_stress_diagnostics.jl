@@ -113,14 +113,20 @@ function _fs_dataset_series(
 end
 
 """
-    ccc_minus_broad_hy_oas_bp(dataset::FinancialStressRawDataset) -> AlignedDailySpread
+    cp_a2p2_minus_aa_bp(dataset::FinancialStressRawDataset) -> AlignedDailySpread
 
-CCC & Lower OAS（`:ccc_oas`）と広範HY OAS（`:broad_hy_oas`）の同日差分（bp）。
-最弱信用層が広範HYより先行悪化しているかを示す（Issue #260 背景）。
+30日物 A2/P2 非金融 CP 金利（`:cp_a2p2_nonfinancial_30d`）と AA 非金融 CP 金利
+（`:cp_aa_nonfinancial_30d`）の同日差分（bp）。短期 CP 市場で下位格付け階層の調達条件が
+上位階層より先に悪化しているかを示す credit-tier stress の指標（Issue #312・ADR 0029）。
+
+Issue #260 で用いた CCC & Lower OAS − 広範 HY OAS（ICE BofA、EDP 契約6.0.0で提供停止）の
+置き換えである。同じ「下位階層 − 上位階層」の構造を保つが、観測対象は短期（30日）の
+投資適格域の CP 発行体であり、HY・CCC 社債の信用リスクは観測しない。両指標の水準・
+変化幅は比較できない。
 """
-ccc_minus_broad_hy_oas_bp(dataset::FinancialStressRawDataset) = aligned_daily_spread_bp(
-    _fs_dataset_series(dataset, :ccc_oas),
-    _fs_dataset_series(dataset, :broad_hy_oas),
+cp_a2p2_minus_aa_bp(dataset::FinancialStressRawDataset) = aligned_daily_spread_bp(
+    _fs_dataset_series(dataset, :cp_a2p2_nonfinancial_30d),
+    _fs_dataset_series(dataset, :cp_aa_nonfinancial_30d),
 )
 
 """

@@ -298,7 +298,7 @@ end
 四半期位置 `i` における mv の値。`_capex_project_observations`（#244）と同じ結合規約を
 四半期ごとに適用する: 単一ソースはそのまま、複数ソースがすべて `:aggregation`
 （methodology）なら和（例: `capex_exec_s1` の equipment/software/structures、`emp_s3` の
-machinery/construction/utilities）、それ以外（例: `spread` の `spread_hy`/`spread_ig`）は
+machinery/construction/utilities）、それ以外（例: `spread` の `spread_hqm_corporate`/`spread_cp_a2p2`）は
 平均。allocation methodology の按分（`nfc_debt_total` 等）は本ファイルの対象変数に現れない
 ため実装しない。いずれかのソースが欠損なら、その四半期の mv 値は missing（穴埋めしない）。
 """

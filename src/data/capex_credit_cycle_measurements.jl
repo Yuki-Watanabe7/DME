@@ -155,6 +155,101 @@ function _capex_offset_series(s::DataSeries, offset::Real, note::String)::DataSe
 end
 
 """
+四半期化済みの2系列の同じ四半期どうしの差 `a − b`。`b` に無い四半期、どちらかが欠測の
+四半期は欠測のまま（0 埋め・前後の値での補完をしない）。
+"""
+function _capex_difference_series(a::DataSeries, b::DataSeries, note::String)::DataSeries
+    b_values = Dict(zip(b.dates, b.values))
+    vals = Union{Float64, Missing}[]
+    for (date, av) in zip(a.dates, a.values)
+        bv = get(b_values, date, missing)
+        push!(vals, (ismissing(av) || ismissing(bv)) ? missing : Float64(av) - Float64(bv))
+    end
+    meta = deepcopy(a.metadata)
+    _append_transform!(meta, note)
+    return DataSeries(
+        a.id,
+        a.name,
+        a.source,
+        a.frequency,
+        a.unit,
+        copy(a.dates),
+        vals,
+        meta,
+    )
+end
+
+"""
+`reference_key` を持つ系列の測定値を「系列 − reference 系列」へ置き換える（ADR 0029）。
+両者を各自の観測方程式で四半期化した後に差を取るので、頻度変換・集計方式は catalog の
+宣言どおり両脚に同じものが適用される（`_validate_capex_reference_keys` が一致を検査する）。
+reference が測定できなかった場合、差分系列を推測で作らず `measurement_failed` とする。
+"""
+function _capex_apply_reference_differences!(
+    catalog::Vector{CapexSeriesSpec},
+    measurements::Dict{Symbol, CapexMeasurement},
+    measurement_failures::Dict{String, String},
+    per_key::Dict{String, Any},
+)::Nothing
+    for spec in catalog
+        ref_key = spec.reference_key
+        (ref_key === nothing || !haskey(measurements, spec.key)) && continue
+        key_str = String(spec.key)
+        if !haskey(measurements, ref_key)
+            message =
+                "reference series $(ref_key) is not measured; " *
+                "$(spec.key) − $(ref_key) cannot be constructed"
+            delete!(measurements, spec.key)
+            measurement_failures[key_str] = message
+            flags = per_key[key_str]
+            per_key[key_str] = Dict{String, Any}(
+                "role" => flags["role"],
+                "observability" => flags["observability"],
+                "raw_status" => flags["raw_status"],
+                "state" => "measurement_failed",
+                "in_values" => true,
+                "reason" => message,
+            )
+            continue
+        end
+        m = measurements[spec.key]
+        r = measurements[ref_key]
+        diff =
+            _capex_difference_series(m.measured, r.measured, "minus reference $(ref_key)")
+        stages = copy(m.stages)
+        push!(stages, "minus_reference($(ref_key))" => diff)
+        formula = "($(m.conversion_formula)) − $(ref_key)[$(r.conversion_formula)]"
+        warnings = copy(m.warnings)
+        push!(
+            warnings,
+            "constructed as $(spec.key) − $(ref_key) per quarter; quarters missing in " *
+            "either leg stay missing",
+        )
+        n_invalid = count(v -> !ismissing(v) && !isfinite(v), diff.values)
+        measurements[spec.key] = CapexMeasurement(
+            m.key,
+            m.spec,
+            stages,
+            diff,
+            formula,
+            m.deflator_key,
+            m.anchor_detail,
+            m.allocation_key,
+            m.allocation_shares,
+            m.n_source_missing,
+            n_invalid,
+            warnings,
+        )
+        flags = per_key[key_str]
+        flags["conversion_formula"] = formula
+        flags["reference_key"] = String(ref_key)
+        flags["n_invalid"] = n_invalid
+        flags["n_warnings"] = length(warnings)
+    end
+    return nothing
+end
+
+"""
     capex_annual_to_quarterly(s::DataSeries; method = :end_of_year_allocation) -> DataSeries
 
 Convert an annual (`"YYYY"`) series to quarterly (`"YYYY-Qn"`) without touching
@@ -501,6 +596,9 @@ non-latent series to the common quarterly sample.
 - `level_form == :index` series are levelled by their `anchor`; anchors that
   need an external series (`:bea_annual_real_value_added`) are left in index
   form with a recorded, deferred `anchor_detail`.
+- Series with a `reference_key` are replaced by the per-quarter difference
+  `series − reference` after both legs are measured (ADR 0029); if the reference
+  cannot be measured the series is recorded as `measurement_failed`.
 - The sample endpoints come only from the `:calibration_required` inner join
   (`Z-29`); `:estimation_input` gaps never shrink the sample; `:validation_only`
   never affects it.
@@ -596,6 +694,14 @@ function build_capex_empirical_dataset(
             )
         end
     end
+
+    # 構成系列（reference_key）は両脚の測定後に差分へ置き換える（ADR 0029）
+    _capex_apply_reference_differences!(
+        catalog,
+        measurements,
+        measurement_failures,
+        per_key,
+    )
 
     # 有効（非欠損・有限）四半期ラベル → 値
     label_values = Dict{Symbol, Dict{String, Float64}}()

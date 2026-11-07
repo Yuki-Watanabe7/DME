@@ -21,8 +21,12 @@
 # バージョン・語彙
 # ------------------------------------------------------------
 
-"本ファイルの構造・フィールドの version。"
-const FINANCIAL_INSTABILITY_COMPARISON_VERSION = "financial-instability-comparison/1.0.0"
+"""
+本ファイルの構造・フィールドの version。2.0.0（Issue #312）で `weak_credit_state` の
+`values` のキーを `ccc_oas_latest`・`broad_hy_oas_latest` から `measure`・
+`lower_tier_rate_latest`・`upper_tier_rate_latest` へ変えた。
+"""
+const FINANCIAL_INSTABILITY_COMPARISON_VERSION = "financial-instability-comparison/2.0.0"
 
 """
     FINANCIAL_INSTABILITY_COMPARISON_CONCLUSIONS
@@ -66,8 +70,8 @@ function _fic_tuple_diff(pre, post)::Dict{String, Any}
 end
 
 """`manifest["series_provenance"]` から `key` の `latest_observation` を取り出す
-（`assessment.json` 自体には broad_hy_oas の水準が含まれないため、`run_manifest.json`
-（Issue #271 Part A）側から補う）。"""
+（`assessment.json` 自体には上位階層 CP 金利（`cp_aa_nonfinancial_30d`）の水準が含まれない
+ため、`run_manifest.json`（Issue #271 Part A）側から補う）。"""
 function _fic_series_latest(manifest::Dict{String, Any}, key::AbstractString)
     for entry in get(manifest, "series_provenance", Any[])
         entry["key"] == key && return entry["latest_observation"]
@@ -301,12 +305,21 @@ function compare_financial_instability_assessments(
             "to_date" => post_t["to_date"],
         ),
     )
+    # weak_credit_state のフィールドは assessment 2.0.0（Issue #312）で変わった。1.0.0 の
+    # artifact と比べる場合も KeyError で止めず null として運び、assessment_version の
+    # 不一致により conclusion を :insufficient_comparable_data にする（_fic_conclusion）。
     weak_credit_values = Dict{String, Any}(
-        "ccc_oas_latest" =>
-            _fic_tuple_diff(pre_w["ccc_oas_latest"], post_w["ccc_oas_latest"]),
-        "broad_hy_oas_latest" => _fic_tuple_diff(
-            _fic_series_latest(pre_manifest, "broad_hy_oas"),
-            _fic_series_latest(post_manifest, "broad_hy_oas"),
+        "measure" => Dict{String, Any}(
+            "pre" => get(pre_w, "measure", nothing),
+            "post" => get(post_w, "measure", nothing),
+        ),
+        "lower_tier_rate_latest" => _fic_tuple_diff(
+            get(pre_w, "lower_tier_rate_latest", nothing),
+            get(post_w, "lower_tier_rate_latest", nothing),
+        ),
+        "upper_tier_rate_latest" => _fic_tuple_diff(
+            _fic_series_latest(pre_manifest, "cp_aa_nonfinancial_30d"),
+            _fic_series_latest(post_manifest, "cp_aa_nonfinancial_30d"),
         ),
         "divergence_latest_bps" => _fic_tuple_diff(
             pre_w["divergence_latest_bps"],

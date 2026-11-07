@@ -32,7 +32,7 @@ function _fih_dataset(;
     nominal_shift_bps::Float64 = 0.0,
     weak_credit_shift_bps::Float64 = 0.0,
     funding_gap_bps::Float64 = 0.0,
-    include_broad_hy::Bool = true,
+    include_upper_tier::Bool = true,
     include_long_real_yield::Bool = true,
     include_inflation_compensation::Bool = true,
 )
@@ -45,11 +45,14 @@ function _fih_dataset(;
     inflation_comp = include_inflation_compensation ?
                      _fih_series(; key = :inflation_compensation, dates = dates, values = [2.20, 2.20]) :
                      nothing
-    ccc_oas = _fih_series(;
-        key = :ccc_oas, dates = dates, values = [9.00, 9.00 + weak_credit_shift_bps / 100],
+    # credit-tier: 30日物 A2/P2 − AA 非金融CP（fictional）。weak_credit_shift_bps だけ階層差が動く
+    lower_tier = _fih_series(;
+        key = :cp_a2p2_nonfinancial_30d, dates = dates,
+        values = [4.40, 4.40 + weak_credit_shift_bps / 100],
     )
-    broad_hy = include_broad_hy ?
-               _fih_series(; key = :broad_hy_oas, dates = dates, values = [3.00, 3.00]) : nothing
+    upper_tier = include_upper_tier ?
+                 _fih_series(; key = :cp_aa_nonfinancial_30d, dates = dates, values = [4.20, 4.20]) :
+                 nothing
     # 平時のSOFR-IORB/TGCR-IORB乖離は数bp程度に収まる想定で基準値を選ぶ（fictional）。
     # funding_gap_bps=0.0 のとき :not_supported になることをテストが前提とするため。
     sofr = _fih_series(;
@@ -60,7 +63,8 @@ function _fih_dataset(;
 
     observations = Dict{Symbol, FinancialStressRawObservation}(
         :long_nominal_yield => _fih_ok(financial_stress_spec(:long_nominal_yield), nominal),
-        :ccc_oas => _fih_ok(financial_stress_spec(:ccc_oas), ccc_oas),
+        :cp_a2p2_nonfinancial_30d =>
+            _fih_ok(financial_stress_spec(:cp_a2p2_nonfinancial_30d), lower_tier),
         :sofr => _fih_ok(financial_stress_spec(:sofr), sofr),
         :tgcr => _fih_ok(financial_stress_spec(:tgcr), tgcr),
         :iorb => _fih_ok(financial_stress_spec(:iorb), iorb),
@@ -71,9 +75,9 @@ function _fih_dataset(;
     observations[:inflation_compensation] = inflation_comp === nothing ?
         _fih_missing(financial_stress_spec(:inflation_compensation)) :
         _fih_ok(financial_stress_spec(:inflation_compensation), inflation_comp)
-    observations[:broad_hy_oas] = broad_hy === nothing ?
-        _fih_missing(financial_stress_spec(:broad_hy_oas)) :
-        _fih_ok(financial_stress_spec(:broad_hy_oas), broad_hy)
+    observations[:cp_aa_nonfinancial_30d] = upper_tier === nothing ?
+        _fih_missing(financial_stress_spec(:cp_aa_nonfinancial_30d)) :
+        _fih_ok(financial_stress_spec(:cp_aa_nonfinancial_30d), upper_tier)
 
     return FinancialStressRawDataset(
         observations, FINANCIAL_STRESS_CATALOG_VERSION, "", Dict{String, Any}(),
@@ -140,8 +144,8 @@ end
 
     @testset "insufficient_data: 全dimensionが欠測ならoverallもinsufficient_data" begin
         spec_n = financial_stress_spec(:long_nominal_yield)
-        spec_c = financial_stress_spec(:ccc_oas)
-        spec_b = financial_stress_spec(:broad_hy_oas)
+        spec_c = financial_stress_spec(:cp_a2p2_nonfinancial_30d)
+        spec_b = financial_stress_spec(:cp_aa_nonfinancial_30d)
         spec_s = financial_stress_spec(:sofr)
         spec_t = financial_stress_spec(:tgcr)
         spec_i = financial_stress_spec(:iorb)
@@ -149,8 +153,8 @@ end
         spec_ic = financial_stress_spec(:inflation_compensation)
         observations = Dict{Symbol, FinancialStressRawObservation}(
             :long_nominal_yield => _fih_missing(spec_n),
-            :ccc_oas => _fih_missing(spec_c),
-            :broad_hy_oas => _fih_missing(spec_b),
+            :cp_a2p2_nonfinancial_30d => _fih_missing(spec_c),
+            :cp_aa_nonfinancial_30d => _fih_missing(spec_b),
             :sofr => _fih_missing(spec_s),
             :tgcr => _fih_missing(spec_t),
             :iorb => _fih_missing(spec_i),
@@ -167,6 +171,59 @@ end
         @test a.weak_credit_state.label == :insufficient_data
         @test a.funding_state.label == :insufficient_data
         @test a.overall_status == :insufficient_data
+    end
+
+    @testset "weak_credit_state: CP格付け階層差で判定し、入力のraw statusを残す（Issue #312）" begin
+        @test FINANCIAL_INSTABILITY_HOLDOUT_VERSION == "financial-instability-holdout/2.0.0"
+        @test FINANCIAL_INSTABILITY_RULE_VERSION == "financial-instability-rule/2.0.0"
+        d = _fih_dataset(; weak_credit_shift_bps = 40.0)
+        w = weak_credit_state(d, "2026-01-01", "2026-01-02")
+        @test w.measure == WEAK_CREDIT_MEASURE == "cp_a2p2_minus_aa_nonfinancial_30d"
+        @test w.divergence_shift_bps ≈ 40.0
+        @test w.label == :watch
+        @test w.lower_tier_rate_latest[1] == "2026-01-02"
+        @test w.lower_tier_rate_latest[2] ≈ 4.80
+        @test w.input_statuses == Dict(
+            "cp_a2p2_nonfinancial_30d" => "ok", "cp_aa_nonfinancial_30d" => "ok",
+        )
+        dict = financial_instability_assessment_to_dict(
+            assess_financial_instability(d, "2026-01-01", "2026-01-02"; generated_at = nothing),
+        )
+        wd = dict["weak_credit_state"]
+        @test wd["measure"] == WEAK_CREDIT_MEASURE
+        @test !haskey(wd, "ccc_oas_latest")
+        @test wd["input_statuses"]["cp_aa_nonfinancial_30d"] == "ok"
+        @test haskey(dict["trigger_state"], "input_statuses")
+        @test haskey(dict["funding_state"], "input_statuses")
+        @test any(c -> occursin("A2/P2", c), dict["caveats"])
+    end
+
+    @testset "EDPの提供停止（:distribution_stopped）は一時的な欠測と区別して残る（Issue #312）" begin
+        d = _fih_dataset(; nominal_shift_bps = 60.0)
+        spec = financial_stress_spec(:cp_aa_nonfinancial_30d)
+        d.observations[:cp_aa_nonfinancial_30d] = FinancialStressRawObservation(;
+            key = spec.key, spec = spec, status = :distribution_stopped, series = nothing,
+            retrieved_at = nothing, mode = :rest_api,
+            detail = "provider stopped distributing this series (HTTP 410 distribution_stopped)",
+        )
+        a = assess_financial_instability(d, "2026-01-01", "2026-01-02")
+        @test a.weak_credit_state.label == :insufficient_data
+        @test a.weak_credit_state.input_statuses["cp_aa_nonfinancial_30d"] == "distribution_stopped"
+        @test a.weak_credit_state.input_statuses["cp_a2p2_nonfinancial_30d"] == "ok"
+        # 他の dimension の判定を妨げない
+        @test a.trigger_state.label == :confirmed
+
+        # dataset に含まれない入力は not_requested（欠測・提供停止と混同しない）
+        partial = build_financial_stress_raw_dataset(;
+            client = DataProviderClient(mode = :fixture, fixture_dir = _FIH_FIXTURE_DIR),
+            keys = [:sofr, :tgcr, :iorb],
+        )
+        w = weak_credit_state(partial, "2026-08-25", "2026-09-04")
+        @test w.label == :insufficient_data
+        @test w.input_statuses == Dict(
+            "cp_a2p2_nonfinancial_30d" => "not_requested",
+            "cp_aa_nonfinancial_30d" => "not_requested",
+        )
     end
 
     @testset "insufficient_data: 日付が無い場合（取得は:okだが対象日を欠く）" begin

@@ -8,6 +8,8 @@
 - `D` は直接、`C` は明示した構成、`P` は概念差を持つproxy、`E` は潜在状態、`A` は観測不能でシナリオ仮定のみを表す。`P` の水準を直接fitの根拠にせず、`E`/`A` を較正・推定入力にしない。
 - IDはDMEがEDPに要求する安定した `provider_series_id` である。`FRED_` IDはFREDの元IDを含む。`BEA_`、`BLS_`、`CENSUS_`、`FRB_` IDは一次統計の表・NAICS範囲を明示するEDP側の安定IDであり、現時点では未実装である。
 - `market_data` の代替系列は自動fallbackではない。企業開示由来のものは `:firm_disclosure` として明示し、validatorが較正・推定roleを拒否する。
+- 「key → model variable」欄の「（− `x`）」は `reference_key` を表す。measurement層は両脚をそれぞれ四半期化した後に「系列 − reference」を四半期ごとに取り、片方が欠測の四半期は欠測のままにする。referenceを測定できない場合は差分を作らず `measurement_failed` とする（ADR 0029）。
+- 再配布できない系列（EDPが提供を停止したICE BofAの `BAMLH0A0HYM2`・`BAMLH0A3HYC`、同じ権利表示を持つ `BAMLC0A0CM`）は、validatorが `FRED_` 接頭辞・大文字小文字を問わず拒否する（`_REDISTRIBUTION_EXCLUDED_SERIES`、ADR 0029）。
 
 ## coverage matrix
 
@@ -45,8 +47,10 @@
 | `BEA_NIPA_TABLE_6_16_NAICS334_CORPORATE_PROFITS` | `profit_s2_proxy` → `profit_s2` | validation_only / P / proxy | current $m SAAR; Q; SAAR; nominal | BEA NIPA Table 6.16 industry aggregate corporate profits。企業開示ではないが、モデル利潤と会計概念が異なる。 | 2005-Q1 |
 | `FRB_Z1_NONFINANCIAL_CORPORATE_DEBT` | `nfc_debt_total` → `debt_s1..s3` | validation_only / P / allocation | current $m EOP; Q; NSA; nominal | FRB Financial Accounts Z.1 aggregate NFC debt。部門別化には`sector_sales_share` allocationが必要。 | 1945-Q4 |
 | `BEA_NIPA_CORPORATE_NET_INTEREST_PAYMENTS` | `nfc_net_interest` → `int_burden_s1..s3` | validation_only / P / allocation | current $bn SAAR; Q; SAAR; nominal | BEA aggregate corporate net-interest payments。debtと同一allocation keyを使い、SAARを÷4。 | 1947-Q1 |
-| `FRED_BAMLH0A0HYM2` | `spread_hy` → `spread` | calibration_required / D / direct | percent; daily→M; NSA; ratio | ICE BofA US High Yield OAS（FRED）。主系列。日次はprovider側で月次化してからQ平均にする。 | 1996-Q4 |
-| `FRED_BAMLC0A0CM` | `spread_ig` → `spread` | validation_only / P / proxy | percent; daily→M; NSA; ratio | ICE BofA US Corporate OAS（FRED）。HYを置換しないalternative proxy。 | 1996-Q4 |
+| `FRED_HQMCB10YRP` | `spread_hqm_corporate` → `spread`（− `treasury_10y`） | calibration_required / C / proxy | percent; M; NSA; ratio | 米財務省 HQM社債イールドカーブの10年par yield（FRED、Public Domain）から `FRED_GS10` を四半期ごとに差し引いて構成する主系列。投資適格（AAA/AA/A）のみでHYの信用リスクを含まず `scope_bias=:under`。OASではなく国債利回りに対するスプレッド。ICE BofA US High Yield OAS の置き換え（ADR 0029）。 | 1984-Q1 |
+| `FRED_GS10` | `treasury_10y` → （なし。`spread_hqm_corporate` の reference） | calibration_required / D / direct | percent; M; NSA; ratio | FRB H.15 10年国債 constant maturity（FRED、Public Domain）。差分の参照脚であり、モデル変数へ対応しない。較正必須の差分系列と同じ標本を拘束する。 | 1953-Q2 |
+| `FRED_RIFSPPNA2P2D90NB` | `spread_cp_a2p2` → `spread`（− `treasury_bill_3m`） | validation_only / C / proxy | percent; daily→M; NSA; ratio | FRB Commercial Paper release の90日物 A2/P2 非金融CP金利（FRED、Public Domain）から `FRED_TB3MS` を差し引くalternative proxy。短期・下位投資適格の発行体で、主系列と満期・格付け層が異なる（`scope_bias=:indeterminate`）。日次はprovider側で月次化してからQ平均にする。TB3MSは割引ベースで、両脚の表示ベースは換算しない。ICE BofA US Corporate OAS の置き換え（ADR 0029）。 | 1998-Q1 |
+| `FRED_TB3MS` | `treasury_bill_3m` → （なし。`spread_cp_a2p2` の reference） | validation_only / D / direct | percent; M; NSA; ratio | FRB H.15 3か月T-bill流通利回り（割引ベース、FRED、Public Domain）。差分の参照脚であり、モデル変数へ対応しない。 | 1934-Q1 |
 | `FRED_DRTSCILM` | `lend_stance` → `lend_stance` | calibration_required / D / direct | net percent; Q; NSA; ratio | SLOOS C&I lending standards。正値は引締であり、measurementで符号を反転しない。 | 1990-Q2 |
 | `FRED_NFCI` | `fin_cond` → `fin_cond` | calibration_required / D / direct | standardized index; weekly→M; NSA; index | Chicago Fed NFCI。正値は引締、baseline=0へ再中心化する。 | 1971-Q1 |
 | `FRED_FEDFUNDS` | `policy_rate` → `policy_rate` | calibration_required / D / direct | annual percent; M; NSA; ratio | Effective Federal Funds Rate。四半期長への換算はモデル層の責務。 | 1954-Q3 |
@@ -79,7 +83,7 @@ FRB産業生産・capacity・utilizationは [G.17](https://www.federalreserve.go
 
 | gap kind | upstream capability needed | DMEの扱い |
 | --- | --- | --- |
-| `missing_series` | BEA NIPA/GDP-by-Industry/Fixed Assets、Census M3・construction、BLS PPI/CES、FRB G.17/Z.1、SLOOS/NFCI、OASのcatalogとseries endpoint | DMEは直接HTTP fallbackを追加しない。#242でEDP responseをdecoderへ渡す。 |
+| `missing_series` | BEA NIPA/GDP-by-Industry/Fixed Assets、Census M3・construction、BLS PPI/CES、FRB G.17/Z.1、SLOOS/NFCI、`spread` を構成する4系列（HQM・GS10・A2/P2 CP・TB3MS）のcatalogとseries endpoint | DMEは直接HTTP fallbackを追加しない。#242でEDP responseをdecoderへ渡す。 |
 | `missing_metadata` | series definition、unit、SA、base year、availability boundsをprovider responseで返す | DMEの`declared_*`をprovider metadataへコピーしない。未申告は`missing`。 |
 | `missing_frequency` | 年次Fixed Assetsと日次/週次金融系列の明示的frequency contract | #243がcatalog宣言どおりにmeasurementし、暗黙変換しない。 |
 | `missing_history` | data-center construction等の短い履歴と開始日を明示 | episode選定で不足期間を除外し、ゼロ埋めしない。 |
