@@ -352,7 +352,7 @@ const CAPEX_CC_OBSERVABILITY_CLASSES = (:D, :C, :P, :E, :A)
 struct CapexSeriesSpec
     key::Symbol                       # 論理観測キー（モデル変数名と一致しなくてよい）
     model_vars::Vector{Symbol}        # 対応する CCC 変数（複数可・0 個も可＝変換の中間系列）
-    provider_series_id::String        # EDP の系列 ID（prefix を含む。例 "FRED_GDPC1"）
+    provider_series_id::String        # EDP の系列 ID。FRED は素の ID（例 "GDPC1"。#314・EDP ADR 073）、他は prefix 付き（例 "BEA_..."）
     provider::String                  # "FRED" / "CENSUS" / "BEA" / "BLS" / "FRB" / "ICE" 等
     source_kind::Symbol               # CAPEX_CC_SOURCE_KINDS
     role::Symbol                      # CAPEX_CC_SERIES_ROLES
@@ -1416,6 +1416,7 @@ P-1(#241) ─> P-2(#242) ─> P-3(#243) ─┬─> P-4(#244) ─> P-5(#245) ─>
 | `capex-credit-cycle-empirical-integration/1.0.0` | 2026-09-01 | 初版（#240）。#170・ADR 0012 と実装済みモデル層・イベント層・データ層の整合レビュー（`Z-01`–`Z-30`）・データフロー 7 段・ファイル配置 11 本・公開型 24 個と公開関数 21 個・失敗契約 3 層と段別ステータス語彙・標本/頻度/vintage semantics・6 区分の注入点と 48 target キーの観測対応・`ext_demand_s^{ss}` の識別仮定・`EST` 総数 35 への修正・履歴再生の 3 段構成・検証 7 dimension と禁止事項の型上の担保・robustness 7 軸・hash 5 種と provenance 連結・テスト 62 項目・作業分解（`P-1`–`P-11`）を確定 |
 | `capex-credit-cycle-empirical-integration/1.0.0`（実装完了記録） | 2026-09-12 | `P-1`–`P-11`（#241–#251）の実装が完了（契約の版は変更しない）。`P-7`–`P-10`（#247–#250）は §4.3 の型/関数名を一部変更して実装した（`CapexRobustnessReport`/`capex_empirical_robustness` ではなく `EmpiricalRobustnessReport`/`capex_empirical_sensitivity_suite`/`EmpiricalSensitivitySpec`/`EmpiricalSensitivityVariantResult`。実体は同じ責務であり、§10.5 の 7 axis・one-axis-at-a-time 契約は変更していない）。`P-11`（#251）は `src/analysis/capex_credit_cycle_empirical_artifact.jl`（§4.1 未記載の新規ファイル）へ §4.3 の `capex_empirical_artifact_to_dict`・`save_capex_empirical_artifact`・`load_capex_empirical_artifact`・`capex_empirical_report`・`save_capex_empirical_report` を実装し、`CapexRawDataset`・`CapexEmpiricalDataset` に to_dict が無かったため `capex_raw_dataset_to_dict`/`save_capex_raw_dataset`・`capex_measurement_manifest_to_dict`/`save_capex_measurement_manifest`（§4.3 未記載）を追加した。統合デモ（`examples/capex_credit_cycle_empirical_demo.jl`）は§3.1 の7段を**合成（synthetic）データ**で完走する（実系列取得は本フェーズの対象外）。§12.7 の4項目（fixture完走・決定性・reload一致・会計12項目 acc_pass）を [test/test_capex_credit_cycle_empirical_demo.jl](../../test/test_capex_credit_cycle_empirical_demo.jl) が検証する。合成データでは `NC-2`（`emp_tot` の深さ閾値）が僅かに届かず、本デモの合成 episode は `:excluded` となる（`assess_capex_episodes` 自体は #247 で別途検証済み）。 |
 | `capex-credit-cycle-empirical-integration/1.0.0`（系列置換記録） | 2026-11-08 | #312: §8.2 の `spread` の観測ソースを ICE BofA OAS から `HQMCB10YRP − GS10` へ置換し、catalog に `reference_key`（参照脚との差分を measurement 層で構成する）を追加（契約の版は変更しない。上位の [実証化戦略](../models/capex_credit_cycle_empirical_strategy.md) は `1.3.0`、ADR 0029） |
+| `capex-credit-cycle-empirical-integration/1.0.0`（EDP 6.1.0 追従記録） | 2026-11-08 | #314: EDP 契約6.1.0（EDP ADR 073）に合わせ、`provider = "FRED"` の `provider_series_id` を素の FRED ID にした（§5.1 の struct コメント。`Z-02` の「prefix は catalog が持つ」は FRED 以外に適用する）。EDP が日次で返す `RIFSPPNA2P2D90NB` を CCC adapter が暦月平均へ縮約する `daily_reduction` を catalog に追加。`spread` の provider gap を削除（契約の版は変更しない。ADR 0029 改訂1） |
 
 ---
 

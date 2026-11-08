@@ -447,6 +447,16 @@ function _capex_measure_series(obs::CapexRawObservation)::CapexMeasurement
     stages = Pair{String, DataSeries}["source" => source]
     formula = String["source($(lowercase(string(source.frequency))))"]
     warnings = String[]
+    if haskey(source.metadata, "daily_reduction")
+        # raw 層が日次を暦月平均へ縮約済み（daily_reduction、Issue #314）。式に残す。
+        formula[1] = "source(daily → monthly :mean)"
+        reduction = source.metadata["daily_reduction"]
+        get(reduction, "n_months_without_observation", 0) > 0 && push!(
+            warnings,
+            "$(reduction["n_months_without_observation"]) month(s) had no daily " *
+            "observation and stay missing after the daily → monthly mean",
+        )
+    end
     n_source_missing = count(ismissing, source.values)
 
     current = source

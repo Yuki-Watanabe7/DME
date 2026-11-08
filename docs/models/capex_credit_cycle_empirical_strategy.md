@@ -1026,7 +1026,7 @@ LLM による説明生成時は、上記を [llm_safety.md](../llm_safety.md) �
 | 主系列（`calibration_required`） | `BAMLH0A0HYM2`（HY OAS、`D`・`direct`） | **`HQMCB10YRP − GS10`**（米財務省 HQM 社債イールドカーブ10年 par yield − FRB H.15 10年国債 CMT、いずれも月次・FRED 区分 "Public Domain: Citation Requested"）。`C`・`proxy`・`scope_bias = :under` |
 | alternative proxy（`validation_only`） | `BAMLC0A0CM`（IG OAS、`P`・`proxy`） | **`RIFSPPNA2P2D90NB − TB3MS`**（FRB Commercial Paper release の90日物 A2/P2 非金融 CP 金利 − 3か月 T-bill、Public Domain）。`C`・`proxy`・`scope_bias = :indeterminate` |
 | 構成の実装 | 単一系列 | catalog の `reference_key` で参照脚（`treasury_10y`・`treasury_bill_3m`）を宣言し、measurement 層が両脚を各自の観測方程式で四半期化した後に四半期ごとの差を取る。片方が欠測の四半期は欠測のまま。参照脚を測定できない場合は差分を作らず `measurement_failed` とする |
-| §4.2 注意3（日次系列） | `BAMLH0A0HYM2` 等 | `RIFSPPNA2P2D90NB`（日次）。provider 側で月次化してから四半期平均にする |
+| §4.2 注意3（日次系列） | `BAMLH0A0HYM2` 等 | `RIFSPPNA2P2D90NB`（日次）。EDP は月次化しない（EDP ADR 073）ため、DME の CCC adapter が暦月平均（欠測日を除く）へ縮約してから四半期平均にする（catalog の `daily_reduction = :mean`、#314） |
 | §10.4 `alternative proxy`（a） | `spread` の HY / IG | **`spread` の長期・上位投資適格（HQM）/ 短期・下位投資適格（A2/P2 CP）** |
 
 ### 17.3 置換で失うもの（限界）

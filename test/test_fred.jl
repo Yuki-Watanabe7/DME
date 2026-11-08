@@ -65,6 +65,48 @@
     end
 end
 
+@testset ":rest_api は素の FRED ID で要求し、DataSeries.id を FRED_<id> に揃える（Issue #314）" begin
+    client = FredClient(; mode=:rest_api, rest_api_url="http://test-server:9000/")
+    # EDP 契約6.1.0 は FRED_<id> を 404 unsupported_symbol で拒否する（EDP ADR 073）
+    @test DME._fred_rest_api_url("GDPC1", client) == "http://test-server:9000/v1/series/GDPC1"
+    for bad in ("FRED_GDPC1", "GDP/C1", "", "GDP C1")
+        @test_throws ArgumentError DME._fred_rest_api_url(bad, client)
+    end
+
+    # 合成（fictional）の EDP 応答。形は EDP 6.1.0 の /v1/series/{id} に合わせる
+    response(id; frequency = "quarterly", labels = ["2020-Q1", "2020-Q2"]) = DME.json_write(Dict{String, Any}(
+        "id" => id, "source_id" => id, "name" => "fictional $id", "unit" => "Index",
+        "frequency" => frequency, "currency" => nothing,
+        "points" => Any[
+            Dict{String, Any}("label" => l, "value" => (i == 2 ? nothing : 100.0 + i),
+                              "release_date" => nothing) for (i, l) in enumerate(labels)
+        ],
+    ))
+    s = DME._fred_rest_api_series(response("GDPC1"), "GDPC1")
+    @test s.id == "FRED_GDPC1"   # fixture・live モードと同じ形
+    @test s.id == fetch_fred_series("GDPC1"; client=FredClient(; mode=:fixture,
+        fixture_dir=joinpath(@__DIR__, "fixtures"))).id
+    @test s.source == "FRED"
+    @test s.frequency == Quarterly
+    @test s.metadata["provider_series_id"] == "GDPC1"
+    @test s.dates == ["2020-Q1", "2020-Q2"]
+    @test ismissing(s.values[2])
+
+    # 応答の id が要求と違えば受け取らない（旧来の FRED_<id> 形の応答も含む）
+    @test_throws ArgumentError DME._fred_rest_api_series(response("FRED_GDPC1"), "GDPC1")
+    @test_throws ArgumentError DME._fred_rest_api_series(response("GS10"), "GDPC1")
+
+    # DataFrequency に無い頻度を Monthly へ寄せない
+    @test DME._rest_api_frequency("monthly") == Monthly
+    @test DME._rest_api_frequency("Annual") == Annual
+    for f in ("daily", "weekly", "event", "")
+        @test_throws ArgumentError DME._rest_api_frequency(f)
+    end
+    @test_throws ArgumentError DME._fred_rest_api_series(
+        response("DGS10"; frequency = "daily", labels = ["2026-08-24", "2026-08-25"]), "DGS10",
+    )
+end
+
 @testset "fetch_fred_series（fixture モード）" begin
     fixture_dir = joinpath(@__DIR__, "fixtures")
     client = FredClient(; mode=:fixture, fixture_dir=fixture_dir)

@@ -39,7 +39,7 @@
 以下は本書が事前に把握している、実データに対する機械判定で `NC-1`/`NC-5` の不成立が濃厚な事実である。**本モジュールはこれらを先取りして `H1`–`H6` の `special_factors`/`data_definition_break_resolved` 等へ反映しない**（NC-1/NC-5はデータ依存であり、`assess_capex_episodes` が実データに対して判定する）。
 
 - [観測系列 coverage matrix](capex_credit_cycle_series_catalog.md) §「expected common sample」: catalog 上の較正必須系列全体（`NC-1` の17変数に限らない）の inner join は、`va_s2`/`va_s3`（BEA 四半期 GDP-by-Industry、availability 2005-Q1）に拘束され、**想定される共通 sample の開始候補は 2005-Q1** である。`H1` の助走区間（起点 2000-Q4 の8四半期前 = 1998-Q4）はこれより大幅に早く、`dataset` に該当四半期が存在しない可能性が高い（`NC-5` 不成立の候補）。
-- `wage`（`FRED_CES0500000003`、`EB-6` 必須）は availability 2006-Q1 である。`H1` の助走区間はこれより早く、`NC-1` 不成立の候補になる。
+- `wage`（`CES0500000003`、`EB-6` 必須）は availability 2006-Q1 である。`H1` の助走区間はこれより早く、`NC-1` 不成立の候補になる。
 - `H6`（2022Q3–2023）は [実証戦略](../models/capex_credit_cycle_empirical_strategy.md) §9.2 自身が「期間末が最新データに近く評価20四半期を確保できない可能性」を指摘している（`Z-30`）。評価終端が dataset の最新四半期を超える場合、`NC-5` が機械的に不成立と判定する。
 
 ## `H1`–`H6` の固定内容

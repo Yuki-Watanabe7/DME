@@ -14,6 +14,8 @@ function _ccc_catalog_spec(;
     aggregation::Symbol = :sum,
     model_timing::Symbol = :SUM,
     allocation_key::Union{Symbol, Nothing} = nothing,
+    declared_frequency::DataFrequency = Quarterly,
+    daily_reduction::Union{Symbol, Nothing} = nothing,
 )
     return CapexSeriesSpec(
         key = key,
@@ -25,7 +27,7 @@ function _ccc_catalog_spec(;
         observability = observability,
         methodology = methodology,
         declared_unit = "Test unit",
-        declared_frequency = Quarterly,
+        declared_frequency = declared_frequency,
         declared_seasonal_adjustment = "SA",
         declared_real_nominal = declared_real_nominal,
         level_form = level_form,
@@ -37,6 +39,7 @@ function _ccc_catalog_spec(;
         allocation_key = allocation_key,
         availability_start = "2000-Q1",
         notes = "test catalog entry",
+        daily_reduction = daily_reduction,
     )
 end
 
@@ -85,9 +88,13 @@ end
     @testset "spread uses redistributable series only (Issue #312 / ADR 0029)" begin
         ids = Set(spec.provider_series_id for spec in CAPEX_CC_SERIES_CATALOG)
         for excluded in keys(DME._REDISTRIBUTION_EXCLUDED_SERIES)
+            @test !(excluded in ids)
             @test !("FRED_" * excluded in ids)
             @test_throws ArgumentError validate_capex_series_catalog([
                 _ccc_catalog_spec(provider_series_id = "FRED_" * excluded),
+            ])
+            @test_throws ArgumentError validate_capex_series_catalog([
+                _ccc_catalog_spec(provider_series_id = excluded),
             ])
         end
         spread_sources = sort([
@@ -95,18 +102,21 @@ end
         ])
         @test spread_sources == [:spread_cp_a2p2, :spread_hqm_corporate]
         primary = only(s for s in CAPEX_CC_SERIES_CATALOG if s.key == :spread_hqm_corporate)
-        @test primary.provider_series_id == "FRED_HQMCB10YRP"
+        @test primary.provider_series_id == "HQMCB10YRP"
         @test primary.role == :calibration_required
         @test (primary.observability, primary.methodology, primary.scope_bias) ==
               (:C, :proxy, :under)
         @test primary.reference_key == :treasury_10y
         alternative = only(s for s in CAPEX_CC_SERIES_CATALOG if s.key == :spread_cp_a2p2)
-        @test alternative.provider_series_id == "FRED_RIFSPPNA2P2D90NB"
+        @test alternative.provider_series_id == "RIFSPPNA2P2D90NB"
         @test alternative.role == :validation_only
         @test alternative.reference_key == :treasury_bill_3m
+        # EDP serves the CP rate daily and does not downsample it (EDP ADR 073)
+        @test alternative.daily_reduction == :mean
+        @test primary.daily_reduction === nothing
         refs = Dict(s.key => s for s in CAPEX_CC_SERIES_CATALOG)
-        @test refs[:treasury_10y].provider_series_id == "FRED_GS10"
-        @test refs[:treasury_bill_3m].provider_series_id == "FRED_TB3MS"
+        @test refs[:treasury_10y].provider_series_id == "GS10"
+        @test refs[:treasury_bill_3m].provider_series_id == "TB3MS"
         # reference legs are not model variables, and every declared reference exists
         @test isempty(refs[:treasury_10y].model_vars)
         @test isempty(refs[:treasury_bill_3m].model_vars)
@@ -115,6 +125,48 @@ end
         end
         # the reference leg of a calibration-required spread binds the same sample
         @test refs[:treasury_10y].role == :calibration_required
+    end
+
+    @testset "FRED IDs are bare and daily_reduction is declared (Issue #314 / EDP ADR 073)" begin
+        fred = capex_series_catalog(; provider = "FRED")
+        @test length(fred) == 18
+        @test all(spec -> occursin(r"^[A-Z0-9]+$", spec.provider_series_id), fred)
+        @test !any(spec -> startswith(spec.provider_series_id, "FRED_"), CAPEX_CC_SERIES_CATALOG)
+        # the prefixed form EDP no longer resolves is rejected for provider = "FRED"
+        fred_spec(id) = _ccc_catalog_spec(provider_series_id = id)
+        bare = CapexSeriesSpec(;
+            (f => getfield(fred_spec("GS10"), f) for f in fieldnames(CapexSeriesSpec) if f != :provider)...,
+            provider = "FRED",
+        )
+        @test validate_capex_series_catalog([bare]) === nothing
+        for bad in ("FRED_GS10", "gs10", "GS-10")
+            spec = CapexSeriesSpec(;
+                (f => getfield(bare, f) for f in fieldnames(CapexSeriesSpec) if f != :provider_series_id)...,
+                provider_series_id = bad,
+            )
+            @test_throws ArgumentError validate_capex_series_catalog([spec])
+        end
+        # non-FRED providers keep their DME-side stable IDs
+        @test validate_capex_series_catalog([_ccc_catalog_spec(provider_series_id = "TEST_SERIES")]) === nothing
+
+        @test CAPEX_CC_DAILY_REDUCTIONS == (:mean,)
+        daily = [s for s in CAPEX_CC_SERIES_CATALOG if s.daily_reduction !== nothing]
+        @test [s.key for s in daily] == [:spread_cp_a2p2]
+        monthly_mean(; kwargs...) = _ccc_catalog_spec(;
+            declared_frequency = Monthly, model_timing = :AVG, aggregation = :mean, kwargs...,
+        )
+        @test validate_capex_series_catalog([monthly_mean(daily_reduction = :mean)]) === nothing
+        @test_throws ArgumentError validate_capex_series_catalog([monthly_mean(daily_reduction = :last)])
+        @test_throws ArgumentError validate_capex_series_catalog([
+            _ccc_catalog_spec(declared_frequency = Monthly, daily_reduction = :mean),  # SUM, not AVG
+        ])
+        @test_throws ArgumentError validate_capex_series_catalog([
+            _ccc_catalog_spec(model_timing = :AVG, aggregation = :mean, daily_reduction = :mean),  # Quarterly
+        ])
+        d = capex_series_catalog_to_dict()
+        cp = only(x for x in d["series"] if x["key"] == "spread_cp_a2p2")
+        @test cp["daily_reduction"] == "mean"
+        @test all(haskey(x, "daily_reduction") for x in d["series"])
     end
 
     @testset "reference_key validation is fail-closed (ADR 0029)" begin

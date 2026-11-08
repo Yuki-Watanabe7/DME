@@ -24,6 +24,17 @@ metadata を補完する値ではない。provider 側が未申告なら Issue #
 （両者を四半期化した後、同じ四半期の差を取る。片方が欠測の四半期は欠測のまま。ADR 0029）。
 社債利回り − 国債利回りのように、公表系列がスプレッドそのものを提供しない場合に使う。
 `observability = :C` を要求し、reference 自身は reference を持てない（連鎖させない）。
+
+`provider = "FRED"` の `provider_series_id` は、接頭辞の無い FRED の元 ID（英数字のみ、例
+`"GS10"`）である。EDP は契約6.1.0（EDP ADR 073）で、FRED の系列を素の ID だけで提供し、
+`FRED_<id>` を 404 `unsupported_symbol` で拒否すると決めた（Issue #314）。出所は `provider`
+で示す。`BEA_`・`CENSUS_` などの他の接頭辞は、EDP 側の安定 ID として未実装のまま残る。
+
+`daily_reduction = :mean` は、provider が日次で返す系列を、raw observation を作る段階で
+暦月平均（欠測日を除いた平均）の月次系列へ縮約してよいことを宣言する。`DataFrequency` に
+日次が無く、EDP は月次化しない（EDP ADR 073 決定2）ためである。`declared_frequency =
+Monthly`・`aggregation = :mean`・`model_timing = :AVG` を要求する。宣言の無い系列が日次で
+返った場合は、縮約せず decode error とする。
 """
 struct CapexSeriesSpec
     key::Symbol
@@ -51,6 +62,7 @@ struct CapexSeriesSpec
     availability_end::Union{String, Nothing}
     notes::String
     reference_key::Union{Symbol, Nothing}
+    daily_reduction::Union{Symbol, Nothing}
 end
 
 function CapexSeriesSpec(;
@@ -79,6 +91,7 @@ function CapexSeriesSpec(;
     availability_end::Union{String, Nothing} = nothing,
     notes::String,
     reference_key::Union{Symbol, Nothing} = nothing,
+    daily_reduction::Union{Symbol, Nothing} = nothing,
 )
     return CapexSeriesSpec(
         key,
@@ -106,6 +119,7 @@ function CapexSeriesSpec(;
         availability_end,
         notes,
         reference_key,
+        daily_reduction,
     )
 end
 
@@ -114,6 +128,10 @@ const _CAPEX_CC_LEVEL_FORMS = (:level, :ratio, :index, :growth)
 const _CAPEX_CC_SCOPE_BIASES = (:over, :under, :indeterminate, :none)
 const _CAPEX_CC_TIMING_AGGREGATIONS =
     Dict(:SUM => (:sum,), :AVG => (:mean,), :EOP => (:end,))
+"`CapexSeriesSpec.daily_reduction` の確定集合（`nothing` は縮約しない）。"
+const CAPEX_CC_DAILY_REDUCTIONS = (:mean,)
+"`provider = \"FRED\"` の `provider_series_id` の形（FRED の元 ID。EDP ADR 073）。"
+const _CAPEX_CC_FRED_SERIES_ID = r"^[A-Z0-9]+$"
 
 """`CapexSeriesSpec` の受け入れ条件を検査する内部ヘルパ。"""
 function _validate_capex_series_spec(spec::CapexSeriesSpec, seen::Set{Symbol})::Nothing
@@ -130,6 +148,15 @@ function _validate_capex_series_spec(spec::CapexSeriesSpec, seen::Set{Symbol})::
         ),
     )
     isempty(spec.provider) && throw(ArgumentError("provider は空にできません: $(spec.key)"))
+    spec.provider == "FRED" &&
+        !occursin(_CAPEX_CC_FRED_SERIES_ID, spec.provider_series_id) &&
+        throw(
+            ArgumentError(
+                "provider=FRED の provider_series_id は接頭辞の無い FRED の元 ID（英大文字・数字）で" *
+                "なければなりません（EDP は FRED_<id> を解決しない。EDP ADR 073）: " *
+                "$(spec.key) => $(spec.provider_series_id)",
+            ),
+        )
     isempty(spec.declared_unit) &&
         throw(ArgumentError("declared_unit は空にできません: $(spec.key)"))
     isempty(spec.sector_scope) &&
@@ -192,6 +219,21 @@ function _validate_capex_series_spec(spec::CapexSeriesSpec, seen::Set{Symbol})::
             ArgumentError(
                 "reference_key による差分は methodology=:direct/:proxy に限ります" *
                 "（aggregation/allocation と組み合わせない）: $(spec.key)",
+            ),
+        )
+    end
+    if spec.daily_reduction !== nothing
+        spec.daily_reduction in CAPEX_CC_DAILY_REDUCTIONS || throw(
+            ArgumentError("未知の daily_reduction: $(spec.daily_reduction)（$(spec.key)）"),
+        )
+        (
+            spec.declared_frequency == Monthly &&
+            spec.aggregation === :mean &&
+            spec.model_timing === :AVG
+        ) || throw(
+            ArgumentError(
+                "daily_reduction は月次・平均（declared_frequency=Monthly・aggregation=:mean・" *
+                "model_timing=:AVG）の系列に限ります: $(spec.key)",
             ),
         )
     end
@@ -527,7 +569,7 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
     _capex_spec(
         key = :y_s2_ip,
         model_vars = [:y_s2],
-        provider_series_id = "FRED_IPG3344S",
+        provider_series_id = "IPG3344S",
         provider = "FRED",
         source_kind = :official_statistic,
         role = :estimation_input,
@@ -550,7 +592,7 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
     _capex_spec(
         key = :y_s3_ip,
         model_vars = [:y_s3],
-        provider_series_id = "FRED_IPG333S",
+        provider_series_id = "IPG333S",
         provider = "FRED",
         source_kind = :official_statistic,
         role = :estimation_input,
@@ -573,7 +615,7 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
     _capex_spec(
         key = :util_s2,
         model_vars = [:util_s2],
-        provider_series_id = "FRED_CAPUTLG3344S",
+        provider_series_id = "CAPUTLG3344S",
         provider = "FRED",
         source_kind = :official_statistic,
         role = :validation_only,
@@ -594,7 +636,7 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
     _capex_spec(
         key = :util_s3,
         model_vars = [:util_s3],
-        provider_series_id = "FRED_CAPUTLG333S",
+        provider_series_id = "CAPUTLG333S",
         provider = "FRED",
         source_kind = :official_statistic,
         role = :validation_only,
@@ -615,7 +657,7 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
     _capex_spec(
         key = :ycap_s2,
         model_vars = [:ycap_s2],
-        provider_series_id = "FRED_CAPG3344S",
+        provider_series_id = "CAPG3344S",
         provider = "FRED",
         source_kind = :official_statistic,
         role = :validation_only,
@@ -638,7 +680,7 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
     _capex_spec(
         key = :ycap_s3,
         model_vars = [:ycap_s3],
-        provider_series_id = "FRED_CAPG333S",
+        provider_series_id = "CAPG333S",
         provider = "FRED",
         source_kind = :official_statistic,
         role = :validation_only,
@@ -930,13 +972,13 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
         availability_start = "1947-Q1",
         notes = "BEA aggregate statistic. Use the same allocation key as debt so the derived effective-rate proxy does not hide two allocation choices.",
     ),
-    # spread: 社債スプレッド。ICE BofA の HY/IG OAS（FRED_BAMLH0A0HYM2・FRED_BAMLC0A0CM）は
+    # spread: 社債スプレッド。ICE BofA の HY/IG OAS（BAMLH0A0HYM2・BAMLC0A0CM）は
     # 再配布できないため使わない（EDP 契約6.0.0・ADR 072、DME ADR 0029）。FRED 区分
     # "Public Domain: Citation Requested" の利回りから「社債 − 国債」を measurement 層で構成する。
     _capex_spec(
         key = :spread_hqm_corporate,
         model_vars = [:spread],
-        provider_series_id = "FRED_HQMCB10YRP",
+        provider_series_id = "HQMCB10YRP",
         provider = "FRED",
         source_kind = :market_data,
         role = :calibration_required,
@@ -958,7 +1000,7 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
     _capex_spec(
         key = :treasury_10y,
         model_vars = Symbol[],
-        provider_series_id = "FRED_GS10",
+        provider_series_id = "GS10",
         provider = "FRED",
         source_kind = :market_data,
         role = :calibration_required,
@@ -979,7 +1021,7 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
     _capex_spec(
         key = :spread_cp_a2p2,
         model_vars = [:spread],
-        provider_series_id = "FRED_RIFSPPNA2P2D90NB",
+        provider_series_id = "RIFSPPNA2P2D90NB",
         provider = "FRED",
         source_kind = :market_data,
         role = :validation_only,
@@ -995,13 +1037,14 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
         aggregation = :mean,
         model_timing = :AVG,
         availability_start = "1998-Q1",
-        notes = "FRB Commercial Paper release (FRED RIFSPPNA2P2D90NB, Public Domain) minus FRED TB3MS (Board H.15, Public Domain). Alternative proxy that replaces the ICE BofA US Corporate OAS (ADR 0029). Native daily CP observations must be reduced to monthly before quarterly mean because DataFrequency has no daily variant. TB3MS is quoted on a discount basis; the two legs are not converted to a common quotation basis. It is a sensitivity/validation series, not an automatic fallback for spread_hqm_corporate.",
+        notes = "FRB Commercial Paper release (FRED RIFSPPNA2P2D90NB, Public Domain) minus FRED TB3MS (Board H.15, Public Domain). Alternative proxy that replaces the ICE BofA US Corporate OAS (ADR 0029). EDP serves the CP rate daily and does not downsample it (EDP ADR 073), so the DME adapter reduces it to the calendar-month mean of the non-missing days (daily_reduction = :mean) before the quarterly mean; many days are unpublished and stay out of the mean rather than being filled. TB3MS is quoted on a discount basis; the two legs are not converted to a common quotation basis. It is a sensitivity/validation series, not an automatic fallback for spread_hqm_corporate.",
         reference_key = :treasury_bill_3m,
+        daily_reduction = :mean,
     ),
     _capex_spec(
         key = :treasury_bill_3m,
         model_vars = Symbol[],
-        provider_series_id = "FRED_TB3MS",
+        provider_series_id = "TB3MS",
         provider = "FRED",
         source_kind = :market_data,
         role = :validation_only,
@@ -1022,7 +1065,7 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
     _capex_spec(
         key = :lend_stance,
         model_vars = [:lend_stance],
-        provider_series_id = "FRED_DRTSCILM",
+        provider_series_id = "DRTSCILM",
         provider = "FRED",
         source_kind = :official_statistic,
         role = :calibration_required,
@@ -1043,7 +1086,7 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
     _capex_spec(
         key = :fin_cond,
         model_vars = [:fin_cond],
-        provider_series_id = "FRED_NFCI",
+        provider_series_id = "NFCI",
         provider = "FRED",
         source_kind = :official_statistic,
         role = :calibration_required,
@@ -1065,7 +1108,7 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
     _capex_spec(
         key = :policy_rate,
         model_vars = [:policy_rate],
-        provider_series_id = "FRED_FEDFUNDS",
+        provider_series_id = "FEDFUNDS",
         provider = "FRED",
         source_kind = :official_statistic,
         role = :calibration_required,
@@ -1108,7 +1151,7 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
     _capex_spec(
         key = :emp_tot,
         model_vars = [:emp_tot],
-        provider_series_id = "FRED_PAYEMS",
+        provider_series_id = "PAYEMS",
         provider = "FRED",
         source_kind = :official_statistic,
         role = :calibration_required,
@@ -1234,7 +1277,7 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
     _capex_spec(
         key = :wage,
         model_vars = [:wage],
-        provider_series_id = "FRED_CES0500000003",
+        provider_series_id = "CES0500000003",
         provider = "FRED",
         source_kind = :official_statistic,
         role = :estimation_input,
@@ -1255,7 +1298,7 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
     _capex_spec(
         key = :hh_income,
         model_vars = [:hh_income],
-        provider_series_id = "FRED_DSPIC96",
+        provider_series_id = "DSPIC96",
         provider = "FRED",
         source_kind = :official_statistic,
         role = :validation_only,
@@ -1278,7 +1321,7 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
     _capex_spec(
         key = :cons,
         model_vars = [:cons],
-        provider_series_id = "FRED_PCECC96",
+        provider_series_id = "PCECC96",
         provider = "FRED",
         source_kind = :official_statistic,
         role = :validation_only,
@@ -1301,7 +1344,7 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
     _capex_spec(
         key = :y_tot,
         model_vars = [:y_tot],
-        provider_series_id = "FRED_GDPC1",
+        provider_series_id = "GDPC1",
         provider = "FRED",
         source_kind = :official_statistic,
         role = :calibration_required,
@@ -1438,6 +1481,9 @@ end
 
 # 2026-09-01 に `economic-data-provider` main の `/v1/catalog/series` と route 実装を
 # 照合した結果。現行endpointは実質金利カタログ専用で、CCC series の取得endpointも無い。
+# 2026-11-08（EDP 契約6.1.0、EDP ADR 073、Issue #314）: `spread` を構成する4系列
+# （HQMCB10YRP・GS10・RIFSPPNA2P2D90NB・TB3MS）は EDP の `us_credit_spread` catalog に
+# 載ったため、`:spread_hqm_corporate` の gap を外した。
 const CAPEX_CC_PROVIDER_GAPS = CapexProviderGap[
     _capex_provider_gap(
         :capex_exec_s1_equipment,
@@ -1492,12 +1538,6 @@ const CAPEX_CC_PROVIDER_GAPS = CapexProviderGap[
         :missing_series,
         "FRB Z.1 aggregate nonfinancial-corporate debt is not catalogued; only the aggregate belongs upstream, sector allocation remains DME measurement metadata.",
         [:EB2],
-    ),
-    _capex_provider_gap(
-        :spread_hqm_corporate,
-        :missing_series,
-        "EDP's `/v1/catalog/series` does not list HQMCB10YRP, GS10, RIFSPPNA2P2D90NB or TB3MS, which the CCC adapter needs for metadata checks; EDP relays catalog-external FRED IDs through `/v1/series/{id}` (EDP ADR 072 decision 5) but these four have no catalog entry. They replace the ICE BofA HY/IG OAS that EDP stopped serving (contract 6.0.0).",
-        [:EB2, :H2, :H5],
     ),
     _capex_provider_gap(
         :lend_stance,
@@ -1566,6 +1606,8 @@ function _capex_series_spec_to_dict(spec::CapexSeriesSpec)::Dict{String, Any}
         "notes" => spec.notes,
         "reference_key" =>
             isnothing(spec.reference_key) ? nothing : String(spec.reference_key),
+        "daily_reduction" =>
+            isnothing(spec.daily_reduction) ? nothing : String(spec.daily_reduction),
     )
 end
 

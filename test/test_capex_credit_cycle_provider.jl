@@ -264,4 +264,166 @@ end
         @test !occursin("secret", repr(ordered))
         @test !occursin("user", repr(ordered))
     end
+    @testset "EDP 6.1.0: bare FRED IDs, daily CP reduction, seasonal-adjustment wording (Issue #314)" begin
+        # 合成（fictional）の応答。形は EDP 6.1.0（EDP ADR 073）の /v1/catalog/series・
+        # /v1/series/{id} に合わせる（us_credit_spread ブロック・"Not Seasonally Adjusted"・
+        # 日次ラベル・null の日）。値は実データではない。
+        spread_keys = [:spread_hqm_corporate, :treasury_10y, :spread_cp_a2p2, :treasury_bill_3m]
+        catalog_item(id, frequency) = Dict{String, Any}(
+            "series_id" => id, "title" => "fictional $id", "country" => "US",
+            "rate_types" => Any[], "role" => "credit_spread_credit_leg", "unit" => "Percent",
+            "frequency" => frequency, "source" => "fred", "provider" => "fred",
+            "source_status" => "available",
+            "seasonal_adjustment" => "Not Seasonally Adjusted",
+            "us_credit_spread" => Dict{String, Any}("pair" => "fictional", "leg" => "credit"),
+        )
+        catalog_json = DME.json_write(Dict{String, Any}(
+            "items" => Any[
+                catalog_item("HQMCB10YRP", "monthly"), catalog_item("GS10", "monthly"),
+                catalog_item("RIFSPPNA2P2D90NB", "daily"), catalog_item("TB3MS", "monthly"),
+            ],
+            "pagination" => Dict{String, Any}("total" => 4, "limit" => nothing, "next_cursor" => nothing),
+            "snapshot" => Dict{String, Any}("version" => "fictional", "contract_version" => "6.1.0"),
+        ))
+        point(label, value) = Dict{String, Any}(
+            "label" => label, "value" => value, "release_date" => nothing,
+            "provenance" => Dict{String, Any}("observation_date" => label, "quality_status" => "ok"),
+        )
+        series_json(id, frequency, points) = DME.json_write(Dict{String, Any}(
+            "id" => id, "source_id" => id, "name" => "fictional $id", "unit" => "Percent",
+            "frequency" => frequency, "currency" => nothing, "points" => points,
+        ))
+        monthly(id, base) = series_json(
+            id, "monthly",
+            Any[point("2026-0$m", base + 0.01 * m) for m in 3:8],
+        )
+        daily_points = Any[
+            point("2026-08-24", 4.60), point("2026-08-25", nothing), point("2026-08-26", 4.62),
+            point("2026-08-27", nothing), point("2026-08-28", 4.64), point("2026-08-31", nothing),
+            point("2026-09-01", 4.70), point("2026-09-02", nothing), point("2026-09-03", nothing),
+            point("2026-09-04", 4.80),
+        ]
+        responses = Dict(
+            "HQMCB10YRP" => monthly("HQMCB10YRP", 5.0),
+            "GS10" => monthly("GS10", 4.0),
+            "RIFSPPNA2P2D90NB" => series_json("RIFSPPNA2P2D90NB", "daily", daily_points),
+            "TB3MS" => monthly("TB3MS", 3.8),
+        )
+        requested = String[]
+        function client_for(responses)
+            return DataProviderClient(
+                mode = :rest_api,
+                base_url = "https://example.invalid",
+                requester = (url, timeout) -> begin
+                    push!(requested, url)
+                    endswith(url, "/v1/catalog/series") && return catalog_json
+                    id = last(split(url, '/'))
+                    haskey(responses, id) && return responses[id]
+                    throw(DME._DataProviderHTTPError(404, "not found", "unsupported_symbol", nothing))
+                end,
+            )
+        end
+
+        @test !any(gap -> gap.key in spread_keys, CAPEX_CC_PROVIDER_GAPS)
+        raw = build_capex_raw_dataset(; client = client_for(responses), keys = spread_keys)
+        # bare FRED IDs only (EDP 6.1.0 rejects FRED_<id> with 404 unsupported_symbol)
+        @test !any(url -> occursin("FRED_", url), requested)
+        @test any(url -> endswith(url, "/v1/series/HQMCB10YRP"), requested)
+        for key in spread_keys
+            obs = raw.observations[key]
+            @test obs.status == :ok
+            # "Not Seasonally Adjusted" and the catalog's "NSA" are the same declaration
+            @test obs.provider_seasonal_adjustment == "Not Seasonally Adjusted"
+            @test isempty(obs.metadata_mismatches)
+        end
+        @test raw.observations[:treasury_10y].provider_frequency == Monthly
+        @test raw.observations[:treasury_10y].series.id == "GS10"
+
+        cp = raw.observations[:spread_cp_a2p2]
+        @test cp.provider_frequency == :daily
+        @test cp.series.frequency == Monthly
+        @test cp.series.dates == ["2026-08", "2026-09"]
+        @test cp.series.values[1] ≈ (4.60 + 4.62 + 4.64) / 3
+        @test cp.series.values[2] ≈ (4.70 + 4.80) / 2
+        reduction = cp.series.metadata["daily_reduction"]
+        @test reduction["method"] == "mean"
+        @test reduction["n_daily_points"] == 10
+        @test reduction["n_daily_missing"] == 5
+        @test reduction["n_months"] == 2
+        @test reduction["n_months_without_observation"] == 0
+        @test reduction["min_days_per_month"] == 2
+        @test (reduction["first_daily_date"], reduction["last_daily_date"]) ==
+              ("2026-08-24", "2026-09-04")
+        @test any(t -> occursin("daily_to_monthly_mean", t), cp.series.metadata["transformations"])
+        # the measurement formula records the reduction
+        @test startswith(
+            DME._capex_measure_series(cp).conversion_formula,
+            "source(daily → monthly :mean)",
+        )
+
+        # determinism: the same responses give the same raw identity
+        again = build_capex_raw_dataset(; client = client_for(responses), keys = spread_keys)
+        @test again.metadata["raw_identity"] == raw.metadata["raw_identity"]
+        # a different daily value inside a month changes the identity
+        changed = copy(responses)
+        changed["RIFSPPNA2P2D90NB"] = series_json(
+            "RIFSPPNA2P2D90NB", "daily",
+            Any[daily_points[1:end-1]..., point("2026-09-04", 4.90)],
+        )
+        @test build_capex_raw_dataset(; client = client_for(changed), keys = spread_keys).metadata["raw_identity"] !=
+              raw.metadata["raw_identity"]
+
+        # a month with no published day stays missing; it is not filled
+        sparse = copy(responses)
+        sparse["RIFSPPNA2P2D90NB"] = series_json(
+            "RIFSPPNA2P2D90NB", "daily",
+            Any[point("2026-07-30", nothing), point("2026-07-31", nothing), daily_points...],
+        )
+        sparse_cp = build_capex_raw_dataset(; client = client_for(sparse), keys = [:spread_cp_a2p2]).observations[:spread_cp_a2p2]
+        @test sparse_cp.status == :ok
+        @test sparse_cp.series.dates == ["2026-07", "2026-08", "2026-09"]
+        @test ismissing(sparse_cp.series.values[1])
+        @test sparse_cp.series.metadata["daily_reduction"]["n_months_without_observation"] == 1
+        @test any(
+            w -> occursin("had no daily observation", w),
+            DME._capex_measure_series(sparse_cp).warnings,
+        )
+
+        # daily data for an entry without daily_reduction is rejected, not reduced
+        daily_gs10 = copy(responses)
+        daily_gs10["GS10"] = series_json("GS10", "daily", daily_points)
+        rejected = build_capex_raw_dataset(; client = client_for(daily_gs10), keys = [:treasury_10y])
+        @test _ccc_status(rejected, :treasury_10y) == :invalid_response
+        @test occursin("daily_reduction", rejected.observations[:treasury_10y].detail)
+
+        # weekly and malformed daily labels are decode errors
+        weekly = copy(responses)
+        weekly["RIFSPPNA2P2D90NB"] = series_json("RIFSPPNA2P2D90NB", "weekly", daily_points)
+        @test _ccc_status(
+            build_capex_raw_dataset(; client = client_for(weekly), keys = [:spread_cp_a2p2]),
+            :spread_cp_a2p2,
+        ) == :invalid_response
+        bad_label = copy(responses)
+        bad_label["RIFSPPNA2P2D90NB"] =
+            series_json("RIFSPPNA2P2D90NB", "daily", Any[point("2026-08", 4.6)])
+        @test _ccc_status(
+            build_capex_raw_dataset(; client = client_for(bad_label), keys = [:spread_cp_a2p2]),
+            :spread_cp_a2p2,
+        ) == :invalid_response
+
+        # a real seasonal-adjustment difference is still reported
+        @test DME._capex_normalized_seasonal_adjustment("Seasonally Adjusted Annual Rate") == "SAAR"
+        @test DME._capex_normalized_seasonal_adjustment("Not Seasonally Adjusted") == "NSA"
+        @test DME._capex_normalized_seasonal_adjustment("SA") == "SA"
+        sa_series = copy(responses)
+        sa_catalog = replace(catalog_json, "Not Seasonally Adjusted" => "Seasonally Adjusted")
+        sa_client = DataProviderClient(
+            mode = :rest_api,
+            base_url = "https://example.invalid",
+            requester = (url, timeout) -> endswith(url, "/v1/catalog/series") ? sa_catalog :
+                                          sa_series[last(split(url, '/'))],
+        )
+        sa_raw = build_capex_raw_dataset(; client = sa_client, keys = [:treasury_10y])
+        @test any(m -> startswith(m, "seasonal_adjustment"), sa_raw.observations[:treasury_10y].metadata_mismatches)
+    end
 end

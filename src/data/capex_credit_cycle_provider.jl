@@ -2,7 +2,11 @@
 #
 # The adapter deliberately stops at provider-normalised observations.  Unit
 # conversion, quarterly aggregation, measurement equations, and model calls
-# belong to later empirical layers.
+# belong to later empirical layers.  The one exception is a catalog entry that
+# declares `daily_reduction = :mean`: `DataSeries` has no daily frequency and
+# EDP does not downsample (EDP ADR 073), so a daily response for such an entry
+# is reduced here to calendar-month means of the non-missing days, and the
+# reduction is recorded in the series metadata (Issue #314).
 
 const CAPEX_CC_RAW_STATUSES =
     (:ok, :missing_series, :provider_error, :invalid_response, :unavailable_upstream)
@@ -14,6 +18,10 @@ One CCC catalog entry together with its provider-normalised raw observation.
 `provider_*` fields report only what EDP declared; they are never filled from
 the catalog's `declared_*` fields.  A non-`:ok` observation has `series ===
 nothing`, so failure cannot be mistaken for an empty or zero-valued series.
+
+`provider_frequency` is a `DataFrequency` when EDP's frequency has one, and
+`:daily` when EDP served a daily series that the catalog reduced to monthly
+(`daily_reduction`); the reduced series itself is `Monthly`.
 """
 struct CapexRawObservation
     key::Symbol
@@ -21,7 +29,7 @@ struct CapexRawObservation
     status::Symbol
     series::Union{DataSeries, Nothing}
     provider_unit::Union{String, Missing}
-    provider_frequency::Union{DataFrequency, Missing}
+    provider_frequency::Union{DataFrequency, Symbol, Missing}
     provider_seasonal_adjustment::Union{String, Missing}
     provider_vintage::Union{String, Missing}
     metadata_mismatches::Vector{String}
@@ -84,12 +92,76 @@ function _capex_provider_required_string(object, field::String)::String
     return value
 end
 
-function _capex_provider_frequency(value::String)::DataFrequency
+function _capex_provider_frequency(value::String)::Union{DataFrequency, Symbol}
     normalized = lowercase(strip(value))
     normalized == "annual" && return Annual
     normalized == "quarterly" && return Quarterly
     normalized == "monthly" && return Monthly
+    # 日次は DataFrequency に無い。daily_reduction を宣言した系列だけが受け付ける
+    # （_capex_reduce_daily_to_monthly）。weekly・event などは受け付けない。
+    normalized == "daily" && return :daily
     throw(_CapexProviderDecodeError("unsupported provider frequency: $value"))
+end
+
+const _CAPEX_DAILY_LABEL = r"^(\d{4})-(\d{2})-(\d{2})$"
+
+"""
+日次の点を暦月ごとの平均（欠測日を除く）へ縮約する（`daily_reduction = :mean`）。
+欠測日を 0 や前後の値で補完しない。月内に有効な日が1日も無ければ、その月は欠測とする。
+期間の始めと終わりの月が暦月の途中から/途中までであっても、利用可能な日の平均とする
+（`first_daily_date`・`last_daily_date` で判別できる）。
+"""
+function _capex_reduce_daily_to_monthly(
+    dates::Vector{String},
+    values::Vector{Union{Float64, Missing}},
+)
+    months = String[]
+    sums = Dict{String, Float64}()
+    counts = Dict{String, Int}()
+    for (label, value) in zip(dates, values)
+        m = match(_CAPEX_DAILY_LABEL, label)
+        m === nothing &&
+            throw(_CapexProviderDecodeError("daily point label must be YYYY-MM-DD: $label"))
+        month = "$(m.captures[1])-$(m.captures[2])"
+        if !haskey(counts, month)
+            push!(months, month)
+            sums[month] = 0.0
+            counts[month] = 0
+        end
+        ismissing(value) && continue
+        sums[month] += value
+        counts[month] += 1
+    end
+    issorted(months) ||
+        throw(_CapexProviderDecodeError("daily points must be sorted ascending by label"))
+    monthly_values = Union{Float64, Missing}[
+        counts[month] == 0 ? missing : sums[month] / counts[month] for month in months
+    ]
+    summary = Dict{String, Any}(
+        "method" => "mean",
+        "provider_frequency" => "daily",
+        "n_daily_points" => length(dates),
+        "n_daily_missing" => count(ismissing, values),
+        "n_months" => length(months),
+        "n_months_without_observation" => count(month -> counts[month] == 0, months),
+        "min_days_per_month" =>
+            isempty(months) ? 0 : minimum(counts[month] for month in months),
+        "first_daily_date" => isempty(dates) ? nothing : first(dates),
+        "last_daily_date" => isempty(dates) ? nothing : last(dates),
+    )
+    return months, monthly_values, summary
+end
+
+"""
+季節調整の表記を比較用に正規化する（例: EDP の FRED 系列が返す "Not Seasonally Adjusted" と
+DME catalog の "NSA"）。保存する provider の値は正規化しない。
+"""
+function _capex_normalized_seasonal_adjustment(value::AbstractString)::String
+    normalized = lowercase(strip(value))
+    normalized == "not seasonally adjusted" && return "NSA"
+    normalized == "seasonally adjusted" && return "SA"
+    normalized == "seasonally adjusted annual rate" && return "SAAR"
+    return strip(value)
 end
 
 function _capex_provider_unknown_unit(unit::String)::Bool
@@ -164,7 +236,8 @@ function _capex_provider_metadata_mismatches(
         "frequency: declared=$(spec.declared_frequency), provider=$frequency",
     )
     if !ismissing(seasonal_adjustment) &&
-       seasonal_adjustment != spec.declared_seasonal_adjustment
+       _capex_normalized_seasonal_adjustment(seasonal_adjustment) !=
+       _capex_normalized_seasonal_adjustment(spec.declared_seasonal_adjustment)
         push!(
             mismatches,
             "seasonal_adjustment: declared=$(spec.declared_seasonal_adjustment), provider=$seasonal_adjustment",
@@ -212,8 +285,16 @@ function _decode_capex_provider_series(
     unit = _capex_provider_required_string(data, "unit")
     _capex_provider_unknown_unit(unit) &&
         throw(_CapexProviderDecodeError("provider unit is unknown"))
-    frequency =
+    provider_frequency =
         _capex_provider_frequency(_capex_provider_required_string(data, "frequency"))
+    provider_frequency === :daily &&
+        spec.daily_reduction === nothing &&
+        throw(
+            _CapexProviderDecodeError(
+                "provider returned a daily series but the catalog entry declares no " *
+                "daily_reduction (declared_frequency=$(spec.declared_frequency))",
+            ),
+        )
     haskey(data, "points") ||
         throw(_CapexProviderDecodeError("required field points is missing"))
     points = data["points"]
@@ -249,6 +330,13 @@ function _decode_capex_provider_series(
     all(ismissing, values) &&
         throw(_CapexProviderEmptySeries("provider returned no usable observations"))
 
+    daily_reduction = nothing
+    frequency = provider_frequency
+    if provider_frequency === :daily
+        dates, values, daily_reduction = _capex_reduce_daily_to_monthly(dates, values)
+        frequency = Monthly
+    end
+
     seasonal_adjustment =
         _capex_provider_metadata_value(data, catalog_entry, "seasonal_adjustment")
     real_nominal = _capex_provider_metadata_value(data, catalog_entry, "real_nominal")
@@ -282,6 +370,10 @@ function _decode_capex_provider_series(
             _capex_provider_json_text(revision_capability),
         "provider_snapshot_version" => snapshot_version,
     )
+    if daily_reduction !== nothing
+        metadata["daily_reduction"] = daily_reduction
+        _append_transform!(metadata, "daily_to_monthly_mean (DME CCC adapter, Issue #314)")
+    end
     source = ismissing(source_agency) ? spec.provider : source_agency
     series = DataSeries(
         id = id,
@@ -296,7 +388,7 @@ function _decode_capex_provider_series(
     return (
         series = series,
         unit = unit,
-        frequency = frequency,
+        frequency = provider_frequency,
         seasonal_adjustment = seasonal_adjustment,
         vintage = vintage,
         mismatches = _capex_provider_metadata_mismatches(
@@ -390,43 +482,50 @@ function _capex_selected_catalog(
     return sort([by_key[key] for key in requested]; by = spec -> String(spec.key))
 end
 
+function _capex_raw_identity_entry(observation::CapexRawObservation)::Dict{String, Any}
+    entry = Dict{String, Any}(
+        "key" => String(observation.key),
+        "provider_series_id" => observation.spec.provider_series_id,
+        "status" => String(observation.status),
+        "provider_unit" => _capex_missing_to_nothing(observation.provider_unit),
+        "provider_frequency" =>
+            ismissing(observation.provider_frequency) ? nothing :
+            string(observation.provider_frequency),
+        "provider_seasonal_adjustment" =>
+            _capex_missing_to_nothing(observation.provider_seasonal_adjustment),
+        "provider_vintage" => _capex_missing_to_nothing(observation.provider_vintage),
+        "metadata_mismatches" => sort(observation.metadata_mismatches),
+        "series" =>
+            observation.series === nothing ? nothing :
+            Dict{String, Any}(
+                "id" => observation.series.id,
+                "name" => observation.series.name,
+                "source" => observation.series.source,
+                "frequency" => string(observation.series.frequency),
+                "unit" => observation.series.unit,
+                "dates" => observation.series.dates,
+                "values" => [
+                    ismissing(value) ? nothing : value for
+                    value in observation.series.values
+                ],
+            ),
+    )
+    # 日次を縮約した系列だけが持つ。既存の系列の identity は変えない（Issue #314）。
+    if observation.series !== nothing &&
+       haskey(observation.series.metadata, "daily_reduction")
+        entry["daily_reduction"] = observation.series.metadata["daily_reduction"]
+    end
+    return entry
+end
+
 function _capex_raw_identity(observations::Dict{Symbol, CapexRawObservation})::String
     ordered =
         sort(collect(values(observations)); by = observation -> String(observation.key))
     payload = Dict{String, Any}(
         "catalog_version" => CAPEX_CC_EMPIRICAL_INTEGRATION_VERSION,
         "integration_version" => CAPEX_CC_EMPIRICAL_INTEGRATION_VERSION,
-        "observations" => [
-            Dict{String, Any}(
-                "key" => String(observation.key),
-                "provider_series_id" => observation.spec.provider_series_id,
-                "status" => String(observation.status),
-                "provider_unit" => _capex_missing_to_nothing(observation.provider_unit),
-                "provider_frequency" =>
-                    ismissing(observation.provider_frequency) ? nothing :
-                    string(observation.provider_frequency),
-                "provider_seasonal_adjustment" => _capex_missing_to_nothing(
-                    observation.provider_seasonal_adjustment,
-                ),
-                "provider_vintage" =>
-                    _capex_missing_to_nothing(observation.provider_vintage),
-                "metadata_mismatches" => sort(observation.metadata_mismatches),
-                "series" =>
-                    observation.series === nothing ? nothing :
-                    Dict{String, Any}(
-                        "id" => observation.series.id,
-                        "name" => observation.series.name,
-                        "source" => observation.series.source,
-                        "frequency" => string(observation.series.frequency),
-                        "unit" => observation.series.unit,
-                        "dates" => observation.series.dates,
-                        "values" => [
-                            ismissing(value) ? nothing : value for
-                            value in observation.series.values
-                        ],
-                    ),
-            ) for observation in ordered
-        ],
+        "observations" =>
+            [_capex_raw_identity_entry(observation) for observation in ordered],
     )
     return "sha256:" * sha256_hex_of_canonical(payload)
 end
