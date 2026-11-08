@@ -92,10 +92,11 @@ include(FIH_DEMO_SCRIPT_PATH)
         keys_seen = Set(entry["key"] for entry in provenance)
         @test keys_seen == Set([
             "long_nominal_yield", "long_real_yield", "inflation_compensation",
-            "ccc_oas", "broad_hy_oas", "sofr", "tgcr", "iorb", "NFCI", "DRTSCILM",
+            "cp_a2p2_nonfinancial_30d", "cp_aa_nonfinancial_30d", "sofr", "tgcr", "iorb",
+            "NFCI", "DRTSCILM",
         ])
         for entry in provenance
-            @test entry["status"] in ("ok", "missing_series", "provider_error", "invalid_response")
+            @test entry["status"] in String.(FINANCIAL_STRESS_RAW_STATUSES)
             @test entry["mode"] == "fixture"
         end
 

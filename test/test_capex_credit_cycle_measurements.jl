@@ -588,4 +588,86 @@ end
         @test ds.metadata["vintage_mode"] == "latest_only"
         @test ds.metadata["data_vintage"] == "unknown"
     end
+
+    @testset "reference_key series are measured as the per-quarter difference (ADR 0029)" begin
+        rate_spec(key; reference_key = nothing, model_vars = [:spread]) = CapexSeriesSpec(;
+            key = key, model_vars = model_vars, provider_series_id = uppercase(string(key)),
+            provider = "TEST", source_kind = :market_data, role = :calibration_required,
+            observability = reference_key === nothing ? :D : :C,
+            methodology = reference_key === nothing ? :direct : :proxy,
+            declared_unit = "Percent", declared_frequency = Monthly,
+            declared_seasonal_adjustment = "NSA", declared_real_nominal = :ratio,
+            level_form = :level, sector_scope = "test scope",
+            scope_bias = reference_key === nothing ? :none : :under,
+            aggregation = :mean, model_timing = :AVG, notes = "test rate entry",
+            reference_key = reference_key,
+        )
+        corp = rate_spec(:corp_yield; reference_key = :tsy_yield)
+        tsy = rate_spec(:tsy_yield; model_vars = Symbol[])
+        corp_values = Any[6.0 + 0.1 * i for i in 1:36]
+        tsy_values = Any[4.0 + 0.05 * i for i in 1:36]
+        tsy_values[34:36] .= missing     # 2003-Q4 is missing in the reference leg only
+        raw = _meas_raw([
+            _meas_obs(corp, _m_series("CORP_YIELD", "2001-01", corp_values)),
+            _meas_obs(tsy, _m_series("TSY_YIELD", "2001-01", tsy_values)),
+        ])
+        ds = build_capex_empirical_dataset(raw)
+        # the reference leg binds the calibration sample; 2003-Q4 is not imputed
+        @test ds.dates == _q_dates("2001-Q1", 11)
+        # 2001-Q1: mean(6.1, 6.2, 6.3) - mean(4.05, 4.10, 4.15) = 2.1
+        @test ds.values[:corp_yield][1] ≈ 2.1
+        @test all(ds.values[:corp_yield] .≈ ds.values[:corp_yield][1] .+ 0.15 .* (0:10))
+        m = ds.measurements[:corp_yield]
+        @test occursin("− tsy_yield[", m.conversion_formula)
+        @test last(m.stages).first == "minus_reference(tsy_yield)"
+        @test any(w -> occursin("constructed as corp_yield − tsy_yield", w), m.warnings)
+        @test ds.quality_flags["per_key"]["corp_yield"]["reference_key"] == "tsy_yield"
+        # the reference leg keeps its own level series
+        @test ds.values[:tsy_yield][1] ≈ 4.1
+
+        # without a measured reference the difference is not invented
+        missing_ref = _meas_raw([
+            _meas_obs(corp, _m_series("CORP_YIELD", "2001-01", corp_values)),
+            _meas_obs(tsy, nothing; status = :missing_series),
+        ])
+        err = try
+            build_capex_empirical_dataset(missing_ref)
+            nothing
+        catch e
+            e
+        end
+        @test err isa ArgumentError
+        @test occursin("corp_yield", sprint(showerror, err))
+
+        # a validation-only spread whose reference fails is recorded, not imputed
+        corp_validation = CapexSeriesSpec(;
+            (f => getfield(corp, f) for f in fieldnames(CapexSeriesSpec) if f != :role)...,
+            role = :validation_only,
+        )
+        level = CapexSeriesSpec(;
+            key = :other_level, model_vars = [:y_tot], provider_series_id = "OTHER_LEVEL",
+            provider = "TEST", source_kind = :official_statistic,
+            role = :calibration_required, observability = :D, methodology = :direct,
+            declared_unit = "test unit", declared_frequency = Quarterly,
+            declared_seasonal_adjustment = "SA", declared_real_nominal = :real,
+            level_form = :level, sector_scope = "test scope", scope_bias = :none,
+            aggregation = :sum, model_timing = :SUM, notes = "test level entry",
+        )
+        tsy_validation = CapexSeriesSpec(;
+            (f => getfield(tsy, f) for f in fieldnames(CapexSeriesSpec) if f != :role)...,
+            role = :validation_only,
+        )
+        partial = _meas_raw([
+            _meas_obs(corp_validation, _m_series("CORP_YIELD", "2001-01", corp_values)),
+            _meas_obs(tsy_validation, nothing; status = :missing_series),
+            _meas_obs(level, _q_series("OTHER_LEVEL", "2001-Q1", collect(1.0:12.0))),
+        ])
+        ds_partial = build_capex_empirical_dataset(partial)
+        flags = ds_partial.quality_flags["per_key"]["corp_yield"]
+        @test flags["state"] == "measurement_failed"
+        @test occursin("tsy_yield", flags["reason"])
+        @test haskey(ds_partial.quality_flags["measurement_failures"], "corp_yield")
+        @test !haskey(ds_partial.measurements, :corp_yield)
+        @test all(ismissing, ds_partial.values[:corp_yield])
+    end
 end

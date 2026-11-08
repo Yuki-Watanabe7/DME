@@ -590,7 +590,7 @@ function _capex_build_target_values(
     _observed(
         :spread,
         :spread,
-        "baseline mean of ICE BofA US High Yield OAS (daily -> monthly -> quarterly mean)",
+        "baseline mean of the HQM 10-year corporate par yield minus the 10-year Treasury CMT yield (monthly -> quarterly mean, per-quarter difference; investment-grade only, scope_bias=:under; ADR 0029)",
         :AVG,
     )
     _observed(

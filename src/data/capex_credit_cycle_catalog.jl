@@ -19,6 +19,11 @@ CCC実証層の論理観測キーと、一次資料で確認した系列定義�
 宣言的な仕様。`declared_*` は DME が一次資料から確認した期待値であり、provider が返す
 metadata を補完する値ではない。provider 側が未申告なら Issue #242 の raw observation は
 `missing` として保持する。
+
+`reference_key` を持つ系列は「この系列 − reference 系列」として measurement 層で構成する
+（両者を四半期化した後、同じ四半期の差を取る。片方が欠測の四半期は欠測のまま。ADR 0029）。
+社債利回り − 国債利回りのように、公表系列がスプレッドそのものを提供しない場合に使う。
+`observability = :C` を要求し、reference 自身は reference を持てない（連鎖させない）。
 """
 struct CapexSeriesSpec
     key::Symbol
@@ -45,6 +50,7 @@ struct CapexSeriesSpec
     availability_start::Union{String, Nothing}
     availability_end::Union{String, Nothing}
     notes::String
+    reference_key::Union{Symbol, Nothing}
 end
 
 function CapexSeriesSpec(;
@@ -72,6 +78,7 @@ function CapexSeriesSpec(;
     availability_start::Union{String, Nothing} = nothing,
     availability_end::Union{String, Nothing} = nothing,
     notes::String,
+    reference_key::Union{Symbol, Nothing} = nothing,
 )
     return CapexSeriesSpec(
         key,
@@ -98,6 +105,7 @@ function CapexSeriesSpec(;
         availability_start,
         availability_end,
         notes,
+        reference_key,
     )
 end
 
@@ -113,6 +121,14 @@ function _validate_capex_series_spec(spec::CapexSeriesSpec, seen::Set{Symbol})::
     push!(seen, spec.key)
     isempty(spec.provider_series_id) &&
         throw(ArgumentError("provider_series_id は空にできません: $(spec.key)"))
+    excluded = _redistribution_excluded_series_id(spec.provider_series_id)
+    excluded === nothing || throw(
+        ArgumentError(
+            "provider_series_id=$(spec.provider_series_id) は再配布できない系列として catalog " *
+            "から除外されています（$(_REDISTRIBUTION_EXCLUDED_SERIES[excluded].reference)）: " *
+            "$(spec.key)",
+        ),
+    )
     isempty(spec.provider) && throw(ArgumentError("provider は空にできません: $(spec.key)"))
     isempty(spec.declared_unit) &&
         throw(ArgumentError("declared_unit は空にできません: $(spec.key)"))
@@ -157,6 +173,71 @@ function _validate_capex_series_spec(spec::CapexSeriesSpec, seen::Set{Symbol})::
        spec.role in (:calibration_required, :estimation_input)
         throw(ArgumentError("E/A 分類を較正・推定入力にできません: $(spec.key)"))
     end
+    if spec.reference_key !== nothing
+        spec.reference_key == spec.key &&
+            throw(ArgumentError("reference_key に自身を指定できません: $(spec.key)"))
+        spec.observability == :C || throw(
+            ArgumentError(
+                "reference_key を持つ系列は構成系列（observability=:C）でなければなりません: " *
+                "$(spec.key)",
+            ),
+        )
+        spec.level_form == :level && !spec.annualized || throw(
+            ArgumentError(
+                "reference_key による差分は水準系列（level_form=:level・annualized=false）に" *
+                "限ります: $(spec.key)",
+            ),
+        )
+        spec.methodology in (:direct, :proxy) || throw(
+            ArgumentError(
+                "reference_key による差分は methodology=:direct/:proxy に限ります" *
+                "（aggregation/allocation と組み合わせない）: $(spec.key)",
+            ),
+        )
+    end
+    return nothing
+end
+
+"""
+reference_key の参照先を catalog 内で検査する。参照先が catalog に無い場合は許す
+（部分 catalog での取得を妨げない。measurement 層が差分を構成できず、その系列を
+`measurement_failed` として記録する）。参照先がある場合は、単位・頻度・時点基準・集計方式が
+一致し、参照先自身が reference を持たず、差分を取れる水準系列であることを要求する。
+"""
+function _validate_capex_reference_keys(catalog::AbstractVector{<:CapexSeriesSpec})::Nothing
+    by_key = Dict(spec.key => spec for spec in catalog)
+    for spec in catalog
+        spec.reference_key === nothing && continue
+        ref = get(by_key, spec.reference_key, nothing)
+        ref === nothing && continue
+        ref.reference_key === nothing || throw(
+            ArgumentError(
+                "reference 系列 $(ref.key) が reference_key を持っています（連鎖させない）: " *
+                "$(spec.key)",
+            ),
+        )
+        ref.observability in (:E, :A) && throw(
+            ArgumentError("reference 系列 $(ref.key) が潜在/観測不能系列です: $(spec.key)"),
+        )
+        ref.level_form == :level && !ref.annualized || throw(
+            ArgumentError(
+                "reference 系列 $(ref.key) が水準系列ではありません: $(spec.key)",
+            ),
+        )
+        for (field, a, b) in (
+            ("declared_unit", spec.declared_unit, ref.declared_unit),
+            ("declared_frequency", spec.declared_frequency, ref.declared_frequency),
+            ("model_timing", spec.model_timing, ref.model_timing),
+            ("aggregation", spec.aggregation, ref.aggregation),
+        )
+            a == b || throw(
+                ArgumentError(
+                    "$(spec.key) と reference 系列 $(ref.key) の $field が一致しません: " *
+                    "$a != $b",
+                ),
+            )
+        end
+    end
     return nothing
 end
 
@@ -172,6 +253,7 @@ function validate_capex_series_catalog(catalog::AbstractVector{<:CapexSeriesSpec
     for spec in catalog
         _validate_capex_series_spec(spec, seen)
     end
+    _validate_capex_reference_keys(catalog)
     return nothing
 end
 
@@ -848,10 +930,35 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
         availability_start = "1947-Q1",
         notes = "BEA aggregate statistic. Use the same allocation key as debt so the derived effective-rate proxy does not hide two allocation choices.",
     ),
+    # spread: 社債スプレッド。ICE BofA の HY/IG OAS（FRED_BAMLH0A0HYM2・FRED_BAMLC0A0CM）は
+    # 再配布できないため使わない（EDP 契約6.0.0・ADR 072、DME ADR 0029）。FRED 区分
+    # "Public Domain: Citation Requested" の利回りから「社債 − 国債」を measurement 層で構成する。
     _capex_spec(
-        key = :spread_hy,
+        key = :spread_hqm_corporate,
         model_vars = [:spread],
-        provider_series_id = "FRED_BAMLH0A0HYM2",
+        provider_series_id = "FRED_HQMCB10YRP",
+        provider = "FRED",
+        source_kind = :market_data,
+        role = :calibration_required,
+        observability = :C,
+        methodology = :proxy,
+        declared_unit = "Percent",
+        declared_frequency = Monthly,
+        declared_seasonal_adjustment = "NSA",
+        declared_real_nominal = :ratio,
+        level_form = :level,
+        sector_scope = "US high-quality (AAA/AA/A) corporate bond par yield at 10 years minus the 10-year Treasury CMT yield; investment-grade only, so it understates the credit risk of high-yield borrowers",
+        scope_bias = :under,
+        aggregation = :mean,
+        model_timing = :AVG,
+        availability_start = "1984-Q1",
+        notes = "U.S. Treasury HQM Corporate Bond Yield Curve 10-year par yield (FRED HQMCB10YRP, Public Domain) minus FRED GS10 (Board H.15, Public Domain), both monthly averages. Replaces the ICE BofA US High Yield OAS, whose redistribution is not permitted (ADR 0029). Par yield is paired with the CMT par yield so the difference does not mix spot and par conventions; it is a spread over Treasuries, not an option-adjusted spread.",
+        reference_key = :treasury_10y,
+    ),
+    _capex_spec(
+        key = :treasury_10y,
+        model_vars = Symbol[],
+        provider_series_id = "FRED_GS10",
         provider = "FRED",
         source_kind = :market_data,
         role = :calibration_required,
@@ -862,33 +969,55 @@ const CAPEX_CC_SERIES_CATALOG = CapexSeriesSpec[
         declared_seasonal_adjustment = "NSA",
         declared_real_nominal = :ratio,
         level_form = :level,
-        sector_scope = "US high-yield corporate option-adjusted spread; economy-wide rather than CCC-sector-specific",
-        scope_bias = :indeterminate,
+        sector_scope = "US Treasury 10-year constant-maturity yield (monthly average); reference leg of spread_hqm_corporate, not a model variable",
+        scope_bias = :none,
         aggregation = :mean,
         model_timing = :AVG,
-        availability_start = "1996-Q4",
-        notes = "ICE BofA US High Yield OAS. Native daily observations must be reduced to monthly before quarterly mean because DataFrequency has no daily variant.",
+        availability_start = "1953-Q2",
+        notes = "Board of Governors H.15 (FRED GS10, Public Domain). Used only as the reference leg of spread_hqm_corporate; it maps to no model variable.",
     ),
     _capex_spec(
-        key = :spread_ig,
+        key = :spread_cp_a2p2,
         model_vars = [:spread],
-        provider_series_id = "FRED_BAMLC0A0CM",
+        provider_series_id = "FRED_RIFSPPNA2P2D90NB",
         provider = "FRED",
         source_kind = :market_data,
         role = :validation_only,
-        observability = :P,
+        observability = :C,
         methodology = :proxy,
         declared_unit = "Percent",
         declared_frequency = Monthly,
         declared_seasonal_adjustment = "NSA",
         declared_real_nominal = :ratio,
         level_form = :level,
-        sector_scope = "US investment-grade corporate OAS; lower-credit-risk concept than high-yield primary spread",
-        scope_bias = :under,
+        sector_scope = "90-day A2/P2 nonfinancial commercial paper rate minus the 3-month Treasury bill rate; short-term borrowing of lower-tier investment-grade issuers, a different tenor and tier from the bond spread",
+        scope_bias = :indeterminate,
         aggregation = :mean,
         model_timing = :AVG,
-        availability_start = "1996-Q4",
-        notes = "ICE BofA US Corporate OAS alternative proxy. It is a sensitivity/validation series, not an automatic fallback that replaces HY.",
+        availability_start = "1998-Q1",
+        notes = "FRB Commercial Paper release (FRED RIFSPPNA2P2D90NB, Public Domain) minus FRED TB3MS (Board H.15, Public Domain). Alternative proxy that replaces the ICE BofA US Corporate OAS (ADR 0029). Native daily CP observations must be reduced to monthly before quarterly mean because DataFrequency has no daily variant. TB3MS is quoted on a discount basis; the two legs are not converted to a common quotation basis. It is a sensitivity/validation series, not an automatic fallback for spread_hqm_corporate.",
+        reference_key = :treasury_bill_3m,
+    ),
+    _capex_spec(
+        key = :treasury_bill_3m,
+        model_vars = Symbol[],
+        provider_series_id = "FRED_TB3MS",
+        provider = "FRED",
+        source_kind = :market_data,
+        role = :validation_only,
+        observability = :D,
+        methodology = :direct,
+        declared_unit = "Percent",
+        declared_frequency = Monthly,
+        declared_seasonal_adjustment = "NSA",
+        declared_real_nominal = :ratio,
+        level_form = :level,
+        sector_scope = "US 3-month Treasury bill secondary-market rate (discount basis, monthly average); reference leg of spread_cp_a2p2, not a model variable",
+        scope_bias = :none,
+        aggregation = :mean,
+        model_timing = :AVG,
+        availability_start = "1934-Q1",
+        notes = "Board of Governors H.15 (FRED TB3MS, Public Domain). Used only as the reference leg of spread_cp_a2p2; it maps to no model variable.",
     ),
     _capex_spec(
         key = :lend_stance,
@@ -1365,9 +1494,9 @@ const CAPEX_CC_PROVIDER_GAPS = CapexProviderGap[
         [:EB2],
     ),
     _capex_provider_gap(
-        :spread_hy,
+        :spread_hqm_corporate,
         :missing_series,
-        "The EDP real-rate catalog does not expose ICE BofA HY/IG OAS series or their observation endpoint.",
+        "EDP's `/v1/catalog/series` does not list HQMCB10YRP, GS10, RIFSPPNA2P2D90NB or TB3MS, which the CCC adapter needs for metadata checks; EDP relays catalog-external FRED IDs through `/v1/series/{id}` (EDP ADR 072 decision 5) but these four have no catalog entry. They replace the ICE BofA HY/IG OAS that EDP stopped serving (contract 6.0.0).",
         [:EB2, :H2, :H5],
     ),
     _capex_provider_gap(
@@ -1435,6 +1564,8 @@ function _capex_series_spec_to_dict(spec::CapexSeriesSpec)::Dict{String, Any}
         "availability_start" => spec.availability_start,
         "availability_end" => spec.availability_end,
         "notes" => spec.notes,
+        "reference_key" =>
+            isnothing(spec.reference_key) ? nothing : String(spec.reference_key),
     )
 end
 

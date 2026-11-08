@@ -44,11 +44,15 @@
 | dimension | 内容 | データ源 |
 |---|---|---|
 | `trigger_state` | 長期名目/実質金利・inflation compensationの `from_date→to_date` 変化（bp） | Part B（`long_rate_shift_components`） |
-| `weak_credit_state` | CCC以下OASの水準・広範HYとの乖離拡大 | Part B（`ccc_minus_broad_hy_oas_bp`） |
+| `weak_credit_state` | 短期CP市場の格付け階層差（30日物 A2/P2 − AA 非金融CP金利）の `from_date→to_date` 変化（bp） | Part B（`cp_a2p2_minus_aa_bp`） |
 | `funding_state` | SOFR/TGCRの政策アンカー（IORB）対比乖離（最新水準） | Part B（`sofr_minus_iorb_bp`・`tgcr_minus_iorb_bp`） |
 | `broad_conditions_state` | NFCI・SLOOSの最新値 | 既存のDME FRED接続 |
 | `model_amplification_state` | CCC historical validation（Issue #247–#251）が確認した credit amplification能力への静的citation | ドキュメント参照のみ |
 | `minsky_diagnostic_state` | Keen/Minsky系Hedge/Speculative/Ponzi診断機構への静的citation | ドキュメント参照のみ |
+
+`weak_credit_state` は assessment 2.0.0・rule 2.0.0（Issue #312）で入力を置き換えました。1.0.0 は ICE BofA の CCC & Lower OAS − US High Yield OAS を用いていましたが、EDP が両系列の提供を停止しました（契約6.0.0。[ADR 0029](../adr/0029-ice-bofa-distribution-stop-and-replacement-indicators.md)）。CP の格付け階層差は短期・投資適格の発行体を観測し、HY・CCC 社債の信用リスクは観測しません。`weak_credit_watch_bps`/`weak_credit_confirmed_bps`（30/75 bp）は 1.0.0 と同じ数値で、新しい指標に対して較正した値ではありません。assessment には `measure`（用いた指標の識別子）と `lower_tier_rate_latest`（A2/P2 金利の最新値）を記録します。
+
+データ由来の3 dimension（`trigger_state`・`weak_credit_state`・`funding_state`）は `input_statuses` に入力系列ごとの raw status を残します。`label = :insufficient_data` のとき、原因が一時的な欠測（`missing_series`・`provider_error` 等）か EDP の提供停止（`distribution_stopped`）か、dataset に含まれていない（`not_requested`）かを区別できます。
 
 ## 実行方法
 
@@ -106,7 +110,7 @@ out = run_financial_instability_holdout_live_snapshot(; outdir = "/path/to/dir")
 
 - `assessment.json`（`financial_instability_assessment_to_dict`。`identity_hash` は `as_of_generated`（実行時刻）を除いた内容のsha256で、同じ入力から常に同じ値になります）
 - `report.md`（人が読むサマリー。liveモードでは観測系列provenanceの要約表を含む）
-- `run_manifest.json`（Issue #271 Part A の freeze 対象: `dme_code_revision`・`rule_version`・`financial_stress_catalog_version`・`edp_identity`（liveモードで `/health` からベストエフォート取得）・`observation_window`（選定ルール・実際の from_date/to_date）・`series_provenance`（EDP8系列 + NFCI + SLOOSそれぞれの `status`/`mode`/`retrieved_at`/最新observation日）・`assessment_identity_hash`）
+- `run_manifest.json`（Issue #271 Part A の freeze 対象: `dme_code_revision`・`rule_version`・`financial_stress_catalog_version`・`edp_identity`（liveモードで `/health` からベストエフォート取得）・`observation_window`（選定ルール・実際の from_date/to_date）・`series_provenance`（EDP経由の8系列 + NFCI + SLOOSそれぞれの `status`/`mode`/`retrieved_at`/最新observation日）・`assessment_identity_hash`）
 
 `artifacts/` は `.gitignore` 対象のためコミットされません。pre-FOMC（Part A）と post-FOMC（Part B）の比較を行う際は `assessment.json`/`run_manifest.json` を保存しておいてください（版情報が全て記録されているため、ファイル自体がfreezeの記録になります）。
 
@@ -130,7 +134,7 @@ pre-FOMCと同じ `lookback_days`（既定値のまま）を使うため、obser
 
 単一の危機確率・景気後退確率スコアではなく、`overall_status` の遷移から導く4値のいずれかです。
 
-1. `rule_version`・`assessment_version`・`financial_stress_catalog_version`・`thresholds` のいずれかが pre/post で一致しない → `:insufficient_comparable_data`（同じruleで比較するという前提が崩れているため。`dme_code_revision` の不一致はこの判定に含めません — バグフィックスなど計算結果に影響しない差もあるため、`version_consistency` に別掲するのみです）。
+1. `rule_version`・`assessment_version`・`financial_stress_catalog_version`・`thresholds` のいずれかが pre/post で一致しない → `:insufficient_comparable_data`（同じruleで比較するという前提が崩れているため。assessment 1.0.0（ICE BofA 指標）と 2.0.0（CP 指標）の比較もこれに当たり、1.0.0 にしか無いフィールドは比較値を `null` にします。`dme_code_revision` の不一致はこの判定に含めません — バグフィックスなど計算結果に影響しない差もあるため、`version_consistency` に別掲するのみです）。
 2. pre または post の `overall_status` が `:insufficient_data` → `:insufficient_comparable_data`。
 3. それ以外は `overall_status` の rank（`FINANCIAL_INSTABILITY_STATUSES` の順）を比較し、上がれば `:hypothesis_strengthened`、下がれば `:hypothesis_weakened`、同じなら `:no_material_change`。
 

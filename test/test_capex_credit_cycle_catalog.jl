@@ -44,7 +44,7 @@ end
     @testset "§12.1-1: shipped catalog is valid and filterable" begin
         @test validate_capex_series_catalog() === nothing
         @test validate_capex_series_catalog(CAPEX_CC_SERIES_CATALOG) === nothing
-        @test length(CAPEX_CC_SERIES_CATALOG) == 49
+        @test length(CAPEX_CC_SERIES_CATALOG) == 51
         @test length(capex_series_catalog(; role = :calibration_required)) > 0
         @test all(
             spec -> spec.role == :calibration_required,
@@ -80,6 +80,86 @@ end
         @test_throws ArgumentError validate_capex_series_catalog([
             _ccc_catalog_spec(model_timing = :SUM, aggregation = :mean),
         ])
+    end
+
+    @testset "spread uses redistributable series only (Issue #312 / ADR 0029)" begin
+        ids = Set(spec.provider_series_id for spec in CAPEX_CC_SERIES_CATALOG)
+        for excluded in keys(DME._REDISTRIBUTION_EXCLUDED_SERIES)
+            @test !("FRED_" * excluded in ids)
+            @test_throws ArgumentError validate_capex_series_catalog([
+                _ccc_catalog_spec(provider_series_id = "FRED_" * excluded),
+            ])
+        end
+        spread_sources = sort([
+            spec.key for spec in CAPEX_CC_SERIES_CATALOG if :spread in spec.model_vars
+        ])
+        @test spread_sources == [:spread_cp_a2p2, :spread_hqm_corporate]
+        primary = only(s for s in CAPEX_CC_SERIES_CATALOG if s.key == :spread_hqm_corporate)
+        @test primary.provider_series_id == "FRED_HQMCB10YRP"
+        @test primary.role == :calibration_required
+        @test (primary.observability, primary.methodology, primary.scope_bias) ==
+              (:C, :proxy, :under)
+        @test primary.reference_key == :treasury_10y
+        alternative = only(s for s in CAPEX_CC_SERIES_CATALOG if s.key == :spread_cp_a2p2)
+        @test alternative.provider_series_id == "FRED_RIFSPPNA2P2D90NB"
+        @test alternative.role == :validation_only
+        @test alternative.reference_key == :treasury_bill_3m
+        refs = Dict(s.key => s for s in CAPEX_CC_SERIES_CATALOG)
+        @test refs[:treasury_10y].provider_series_id == "FRED_GS10"
+        @test refs[:treasury_bill_3m].provider_series_id == "FRED_TB3MS"
+        # reference legs are not model variables, and every declared reference exists
+        @test isempty(refs[:treasury_10y].model_vars)
+        @test isempty(refs[:treasury_bill_3m].model_vars)
+        for spec in CAPEX_CC_SERIES_CATALOG
+            spec.reference_key === nothing || @test haskey(refs, spec.reference_key)
+        end
+        # the reference leg of a calibration-required spread binds the same sample
+        @test refs[:treasury_10y].role == :calibration_required
+    end
+
+    @testset "reference_key validation is fail-closed (ADR 0029)" begin
+        leg(; kwargs...) = _ccc_catalog_spec(;
+            key = :ref_leg, provider_series_id = "TEST_REF", model_timing = :AVG,
+            aggregation = :mean, kwargs...,
+        )
+        diff_spec(; kwargs...) = CapexSeriesSpec(;
+            key = :diff, model_vars = [:spread], provider_series_id = "TEST_DIFF",
+            provider = "TEST", source_kind = :market_data, role = :calibration_required,
+            observability = :C, methodology = :proxy, declared_unit = "Test unit",
+            declared_frequency = Quarterly, declared_seasonal_adjustment = "SA",
+            declared_real_nominal = :ratio, level_form = :level, sector_scope = "test scope",
+            scope_bias = :under, aggregation = :mean, model_timing = :AVG,
+            notes = "test difference entry", reference_key = :ref_leg, kwargs...,
+        )
+        @test validate_capex_series_catalog([diff_spec(), leg()]) === nothing
+        # a reference that is absent from a partial catalog is allowed (measurement fails closed)
+        @test validate_capex_series_catalog([diff_spec()]) === nothing
+        @test_throws ArgumentError validate_capex_series_catalog([diff_spec(reference_key = :diff)])
+        @test_throws ArgumentError validate_capex_series_catalog([diff_spec(observability = :D), leg()])
+        @test_throws ArgumentError validate_capex_series_catalog([
+            diff_spec(methodology = :aggregation, scope_bias = :none), leg(),
+        ])
+        @test_throws ArgumentError validate_capex_series_catalog([
+            diff_spec(level_form = :index, anchor = :baseline_mean), leg(),
+        ])
+        # unit / timing / aggregation mismatches between the legs
+        @test_throws ArgumentError validate_capex_series_catalog([
+            diff_spec(declared_unit = "Other unit"), leg(),
+        ])
+        @test_throws ArgumentError validate_capex_series_catalog([
+            diff_spec(), leg(model_timing = :EOP, aggregation = :end),
+        ])
+        # no chained references
+        chained = CapexSeriesSpec(;
+            key = :ref_leg, model_vars = Symbol[], provider_series_id = "TEST_REF",
+            provider = "TEST", source_kind = :market_data, role = :calibration_required,
+            observability = :C, methodology = :proxy, declared_unit = "Test unit",
+            declared_frequency = Quarterly, declared_seasonal_adjustment = "SA",
+            declared_real_nominal = :ratio, level_form = :level, sector_scope = "test scope",
+            scope_bias = :under, aggregation = :mean, model_timing = :AVG,
+            notes = "chained", reference_key = :other,
+        )
+        @test_throws ArgumentError validate_capex_series_catalog([diff_spec(), chained])
     end
 
     @testset "§12.1-8: documentation and registry have the same series-ID set" begin
@@ -118,6 +198,9 @@ end
         d = capex_series_catalog_to_dict()
         @test d["catalog_version"] == CAPEX_CC_EMPIRICAL_INTEGRATION_VERSION
         @test length(d["series"]) == length(CAPEX_CC_SERIES_CATALOG)
+        hqm = only(x for x in d["series"] if x["key"] == "spread_hqm_corporate")
+        @test hqm["reference_key"] == "treasury_10y"
+        @test all(haskey(x, "reference_key") for x in d["series"])
         @test length(d["provider_gaps"]) == length(CAPEX_CC_PROVIDER_GAPS)
         @test canonical_json_string(d) ==
               canonical_json_string(capex_series_catalog_to_dict())

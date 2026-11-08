@@ -5,7 +5,7 @@
 #   - spread に HY（calibration_required・direct）/IG（validation_only・proxy）の2ソースを持たせる
 #     （axis :proxy）。
 #   - hh_income の観測比較を validation_only の単一 proxy 系列のみで構成する（axis
-#     :series_exclusion。calibration_required系列は除外対象にならないことも spread_hy で確認する）。
+#     :series_exclusion。calibration_required系列は除外対象にならないことも spread_hqm_corporate で確認する）。
 #   - `magnitude_source = :assumed_default` の assumption を1本持つ episode を使う（axis
 #     :event_timing・:event_magnitude）。
 #   - `CapexParameterSet.ranges`/`alternate_specs`（W2/W3）を持つ `kind = :estimated` の
@@ -143,14 +143,14 @@ _ces_obs(spec::CapexSeriesSpec, series::DataSeries) = CapexRawObservation(
 # `hh_income` に validation_only の単一 proxy を持たせた catalog 拡張。
 function _ces_extra_specs()
     return Dict{Symbol, CapexSeriesSpec}(
-        :spread_hy => _ces_spec(
-            :spread_hy;
+        :spread_hqm_corporate => _ces_spec(
+            :spread_hqm_corporate;
             model_vars = [:spread],
             role = :calibration_required,
             methodology = :direct,
         ),
-        :spread_ig => _ces_spec(
-            :spread_ig;
+        :spread_cp_a2p2 => _ces_spec(
+            :spread_cp_a2p2;
             model_vars = [:spread],
             role = :validation_only,
             methodology = :proxy,
@@ -239,8 +239,8 @@ function _ces_fixture_entries(; n::Int = _CES_N, t_zero::Int = _CES_T_ZERO)
         :wagebill_s3 => flat(b.wagebill_s3),
         :wagebill_tot =>
             flat(b.wagebill_s5 + b.wagebill_s1 + b.wagebill_s2 + b.wagebill_s3),
-        :spread_hy => flat(b.spread),
-        :spread_ig => flat(b.spread * 0.6),
+        :spread_hqm_corporate => flat(b.spread),
+        :spread_cp_a2p2 => flat(b.spread * 0.6),
         :policy_rate => policy_rate,
         :cons => flat(b.cons),
         :debt_s1 => flat(b.debt_s1),
@@ -445,13 +445,13 @@ end
 
         @test length(proxy_variants) == 2
         ids = Set(v.spec.id for v in proxy_variants)
-        @test ids == Set(["proxy_spread_only_spread_hy", "proxy_spread_only_spread_ig"])
+        @test ids == Set(["proxy_spread_only_spread_hqm_corporate", "proxy_spread_only_spread_cp_a2p2"])
         @test all(v -> v.status === :evaluated, proxy_variants)
 
         hy_variant =
-            only(v for v in proxy_variants if v.spec.id == "proxy_spread_only_spread_hy")
+            only(v for v in proxy_variants if v.spec.id == "proxy_spread_only_spread_hqm_corporate")
         ig_variant =
-            only(v for v in proxy_variants if v.spec.id == "proxy_spread_only_spread_ig")
+            only(v for v in proxy_variants if v.spec.id == "proxy_spread_only_spread_cp_a2p2")
         # 単独採用したソースの methodology が evidence_tier に反映される（direct vs proxy）。
         @test hy_variant.report.fits[:spread].evidence_tier === :direct
         @test ig_variant.report.fits[:spread].evidence_tier === :proxy
@@ -463,7 +463,7 @@ end
         excl_variants = report.variants[:series_exclusion]
 
         @test !isempty(excl_variants)
-        @test all(v -> v.spec.metadata["excluded_key"] != "spread_hy", excl_variants)
+        @test all(v -> v.spec.metadata["excluded_key"] != "spread_hqm_corporate", excl_variants)
         @test any(v -> v.spec.metadata["excluded_key"] == "hh_income_proxy", excl_variants)
         @test any(v -> v.spec.metadata["role"] == "validation_only", excl_variants)
         @test all(v -> v.status === :evaluated, excl_variants)

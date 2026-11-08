@@ -573,7 +573,7 @@ Issue #165 が分類対象として列挙した各項目について、対応変
 |---|---|---|---|---|---|
 | `EQUITY_VAL` | `equity_val = f(Σ_{s∈SF} profit_s)`（`L27`） | `O` | 半導体・情報技術セクターの株価指数（実質化は #170） | `compare` | 必須 |
 | `COLLATERAL` | `collateral = f(equity_val)`（`L31`） | `P` | 企業純資産・担保余力の proxy | `calibrate` | 必須 |
-| `SPREAD` | `spread = f(coverage_agg, fin_cond) + spread_shock_ex`（`L30`・`L54`）。契約 §4.2 の `G4` 指標群 | `O` | ICE BofA US High Yield OAS `BAMLH0A0HYM2`、US Corporate OAS `BAMLC0A0CM` | `compare` | 必須 |
+| `SPREAD` | `spread = f(coverage_agg, fin_cond) + spread_shock_ex`（`L30`・`L54`）。契約 §4.2 の `G4` 指標群 | `O` | HQM 社債10年 par yield − 10年国債 CMT（`HQMCB10YRP − GS10`）、alternative proxy は 90日物 A2/P2 非金融 CP − 3か月 T-bill（`RIFSPPNA2P2D90NB − TB3MS`）。#312 で ICE BofA の HY/IG OAS（再配布不可）から置換（[実証化戦略](capex_credit_cycle_empirical_strategy.md) §17・ADR 0029） | `compare` | 必須 |
 | `ROLLOVER` | `rollover = f(collateral)`（`L32`）。LTV・財務制限条項の閾値型 | `P` | 社債発行額・借換比率、銀行貸出条件調査 | `calibrate` | 必須 |
 | `LEND_STANCE` | `lend_stance = f(spread)`（`L33`）。契約 §4.2 の `G4` 指標群 | `O` | SLOOS `DRTSCILM`（C&I 貸出基準の引締ネット%）。符号の向きに注意（引締が正） | `compare` | 必須 |
 | `POLICY_RATE` | — | `O` | `FEDFUNDS`（実効FF金利、四半期平均） | `compare` | 必須 |

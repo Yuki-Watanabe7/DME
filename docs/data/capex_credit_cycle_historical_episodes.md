@@ -24,7 +24,7 @@
 
 `NC-1`・`NC-2` のモデル変数への投影は、[実証較正層](../architecture/capex_credit_cycle_empirical_integration.md) §7.2 の `_capex_project_observations`（steady-state target 構築）と同じ規約を四半期ごとに適用する。catalog の `role`（`calibration_required` / `estimation_input` / `validation_only`）は「`:calibration_required` の inner join に使うか」という #243 の軸であり、「この model var を観測できるか」という history 層の問いとは別の軸である。`EB-7` の `required_keys` である `:cons`・`:hh_income` は catalog 上 `role=:validation_only`（両者が proxy でありモデルの `cons` は部門範囲が狭いため、[観測系列 coverage matrix](capex_credit_cycle_series_catalog.md) 参照）だが、観測可能性としては使える。`role` でここを絞ると `EB-7` 対象の2キーが常に「欠損」と誤判定される。
 
-結合規約は、単一ソースはそのまま、複数ソースがすべて `:aggregation`（`capex_exec_s1` の equipment/software/structures、`emp_s3` の machinery/construction/utilities）なら和、それ以外（`spread` の `spread_hy`/`spread_ig`）は平均とする。`allocation` methodology の按分（`nfc_debt_total` 等）は `NC-1`・`NC-2` の対象変数に現れないため実装しない。
+結合規約は、単一ソースはそのまま、複数ソースがすべて `:aggregation`（`capex_exec_s1` の equipment/software/structures、`emp_s3` の machinery/construction/utilities）なら和、それ以外（`spread` の `spread_hqm_corporate`/`spread_cp_a2p2`。いずれも参照脚との差分として測定済みの値）は平均とする。`allocation` methodology の按分（`nfc_debt_total` 等）は `NC-1`・`NC-2` の対象変数に現れないため実装しない。
 
 ### `NC-3` の対象外とした確認事項
 
