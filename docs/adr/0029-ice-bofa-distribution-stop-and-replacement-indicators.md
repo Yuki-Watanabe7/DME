@@ -2,7 +2,7 @@
 
 - **ステータス**: 採用
 - **日付**: 2026-11-08
-- **関連Issue**: [#312](https://github.com/Yuki-Watanabe7/DME/issues/312)（本決定）・Yuki-Watanabe7/economic-data-provider#313（EDP ADR 072、契約6.0.0）
+- **関連Issue**: [#312](https://github.com/Yuki-Watanabe7/DME/issues/312)（本決定）・[#314](https://github.com/Yuki-Watanabe7/DME/issues/314)（改訂1）・Yuki-Watanabe7/economic-data-provider#313（EDP ADR 072、契約6.0.0）・Yuki-Watanabe7/economic-data-provider#317（EDP ADR 073、契約6.1.0）
 - **前提ADR**: [ADR 0028](0028-public-repository-scope.md)（public リポジトリとして公開してよい範囲）・[ADR 0019](0019-long-rate-funding-shock-contract.md)（長期金利・funding-cost shock の分離）・[ADR 0018](0018-capex-credit-cycle-empirical-runtime-contract.md)（CCC 実証層）
 - **関連ドキュメント**: [金融ストレス観測 利用ガイド](../data/financial_stress.md)・[CCC 観測系列 coverage matrix](../data/capex_credit_cycle_series_catalog.md)・[CCC 実証化戦略](../models/capex_credit_cycle_empirical_strategy.md) §17
 
@@ -102,4 +102,44 @@ DME 側には次の問題があった。
 - **観測できなくなるもの**: HY・CCC 社債の信用リスク。`weak_credit_state` は短期・投資適格の CP 発行体を、CCC の主系列は AAA/AA/A の社債を観測する。どちらも信用ストレス局面の拡大幅を HY 指標より小さく見せうる。CP を発行できない、または発行を止めた企業の状態は反映しない。
 - **比較できないもの**: assessment 1.0.0（ICE BofA 指標）と 2.0.0 の比較は、版の不一致により `:insufficient_comparable_data` になる。1.0.0 にしか無いフィールドは比較値を `null` にし、例外で止めない。CCC の `targets_hash` は `spread` の観測式の記述が変わるため変わる（golden fixture を更新した）。
 - **EDP 本番の反映時期に依存しない**: DME は停止系列を要求しなくなるため、EDP の本番イメージ更新の前後どちらでも動く。
-- **残る課題（本ADRの範囲外）**: CCC の provider adapter は EDP の `/v1/catalog/series` に載っている系列だけを取得するため、`spread` の4系列は provider gap（`:missing_series`）のままである。CCC catalog の `FRED_` 接頭辞付き ID を EDP が解決するかは Issue #312 の「関連して見つかったこと」として別途確認する。
+- **残る課題（本ADRの範囲外）**: CCC の provider adapter は EDP の `/v1/catalog/series` に載っている系列だけを取得するため、`spread` の4系列は provider gap（`:missing_series`）のままである。CCC catalog の `FRED_` 接頭辞付き ID を EDP が解決するかは Issue #312 の「関連して見つかったこと」として別途確認する。（改訂1で解消）
+
+## 改訂1（2026-11-08、Issue #314）: EDP 契約6.1.0 への追従
+
+EDP は #317（EDP ADR 073、契約6.1.0）で、本ADRの代替6系列をカタログに登録した。あわせて、FRED の系列は接頭辞の無い ID だけで提供し、`GET /v1/series/FRED_<id>` を 404 `unsupported_symbol` で拒否すると決めた。DME は次のように追従する。
+
+### 決定 R1-1: CCC catalog の FRED の ID は接頭辞なしにする
+
+- `provider = "FRED"` の18 entry の `provider_series_id` から `FRED_` を外す（例: `GS10`）。出所は `provider` で示す。
+- validator は、`provider = "FRED"` の `provider_series_id` に英大文字・数字以外（`FRED_` 接頭辞を含む）があれば拒否する。
+- 要求の直前で接頭辞を外す案（Issue #314 の案B）は採らない。`provider_series_id` は「EDP に要求する ID」であり、`fetch_provider_series` はそれを変換せずに渡す。カタログの照合と応答の `id` の検査も、同じ ID で行う。
+- `BEA_`・`CENSUS_` などの他の接頭辞は変えない。EDP 側の安定 ID としてまだ実装されていない。
+
+### 決定 R1-2: `fred.jl` の `:rest_api` は素の ID で要求し、`DataSeries.id` は `FRED_<id>` に揃える
+
+- `/v1/series/<id>` へ要求する。応答の `id` が要求した ID と一致しなければ受け取らない。
+- 返す `DataSeries.id` は、fixture・live モードと同じ `"FRED_<id>"` にする。`DataSeries.id` を前提にするコード（比較・可視化・`MacroDataset`）を変えずに済む。
+- `series_id` に `FRED_` 接頭辞や英数字以外が含まれていれば、要求する前に `ArgumentError` にする。
+- `_rest_api_frequency` は `monthly`・`quarterly`・`annual` だけを受け付け、`daily`・`weekly`・`event` は `ArgumentError` にする。これまではすべて `Monthly` として扱っていた。e-Stat の `:rest_api` も同じ関数を使う。
+
+### 決定 R1-3: 日次の `RIFSPPNA2P2D90NB` は CCC adapter で暦月平均に縮約する
+
+- `CapexSeriesSpec` に `daily_reduction`（`CAPEX_CC_DAILY_REDUCTIONS = (:mean,)`）を追加する。`:mean` は、provider が日次で返す系列を、raw observation を作る段階で暦月平均（欠測日を除く）の月次系列へ縮約してよいことを宣言する。月次・平均（`declared_frequency = Monthly`・`aggregation = :mean`・`model_timing = :AVG`）の系列だけに付けられる。
+- `DataFrequency` に日次を加える案は採らない。`DataSeries` の頻度ごとの処理に影響が広がる。金融ストレス観測も、同じ理由で日次を `FinancialStressSeries` という別の型で保持している。
+- 月内に公表された日が無い月は欠測のままにする。期間の最初と最後の月が暦月の途中から/途中までの場合も、利用可能な日の平均とする（`first_daily_date`・`last_daily_date` で判別できる）。
+- 縮約の件数は系列の metadata `daily_reduction` に残す。raw observation の `provider_frequency` は `:daily`、縮約後の系列は `Monthly` とする。`raw_identity` には、縮約した系列についてだけ `daily_reduction` を含める（他の系列の identity は変わらない）。measurement の `conversion_formula` は `source(daily → monthly :mean)` から始まる。
+- `daily_reduction` を宣言していない系列が日次で返った場合は、縮約せず `:invalid_response` にする。
+
+### 決定 R1-4: provider gap と季節調整の照合
+
+- `:spread_hqm_corporate` の provider gap を外す。4系列は EDP の `us_credit_spread` カタログに載っている。
+- EDP のカタログは FRED の系列の季節調整を `"Not Seasonally Adjusted"` と表記する。DME の宣言は `"NSA"` である。照合の前に両者を正規化し（`"Not Seasonally Adjusted"` → `NSA`、`"Seasonally Adjusted"` → `SA`、`"Seasonally Adjusted Annual Rate"` → `SAAR`）、同じ宣言を metadata mismatch にしない。保存する provider の値は正規化しない。
+
+### 確認したこと（2026-11-08）
+
+EDP の main（#318 マージ後、契約6.1.0）をローカルにfixture モードで起動し、DME の `build_capex_raw_dataset` で `spread` の4系列を取得した。4系列とも `:ok` になり、metadata mismatch は無かった。`RIFSPPNA2P2D90NB` は日次10点が暦月平均の2か月に縮約された。`fred.jl` の `:rest_api` で `GS10` を取得すると `DataSeries.id == "FRED_GS10"` になり、fixture モードと一致した。EDP の本番への反映はまだで、live の EDP では確認していない。
+
+### 改訂1の影響
+
+- CCC catalog の他の FRED 系列（`PAYEMS`・`PCECC96`・`IPG333S` など）は、接頭辞を外しても EDP のカタログに無い。引き続き `:missing_series`、または既存の provider gap による `:unavailable_upstream` になる。
+- `fred.jl` の fixture・live モードの `_detect_frequency` は、週次・日次も `Monthly` として扱う。改訂1では変えていない（Issue #314 は `:rest_api` を対象とする）。

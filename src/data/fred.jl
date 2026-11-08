@@ -108,10 +108,12 @@ FRED から指定した系列を取得し、`DataSeries` に変換する。
 ## モード別の動作
 - `:fixture`  — `client.fixture_dir/fred/<series_id>.json` を読み込む。
 - `:live`     — FRED API を呼び出す（`FRED_API_KEY` が必要）。
-- `:rest_api` — economic-data-provider REST API 経由でデータを取得する。
+- `:rest_api` — economic-data-provider REST API 経由でデータを取得する。EDP へは接頭辞の無い
+  FRED ID で要求する（`/v1/series/GDPC1`。EDP 契約6.1.0 は `FRED_<id>` を 404 で拒否する、
+  EDP ADR 073）。日次・週次など `DataFrequency` で表せない系列は `ArgumentError` とする。
 
 ## 返り値
-系列 id は `"FRED_<series_id>"` 形式（例: `"FRED_GDPC1"`）。
+系列 id は全モードで `"FRED_<series_id>"` 形式（例: `"FRED_GDPC1"`）。
 
 ## 使用例
 ```julia
@@ -264,9 +266,52 @@ end
 # ----------------------------------------------------------------
 
 function _fetch_fred_rest_api(series_id::String, client::FredClient)::DataSeries
-    url = "$(rstrip(client.rest_api_url, '/'))/v1/series/FRED_$(series_id)"
-    json_str = _http_get(url)
-    _parse_rest_api_response(json_str, "FRED")
+    url = _fred_rest_api_url(series_id, client)
+    return _fred_rest_api_series(_http_get(url), series_id)
+end
+
+"""
+    _fred_rest_api_url(series_id, client) -> String
+
+EDP の `/v1/series/{id}` の URL。`series_id` は接頭辞の無い FRED ID（英数字のみ）でなければ
+ならない。EDP は FRED の系列を素の ID だけで提供し、`FRED_<id>` を 404 `unsupported_symbol`
+で拒否する（EDP 契約6.1.0、EDP ADR 073、Issue #314）。
+"""
+function _fred_rest_api_url(series_id::String, client::FredClient)::String
+    occursin(r"^[A-Za-z0-9]+$", series_id) || throw(
+        ArgumentError(
+            "FRED の系列 ID は英数字だけです（`FRED_` 接頭辞を付けない。例: \"GDPC1\"）: $series_id",
+        ),
+    )
+    return "$(rstrip(client.rest_api_url, '/'))/v1/series/$(series_id)"
+end
+
+"""
+    _fred_rest_api_series(json_str, series_id) -> DataSeries
+
+EDP の応答を `DataSeries` にする。応答の `id` は要求した素の ID と一致しなければならない。
+返す `DataSeries.id` は fixture・live モード（`_parse_fred_json`・`_fetch_fred_live`）と
+同じ `"FRED_<id>"` に揃える。
+"""
+function _fred_rest_api_series(json_str::String, series_id::String)::DataSeries
+    s = _parse_rest_api_response(json_str, "FRED")
+    s.id == series_id || throw(
+        ArgumentError(
+            "EDP の応答の id が要求した FRED ID と一致しません: requested=$series_id, got=$(s.id)",
+        ),
+    )
+    metadata = copy(s.metadata)
+    metadata["provider_series_id"] = s.id
+    return DataSeries(
+        id = "FRED_$(s.id)",
+        name = s.name,
+        source = s.source,
+        frequency = s.frequency,
+        unit = s.unit,
+        dates = s.dates,
+        values = s.values,
+        metadata = metadata,
+    )
 end
 
 """
@@ -274,9 +319,9 @@ end
 
 economic-data-provider REST API の TimeSeries JSON レスポンスを DataSeries に変換する。
 
-レスポンス形式:
+レスポンス形式（`id` は EDP の系列 ID。FRED は素の ID、e-Stat は `ESTAT_<id>`）:
   {
-    "id": "FRED_GDPC1",
+    "id": "GDPC1",
     "source_id": "GDPC1",
     "name": "Real GDP",
     "unit": "...",
@@ -306,14 +351,22 @@ function _parse_rest_api_response(json_str::String, source::String)::DataSeries
     )
 end
 
+"""
+EDP の `frequency` を `DataFrequency` へ対応づける。`DataFrequency` に無い頻度（`daily`・
+`weekly`・`event` など）を `Monthly` へ寄せず、`ArgumentError` にする（Issue #314）。日次の
+系列は `FinancialStressSeries`（`build_financial_stress_raw_dataset`）か、CCC catalog の
+`daily_reduction` で扱う。
+"""
 function _rest_api_frequency(freq_str::String)::DataFrequency
-    if freq_str == "quarterly"
-        return Quarterly
-    elseif freq_str == "annual"
-        return Annual
-    else
-        return Monthly
-    end
+    normalized = lowercase(strip(freq_str))
+    normalized == "quarterly" && return Quarterly
+    normalized == "annual" && return Annual
+    normalized == "monthly" && return Monthly
+    throw(
+        ArgumentError(
+            "EDP の frequency=$(freq_str) は DataSeries（Annual/Quarterly/Monthly）で表せません",
+        ),
+    )
 end
 
 # ----------------------------------------------------------------

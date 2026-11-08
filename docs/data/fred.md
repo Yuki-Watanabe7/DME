@@ -126,7 +126,16 @@ fetch_fred_series(
 ) -> DataSeries
 ```
 
-返り値の `DataSeries` の `id` は `"FRED_<series_id>"` 形式（例: `"FRED_GDPC1"`）。
+返り値の `DataSeries` の `id` は、どのモードでも `"FRED_<series_id>"` 形式（例: `"FRED_GDPC1"`）。
+
+`:rest_api` モード（economic-data-provider 経由）は、EDP へ接頭辞の無い FRED ID で要求する
+（`GET /v1/series/GDPC1`）。EDP は契約6.1.0（EDP ADR 073）で FRED の系列を素の ID だけで
+提供し、`/v1/series/FRED_GDPC1` を 404 `unsupported_symbol` で拒否する。DME は応答の `id` が
+要求した ID と一致することを確かめてから、`DataSeries.id` を `"FRED_<series_id>"` にする
+（Issue #314）。`series_id` に `FRED_` 接頭辞や英数字以外を含めると `ArgumentError` になる。
+EDP の `frequency` が `daily`・`weekly`・`event` の系列は `DataSeries` で表せないため、
+`Monthly` として扱わず `ArgumentError` にする。日次の金融系列は
+[金融ストレス観測](financial_stress.md)の `build_financial_stress_raw_dataset` で取得する。
 
 日付ラベルの形式:
 - 四半期: `"2020-Q1"`, `"2020-Q2"`, ...
